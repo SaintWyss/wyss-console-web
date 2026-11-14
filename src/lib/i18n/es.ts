@@ -3699,8 +3699,8 @@ export const ES: Readonly<Record<string, string>> = {
     'Agrega --skipreview a paru: no te muestra el script de armado de cada paquete del AUR antes de compilarlo. Es más rápido, pero no ves qué ejecuta.',
   'Adds a line that deletes old downloaded packages and keeps the last 2 versions of each, to free disk space. Needs pacman-contrib.':
     'Agrega una línea que borra paquetes viejos descargados y deja las 2 últimas versiones de cada uno, para liberar disco. Necesita pacman-contrib.',
-  'For CachyOS. Same commands as Arch (pacman, and paru for the AUR), and pacman also updates CachyOS’s own optimized repositories. AUR comes switched on, since CachyOS ships paru.':
-    'Para CachyOS. Los mismos comandos que Arch (pacman, y paru para el AUR); pacman además actualiza los repositorios optimizados propios de CachyOS. AUR viene prendido porque CachyOS trae paru.',
+  'For CachyOS. Same commands as Arch (pacman, and paru for the AUR), and pacman also updates CachyOS’s own optimized repositories. AUR comes switched on, since CachyOS ships paru. Only here: finishing with cachy-update.':
+    'Para CachyOS. Los mismos comandos que Arch (pacman, y paru para el AUR); pacman además actualiza los repositorios optimizados propios de CachyOS. AUR viene prendido porque CachyOS trae paru. Solo acá: terminar con cachy-update.',
   'For Arch and the distributions based on it without their own variant (Manjaro, EndeavourOS…). Same commands as CachyOS; AUR comes off, since plain Arch has no paru.':
     'Para Arch y las distros basadas en Arch que no tienen variante propia (Manjaro, EndeavourOS…). Los mismos comandos que CachyOS; AUR viene apagado porque Arch pelado no trae paru.',
   'For Debian, Ubuntu, Linux Mint, Pop!_OS and the rest based on Debian. apt update reads the lists of new versions; full-upgrade installs them.':
