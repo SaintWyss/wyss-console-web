@@ -144,6 +144,8 @@ const isLive = (s: NativeSession) =>
 /** How often the registry is read while the overview is shown, and while something runs. */
 export const OVERVIEW_MS = 2000;
 export const BACKGROUND_MS = 4000;
+/** Consecutive reads that found the readiness lock taken before the page says so. */
+export const BUSY_READS_SHOWN = 3;
 
 export interface NativeState {
   phase: 'idle' | 'loading' | 'ready' | 'failed';
@@ -463,6 +465,7 @@ export class NativeController {
    * unconfirmed until a newer read answers. Only a current read may report an error, and
    * secondary read failures never replace the original mutation failure.
    */
+  private busyReads = 0;
   private readReadiness(): Promise<boolean> {
     if (this.disposed || this.mutations > 0) return Promise.resolve(false);
     const seq = ++this.launcherSeq;
@@ -487,6 +490,7 @@ export class NativeController {
               m9_native_status: launcher.m9_native_status,
             };
           this.m9Uncertain = false;
+          this.busyReads = 0;
           if (this.failure?.code === 'readiness_busy') this.failure = null;
           this.emit();
           return true;
@@ -494,6 +498,16 @@ export class NativeController {
         (error: unknown) => {
           if (seq !== this.launcherSeq || this.disposed) return false;
           this.m9Uncertain = true;
+          // A read that met another writer on the lock says nothing about storage: it is
+          // retried quietly, and only a lock that stays taken for several reads is reported.
+          if (
+            error instanceof NativeCallError &&
+            error.failure.code === 'readiness_busy' &&
+            ++this.busyReads < BUSY_READS_SHOWN
+          ) {
+            this.emit();
+            return false;
+          }
           this.readFailed(error);
           return false;
         },

@@ -194,6 +194,13 @@
                 ? t('Template')
                 : t('Profile')}
           </h3>
+          {#if readOnly}
+            <p class="profile-template-note">
+              {t(
+                'This template comes with the app and cannot be changed. Make a copy to edit it: the copy is yours.',
+              )}
+            </p>
+          {/if}
           <div class="native-field">
             <label for="p-name">{t('Name')}</label>
             <input
@@ -335,8 +342,15 @@
             </p>
           {/if}
 
-          <div class="native-plan-actions">
-            {#if !readOnly}
+          <div class="profile-actions">
+            {#if readOnly}
+              <button
+                type="button"
+                class="action primary"
+                onclick={() => selected && controller.duplicate(selected.id)}
+                >{t('Make a copy to edit')}</button
+              >
+            {:else}
               <button
                 type="submit"
                 class="action primary"
@@ -344,33 +358,36 @@
               >
                 {creating ? t('Create') : t('Save as a new version')}
               </button>
+              {#if selected}
+                <button
+                  type="button"
+                  class="action quiet"
+                  onclick={() => selected && controller.duplicate(selected.id)}
+                  >{t('Make a copy')}</button
+                >
+              {/if}
             {/if}
             {#if selected}
               <button
                 type="button"
-                class="action"
-                onclick={() => selected && controller.duplicate(selected.id)}
-                >{t('Make a copy')}</button
-              >
-              <button
-                type="button"
-                class="action"
+                class="action quiet"
                 onclick={() => selected && controller.exportOne(selected.id)}
                 >{t('Export…')}</button
               >
-              {#if !readOnly}
-                <button
-                  type="button"
-                  class="action"
-                  onclick={() =>
-                    selected && controller.removeProfile(selected.id)}
-                  >{t('Delete')}</button
-                >
-              {/if}
+            {/if}
+            <span class="profile-actions-gap"></span>
+            {#if selected && !readOnly}
+              <button
+                type="button"
+                class="action danger"
+                onclick={() =>
+                  selected && controller.removeProfile(selected.id)}
+                >{t('Delete')}</button
+              >
             {/if}
             <button
               type="button"
-              class="action"
+              class="action quiet"
               onclick={() => controller.edit(null)}>{t('Close')}</button
             >
           </div>

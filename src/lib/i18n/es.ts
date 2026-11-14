@@ -2930,6 +2930,9 @@ export const ES: Readonly<Record<string, string>> = {
   Create: 'Crear',
   'Save as a new version': 'Guardar como versión nueva',
   'Make a copy': 'Hacer una copia',
+  'Make a copy to edit': 'Hacer una copia para editar',
+  'This template comes with the app and cannot be changed. Make a copy to edit it: the copy is yours.':
+    'Esta plantilla viene con la app y no se puede cambiar. Hacé una copia para editarla: la copia es tuya.',
   Versions: 'Versiones',
   current: 'actual',
   'Bring back': 'Volver a esta versión',

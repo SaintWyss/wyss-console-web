@@ -79,17 +79,17 @@
   --radius-lg: 6px;
   --radius-md: 5px;
   --radius-sm: 4px;
-  --text-xs: 12px;
-  --text-sm: 13px;
-  --text-md: 14px;
-  --text-lg: 16px;
-  --text-xl: 18px;
+  --text-xs: 14px;
+  --text-sm: 15px;
+  --text-md: 16px;
+  --text-lg: 19px;
+  --text-xl: 22px;
   --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
   --font-mono:
     'IBM Plex Mono', ui-monospace, 'DejaVu Sans Mono', 'Liberation Mono',
     monospace;
   --sidebar-w: 52px;
-  --control-h: 36px;
+  --control-h: 40px;
   font-family: var(--font-sans);
   font-size: var(--text-md);
   font-synthesis: none;
@@ -3090,7 +3090,7 @@ li.native-row .native-note {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(14rem, 20rem) minmax(0, 1fr);
+  grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
   gap: 14px;
 }
 .native-profile-list,
@@ -3104,10 +3104,34 @@ li.native-row .native-note {
   scrollbar-color: var(--line-strong) transparent;
 }
 .native-profile-editor form {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  max-width: 46rem;
+  gap: 14px;
+}
+.profile-template-note {
+  margin: 0;
+  padding: 10px 14px;
+  color: var(--text);
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+}
+/* Primary first, the rest quiet, Delete and Close apart on the right. */
+.profile-actions {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+.profile-actions-gap {
+  flex: 1;
 }
 .native-profile-item {
   width: 100%;
@@ -3208,7 +3232,7 @@ li.native-row .native-note {
 .native-card h3,
 .native-card h4 {
   margin: 0 0 8px;
-  font-size: var(--text-sm);
+  font-size: var(--text-md);
 }
 .native-card h4 {
   margin-top: 12px;

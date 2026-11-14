@@ -136,8 +136,10 @@ it('reports a contended readiness lock without claiming the private folder is mi
   });
   await settle();
   busy = true;
-  await vi.advanceTimersByTimeAsync(20);
-  await settle();
+  for (let i = 0; i < 4; i++) {
+    await vi.advanceTimersByTimeAsync(2000);
+    await settle();
+  }
   expect(document.body.textContent).toContain('Session storage is busy');
   expect(document.body.textContent).not.toContain('no private folder');
   document.querySelector<HTMLInputElement>('input[value="opencode"]')!.click();
