@@ -21,6 +21,7 @@ use super::terminal::{self, TerminalPlan};
 use crate::agentconfig::catalogue::{
     self, Candidate, Composite, Excluded, FileDigest, LaunchScan, ManagedBy, Scan, SourceReport,
 };
+use crate::agentconfig::guide;
 use crate::configuration::Configuration;
 use crate::host::{client::HostLink, protocol::HostError};
 use crate::native::{arsenal::ArsenalLaunch, capabilities, catalogue::AgentId};
@@ -283,6 +284,8 @@ const COMMANDS: &[&str] = &[
     "arsenal_project_selection",
     "arsenal_sync_status",
     "arsenal_sync_now",
+    "arsenal_guide",
+    "arsenal_guide_body",
 ];
 
 /// What the desktop binary hands to the library for Arsenal: the commands and the state they use.
@@ -319,7 +322,9 @@ pub fn extension() -> wyss_console::Extension {
             arsenal_terminal_bindings,
             arsenal_project_selection,
             arsenal_sync_status,
-            arsenal_sync_now
+            arsenal_sync_now,
+            arsenal_guide,
+            arsenal_guide_body
         ]),
         install: Box::new(|builder| builder.manage(Arsenal::start())),
         on_exit: None,
@@ -402,6 +407,38 @@ async fn arsenal_discover(
         };
         *kept.lock().map_err(|_| ArsenalError::code("internal"))? = details;
         Ok(reply)
+    })
+    .await
+}
+
+/// Every skill and agent each tool reads, for the Guide: read from disk now, links resolved inside
+/// the approved roots. Replaces the places kept from the previous read.
+#[tauri::command]
+async fn arsenal_guide(arsenal: State<'_, Arsenal>) -> Result<guide::Guide, ArsenalError> {
+    let kept = arsenal.guide_handle();
+    blocking(move || {
+        let (reply, places) =
+            guide::scan_process().ok_or(ArsenalError::code("discovery_unavailable"))?;
+        *kept.lock().map_err(|_| ArsenalError::code("internal"))? = places;
+        Ok(reply)
+    })
+    .await
+}
+
+/// The instructions and files of one entry of the last Guide read, named by its id: the window
+/// never names a path.
+#[tauri::command]
+async fn arsenal_guide_body(
+    arsenal: State<'_, Arsenal>,
+    request: IdRequest,
+) -> Result<guide::GuideBody, ArsenalError> {
+    let kept = arsenal.guide_handle();
+    blocking(move || {
+        let places = kept
+            .lock()
+            .map_err(|_| ArsenalError::code("internal"))?
+            .clone();
+        guide::body_process(&places, &request.id).ok_or(ArsenalError::code("not_found"))
     })
     .await
 }

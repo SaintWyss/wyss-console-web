@@ -607,6 +607,9 @@ mod tests {
             // Neither takes a path or a peer; the shared folder is the account's own.
             "allow-arsenal-sync-status",
             "allow-arsenal-sync-now",
+            // The Arsenal Guide: what each tool reads, from disk, and one entry's text by its id.
+            "allow-arsenal-guide",
+            "allow-arsenal-guide-body",
             // Native agent sessions and session profiles (F3, ADR 0035): an agent of the
             // closed catalogue, a project the native dialog returned, a session or a profile
             // of the desktop's own registry. None takes a command, an argument list, an

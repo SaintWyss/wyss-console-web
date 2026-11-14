@@ -66,6 +66,7 @@ pub mod declared;
 pub mod document;
 mod fault;
 mod fsutil;
+pub mod guide;
 mod instruction_template;
 mod inventory;
 pub mod journal;

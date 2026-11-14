@@ -494,6 +494,8 @@ mockIPC((command, payload) => {
         ],
         refused: [],
       };
+    case 'arsenal_guide':
+      return { entries: [], sets: [], truncated: false };
     case 'arsenal_sync_status':
     case 'arsenal_sync_now':
       return {

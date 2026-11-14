@@ -1115,8 +1115,20 @@ fn verdict(text: &str) -> (bool, bool) {
 /// The `description:` of a file's YAML front matter, read from its first kilobytes. A folded (`>`)
 /// or literal (`|`) block is joined onto one line, which is how the list shows it.
 fn description(bytes: &[u8]) -> String {
+    full_description(bytes)
+        .chars()
+        .take(DESCRIPTION_CHARS)
+        .collect()
+}
+
+/// The whole `description:` of a file's front matter, as `description` reads it but not cut short:
+/// the Guide splits it into "what it does" and "use it when", whose markers often come late.
+pub(super) fn full_description(bytes: &[u8]) -> String {
     let head = &bytes[..bytes.len().min(FRONT_MATTER_BYTES)];
-    let Ok(text) = std::str::from_utf8(head) else {
+    // A head cut inside a character keeps what comes before it.
+    let Ok(text) = std::str::from_utf8(head)
+        .or_else(|error| std::str::from_utf8(&head[..error.valid_up_to()]))
+    else {
         return String::new();
     };
     let Some(rest) = text.strip_prefix("---\n") else {
@@ -1125,11 +1137,7 @@ fn description(bytes: &[u8]) -> String {
             .find(|line| line.trim_start().starts_with("description ="))
             .and_then(|line| toml::from_str::<toml::Value>(line).ok())
             .and_then(|value| value.get("description")?.as_str().map(str::to_owned));
-        return toml
-            .unwrap_or_else(|| first_heading(text))
-            .chars()
-            .take(DESCRIPTION_CHARS)
-            .collect();
+        return toml.unwrap_or_else(|| first_heading(text));
     };
     let front = rest.split("\n---").next().unwrap_or_default();
     let mut lines = front.lines();
@@ -1148,14 +1156,11 @@ fn description(bytes: &[u8]) -> String {
             } else {
                 value.trim_matches(|c| c == '"' || c == '\'').to_owned()
             };
-            return result.chars().take(DESCRIPTION_CHARS).collect();
+            return result;
         }
     }
     let body = rest.split_once("\n---").map_or("", |(_, body)| body);
     first_heading(body)
-        .chars()
-        .take(DESCRIPTION_CHARS)
-        .collect()
 }
 
 /// The title of a Markdown file without a `description`, such as a rule: its first `# ` heading.

@@ -228,6 +228,17 @@ it('opens from the rail, reads only while shown, and draws what the desktop answ
     '+ Add',
   ]);
   expect(text(card('anthropic'))).toContain('claude update');
+  // Configuration opens Arsenal's Global page on the tool of its own card.
+  Array.from(card('openai').querySelectorAll<HTMLButtonElement>('button'))
+    .find((b) => text(b) === 'Configuration')!
+    .click();
+  await flush();
+  expect(text(document.querySelector('.ars-tool[aria-selected="true"]'))).toBe(
+    'Codex',
+  );
+  expect(
+    text(document.querySelector('.ars-tree-item[aria-current="page"]')),
+  ).toMatch(/^Global/);
 });
 
 it('adds a tool by name and command, opens it from its file, and makes a launch of it', async () => {

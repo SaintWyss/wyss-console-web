@@ -39,7 +39,11 @@
     /** Opens a terminal in the Console that types `input`, where it is seen. */
     onrun?: (title: string, cwd: string, input: string) => void;
     /** Opens another Personalization tab. */
-    ongo?: (view: 'configuration' | 'credentials') => void;
+    /** Opens a page; Configuration opens on the tool of the card it was chosen from. */
+    ongo?: (
+      view: 'configuration' | 'credentials',
+      tool?: 'claude_code' | 'codex' | 'opencode',
+    ) => void;
     /** A launch was made: Workspace opens on it. */
     onlaunch?: (id: string) => void;
     /** The managed sessions the Sessions view read (Codex only); null before a read. */
@@ -331,7 +335,15 @@
               type="button"
               class="dist-link"
               title={t(VIEW_HINT[view])}
-              onclick={() => ongo(view)}>{t(VIEW_LABEL[view])}</button
+              onclick={() =>
+                ongo(
+                  view,
+                  card.agent === 'claude_code' ||
+                    card.agent === 'codex' ||
+                    card.agent === 'opencode'
+                    ? card.agent
+                    : undefined,
+                )}>{t(VIEW_LABEL[view])}</button
             >
           {/each}
         </div>
@@ -494,7 +506,8 @@
                 'Types “{command}” in a new terminal of the Console, where you see it run.',
                 { command: d.update },
               )}
-              onclick={() => void run(d.id, 'update')}>{t('Update tool')}</button
+              onclick={() => void run(d.id, 'update')}
+              >{t('Update tool')}</button
             >
           {/if}
           <button

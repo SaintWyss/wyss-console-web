@@ -917,3 +917,101 @@ export function parseSyncStatus(value: unknown): SyncStatus {
     peers: list(v.peers, 'peers', parseSyncPeer),
   };
 }
+
+/** The Guide (arsenal-UI-SPEC "Etapa 4"): every skill and agent each tool reads, from disk. */
+export type GuideScope = 'claude' | 'codex' | 'both';
+export interface GuideEntry {
+  id: string;
+  tool: ArsenalProvider;
+  kind: 'skill' | 'agent';
+  name: string;
+  description: string;
+  /** `mine`, `agents`, or the key of a set. */
+  set: string;
+  origin: string;
+  linked_to: string | null;
+  scope: GuideScope | null;
+  codex_differs: boolean;
+  unreadable: string | null;
+}
+export type GuideSetKind =
+  'gsd' | 'repos' | 'plugin' | 'account' | 'bundle' | 'system';
+export interface GuideSet {
+  key: string;
+  tool: ArsenalProvider;
+  kind: GuideSetKind;
+  name: string;
+  version: string;
+  description: string;
+}
+export interface Guide {
+  entries: GuideEntry[];
+  sets: GuideSet[];
+  truncated: boolean;
+}
+export interface GuideBody {
+  id: string;
+  text: string;
+  cut: boolean;
+  files: string[];
+  more_files: number;
+}
+
+const GUIDE_SET_KINDS: readonly GuideSetKind[] = [
+  'gsd',
+  'repos',
+  'plugin',
+  'account',
+  'bundle',
+  'system',
+];
+const GUIDE_SCOPES: readonly GuideScope[] = ['claude', 'codex', 'both'];
+
+function parseGuideEntry(value: unknown): GuideEntry {
+  const v = record(value, 'guide entry');
+  return {
+    id: text(v.id, 'id'),
+    tool: provider(v.tool, 'tool'),
+    kind: oneOf(v.kind, ['skill', 'agent'] as const, 'kind'),
+    name: text(v.name, 'name'),
+    description: text(v.description, 'description'),
+    set: text(v.set, 'set'),
+    origin: text(v.origin, 'origin'),
+    linked_to: nullable(v.linked_to, (x) => text(x, 'linked_to')),
+    scope: nullable(v.scope, (x) => oneOf(x, GUIDE_SCOPES, 'scope')),
+    codex_differs: flag(v.codex_differs, 'codex_differs'),
+    unreadable: nullable(v.unreadable, (x) => text(x, 'unreadable')),
+  };
+}
+
+function parseGuideSet(value: unknown): GuideSet {
+  const v = record(value, 'guide set');
+  return {
+    key: text(v.key, 'key'),
+    tool: provider(v.tool, 'tool'),
+    kind: oneOf(v.kind, GUIDE_SET_KINDS, 'kind'),
+    name: text(v.name, 'name'),
+    version: text(v.version, 'version'),
+    description: text(v.description, 'description'),
+  };
+}
+
+export function parseGuide(value: unknown): Guide {
+  const v = record(value, 'guide');
+  return {
+    entries: list(v.entries, 'entries', parseGuideEntry),
+    sets: list(v.sets, 'sets', parseGuideSet),
+    truncated: flag(v.truncated, 'truncated'),
+  };
+}
+
+export function parseGuideBody(value: unknown): GuideBody {
+  const v = record(value, 'guide body');
+  return {
+    id: text(v.id, 'id'),
+    text: text(v.text, 'text'),
+    cut: flag(v.cut, 'cut'),
+    files: list(v.files, 'files', (x) => text(x, 'file')),
+    more_files: integer(v.more_files, 'more_files'),
+  };
+}

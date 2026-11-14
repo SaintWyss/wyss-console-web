@@ -9,6 +9,12 @@
   import { ApprovalsController } from './lib/features/approvals/controller';
   import ArsenalView from './lib/features/arsenal/ArsenalView.svelte';
   import LibraryView from './lib/features/arsenal/LibraryView.svelte';
+  import ArsenalTree from './lib/features/arsenal/ArsenalTree.svelte';
+  import {
+    GuideStore,
+    type GuideTool,
+  } from './lib/features/arsenal/guide-store.svelte';
+  import { arsenalClient } from './lib/desktop/arsenal-client';
   import { ArsenalController } from './lib/features/arsenal/controller';
   import { ChangesController } from './lib/features/configuration/changes-controller';
   import { ConfigurationController } from './lib/features/configuration/controller';
@@ -338,15 +344,15 @@
   $effect(() => {
     if (inPersonalization(activeView)) personalTab = activeView as ViewId;
   });
-  let arsenalFocus = $state<{ tab: 'global'; at: number } | null>(null);
-  function go(view: ShownView) {
+  const guide = new GuideStore(arsenalClient);
+  function go(view: ShownView, tool?: GuideTool) {
     navigated = true;
     // Models is part of Distributors now: a link or a saved page that names it lands there.
     if (view === 'models') view = 'distributors';
     // Configuration is part of Arsenal now: its Global tab holds the agents' own files.
     if (view === 'configuration') {
       view = 'arsenal';
-      arsenalFocus = { tab: 'global', at: Date.now() };
+      guide.choose({ tool: tool ?? 'claude_code', section: 'global' });
     }
     if (view === 'console') consoleOpened = true;
     activeView = view;
@@ -529,10 +535,24 @@
           <button
             type="button"
             class="personal-tab"
-            aria-current={activeView === tab.id ? 'page' : undefined}
+            class:has-tree={tab.id === 'arsenal'}
+            aria-current={activeView === tab.id && tab.id !== 'arsenal'
+              ? 'page'
+              : undefined}
             title={t(tab.hint)}
             onclick={() => go(tab.id)}>{t(tab.label)}</button
           >
+          {#if tab.id === 'arsenal'}
+            <ArsenalTree
+              store={guide}
+              current={activeView === 'arsenal'}
+              configItems={configuration.reply?.inventory.items ?? []}
+              onpick={(section) => {
+                guide.choose({ section });
+                go('arsenal');
+              }}
+            />
+          {/if}
         {/each}
       </nav>
       <div class="personal-body">
@@ -553,13 +573,11 @@
         />
         <LibraryView
           visible={activeView === 'arsenal'}
-          {arsenal}
-          controller={arsenalController}
+          store={guide}
           {configuration}
           {configurationController}
           {changes}
           {changesController}
-          focus={arsenalFocus}
         />
         <ArsenalView
           visible={activeView === 'arsenal-presets'}

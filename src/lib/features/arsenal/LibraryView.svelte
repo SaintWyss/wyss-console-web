@@ -1,16 +1,10 @@
 <script lang="ts">
   import { msg, t } from '../../i18n/index.svelte';
-  import type { ArsenalProvider, LibraryItem } from '../../contracts/arsenal';
-  import type { ItemKind } from '../../contracts/configuration';
-  import type { ArsenalController, ArsenalState } from './controller';
-  import {
-    GROUP_LABEL,
-    GROUPS,
-    groupFor,
-    knownGroup,
-    type Group,
-  } from './groups';
+  import type { GuideEntry, GuideSetKind } from '../../contracts/arsenal';
+  import type { ConfigItem } from '../../contracts/configuration';
   import ConfigurationView from '../configuration/ConfigurationView.svelte';
+  import ChangePlan from '../configuration/ChangePlan.svelte';
+  import { changeFor } from '../configuration/present';
   import type {
     ConfigurationController,
     ConfigurationState,
@@ -19,151 +13,175 @@
     ChangesController,
     ChangesState,
   } from '../configuration/changes-controller';
+  import { GROUP_HELP, GROUP_LABEL, type Group } from './groups';
+  import {
+    CONFIG_KINDS,
+    blocks,
+    byCategory,
+    entriesOf,
+    firstSentence,
+    helpSkill,
+    splitDescription,
+    usageSection,
+  } from './guide';
+  import type { GuideStore, GuideTool } from './guide-store.svelte';
 
   /**
-   * Arsenal (redesign stage 4, arsenal-UI-SPEC "Etapa 4"): first the tool, then the kind.
-   * Global, Hooks and MCP are the agent's own configuration files (what Configuration was);
-   * Skills and Agents are the library, by category.
+   * Arsenal as a guide (arsenal-UI-SPEC "Etapa 4", plan arsenal-skills-guia, step 1): the tool on
+   * top, the page chosen in the tree at the side, a list and the card of what is open. Global,
+   * Hooks and MCP are the agent's own configuration files, the embedded Configuration view.
    */
   let {
     visible,
-    arsenal,
-    controller,
+    store,
     configuration,
     configurationController,
     changes,
     changesController,
-    focus = null,
   }: {
     visible: boolean;
-    arsenal: ArsenalState;
-    controller: ArsenalController;
+    store: GuideStore;
     configuration: ConfigurationState;
     configurationController: ConfigurationController;
     changes: ChangesState;
     changesController: ChangesController;
-    /** Opened from a "Configuration" link: lands on this tab. */
-    focus?: { tab: 'global'; at: number } | null;
   } = $props();
 
-  type Tab = 'global' | 'skills' | 'agents' | 'hooks' | 'mcp';
-  const TABS: { id: Tab; name: string }[] = [
-    { id: 'global', name: msg('Global') },
-    { id: 'skills', name: msg('Skills') },
-    { id: 'agents', name: msg('Agents') },
-    { id: 'hooks', name: msg('Hooks') },
-    { id: 'mcp', name: msg('MCP') },
-  ];
-  /** What each configuration tab shows of the agent's own files. */
-  const CONFIG_KINDS: Partial<Record<Tab, readonly ItemKind[]>> = {
-    global: ['rule_file', 'model_preference', 'plugin'],
-    hooks: ['hook'],
-    mcp: ['mcp_server'],
-  };
-  const TOOLS: { id: ArsenalProvider; name: string }[] = [
-    { id: 'claude_code', name: 'Claude Code' },
-    { id: 'codex', name: 'Codex' },
-  ];
-
-  let tool = $state<ArsenalProvider>('claude_code');
-  let tab = $state<Tab>('skills');
-  let openId = $state<string | null>(null);
-  let shut = $state<Set<string>>(new Set());
-  let adding = $state(false);
-  let picked = $state<Set<string>>(new Set());
-
-  const isConfig = $derived(tab in CONFIG_KINDS);
-  // The configuration tabs read the agent's own files for the tool chosen here.
-  $effect(() => {
-    if (visible) configurationController.setProvider(tool);
-  });
-  $effect(() => {
-    if (focus) tab = focus.tab;
-  });
-
-  const library = $derived(arsenal.library);
   const configItems = $derived(configuration.reply?.inventory.items ?? []);
-  const customIds = $derived(
-    arsenal.categories.filter((c) => c.name !== null).map((c) => c.id),
-  );
-  const categoryOf = (item: LibraryItem) =>
-    knownGroup(groupFor(item, arsenal.groups[item.id]), customIds);
-  function categoryName(id: string): string {
-    const custom = arsenal.categories.find((c) => c.id === id);
-    if (custom?.name) return custom.name;
-    return t(GROUP_LABEL[id as Group] ?? GROUP_LABEL.other);
-  }
-  const ofKind = (kind: 'skill' | 'agent') =>
-    library.filter((i) => i.provider === tool && i.kind === kind);
-  function count(id: Tab): number {
-    if (id === 'skills') return ofKind('skill').length;
-    if (id === 'agents') return ofKind('agent').length;
-    const kinds = CONFIG_KINDS[id] ?? [];
-    return configItems.filter(
-      (i) => i.provider === tool && kinds.includes(i.kind),
-    ).length;
-  }
-  /** The tab's items by category, in screen order; only categories that hold something. */
-  const groups = $derived.by(() => {
-    if (tab !== 'skills' && tab !== 'agents') return [];
-    const items = ofKind(tab === 'skills' ? 'skill' : 'agent');
-    return [...GROUPS, ...customIds]
-      .map((id) => ({
-        id,
-        items: items
-          .filter((i) => categoryOf(i) === id)
-          .sort((a, b) => a.name.localeCompare(b.name)),
-      }))
-      .filter((g) => g.items.length > 0);
+  const TOOLS = $derived.by(() => {
+    const tools: { id: GuideTool; name: string }[] = [
+      { id: 'claude_code', name: 'Claude Code' },
+      { id: 'codex', name: 'Codex' },
+    ];
+    // OpenCode has no skills; it is offered when its configuration holds something.
+    if (configItems.some((item) => item.provider === 'opencode'))
+      tools.push({ id: 'opencode', name: 'OpenCode' });
+    return tools;
   });
 
-  function toggleGroup(id: string) {
-    shut = shut.has(id)
-      ? new Set([...shut].filter((x) => x !== id))
-      : new Set([...shut, id]);
+  $effect(() => {
+    if (visible) store.ensure();
+  });
+  $effect(() => {
+    if (visible) configurationController.setProvider(store.tool);
+  });
+  $effect(() => {
+    // OpenCode has only its configuration pages.
+    if (
+      store.tool === 'opencode' &&
+      !['hooks', 'mcp', 'global'].includes(store.section)
+    )
+      store.choose({ section: 'global' });
+  });
+
+  const section = $derived(store.section);
+  const configKinds = $derived(
+    section === 'global' || section === 'hooks' || section === 'mcp'
+      ? CONFIG_KINDS[section]
+      : null,
+  );
+  const skillTool = $derived(store.tool === 'opencode' ? null : store.tool);
+  const setKey = $derived(
+    section.startsWith('set:') ? section.slice('set:'.length) : null,
+  );
+  const set = $derived(
+    setKey === null
+      ? null
+      : (store.guide?.sets.find((s) => s.key === setKey) ?? null),
+  );
+  const listed = $derived.by(() => {
+    if (skillTool === null) return [];
+    if (section === 'mine') return entriesOf(store.guide, skillTool, 'mine');
+    if (section === 'agents')
+      return entriesOf(store.guide, skillTool, 'agents');
+    if (setKey !== null) return entriesOf(store.guide, skillTool, setKey);
+    return [];
+  });
+  const categories = $derived(section === 'mine' ? byCategory(listed) : []);
+  const help = $derived(set ? helpSkill(listed) : null);
+  const open = $derived(
+    store.openId === null
+      ? null
+      : (store.guide?.entries.find((e) => e.id === store.openId) ?? null),
+  );
+
+  let opened = $state<Set<string>>(new Set());
+  function toggleCategory(id: string) {
+    opened = opened.has(id)
+      ? new Set([...opened].filter((x) => x !== id))
+      : new Set([...opened, id]);
   }
-  function toggleOpen(item: LibraryItem) {
-    if (openId === item.id) {
-      openId = null;
+
+  const SET_NAME: Partial<Record<GuideSetKind, string>> = {
+    account: msg('Claude account'),
+    system: msg('Included with Codex'),
+    repos: msg('Git repos'),
+  };
+  const SET_ABOUT: Record<GuideSetKind, string> = {
+    gsd: msg(
+      'A method for planning, building and checking work in phases. Its skills and agents are linked in from its own install.',
+    ),
+    plugin: msg('A plugin installed for this tool.'),
+    account: msg('Skills that come with your Claude account.'),
+    bundle: msg('Skills one tool installed in a batch.'),
+    system: msg('Skills Codex installs and replaces itself.'),
+    repos: msg('Skills that are a Git repository of their own.'),
+  };
+  const UNREADABLE: Record<string, string> = {
+    outside_roots: msg('its link leads out of the agents’ folders'),
+    broken_link: msg('its link leads nowhere'),
+    no_skill_file: msg('it has no SKILL.md'),
+    unreadable: msg('the file cannot be read'),
+  };
+  const SCOPE_LABEL = {
+    claude: msg('Claude'),
+    codex: msg('Codex'),
+    both: msg('Both · global'),
+  } as const;
+  const SCOPE_HELP = {
+    claude: msg('Only Claude Code sees it.'),
+    codex: msg('Only Codex sees it.'),
+    both: msg(
+      'It is in the folders both tools read, so it loads in every session of each.',
+    ),
+  } as const;
+
+  const split = $derived(open ? splitDescription(open.description) : null);
+  const usage = $derived(store.body ? usageSection(store.body.text) : null);
+  const body = $derived(store.body ? blocks(store.body.text) : []);
+  /** The Configuration entry that switches this skill on and off, when there is one. */
+  const switchItem = $derived.by((): ConfigItem | null => {
+    if (!open || open.kind !== 'skill' || open.set !== 'mine') return null;
+    return (
+      configItems.find(
+        (item) =>
+          item.kind === 'skill' &&
+          item.provider === open.tool &&
+          // The account's own entry: an open project's skill of that name is another one.
+          item.scope !== 'project' &&
+          item.name === open.name &&
+          changeFor(item) !== null,
+      ) ?? null
+    );
+  });
+  const switchChange = $derived(switchItem ? changeFor(switchItem) : null);
+
+  function row(entry: GuideEntry): string {
+    if (entry.unreadable) return t('Its text could not be read.');
+    if (entry.description === '') return t('Its file has no description.');
+    return firstSentence(entry.description);
+  }
+  function choose(entry: GuideEntry) {
+    if (store.openId === entry.id) {
+      store.close();
       return;
     }
-    openId = item.id;
-    void controller.open(item.id);
+    void store.open(entry.id);
   }
-
-  const candidates = $derived(
-    (arsenal.discover?.candidates ?? []).filter(
-      (c) =>
-        c.provider === tool &&
-        c.kind === (tab === 'agents' ? 'agent' : 'skill') &&
-        c.importable &&
-        (c.status === 'not_imported' || c.status === 'source_changed'),
-    ),
-  );
-  function startAdding() {
-    adding = !adding;
-    if (adding) {
-      picked = new Set(candidates.map((c) => c.id));
-      if (arsenal.discover === null) void controller.discover();
-    }
-  }
-  async function importPicked() {
-    for (const id of picked) await controller.importCandidate(id);
-    picked = new Set();
-    adding = false;
-    await controller.refresh();
-  }
-  function flip(id: string) {
-    picked = picked.has(id)
-      ? new Set([...picked].filter((x) => x !== id))
-      : new Set([...picked, id]);
-  }
-  function choose(next: { tool?: ArsenalProvider; tab?: Tab }) {
-    if (next.tool) tool = next.tool;
-    if (next.tab) tab = next.tab;
-    openId = null;
-    adding = false;
-  }
+  let cardTitle = $state<HTMLHeadingElement | null>(null);
+  $effect(() => {
+    if (open && cardTitle) cardTitle.focus({ preventScroll: true });
+  });
 </script>
 
 <section
@@ -178,159 +196,298 @@
         type="button"
         role="tab"
         class="ars-tool"
-        aria-selected={tool === x.id}
-        onclick={() => choose({ tool: x.id })}>{x.name}</button
-      >
-    {/each}
-  </div>
-  <div class="ars-kinds" role="tablist" aria-label={t('Kind')}>
-    {#each TABS as x (x.id)}
-      <button
-        type="button"
-        role="tab"
-        class="ars-kind"
-        aria-selected={tab === x.id}
-        onclick={() => choose({ tab: x.id })}
-        >{t(x.name)} <span class="ars-count">{count(x.id)}</span></button
+        aria-selected={store.tool === x.id}
+        onclick={() => store.choose({ tool: x.id })}>{x.name}</button
       >
     {/each}
   </div>
 
-  <div class="ars-config" hidden={!isConfig}>
-    <ConfigurationView
-      visible={visible && isConfig}
-      embedded
-      kinds={CONFIG_KINDS[tab] ?? []}
-      {configuration}
-      controller={configurationController}
-      {changes}
-      {changesController}
-    />
-  </div>
+  {#if configKinds !== null}
+    <div class="ars-config">
+      <ConfigurationView
+        visible={visible && configKinds !== null}
+        embedded
+        kinds={configKinds}
+        {configuration}
+        controller={configurationController}
+        {changes}
+        {changesController}
+      />
+    </div>
+  {:else if section === 'guide'}
+    <div class="ars-body ars-guide">
+      <h2 class="ars-guide-title">{t('What a skill is')}</h2>
+      <ol class="ars-guide-lines">
+        <li>
+          {t(
+            'A skill is an instruction for how to do something, kept in a folder with a SKILL.md.',
+          )}
+        </li>
+        <li>
+          {t(
+            'When it starts, Claude reads only each skill’s name and description; if what you ask matches, it opens the whole skill and follows it.',
+          )}
+        </li>
+        <li>
+          {t(
+            'You use one by typing /name or by asking for what its “Use it when” says.',
+          )}
+        </li>
+      </ol>
+      <p class="lib-muted">
+        {t(
+          'Mine are the ones in your own folder. Sets come from outside: GSD Core, plugins, your account. Open one at the side to see what it holds.',
+        )}
+      </p>
+      {#if store.failed}
+        <p class="notice" data-tone="error" role="alert">
+          {t('The skills on disk could not be read.')}
+          <button type="button" class="action" onclick={() => void store.load()}
+            >{t('Try again')}</button
+          >
+        </p>
+      {:else if store.guide?.truncated}
+        <p class="notice" data-tone="warn">
+          {t('A folder holds more than is read: the lists are incomplete.')}
+        </p>
+      {/if}
+    </div>
+  {:else}
+    <div class="ars-split" class:carded={open !== null}>
+      <div class="ars-list">
+        {#if set}
+          <header class="ars-set-head">
+            <h2>
+              {SET_NAME[set.kind] ? t(SET_NAME[set.kind] ?? '') : set.name}
+              {#if set.version}<span class="ars-count">{set.version}</span>{/if}
+            </h2>
+            <p>{set.description || t(SET_ABOUT[set.kind])}</p>
+            {#if help}
+              <p>
+                <strong>{t('Start with /{name}', { name: help })}</strong>
+              </p>
+            {/if}
+            <p class="lib-muted">
+              {t(
+                'They come from outside and update themselves: they are not edited here.',
+              )}
+            </p>
+          </header>
+        {/if}
+        {#if store.guide === null}
+          <p class="lib-muted" role="status">{t('Reading…')}</p>
+        {:else if listed.length === 0}
+          <p class="lib-muted">{t('Nothing here.')}</p>
+        {/if}
 
-  {#if !isConfig}
-    <div class="ars-body">
-      <div class="ars-bar">
-        <button
-          type="button"
-          class="action"
-          aria-expanded={adding}
-          onclick={startAdding}>{t('Add')}</button
-        >
-      </div>
-
-      {#if adding}
-        <div class="lib-add">
-          <p class="lib-muted">
-            {t(
-              'What Wyss Console found in your folders and is not in the library yet. It is copied to your library; your original files are not touched.',
-            )}
-          </p>
-          {#if arsenal.discovering}
-            <p class="lib-muted" role="status">{t('Reading…')}</p>
-          {:else if candidates.length === 0}
-            <p class="lib-muted">{t('Nothing found to bring.')}</p>
-          {/if}
-          <ul class="lib-picks">
-            {#each candidates as c (c.id)}
+        {#snippet rows(entries: readonly GuideEntry[])}
+          <ul class="ars-rows">
+            {#each entries as entry (entry.id)}
               <li>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={picked.has(c.id)}
-                    onchange={() => flip(c.id)}
-                  />
-                  <span class="lib-name">{c.name}</span>
-                  <span class="lib-desc">{c.description}</span>
-                </label>
+                <button
+                  type="button"
+                  class="ars-row"
+                  aria-expanded={store.openId === entry.id}
+                  onclick={() => choose(entry)}
+                >
+                  <span class="lib-name" title={entry.name}>{entry.name}</span>
+                  <span class="lib-desc">{row(entry)}</span>
+                </button>
               </li>
             {/each}
           </ul>
-          <div class="lib-actions">
-            <button type="button" class="action quiet" onclick={startAdding}
-              >{t('Cancel')}</button
-            >
-            <button
-              type="button"
-              class="action primary"
-              disabled={picked.size === 0 || arsenal.busy !== null}
-              onclick={() => void importPicked()}
-              >{t('Import {n} items', { n: picked.size })}</button
-            >
-          </div>
-        </div>
-      {/if}
+        {/snippet}
 
-      {#if groups.length === 0 && !adding}
-        <p class="lib-muted">
-          {t('Nothing here yet. Add brings what is already on your computer.')}
-        </p>
-      {/if}
-      {#each groups as g (g.id)}
-        {@const open = !shut.has(g.id)}
-        <section class="ars-group">
-          <h3>
-            <button
-              type="button"
-              class="ars-group-head"
-              aria-expanded={open}
-              onclick={() => toggleGroup(g.id)}
-              ><span class="ars-chevron" aria-hidden="true"
-                >{open ? '▾' : '▸'}</span
-              >
-              {categoryName(g.id)}
-              <span class="ars-count">{g.items.length}</span></button
-            >
-          </h3>
-          {#if open}
-            <ul class="ars-rows">
-              {#each g.items as item (item.id)}
-                {@const isOpen = openId === item.id}
-                {@const detail =
-                  arsenal.opened?.summary.id === item.id
-                    ? arsenal.opened
-                    : null}
-                <li>
+        {#if section === 'mine'}
+          {#each categories as c (c.group)}
+            {@const isOpen = opened.has(c.group)}
+            <section class="ars-group">
+              <h3>
+                <button
+                  type="button"
+                  class="ars-group-head"
+                  aria-expanded={isOpen}
+                  onclick={() => toggleCategory(c.group)}
+                >
+                  <span class="ars-chevron" aria-hidden="true"
+                    >{isOpen ? '▾' : '▸'}</span
+                  >
+                  <span class="ars-group-text">
+                    <span
+                      >{t(GROUP_LABEL[c.group as Group])}
+                      <span class="ars-count">{c.entries.length}</span></span
+                    >
+                    <span class="ars-group-help"
+                      >{t(GROUP_HELP[c.group as Group])}</span
+                    >
+                  </span>
+                </button>
+              </h3>
+              {#if isOpen}{@render rows(c.entries)}{/if}
+            </section>
+          {/each}
+        {:else}
+          {@render rows(listed)}
+        {/if}
+      </div>
+
+      {#if open}
+        <article class="ars-card" aria-labelledby="ars-card-title">
+          <button
+            type="button"
+            class="action quiet ars-back"
+            onclick={() => store.close()}>{t('Back')}</button
+          >
+          <h2 id="ars-card-title" tabindex="-1" bind:this={cardTitle}>
+            {open.name}
+            {#if open.scope}<span class="ars-scope"
+                >{t(SCOPE_LABEL[open.scope])}</span
+              >{/if}
+          </h2>
+
+          {#if open.unreadable}
+            <p class="notice" data-tone="warn">
+              {t('Its text could not be read ({reason}).', {
+                reason: t(UNREADABLE[open.unreadable] ?? UNREADABLE.unreadable),
+              })}
+            </p>
+          {:else if split}
+            <section>
+              <h3>{t('What it does')}</h3>
+              <p>{split.what || t('Its file has no description.')}</p>
+            </section>
+            {#if split.when}
+              <section>
+                <h3>{t('Use it when')}</h3>
+                <p>{split.when}</p>
+              </section>
+            {/if}
+            {#if split.whenNot}
+              <section>
+                <h3>{t('Do not use it when')}</h3>
+                <p>{split.whenNot}</p>
+              </section>
+            {/if}
+            {#if usage}
+              <section>
+                <h3>{t('How it is used')}</h3>
+                <pre class="lib-pre">{usage}</pre>
+              </section>
+            {/if}
+          {/if}
+
+          {#if switchItem && switchChange}
+            <section>
+              <h3>{t('State')}</h3>
+              <p class="ars-state">
+                <span
+                  >{switchItem.persisted === 'present_disabled'
+                    ? t('Switched off')
+                    : t('Switched on')}</span
+                >
+                <button
+                  type="button"
+                  class="action"
+                  disabled={changes.planning || changes.applying}
+                  onclick={() =>
+                    changesController.draft(
+                      switchChange.operation,
+                      switchItem.id,
+                    )}
+                  >{switchItem.persisted === 'present_disabled'
+                    ? t('Switch on')
+                    : t('Switch off')}</button
+                >
+                {#if changes.lastChange && !changes.plan}
                   <button
                     type="button"
-                    class="ars-row"
-                    aria-expanded={isOpen}
-                    onclick={() => toggleOpen(item)}
+                    class="action quiet"
+                    disabled={changes.planning || changes.applying}
+                    onclick={() =>
+                      changesController.undo(changes.lastChange ?? '')}
+                    >{t('Undo')}</button
                   >
-                    <span class="lib-name" title={item.name}>{item.name}</span>
-                    <span class="lib-desc" title={item.description}
-                      >{item.description}</span
-                    >
-                  </button>
-                  {#if isOpen}
-                    <div class="ars-detail">
-                      <p>{item.description}</p>
-                      {#if detail}
-                        <ul class="lib-files">
-                          {#each detail.files as f (f.path)}
-                            <li>
-                              <button
-                                type="button"
-                                class="lib-file"
-                                onclick={() => void controller.showFile(f.path)}
-                                >{f.path}</button
-                              >
-                            </li>
-                          {/each}
-                        </ul>
-                        {#if arsenal.file}<pre class="lib-pre">{arsenal.file
-                              .text}</pre>{/if}
-                      {:else}
-                        <p class="lib-muted" role="status">{t('Reading…')}</p>
-                      {/if}
-                    </div>
-                  {/if}
-                </li>
-              {/each}
-            </ul>
+                {/if}
+              </p>
+              <ChangePlan {changes} {changesController} />
+            </section>
           {/if}
-        </section>
-      {/each}
+
+          {#if !open.unreadable}
+            <details class="ars-fold">
+              <summary>{t('Instructions')}</summary>
+              {#if store.bodyLoading}
+                <p class="lib-muted" role="status">{t('Reading…')}</p>
+              {:else if store.bodyFailed}
+                <p class="notice" data-tone="error">
+                  {t('The file could not be read.')}
+                </p>
+              {:else if store.body}
+                <div class="ars-md">
+                  {#each body as b, i (i)}
+                    {#if b.kind === 'heading'}
+                      <p class="ars-md-h" data-level={b.level}>{b.text}</p>
+                    {:else if b.kind === 'paragraph'}
+                      <p>{b.text}</p>
+                    {:else if b.kind === 'list'}
+                      <ul>
+                        {#each b.items as item, j (j)}<li>{item}</li>{/each}
+                      </ul>
+                    {:else}
+                      <pre class="lib-pre">{b.text}</pre>
+                    {/if}
+                  {/each}
+                  {#if store.body.cut}
+                    <p class="lib-muted">
+                      {t('Only the first 256 KB are shown.')}
+                    </p>
+                  {/if}
+                </div>
+              {/if}
+            </details>
+            {#if store.body && open.kind === 'skill'}
+              <details class="ars-fold">
+                <summary
+                  >{t('Files ({n})', {
+                    n: store.body.files.length + store.body.more_files,
+                  })}</summary
+                >
+                <ul class="lib-files">
+                  {#each store.body.files as f (f)}
+                    <li class="mono">{f}</li>
+                  {/each}
+                  {#if store.body.more_files > 0}
+                    <li class="lib-muted">
+                      {t('and {n} more', { n: store.body.more_files })}
+                    </li>
+                  {/if}
+                </ul>
+              </details>
+            {/if}
+          {/if}
+
+          <section>
+            <h3>{t('Scope')}</h3>
+            {#if open.scope}
+              <p>
+                <strong>{t(SCOPE_LABEL[open.scope])}</strong>:
+                {t(SCOPE_HELP[open.scope])}
+              </p>
+            {/if}
+            {#if open.codex_differs}
+              <p>{t('Codex’s copy is different.')}</p>
+            {/if}
+            <p class="mono ars-where">{open.origin}</p>
+            {#if open.linked_to}
+              <p class="mono ars-where">→ {open.linked_to}</p>
+            {/if}
+          </section>
+        </article>
+      {:else}
+        <p class="ars-card ars-card-empty lib-muted">
+          {t('Choose a skill to see what it does.')}
+        </p>
+      {/if}
     </div>
   {/if}
 </section>

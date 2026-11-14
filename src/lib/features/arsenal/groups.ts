@@ -47,6 +47,61 @@ export const GROUP_LABEL: Record<Group, string> = {
   other: msg('Other'),
 };
 
+/** What each category is for, in one phrase. */
+export const GROUP_HELP: Record<Group, string> = {
+  rules: msg(
+    'Rules the agent always follows: standing instructions read when every session starts.',
+  ),
+  models: msg(
+    'Model profiles (astra, luna, sol) that choose which model and effort a task runs with.',
+  ),
+  integrations: msg(
+    'MCP servers: connections to outside tools such as Notion, a browser or library docs.',
+  ),
+  automations: msg(
+    'Hooks that run by themselves at moments of the session and are not about security.',
+  ),
+  security: msg(
+    'Checks for security problems: audits, threat reviews and guards against dangerous commands.',
+  ),
+  debug: msg(
+    'Finding why something fails: method to chase a bug down to its cause.',
+  ),
+  content: msg(
+    'Writing for the web and social media, and search ranking (SEO).',
+  ),
+  motion: msg('Animation, 3D and video.'),
+  design: msg(
+    'Designing screens: visual direction, components, accessibility and turning a mockup into code.',
+  ),
+  study: msg(
+    'Learning and notes: tutors, quizzes, second brain and saved links.',
+  ),
+  decide: msg(
+    'Making a decision: arguing against an idea before you commit to it.',
+  ),
+  research: msg(
+    'Looking things up: documentation, the web and mapping a codebase.',
+  ),
+  review: msg(
+    'Checking work: code review, tests, verification and quality checks.',
+  ),
+  docs: msg(
+    'Writing and converting documents: docs, reports, prompts and PDFs.',
+  ),
+  planning: msg(
+    'Planning the work: specs, roadmaps, plans and the method that orders them.',
+  ),
+  build: msg(
+    'Writing the code: executing plans, fixing findings and shipping.',
+  ),
+  system: msg(
+    'This computer and the tools themselves: setup, health checks and upgrades.',
+  ),
+  other: msg(
+    'What no rule placed. Use Move to group… to put it where it belongs.',
+  ),
+};
 /** The five sections the categories are ordered in. Other goes last, outside them. */
 export const SECTIONS = ['how', 'before', 'build', 'after', 'env'] as const;
 export type Section = (typeof SECTIONS)[number];

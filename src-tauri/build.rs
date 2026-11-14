@@ -163,6 +163,8 @@ fn main() {
             "arsenal_project_selection",
             "arsenal_sync_status",
             "arsenal_sync_now",
+            "arsenal_guide",
+            "arsenal_guide_body",
             "native_launcher",
             "native_readiness",
             "native_preview",

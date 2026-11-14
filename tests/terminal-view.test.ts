@@ -267,6 +267,8 @@ it('preserves narrow IPC capabilities and production script/network restrictions
     'allow-arsenal-project-selection',
     'allow-arsenal-sync-status',
     'allow-arsenal-sync-now',
+    'allow-arsenal-guide',
+    'allow-arsenal-guide-body',
     // Native agent sessions (F3): the closed catalogue, a start that names an agent, a
     // project the user chose and a profile, the registry, and the profiles. None takes a
     // command, an argument list, an environment or a path.

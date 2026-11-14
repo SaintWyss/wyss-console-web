@@ -278,20 +278,77 @@ Decisiones del dueño del 2026-11-13. Este contrato no las reabre. El Workspace 
 
 "Usadas hace poco" ordena por `last_used` del registro de proyectos. La app no cuenta usos, así que no se muestran números de veces.
 
-## Etapa 4: Arsenal por herramienta y por tipo (2026-11-14)
+## Etapa 4: Arsenal como guía (2026-11-14)
 
-Decisión del dueño del 2026-11-14. Reemplaza la primera versión de esta etapa, que el dueño rechazó porque mostraba demasiadas cosas. **Configuración se funde en Arsenal**, y Personalización queda en **Distribuidores · Arsenal · Credenciales**. La pantalla anterior de Arsenal sigue en **Más → Presets de Arsenal**.
+Decisión del dueño del 2026-11-14 ([plan](../plans/arsenal-skills-guia.md), paso 1: solo vista). Reemplaza la versión de pestañas de herramienta y tipo. Configuración sigue fundida en Arsenal, Personalización queda en **Distribuidores · Arsenal · Credenciales**, y la pantalla anterior sigue en **Más → Presets de Arsenal**.
 
-1. **Primero la herramienta**, en la primera fila de pestañas: Claude Code | Codex.
-2. **Después el tipo**, en la segunda fila: **Global · Skills · Agentes · Hooks · MCP**, cada uno con su cantidad.
-   - **Global** es lo que carga siempre en toda sesión de esa herramienta: archivos de reglas (`CLAUDE.md`, `rules/`, `AGENTS.md`), el modelo configurado y los plugins.
-   - **Global, Hooks y MCP** muestran la vista de Configuración embebida, filtrada por herramienta y tipo. Hacen exactamente lo que hacía Configuración: plan, aplicar y deshacer. No se agrega ningún camino nuevo de escritura.
-   - **Skills y Agentes** son la biblioteca de Arsenal, agrupada por las categorías que ya existen (`groups.ts`). Las categorías se pliegan y solo aparecen las que tienen algo.
-     - Cada fila lleva nombre y una línea de qué hace.
-     - Al tocar una fila se ven su descripción y sus archivos.
-     - **Agregar** importa (copia) lo que encontró el descubrimiento.
-3. **Dónde se usa cada cosa** no se muestra acá: se elige por lanzamiento en Workspace.
-4. Un enlace "Configuración" (por ejemplo, desde Distribuidores) abre Arsenal en la pestaña **Global**.
+### Estructura
+
+- **Árbol al costado.** Debajo de Arsenal, en la columna de Personalización: Guía · Mías · Conjuntos (GSD Core, cada plugin, Cuenta de Claude, gstack, HyperFrames, Incluidas en Codex, Repos git) · Agentes · Hooks · MCP · Global, cada uno con su cantidad. Un conjunto vacío no se dibuja.
+- **Herramienta arriba del panel:** Claude Code | Codex, y OpenCode solo si su configuración tiene algo. OpenCode muestra solo Global, Hooks y MCP.
+- **Datos del disco** (`arsenal_guide`), no de la biblioteca. El texto de una skill se lee con `arsenal_guide_body` por el id del último escaneo, nunca por una ruta. Un enlace se sigue solo si el destino queda dentro de `~/.claude`, `~/.agents`, `~/.codex` o `~/.local/share/wyss/gsd-core`.
+- **Mías** = el destino resuelto no está en GSD Core, no es un checkout de Git, no está en la carpeta `synced` de la cuenta ni en un plugin. En Codex, `gstack-*` va al conjunto gstack y lo que contiene `hyperframes` al conjunto HyperFrames (decisión del dueño). Se agrupan por las categorías de `groups.ts`, plegadas, con su frase (`GROUP_HELP`).
+- **Lista a la izquierda y ficha a la derecha, dentro del panel.** Cuando el panel mide menos de 720 px, la ficha reemplaza a la lista y tiene **Volver**.
+- **Global, Hooks y MCP** siguen siendo la vista de Configuración embebida: plan, aplicar y deshacer, sin caminos nuevos de escritura.
+- "Agregar" (importar a la biblioteca) sale de esta pestaña.
+
+### Ficha
+
+Una sección se dibuja solo si tiene contenido:
+
+1. **Qué hace**, **Usala cuando**, **No la uses cuando**: la descripción entera, partida por `splitDescription` (`guide.ts`, con tests).
+2. **Cómo se usa**: el texto bajo `## Cómo se usa` / `## Usage` / `## How to use` / `## When to Use`.
+3. **Instrucciones**: plegado; el cuerpo del archivo en bloques (títulos, párrafos, listas, código), cada uno por interpolación de texto. Nunca `{@html}`.
+4. **Archivos (n)**: plegado, solo nombres.
+5. **Alcance**: la marca y dónde está (el enlace y su destino, si lo es).
+6. **Estado** (solo Mías con una entrada de Configuración que se pueda cambiar): Prendida / Apagada, con el plan, aplicar y deshacer de Configuración.
+
+Marcas de alcance, calculadas de las carpetas: **Claude** (solo en `~/.claude/skills`, plugins y cuenta de Claude), **Codex** (solo en `~/.agents/skills`, `~/.codex/skills` o plugins de Codex), **Ambas · global** (el mismo nombre en `~/.claude/skills` y en `~/.agents/skills`). "Ambas · por lanzamiento" no se muestra: no hay en el disco nada que la pruebe. Si las dos copias difieren, Alcance agrega "La copia de Codex es distinta" (decisión del dueño).
+
+### Contenido
+
+| Elemento              | Valor (en)                                                                                                                             | Valor (es)                                                                                                                      | Fuente                     | Aprobado   |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | -------------------------- | ---------- |
+| Árbol                 | Guide · Mine · Sets · Agents · Hooks · MCP · Global                                                                                    | Guía · Mías · Conjuntos · Agentes · Hooks · MCP · Global                                                                        | plan                       | sí         |
+| Nombres de conjunto   | GSD Core · Claude account · gstack · HyperFrames · Included with Codex · Git repos · `<plugin>`                                        | GSD Core · Cuenta de Claude · gstack · HyperFrames · Incluidas en Codex · Repos git · `<plugin>`                                | `arsenal_guide`            | sí         |
+| Guía, renglón 1       | A skill is an instruction for how to do something, kept in a folder with a `SKILL.md`.                                                 | Una skill es una instrucción de cómo hacer algo, guardada en una carpeta con un `SKILL.md`.                                     | plan                       | sí         |
+| Guía, renglón 2       | When it starts, Claude reads only each skill's name and description; if what you ask matches, it opens the whole skill and follows it. | Al arrancar, Claude lee solo el nombre y la descripción de cada una; si lo que pedís coincide, abre la skill entera y la sigue. | plan                       | sí         |
+| Guía, renglón 3       | You use one by typing `/name` or by asking for what its "Use it when" says.                                                            | Se usa escribiendo `/nombre` o pidiendo lo que dice su "Usala cuando".                                                          | plan                       | sí         |
+| Nota de conjunto      | They come from outside and update themselves: they are not edited here.                                                                | Vienen de afuera y se actualizan solas: no se editan acá.                                                                       | plan                       | sí         |
+| Por dónde empezar     | Start with /{name}                                                                                                                     | Empezá por /{name}                                                                                                              | `*-help` del conjunto      | sí         |
+| Secciones de la ficha | What it does · Use it when · Do not use it when · How it is used · Instructions · Files ({n}) · Scope · State                          | Qué hace · Usala cuando · No la uses cuando · Cómo se usa · Instrucciones · Archivos ({n}) · Alcance · Estado                   | plan                       | sí         |
+| Marcas                | Claude · Codex · Both · global                                                                                                         | Claude · Codex · Ambas · global                                                                                                 | carpetas                   | sí         |
+| Copia distinta        | Codex's copy is different.                                                                                                             | La copia de Codex es distinta.                                                                                                  | digest de las dos carpetas | sí (dueño) |
+| Estado                | Switched on · Switched off · Switch off · Switch on · Undo                                                                             | Prendida · Apagada · Apagar · Prender · Deshacer                                                                                | Configuración              | sí         |
+| Volver                | Back                                                                                                                                   | Volver                                                                                                                          | este contrato              | sí         |
+| Sin descripción       | Its file has no description.                                                                                                           | Su archivo no trae descripción.                                                                                                 | este contrato              | sí         |
+| No se pudo leer       | Its text could not be read ({reason}).                                                                                                 | No se pudo leer su texto ({reason}).                                                                                            | `unreadable`               | sí         |
+| Texto cortado         | Only the first 256 KB are shown.                                                                                                       | Se muestran solo los primeros 256 KB.                                                                                           | `cut`                      | sí         |
+| Archivos de más       | and {n} more                                                                                                                           | y {n} más                                                                                                                       | `more_files`               | sí         |
+
+### Estados
+
+| Componente              | default                                  | hover              | focus visible         | active / elegido                                        | disabled                 | loading                                        | vacío                                              | error                                                               |
+| ----------------------- | ---------------------------------------- | ------------------ | --------------------- | ------------------------------------------------------- | ------------------------ | ---------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------- |
+| Entrada del árbol       | texto `--muted` + cantidad               | `--surface-hover`  | anillo `--accent`     | `--accent-soft` + borde `--accent-line`, `aria-current` | —                        | cantidades "…" hasta que llega `arsenal_guide` | conjunto sin entradas: no se dibuja                | Guía: "No se pudo leer el disco." + **Reintentar**                  |
+| Herramienta             | dos o tres opciones, una marcada         | `--surface-hover`  | anillo                | `--accent-soft` + 600; cambia el árbol                  | —                        | —                                              | OpenCode sin configuración: no se dibuja           | —                                                                   |
+| Categoría (Mías)        | plegada: nombre, cantidad, frase         | `--surface-hover`  | anillo                | abierta: `aria-expanded=true`, filas debajo             | —                        | —                                              | sin skills: no se dibuja                           | —                                                                   |
+| Fila                    | nombre + primera oración, separador fino | `--surface-hover`  | anillo                | abierta: `--accent-soft` + barra 3 px                   | —                        | —                                              | —                                                  | entrada sin leer: "No se pudo leer su texto" en lugar de la oración |
+| Ficha                   | secciones con contenido                  | —                  | **Volver** con anillo | —                                                       | —                        | "Leyendo…" en Instrucciones y Archivos         | nada abierto: "Elegí una skill para ver qué hace." | "No se pudo leer el archivo."                                       |
+| Estado (Prender/Apagar) | estado actual + botón                    | un paso más fuerte | anillo                | abre el plan de Configuración en la ficha               | mientras planea o aplica | "Preparando el cambio…"                        | sin entrada en Configuración: no se dibuja         | motivo de Configuración                                             |
+
+Ningún estado se comunica solo por color: la marca de alcance es texto y la fila elegida lleva barra.
+
+### Breakpoints
+
+| Ancho del panel  | Cambio                                                                                                                    |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| ≥ 720 px         | lista y ficha lado a lado; ficha 46 % con mínimo 340 px, cada una con su scroll.                                          |
+| < 720 px         | una columna: la ficha reemplaza a la lista y aparece **Volver** arriba; el foco va al título de la ficha.                 |
+| ventana ≤ 760 px | la columna de Personalización pasa arriba en una fila con scroll horizontal; las entradas del árbol van en la misma fila. |
+| 375 / 320 px     | igual que < 720; nombres largos con `overflow-wrap: anywhere`; sin scroll horizontal del panel.                           |
+
+Texto al 200 %: las filas crecen en alto y la primera oración pasa a dos líneas. Objetivos ≥ 44 px en filas y entradas del árbol. Los tres temas usan los tokens de `src/app.css`. `prefers-reduced-motion`: sin transición al plegar.
 
 ## Fases de construcción
 

@@ -30,6 +30,8 @@ pub struct Arsenal {
     directory: Option<PathBuf>,
     /// The details of the last scan, by identity. Read by `arsenal_candidate`, replaced by each scan.
     details: Arc<Mutex<BTreeMap<String, commands::CandidateDetail>>>,
+    /// Where each entry of the last Guide read resolved. Read by `arsenal_guide_body`.
+    guide: Arc<Mutex<crate::agentconfig::guide::Places>>,
     /// Synchronization with the owner's other computers, when the library opened and it is not off.
     sync: Option<sync::Handle>,
 }
@@ -60,6 +62,7 @@ impl Arsenal {
             store,
             directory,
             details: Arc::new(Mutex::new(BTreeMap::new())),
+            guide: Arc::default(),
             sync,
         }
     }
@@ -182,6 +185,10 @@ impl Arsenal {
     }
 
     /// The last scan's details, shared with the work that replaces them.
+    fn guide_handle(&self) -> Arc<Mutex<crate::agentconfig::guide::Places>> {
+        self.guide.clone()
+    }
+
     fn details_handle(&self) -> Arc<Mutex<BTreeMap<String, commands::CandidateDetail>>> {
         self.details.clone()
     }
@@ -306,6 +313,7 @@ mod tests {
             store: Ok(Arc::new(Mutex::new(store))),
             directory: Some(directory),
             details: Arc::new(Mutex::new(BTreeMap::new())),
+            guide: Arc::default(),
             sync: None,
         }
     }
@@ -429,6 +437,7 @@ mod tests {
             store: Err(Error::Storage),
             directory: None,
             details: Arc::new(Mutex::new(BTreeMap::new())),
+            guide: Arc::default(),
             sync: None,
         };
         assert_eq!(arsenal.set_group(&id(1), "design"), Err(Error::Storage));

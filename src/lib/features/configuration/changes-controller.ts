@@ -99,6 +99,8 @@ export interface ChangesState {
   applying: boolean;
   /** How the last apply ended. Cleared by the next plan. */
   result: Outcome | null;
+  /** The change the last apply recorded, which an undo names. Cleared by the next plan. */
+  lastChange: string | null;
   failure: ConfigurationFailure | null;
   history: History | null;
   records: ParkedRecord[] | null;
@@ -122,6 +124,7 @@ export class ChangesController {
   private planning = false;
   private applying = false;
   private result: Outcome | null = null;
+  private lastChange: string | null = null;
   private failure: ConfigurationFailure | null = null;
   private history: History | null = null;
   private records: ParkedRecord[] | null = null;
@@ -145,6 +148,7 @@ export class ChangesController {
       planning: this.planning,
       applying: this.applying,
       result: this.result,
+      lastChange: this.lastChange,
       failure: this.failure,
       history: this.history,
       records: this.records,
@@ -175,6 +179,7 @@ export class ChangesController {
     this.planning = true;
     this.failure = null;
     this.result = null;
+    this.lastChange = null;
     this.notice = null;
     this.emit();
     void this.client.plan(operation, target).then(
@@ -196,6 +201,7 @@ export class ChangesController {
     this.planning = true;
     this.failure = null;
     this.result = null;
+    this.lastChange = null;
     this.notice = null;
     this.emit();
     void make(this.client).then(
@@ -216,6 +222,7 @@ export class ChangesController {
     this.planning = true;
     this.failure = null;
     this.result = null;
+    this.lastChange = null;
     this.emit();
     void this.client.undo(change).then(
       (plan) => this.hold(plan),
@@ -270,6 +277,7 @@ export class ChangesController {
         this.applying = false;
         this.plan = null;
         this.result = applied.outcome;
+        this.lastChange = applied.change;
         // Whatever it came to, what the file holds is read again, and the lists with it.
         this.history = null;
         this.records = null;
@@ -310,6 +318,7 @@ export class ChangesController {
     this.busy = true;
     this.failure = null;
     this.result = null;
+    this.lastChange = null;
     this.notice = null;
     this.plan = null;
     this.clearExpiry();
@@ -377,6 +386,7 @@ export class ChangesController {
     this.busy = true;
     this.failure = null;
     this.result = null;
+    this.lastChange = null;
     this.notice = null;
     this.emit();
     void work().then(

@@ -89,6 +89,8 @@
     "allow-arsenal-project-selection",
     "allow-arsenal-sync-status",
     "allow-arsenal-sync-now",
+    "allow-arsenal-guide",
+    "allow-arsenal-guide-body",
     "allow-native-launcher",
     "allow-native-readiness",
     "allow-native-preview",

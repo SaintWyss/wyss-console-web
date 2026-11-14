@@ -3769,4 +3769,70 @@ export const ES: Readonly<Record<string, string>> = {
     'Qué agentes hay instalados y su versión, cómo actualizarlos, los modelos que ofrece cada uno y qué corre ahora.',
   'The real configuration files of Claude Code and Codex: what an agent starts with when a launch names no permission.':
     'Los archivos de configuración reales de Claude Code y Codex: con lo que arranca un agente cuando un lanzamiento no nombra un permiso.',
+  'Claude account': 'Cuenta de Claude',
+  'Included with Codex': 'Incluidas en Codex',
+  'Git repos': 'Repos git',
+  Guide: 'Guía',
+  Mine: 'Mías',
+  Sets: 'Conjuntos',
+  'A method for planning, building and checking work in phases. Its skills and agents are linked in from its own install.':
+    'Un método para planear, construir y verificar el trabajo por fases. Sus skills y agentes están enlazados desde su propia instalación.',
+  'A plugin installed for this tool.':
+    'Un plugin instalado para esta herramienta.',
+  'Skills that come with your Claude account.':
+    'Skills que vienen con tu cuenta de Claude.',
+  'Skills one tool installed in a batch.':
+    'Skills que una herramienta instaló en tanda.',
+  'Skills Codex installs and replaces itself.':
+    'Skills que Codex instala y reemplaza solo.',
+  'Skills that are a Git repository of their own.':
+    'Skills que son un repositorio Git propio.',
+  'its link leads out of the agents’ folders':
+    'su enlace lleva fuera de las carpetas de los agentes',
+  'its link leads nowhere': 'su enlace no lleva a ningún lado',
+  'it has no SKILL.md': 'no tiene SKILL.md',
+  'the file cannot be read': 'el archivo no se puede leer',
+  Claude: 'Claude',
+  Codex: 'Codex',
+  'Both · global': 'Ambas · global',
+  'Only Claude Code sees it.': 'Solo la ve Claude Code.',
+  'Only Codex sees it.': 'Solo la ve Codex.',
+  'It is in the folders both tools read, so it loads in every session of each.':
+    'Está en las carpetas que leen las dos, así que se carga en toda sesión de cada una.',
+  'Its text could not be read.': 'No se pudo leer su texto.',
+  'Its file has no description.': 'Su archivo no trae descripción.',
+  'What a skill is': 'Qué es una skill',
+  'A skill is an instruction for how to do something, kept in a folder with a SKILL.md.':
+    'Una skill es una instrucción de cómo hacer algo, guardada en una carpeta con un SKILL.md.',
+  'When it starts, Claude reads only each skill’s name and description; if what you ask matches, it opens the whole skill and follows it.':
+    'Al arrancar, Claude lee solo el nombre y la descripción de cada una; si lo que pedís coincide, abre la skill entera y la sigue.',
+  'You use one by typing /name or by asking for what its “Use it when” says.':
+    'Se usa escribiendo /nombre o pidiendo lo que dice su “Usala cuando”.',
+  'Mine are the ones in your own folder. Sets come from outside: GSD Core, plugins, your account. Open one at the side to see what it holds.':
+    'Mías son las de tu propia carpeta. Los conjuntos vienen de afuera: GSD Core, plugins, tu cuenta. Abrí uno al costado para ver qué tiene.',
+  'The skills on disk could not be read.':
+    'No se pudieron leer las skills del disco.',
+  'A folder holds more than is read: the lists are incomplete.':
+    'Una carpeta tiene más de lo que se lee: las listas están incompletas.',
+  'Start with /{name}': 'Empezá por /{name}',
+  'They come from outside and update themselves: they are not edited here.':
+    'Vienen de afuera y se actualizan solas: no se editan acá.',
+  Back: 'Volver',
+  'Its text could not be read ({reason}).':
+    'No se pudo leer su texto ({reason}).',
+  'Use it when': 'Usala cuando',
+  'Do not use it when': 'No la uses cuando',
+  'How it is used': 'Cómo se usa',
+  State: 'Estado',
+  'Switched on': 'Prendida',
+  'Switched off': 'Apagada',
+  'Switch on': 'Prender',
+  'Switch off': 'Apagar',
+  'The file could not be read.': 'No se pudo leer el archivo.',
+  'Only the first 256 KB are shown.': 'Se muestran solo los primeros 256 KB.',
+  'Files ({n})': 'Archivos ({n})',
+  'and {n} more': 'y {n} más',
+  Scope: 'Alcance',
+  'Codex’s copy is different.': 'La copia de Codex es distinta.',
+  'Choose a skill to see what it does.': 'Elegí una skill para ver qué hace.',
 };

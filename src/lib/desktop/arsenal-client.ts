@@ -14,6 +14,10 @@ import {
   parseCandidateDetail,
   parseDetail,
   parseDiscover,
+  parseGuide,
+  parseGuideBody,
+  type Guide,
+  type GuideBody,
   parseFileText,
   parseImportFailure,
   parseImported,
@@ -94,6 +98,11 @@ export interface ImportTarget {
 /** Every request names something the library or a fresh scan already holds, never a path. */
 export const arsenalClient = {
   discover: () => answer('arsenal_discover', parseDiscover),
+  guide: () => answer<Guide>('arsenal_guide', parseGuide),
+  guideBody: (id: string) =>
+    answer<GuideBody>('arsenal_guide_body', parseGuideBody, {
+      request: { id },
+    }),
   candidateDetail: (id: string) =>
     answer<CandidateDetail>('arsenal_candidate', parseCandidateDetail, {
       request: { id },
