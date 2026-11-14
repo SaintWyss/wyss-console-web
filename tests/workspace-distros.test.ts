@@ -51,3 +51,11 @@ it('switches add their lines and flags in the lines’ order', () => {
 it('a typed script is one command per non-empty line', () => {
   expect(linesOf('  a \n\n b\n')).toEqual(['a', 'b']);
 });
+
+it('every distribution and every switch says what it does', () => {
+  for (const d of DISTROS) {
+    expect(d.hint.length).toBeGreaterThan(20);
+    for (const s of d.switches) expect(s.hint.length).toBeGreaterThan(20);
+  }
+  expect(distroOf('cachyos')!.lines).toEqual(distroOf('arch')!.lines);
+});

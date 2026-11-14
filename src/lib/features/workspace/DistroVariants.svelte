@@ -210,6 +210,12 @@
           type="button"
           class="le-item"
           aria-current={picked === r.distro ? 'true' : undefined}
+          title={isUpdate && distroOf(r.distro)
+            ? t(distroOf(r.distro)!.hint)
+            : t(
+                'A distribution added by hand: it runs on computers whose os-release ID is {id}.',
+                { id: r.distro },
+              )}
           onclick={() => (picked = r.distro)}
         >
           <span class="dv-dot" class:on={r.distro === launch.active}></span>
@@ -224,7 +230,11 @@
       {#if adding}
         <div class="dv-add">
           {#each missing as d (d.id)}
-            <button type="button" class="le-item" onclick={() => add(d.id)}
+            <button
+              type="button"
+              class="le-item"
+              title={t(d.hint)}
+              onclick={() => add(d.id)}
               ><span class="le-name">{d.label}</span></button
             >
           {/each}
@@ -270,16 +280,22 @@
 
         {#if isUpdate && distroOf(r.distro)}
           {@const d = distroOf(r.distro)!}
+          <p class="le-meta dv-hint">{t(d.hint)}</p>
           <fieldset class="dv-switches" disabled={busy || r.manual}>
             <legend class="le-role">{t('Options')}</legend>
             {#each d.switches as s (s.id)}
-              <label class="le-row" class:off={!r.options.includes(s.id)}>
+              <label
+                class="le-row"
+                class:off={!r.options.includes(s.id)}
+                title={t(s.hint)}
+              >
                 <input
                   type="checkbox"
                   checked={r.options.includes(s.id)}
                   onchange={(e) => setSwitch(s.id, e.currentTarget.checked)}
                 />
                 <span>{t(s.label)}</span>
+                <span class="dv-info" aria-hidden="true">?</span>
               </label>
             {/each}
           </fieldset>

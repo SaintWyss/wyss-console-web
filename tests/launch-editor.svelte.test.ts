@@ -537,3 +537,18 @@ it('a variant edited in its file by hand opens with the switches off', async () 
     document.querySelector<HTMLFieldSetElement>('.dv-switches')!.disabled,
   ).toBe(true);
 });
+
+it('hovering a switch or a distribution says what it does', async () => {
+  await show([update]);
+  expect(
+    [...document.querySelectorAll<HTMLLabelElement>('.dv-switches label')].find(
+      (l) => l.textContent?.includes('--noconfirm'),
+    )!.title,
+  ).toContain('answer yes on their own');
+  expect(
+    [...document.querySelectorAll<HTMLButtonElement>('.dv-list .le-item')].find(
+      (b) => b.textContent?.includes('Arch'),
+    )!.title,
+  ).toContain('Manjaro');
+  expect(text('.dv-hint')).toContain('CachyOS');
+});

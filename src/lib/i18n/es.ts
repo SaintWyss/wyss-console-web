@@ -3685,4 +3685,30 @@ export const ES: Readonly<Record<string, string>> = {
   'No distributions yet.': 'Todavía no hay distribuciones.',
   'The file’s own commands, for every distribution. Add one to give it its own.':
     'Los comandos propios del archivo, para cualquier distribución. Agregá una para darle los suyos.',
+  'Adds “flatpak update”: also updates the apps installed from Flathub, which the package manager does not touch.':
+    'Agrega «flatpak update»: actualiza también las apps instaladas desde Flathub, que el gestor de paquetes no toca.',
+  'Adds -y: answers yes to every question, so the update runs to the end without stopping. Without it, it asks before installing.':
+    'Agrega -y: responde que sí a todo, así la actualización corre hasta el final sin frenar. Sin esto, pregunta antes de instalar.',
+  'Adds a line that removes packages nothing needs any more (left behind by earlier updates).':
+    'Agrega una línea que borra paquetes que ya nada usa (los que dejaron actualizaciones anteriores).',
+  'Adds --noconfirm to pacman and paru: they answer yes on their own and do not stop to ask. Without it, they show what changes and wait for you.':
+    'Agrega --noconfirm a pacman y paru: responden que sí solos y no frenan a preguntar. Sin esto, te muestran qué cambia y esperan tu OK.',
+  'Adds “paru -Sua”: after the official packages, updates the ones installed from the AUR (built by the community). Needs paru installed.':
+    'Agrega «paru -Sua»: después de los paquetes oficiales, actualiza los instalados desde el AUR (los arma la comunidad). Necesita paru instalado.',
+  'Adds --skipreview to paru: it does not show each AUR package’s build script before building it. Faster, but you do not see what it runs.':
+    'Agrega --skipreview a paru: no te muestra el script de armado de cada paquete del AUR antes de compilarlo. Es más rápido, pero no ves qué ejecuta.',
+  'Adds a line that deletes old downloaded packages and keeps the last 2 versions of each, to free disk space. Needs pacman-contrib.':
+    'Agrega una línea que borra paquetes viejos descargados y deja las 2 últimas versiones de cada uno, para liberar disco. Necesita pacman-contrib.',
+  'For CachyOS. Same commands as Arch (pacman, and paru for the AUR), and pacman also updates CachyOS’s own optimized repositories. AUR comes switched on, since CachyOS ships paru.':
+    'Para CachyOS. Los mismos comandos que Arch (pacman, y paru para el AUR); pacman además actualiza los repositorios optimizados propios de CachyOS. AUR viene prendido porque CachyOS trae paru.',
+  'For Arch and the distributions based on it without their own variant (Manjaro, EndeavourOS…). Same commands as CachyOS; AUR comes off, since plain Arch has no paru.':
+    'Para Arch y las distros basadas en Arch que no tienen variante propia (Manjaro, EndeavourOS…). Los mismos comandos que CachyOS; AUR viene apagado porque Arch pelado no trae paru.',
+  'For Debian, Ubuntu, Linux Mint, Pop!_OS and the rest based on Debian. apt update reads the lists of new versions; full-upgrade installs them.':
+    'Para Debian, Ubuntu, Linux Mint, Pop!_OS y las demás basadas en Debian. apt update lee la lista de versiones nuevas; full-upgrade las instala.',
+  'For Fedora. dnf upgrade --refresh reads the repositories again and installs every update.':
+    'Para Fedora. dnf upgrade --refresh vuelve a leer los repositorios e instala todas las actualizaciones.',
+  'For openSUSE Tumbleweed and Leap. zypper refresh reads the repositories; zypper dup brings the whole system to their versions.':
+    'Para openSUSE Tumbleweed y Leap. zypper refresh lee los repositorios; zypper dup lleva todo el sistema a sus versiones.',
+  'A distribution added by hand: it runs on computers whose os-release ID is {id}.':
+    'Distribución agregada a mano: corre en las PC cuyo ID de os-release es {id}.',
 };

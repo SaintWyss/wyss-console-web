@@ -4956,3 +4956,21 @@ li.native-row .native-note {
   white-space: pre-wrap;
   font-family: var(--font-mono);
 }
+.dv-hint {
+  margin: 0;
+  font-family: inherit;
+  line-height: 1.5;
+}
+.dv-info {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  margin-left: auto;
+  font-size: var(--text-xs);
+  color: var(--faint);
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  cursor: help;
+}

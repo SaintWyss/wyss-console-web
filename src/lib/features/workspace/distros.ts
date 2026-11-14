@@ -14,11 +14,15 @@ export interface Line {
 export interface Switch {
   id: string;
   label: string;
+  /** What it does, shown on hover. */
+  hint: string;
   flags?: Readonly<Record<string, string>>;
 }
 export interface Distro {
   id: string;
   label: string;
+  /** Which computers it is for and what its script does, shown on hover and under its name. */
+  hint: string;
   lines: readonly Line[];
   switches: readonly Switch[];
 }
@@ -31,7 +35,16 @@ const FLATPAK: Line = {
 const FLATPAK_SWITCH: Switch = {
   id: 'flatpak',
   label: msg('Update Flatpak apps'),
+  hint: msg(
+    'Adds “flatpak update”: also updates the apps installed from Flathub, which the package manager does not touch.',
+  ),
 };
+const YES_HINT = msg(
+  'Adds -y: answers yes to every question, so the update runs to the end without stopping. Without it, it asks before installing.',
+);
+const AUTOREMOVE_HINT = msg(
+  'Adds a line that removes packages nothing needs any more (left behind by earlier updates).',
+);
 const PACMAN: readonly Line[] = [
   { key: 'pacman', text: 'sudo pacman -Syu' },
   { key: 'paru', text: 'paru -Sua', requires: 'aur' },
@@ -42,15 +55,33 @@ const pacmanSwitches: readonly Switch[] = [
   {
     id: 'noconfirm',
     label: msg('No confirmation (--noconfirm)'),
+    hint: msg(
+      'Adds --noconfirm to pacman and paru: they answer yes on their own and do not stop to ask. Without it, they show what changes and wait for you.',
+    ),
     flags: { pacman: '--noconfirm', paru: '--noconfirm', flatpak: '-y' },
   },
-  { id: 'aur', label: msg('Include AUR (paru)') },
+  {
+    id: 'aur',
+    label: msg('Include AUR (paru)'),
+    hint: msg(
+      'Adds “paru -Sua”: after the official packages, updates the ones installed from the AUR (built by the community). Needs paru installed.',
+    ),
+  },
   {
     id: 'skipreview',
     label: msg('Skip AUR review (--skipreview)'),
+    hint: msg(
+      'Adds --skipreview to paru: it does not show each AUR package’s build script before building it. Faster, but you do not see what it runs.',
+    ),
     flags: { paru: '--skipreview' },
   },
-  { id: 'clean', label: msg('Clean the package cache (paccache -rk2)') },
+  {
+    id: 'clean',
+    label: msg('Clean the package cache (paccache -rk2)'),
+    hint: msg(
+      'Adds a line that deletes old downloaded packages and keeps the last 2 versions of each, to free disk space. Needs pacman-contrib.',
+    ),
+  },
   FLATPAK_SWITCH,
 ];
 
@@ -58,13 +89,27 @@ export const DISTROS: readonly Distro[] = [
   {
     id: 'cachyos',
     label: 'CachyOS',
+    hint: msg(
+      'For CachyOS. Same commands as Arch (pacman, and paru for the AUR), and pacman also updates CachyOS’s own optimized repositories. AUR comes switched on, since CachyOS ships paru.',
+    ),
     lines: PACMAN,
     switches: pacmanSwitches,
   },
-  { id: 'arch', label: 'Arch', lines: PACMAN, switches: pacmanSwitches },
+  {
+    id: 'arch',
+    label: 'Arch',
+    hint: msg(
+      'For Arch and the distributions based on it without their own variant (Manjaro, EndeavourOS…). Same commands as CachyOS; AUR comes off, since plain Arch has no paru.',
+    ),
+    lines: PACMAN,
+    switches: pacmanSwitches,
+  },
   {
     id: 'debian',
     label: 'Ubuntu / Debian',
+    hint: msg(
+      'For Debian, Ubuntu, Linux Mint, Pop!_OS and the rest based on Debian. apt update reads the lists of new versions; full-upgrade installs them.',
+    ),
     lines: [
       { key: 'update', text: 'sudo apt update' },
       { key: 'upgrade', text: 'sudo apt full-upgrade' },
@@ -79,15 +124,23 @@ export const DISTROS: readonly Distro[] = [
       {
         id: 'yes',
         label: msg('No confirmation (-y)'),
+        hint: YES_HINT,
         flags: { upgrade: '-y', autoremove: '-y', flatpak: '-y' },
       },
-      { id: 'autoremove', label: msg('Remove unused packages (autoremove)') },
+      {
+        id: 'autoremove',
+        label: msg('Remove unused packages (autoremove)'),
+        hint: AUTOREMOVE_HINT,
+      },
       FLATPAK_SWITCH,
     ],
   },
   {
     id: 'fedora',
     label: 'Fedora',
+    hint: msg(
+      'For Fedora. dnf upgrade --refresh reads the repositories again and installs every update.',
+    ),
     lines: [
       { key: 'dnf', text: 'sudo dnf upgrade --refresh' },
       {
@@ -101,15 +154,23 @@ export const DISTROS: readonly Distro[] = [
       {
         id: 'yes',
         label: msg('No confirmation (-y)'),
+        hint: YES_HINT,
         flags: { dnf: '-y', autoremove: '-y', flatpak: '-y' },
       },
-      { id: 'autoremove', label: msg('Remove unused packages (autoremove)') },
+      {
+        id: 'autoremove',
+        label: msg('Remove unused packages (autoremove)'),
+        hint: AUTOREMOVE_HINT,
+      },
       FLATPAK_SWITCH,
     ],
   },
   {
     id: 'opensuse',
     label: 'openSUSE',
+    hint: msg(
+      'For openSUSE Tumbleweed and Leap. zypper refresh reads the repositories; zypper dup brings the whole system to their versions.',
+    ),
     lines: [
       { key: 'refresh', text: 'sudo zypper refresh' },
       { key: 'dup', text: 'sudo zypper dup' },
@@ -119,6 +180,7 @@ export const DISTROS: readonly Distro[] = [
       {
         id: 'yes',
         label: msg('No confirmation (-y)'),
+        hint: YES_HINT,
         flags: { dup: '-y', flatpak: '-y' },
       },
       FLATPAK_SWITCH,
