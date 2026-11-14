@@ -4448,8 +4448,24 @@ li.native-row .native-note {
   flex: 1;
   min-height: 0;
   display: flex;
-  flex-wrap: wrap;
+  /* One row: the list and the editor are as tall as the view, each scrolls on its own, and
+     + New stays in sight however long the launch is. Narrow windows stack them below. */
+  flex-wrap: nowrap;
   margin: -14px -16px -16px -14px;
+}
+@media (max-width: 760px) {
+  .launch-editor {
+    flex-direction: column;
+  }
+  .launch-editor > .le-list {
+    flex: 0 0 auto;
+    max-height: 40%;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .launch-editor > .le-editor {
+    flex: 1 1 0;
+  }
 }
 .launch-editor[hidden] {
   display: none;
