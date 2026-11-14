@@ -116,10 +116,21 @@ struct Reader {
 
 impl Reader {
     fn new(env: &Environment) -> Option<Self> {
+        // The providers' folders, and each folder a tool reads skills, agents or plugins from,
+        // wherever it resolves: a skills folder may itself be a link (a dotfiles checkout).
+        let claude = env.claude_dir();
+        let codex = env.codex_dir();
         let wanted = [
-            env.claude_dir(),
+            claude.clone(),
+            claude.join("skills"),
+            claude.join("agents"),
+            claude.join("plugins"),
             env.home.join(".agents"),
-            env.codex_dir(),
+            env.agents_skills_dir(),
+            codex.clone(),
+            codex.join("skills"),
+            codex.join("agents"),
+            codex.join("plugins"),
             env.home.join(GSD_BASE),
         ];
         let roots: Vec<PathBuf> = wanted

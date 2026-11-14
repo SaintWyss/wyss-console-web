@@ -264,6 +264,23 @@ fn reads_plugins_agents_and_the_body_by_id_only() {
 }
 
 #[test]
+fn reads_a_skills_folder_that_is_itself_a_link() {
+    let home = home();
+    let elsewhere = home.join("dotfiles/skills");
+    skill(&elsewhere.join("loops"), "description: Loops.", "");
+    fs::remove_dir(home.join(".claude/skills")).unwrap();
+    symlink(&elsewhere, home.join(".claude/skills")).unwrap();
+    let (guide, places) = scan(&env(&home));
+    let loops = find(&guide, "claude_code", "loops");
+    assert_eq!(
+        (loops.description.as_str(), loops.unreadable),
+        ("Loops.", None)
+    );
+    assert!(body(&env(&home), &places, &loops.id).is_some());
+    fs::remove_dir_all(&home).unwrap();
+}
+
+#[test]
 fn cuts_a_long_body_and_says_so() {
     let home = home();
     skill(
