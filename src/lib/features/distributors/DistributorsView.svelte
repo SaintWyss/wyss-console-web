@@ -99,8 +99,14 @@
   }
   // Read each time the view is shown: a failed read is tried again, and files edited by
   // hand or on the other computer appear.
+  // Each time the view is shown it reads everything again: the tools, their files and the
+  // Codex list. There is no button for it.
+  let shown = false;
   $effect(() => {
-    if (visible) void readAdded();
+    if (visible && !shown) {
+      shown = true;
+      void refresh();
+    } else if (!visible) shown = false;
   });
 
   const blank = (): SaveDistributorInput => ({
@@ -242,18 +248,14 @@
   inert={!visible}
 >
   <div class="dist-bar">
-    <p class="dist-read" role="status">
-      {lastRead ? t('Last read: {time}', { time: lastRead }) : ''}
+    <p class="dist-read" role="status" aria-busy={busy}>
+      {busy
+        ? t('Reading…')
+        : lastRead
+          ? t('Last read: {time}', { time: lastRead })
+          : ''}
     </p>
-    <button
-      type="button"
-      class="action"
-      disabled={busy || models.phase === 'loading'}
-      aria-busy={busy}
-      onclick={() => void refresh()}>{t('Refresh models')}</button
-    >
   </div>
-  <p class="dist-note">{t('Only Codex reports new models.')}</p>
   {#if addedError}<p class="notice" data-tone="error" role="alert">
       {addedError}
     </p>{/if}

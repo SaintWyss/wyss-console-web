@@ -124,12 +124,11 @@ const card = (id: string) =>
 const status = (id: string) => text(card(id).querySelector('.dist-status'));
 const rows = (id: string) =>
   Array.from(card(id).querySelectorAll('.dist-models li')).map(text);
+// There is no refresh button: showing the view again reads everything again.
 const refresh = async () => {
-  const button = Array.from(view().querySelectorAll('button')).find(
-    (b) => text(b) === 'Refresh models',
-  )!;
-  expect(button.disabled).toBe(false);
-  button.click();
+  tab('Configuration').click();
+  await flush();
+  tab('Distributors').click();
   await flush();
 };
 
@@ -182,8 +181,8 @@ it('opens from the rail, reads only while shown, and draws what the desktop answ
   ).toBe(true);
   // The cards say what the view is: no title is drawn over them.
   expect(document.querySelector('.context-title')).toBeNull();
-  // Showing the view discovers nothing again: only Refresh models does.
-  expect(ipc.count('native_launcher')).toBe(before);
+  // Showing the view reads the tools again: there is no refresh button.
+  expect(ipc.count('native_launcher')).toBe(before + 1);
   expect(ipc.count('configuration_inventory')).toBe(1);
   expect(ipc.count('managed_model_catalogue')).toBe(1);
 
@@ -217,14 +216,13 @@ it('opens from the rail, reads only while shown, and draws what the desktop answ
     'model-b',
   ]);
   expect(text(view().querySelector('.dist-read'))).toMatch(/^Last read: \S+/);
-  expect(text(view())).toContain('Only Codex reports new models.');
+  expect(text(view())).not.toContain('Refresh models');
   // Each known tool: Update (when its command is checked) and where it is set up; then Add.
   expect(
     Array.from(view().querySelectorAll('button'))
       .filter((b) => !b.closest('.dist-more'))
       .map(text),
   ).toEqual([
-    'Refresh models',
     'Update',
     'Profiles',
     'Configuration',
@@ -311,7 +309,7 @@ it('adds a tool by name and command, opens it from its file, and makes a launch 
   );
 });
 
-it('reads the three sources again on Refresh models and marks only what Codex newly lists', async () => {
+it('reads the three sources again each time the view is shown and marks only what Codex newly lists', async () => {
   const ipc = desktop();
   component = mount(App, { target: document.body });
   await flush();
@@ -375,10 +373,8 @@ it('says unknown, not missing, when the tools did not answer a refresh', async (
   expect(status('openai')).toBe('Tool not installed');
 });
 
-const refreshButton = () =>
-  Array.from(view().querySelectorAll('button')).find(
-    (b) => text(b) === 'Refresh models',
-  )!;
+const reading = () =>
+  view().querySelector('.dist-read')!.getAttribute('aria-busy') === 'true';
 /** The fixture inventory with Claude Code's `model` set to `model`. */
 const inventoryWith = (model: string) => {
   const copy = structuredClone(inventory);
@@ -401,28 +397,25 @@ it('waits for a Codex read already in flight before it compares, so its answer i
   await flush();
   expect(rows('openai')).toEqual(['model-a', 'model-b']);
 
-  // Refresh models starts a read of the list, and it does not answer yet.
+  // Showing the view again starts a read of the list, and it does not answer yet.
   let answer!: (value: unknown) => void;
   ipc.answers.catalogue = () =>
     new Promise((resolve) => {
       answer = resolve;
     });
-  refreshButton().click();
-  await flush();
+  await refresh();
   const reads = ipc.count('managed_model_catalogue');
 
-  // While it is in flight: no second read, and nothing is compared yet.
-  expect(refreshButton().disabled).toBe(true);
-  expect(refreshButton().getAttribute('aria-busy')).toBe('true');
-  refreshButton().click();
-  await flush();
+  // While it is in flight: showing the view again reads nothing more, and nothing is compared.
+  expect(reading()).toBe(true);
+  await refresh();
   expect(ipc.count('managed_model_catalogue')).toBe(reads);
   expect(rows('openai')).toEqual(['model-a', 'model-b']);
 
   // It answers with a model not seen before: that answer is what is compared.
   answer(catalogueWith('model-c'));
   await flush();
-  expect(refreshButton().disabled).toBe(false);
+  expect(reading()).toBe(false);
   expect(rows('openai')).toEqual(['model-a', 'model-b', 'model-c new model']);
   expect(JSON.parse(localStorage.getItem(KEY)!)).toEqual([
     'model-a',
@@ -447,14 +440,12 @@ it('waits for the configuration read, and says when the configured model shown i
     new Promise((resolve) => {
       answer = resolve;
     });
-  refreshButton().click();
-  await flush();
-  expect(refreshButton().getAttribute('aria-busy')).toBe('true');
-  expect(refreshButton().disabled).toBe(true);
+  await refresh();
+  expect(reading()).toBe(true);
   expect(rows('anthropic')[0]).toBe('Configured model: opus');
   answer(inventoryWith('haiku'));
   await flush();
-  expect(refreshButton().disabled).toBe(false);
+  expect(reading()).toBe(false);
   expect(rows('anthropic')[0]).toBe('Configured model: haiku');
   expect(text(view())).not.toContain(note);
 

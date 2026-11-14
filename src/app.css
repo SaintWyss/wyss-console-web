@@ -4815,8 +4815,8 @@ li.native-row .native-note {
   color: var(--muted);
 }
 .dist-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 12px;
 }
 .dist-card {

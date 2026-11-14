@@ -279,12 +279,9 @@ it('says each state in Spanish in the words the owner fixed', () => {
   expect(tPhrase(card(cards, 'openai').status)).toBe('No instalado');
   expect(tPhrase(card(cards, 'opencode').status)).toBe('Desconocido');
   expect(t('new model')).toBe('nuevo');
-  expect(t('Refresh models')).toBe('Actualizar modelos');
+  expect(t('Reading…')).toBe('Leyendo…');
   expect(t('Last read: {time}', { time: '10:00' })).toBe(
     'Última lectura: 10:00',
-  );
-  expect(t('Only Codex reports new models.')).toBe(
-    'Solo Codex informa modelos nuevos.',
   );
   const anthropic = card(cards, 'anthropic');
   expect(
