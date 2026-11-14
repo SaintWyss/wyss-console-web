@@ -393,6 +393,7 @@ export const ES: Readonly<Record<string, string>> = {
   'Not reported': 'No informada',
   Protocol: 'Protocolo',
   Update: 'Actualización',
+  'Update tool': 'Actualizar',
   'A newer authority is installed the next time it starts':
     'Se instala una autoridad más nueva la próxima vez que arranque',
 

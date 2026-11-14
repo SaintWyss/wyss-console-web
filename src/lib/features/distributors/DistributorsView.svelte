@@ -321,7 +321,7 @@
                 { command: card.update },
               )}
               onclick={() => onrun(card.tool, home, `${card.update}\r`)}
-              >{t('Update')}</button
+              >{t('Update tool')}</button
             >
             <code class="dist-cmd">{card.update}</code>
           {/if}
@@ -494,7 +494,7 @@
                 'Types “{command}” in a new terminal of the Console, where you see it run.',
                 { command: d.update },
               )}
-              onclick={() => void run(d.id, 'update')}>{t('Update')}</button
+              onclick={() => void run(d.id, 'update')}>{t('Update tool')}</button
             >
           {/if}
           <button

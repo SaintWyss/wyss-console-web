@@ -218,10 +218,10 @@ it('opens from the rail, reads only while shown, and draws what the desktop answ
       .filter((b) => !b.closest('.dist-more'))
       .map(text),
   ).toEqual([
-    'Update',
+    'Update tool',
     'Configuration',
     'Credentials',
-    'Update',
+    'Update tool',
     'Configuration',
     'Credentials',
     'Configuration',
@@ -292,7 +292,7 @@ it('adds a tool by name and command, opens it from its file, and makes a launch 
   );
   // No Update without a command for it.
   expect(Array.from(added.querySelectorAll('button')).map(text)).not.toContain(
-    'Update',
+    'Update tool',
   );
   button('Make launch').click();
   await flush();

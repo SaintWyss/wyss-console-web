@@ -4801,6 +4801,9 @@ li.native-row .native-note {
   flex-direction: column;
   gap: 12px;
   overflow-y: auto;
+  /* Room for the scroll bar: nothing ends under it. */
+  padding-right: 14px;
+  container-type: inline-size;
 }
 .dist-bar {
   display: flex;
@@ -4815,7 +4818,8 @@ li.native-row .native-note {
   font-size: var(--text-xs);
   color: var(--muted);
 }
-/* One row per maker, full width, divided by a line: no boxes. */
+/* One row per maker, full width, divided by one line and nothing else. Three columns: who
+   (maker, tool), what there is (status, models, detail) and what can be done (actions). */
 .dist-grid {
   display: flex;
   flex-direction: column;
@@ -4824,11 +4828,58 @@ li.native-row .native-note {
 .dist-card {
   width: 100%;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 16px 4px;
+  display: grid;
+  grid-template-columns: minmax(180px, 240px) minmax(0, 1fr) auto;
+  grid-auto-flow: row dense;
+  column-gap: 24px;
+  row-gap: 0;
+  align-items: start;
+  padding: 20px 0;
   border-bottom: 1px solid var(--line);
+}
+.dist-card > .dist-head {
+  display: contents;
+}
+.dist-card h3,
+.dist-card > .dist-tool {
+  grid-column: 1;
+}
+.dist-card .dist-status,
+.dist-card > .dist-models,
+.dist-card > .dist-note,
+.dist-card > .dist-more {
+  grid-column: 2;
+  justify-self: start;
+  margin: 0 0 8px;
+}
+.dist-card > .dist-actions {
+  grid-column: 3;
+  grid-row: 1 / span 8;
+  margin: 0;
+}
+@container (max-width: 860px) {
+  .dist-card {
+    grid-template-columns: minmax(150px, 200px) minmax(0, 1fr);
+  }
+  .dist-card > .dist-actions {
+    grid-column: 2;
+    grid-row: auto;
+    margin-top: 4px;
+  }
+}
+@container (max-width: 480px) {
+  .dist-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dist-card h3,
+  .dist-card > .dist-tool,
+  .dist-card .dist-status,
+  .dist-card > .dist-models,
+  .dist-card > .dist-note,
+  .dist-card > .dist-more,
+  .dist-card > .dist-actions {
+    grid-column: 1;
+  }
 }
 .dist-head {
   display: flex;
@@ -4870,7 +4921,6 @@ li.native-row .native-note {
   display: flex;
   align-items: center;
   gap: 10px;
-  border-top: 1px solid var(--line);
 }
 .dist-model {
   flex: 1;
@@ -5131,8 +5181,6 @@ li.native-row .native-note {
 }
 .dist-more {
   margin-top: 8px;
-  border-top: 1px solid var(--line);
-  padding-top: 6px;
 }
 .dist-more > summary {
   cursor: pointer;
@@ -5197,6 +5245,7 @@ li.native-row .native-note {
 .lib-side,
 .lib-main {
   min-height: 0;
+  padding-right: 14px;
   display: flex;
   flex-direction: column;
   gap: 4px;
