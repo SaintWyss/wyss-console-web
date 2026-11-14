@@ -118,3 +118,37 @@ fn a_launch_is_made_from_the_file_and_never_replaces_one() {
     assert!(make_launch(&places, "kimi-cli").is_err());
     assert!(make_launch(&places, "missing").is_err());
 }
+
+#[test]
+fn nothing_is_written_through_a_link_and_new_files_are_bounded() {
+    let places = places();
+    // The folder is a link to somewhere else: refused, nothing written there.
+    let elsewhere = places.home.join("elsewhere");
+    fs::create_dir_all(&elsewhere).unwrap();
+    fs::create_dir_all(places.folder.parent().unwrap()).unwrap();
+    std::os::unix::fs::symlink(&elsewhere, &places.folder).unwrap();
+    assert!(save(&places, &request(json!({"name": "x", "open": "kimi"}))).is_err());
+    assert_eq!(fs::read_dir(&elsewhere).unwrap().count(), 0);
+    fs::remove_file(&places.folder).unwrap();
+    // At most MAX_FILES new ones.
+    for i in 0..MAX_FILES {
+        save(
+            &places,
+            &request(json!({"name": format!("t{i}"), "open": "kimi"})),
+        )
+        .unwrap();
+    }
+    let over = save(
+        &places,
+        &request(json!({"name": "one more", "open": "kimi"})),
+    )
+    .unwrap_err();
+    assert!(over.contains("at most"), "{over}");
+    // No temporary file is left behind.
+    assert!(
+        fs::read_dir(&places.folder)
+            .unwrap()
+            .flatten()
+            .all(|e| e.file_name().to_string_lossy().ends_with(".toml"))
+    );
+}

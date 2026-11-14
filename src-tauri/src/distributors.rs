@@ -110,6 +110,52 @@ fn found(executable: &str, places: &Places) -> Option<String> {
     Some(display(&path, &places.home))
 }
 
+/// Makes `folder` if it is missing and refuses it when it, or the folder it sits in, is a link:
+/// a file is never written through one to somewhere else.
+fn private_folder(folder: &Path) -> Result<(), String> {
+    for path in [folder.parent(), Some(folder)].into_iter().flatten() {
+        if fs::symlink_metadata(path).is_ok_and(|m| m.file_type().is_symlink()) {
+            return Err(format!(
+                "{} is a link: nothing is written through it",
+                path.display()
+            ));
+        }
+    }
+    fs::DirBuilder::new()
+        .recursive(true)
+        .mode(0o700)
+        .create(folder)
+        .map_err(|e| format!("folder: {e}"))?;
+    if !fs::symlink_metadata(folder).is_ok_and(|m| m.is_dir()) {
+        return Err(format!("{} is not a folder", folder.display()));
+    }
+    Ok(())
+}
+
+/// Writes a new file only: it is made under a private name and linked into place, which fails
+/// when the name exists, so a file that appeared meanwhile is never replaced.
+fn write_new(folder: &Path, target: &Path, text: &str) -> Result<(), String> {
+    use std::io::Write;
+    use std::os::unix::fs::OpenOptionsExt;
+    let name = target.file_name().unwrap_or_default().to_string_lossy();
+    let temporary = folder.join(format!(".{name}.{}.new", uuid::Uuid::new_v4().simple()));
+    let result = (|| -> std::io::Result<()> {
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(&temporary)?;
+        file.write_all(text.as_bytes())?;
+        file.sync_all()?;
+        fs::hard_link(&temporary, target)
+    })();
+    let _ = fs::remove_file(&temporary);
+    result.map_err(|e| match e.kind() {
+        std::io::ErrorKind::AlreadyExists => "a file with that name exists".to_owned(),
+        _ => format!("it could not be written: {e}"),
+    })
+}
+
 fn optional(text: Option<String>, most: usize, what: &str) -> Result<Option<String>, String> {
     match text.map(|t| t.trim().to_owned()).filter(|t| !t.is_empty()) {
         None => Ok(None),
@@ -241,24 +287,38 @@ pub fn save(places: &Places, request: &SaveRequest) -> Result<Distributor, Strin
     }
     // Checked as the reader takes it before anything is written.
     parse(&id, &text, places)?;
+    private_folder(&places.folder)?;
     let target = places.folder.join(format!("{id}.toml"));
-    if let Ok(meta) = fs::symlink_metadata(&target) {
-        if !meta.is_file() {
-            return Err("a distributor with that file name is not a plain file".into());
+    match request.id {
+        // A new one: only while there is room, and never over a file that exists.
+        None => {
+            let count = fs::read_dir(&places.folder)
+                .map(|d| {
+                    d.flatten()
+                        .filter(|e| e.file_name().to_string_lossy().ends_with(".toml"))
+                        .count()
+                })
+                .unwrap_or(0);
+            if count >= MAX_FILES {
+                return Err(format!("at most {MAX_FILES} distributors"));
+            }
+            write_new(&places.folder, &target, &text).map_err(|e| {
+                if e.contains("exists") {
+                    "a distributor with that name exists".to_owned()
+                } else {
+                    e
+                }
+            })?;
         }
-        if request.id.is_none() {
-            return Err("a distributor with that name exists".into());
+        // An edit: only of a plain file that is there.
+        Some(_) => {
+            if !fs::symlink_metadata(&target).is_ok_and(|m| m.is_file()) {
+                return Err("unknown distributor".into());
+            }
+            write_private(&places.folder, &target, &text)
+                .map_err(|e| format!("the distributor could not be written: {e}"))?;
         }
-    } else if request.id.is_some() {
-        return Err("unknown distributor".into());
     }
-    fs::DirBuilder::new()
-        .recursive(true)
-        .mode(0o700)
-        .create(&places.folder)
-        .map_err(|e| format!("distributor folder: {e}"))?;
-    write_private(&places.folder, &target, &text)
-        .map_err(|e| format!("the distributor could not be written: {e}"))?;
     get(places, &id)
 }
 
@@ -277,21 +337,19 @@ pub fn make_launch(places: &Places, id: &str) -> Result<String, String> {
         return Err("name needs at least one letter or digit".into());
     }
     let target = places.launches.join(format!("{launch_id}.toml"));
-    if fs::symlink_metadata(&target).is_ok() {
-        return Err("a launch with that name exists".into());
-    }
     let text = format!(
         "# Made from the distributor {id} (Wyss Console).\nname = {}\ndirectory = \"~\"\ncommands = [{}]\n",
         toml_string(&d.name),
         toml_string(&d.open),
     );
-    fs::DirBuilder::new()
-        .recursive(true)
-        .mode(0o700)
-        .create(&places.launches)
-        .map_err(|e| format!("launch folder: {e}"))?;
-    write_private(&places.launches, &target, &text)
-        .map_err(|e| format!("the launch could not be written: {e}"))?;
+    private_folder(&places.launches)?;
+    write_new(&places.launches, &target, &text).map_err(|e| {
+        if e.contains("exists") {
+            "a launch with that name exists".to_owned()
+        } else {
+            e
+        }
+    })?;
     Ok(launch_id)
 }
 

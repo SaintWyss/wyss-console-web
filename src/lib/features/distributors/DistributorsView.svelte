@@ -97,12 +97,10 @@
       addedError = t('The added distributors did not load.');
     }
   }
-  let readOnce = false;
+  // Read each time the view is shown: a failed read is tried again, and files edited by
+  // hand or on the other computer appear.
   $effect(() => {
-    if (visible && !readOnce) {
-      readOnce = true;
-      void readAdded();
-    }
+    if (visible) void readAdded();
   });
 
   const blank = (): SaveDistributorInput => ({
@@ -208,6 +206,7 @@
   async function refresh() {
     if (busy) return;
     busy = true;
+    void readAdded();
     try {
       answered = await onrefresh();
     } catch {
