@@ -48,6 +48,7 @@
     recent,
     choose,
     onopen,
+    onprofiles,
     client = arsenalClient,
     launches: loadLaunches = listLaunches,
   }: {
@@ -59,6 +60,8 @@
     choose: () => Promise<string | null>;
     /** Opens a saved launch in the Console. */
     onopen: (id: string) => void;
+    /** Opens Profiles, where profiles are made and edited. */
+    onprofiles?: () => void;
     client?: ArsenalClient;
     launches?: typeof listLaunches;
   } = $props();
@@ -119,7 +122,7 @@
   /** A profile in one sentence: model, effort and what it may do. */
   function profileHint(p: Profile): string {
     return [
-      p.body.model ?? t('default model'),
+      p.body.model ?? t('the agent’s own model'),
       p.body.effort ? t('effort {level}', { level: p.body.effort }) : null,
       p.body.permission ? t(PERMISSION_LABEL[p.body.permission]) : null,
       p.body.notes || null,
@@ -850,11 +853,22 @@
                 <option value="">{t('Default (no profile)')}</option>
                 {#each agentProfiles as p (p.id)}
                   <option value={p.body.name} title={profileHint(p)}
-                    >{p.body.model ?? t('default model')} · {p.body
-                      .name}</option
+                    >{p.body.model
+                      ? `${p.body.name} · ${p.body.model}`
+                      : p.body.name}</option
                   >
                 {/each}
               </select>
+              {#if onprofiles}
+                <button
+                  type="button"
+                  class="le-link"
+                  title={t(
+                    'Profiles: see what each one sets, edit them or make a new one.',
+                  )}
+                  onclick={onprofiles}>{t('Edit profiles…')}</button
+                >
+              {/if}
             </label>
             <label class="le-field" title={t(HINT.mode)}
               ><span>{t('Mode')}</span>

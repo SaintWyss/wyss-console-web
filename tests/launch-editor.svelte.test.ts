@@ -136,13 +136,18 @@ function fake(
   return { client, calls };
 }
 
-async function show(launches: Launch[], over: Parameters<typeof fake>[0] = {}) {
+async function show(
+  launches: Launch[],
+  over: Parameters<typeof fake>[0] = {},
+  extra: Record<string, unknown> = {},
+) {
   const f = fake(over);
   component = mount(LaunchEditor, {
     target: document.body,
     props: {
       visible: true,
       profiles: [],
+      ...extra,
       recent: [{ path: '/home/me/UTN', last_used: 2 }],
       choose: async () => null,
       onopen: vi.fn(),
@@ -572,4 +577,46 @@ it('hovering each field and each group says what it is', async () => {
   expect(toggles.length).toBeGreaterThan(0);
   for (const toggle of toggles) expect(toggle.title).not.toBe('');
   expect(document.querySelector('.dv-info')).toBeNull();
+});
+
+it('a profile is listed by its name, with its model only when it sets one, and Profiles is one click away', async () => {
+  const profile = (name: string, model: string | null) => ({
+    id: name,
+    template: false,
+    current: 1,
+    versions: [],
+    from: {},
+    refers_to_missing: false,
+    body: {
+      name,
+      applies_to: ['claude_code'],
+      extends: null,
+      model,
+      effort: null,
+      permission: 'bypass',
+      hooks: null,
+      skills_off: [],
+      notes: '',
+    },
+  });
+  const onprofiles = vi.fn();
+  await show(
+    [session('estudiar', 'Estudio')],
+    {},
+    {
+      profiles: [
+        profile('Full access (bypass)', null),
+        profile('Rápido', 'haiku'),
+      ],
+      onprofiles,
+    },
+  );
+  const options = [
+    ...document.querySelectorAll<HTMLOptionElement>('.le-field select option'),
+  ].map((o) => o.textContent?.trim());
+  expect(options).toContain('Full access (bypass)');
+  expect(options).toContain('Rápido · haiku');
+  expect(options.join(' ')).not.toContain('default model');
+  button('Edit profiles…').click();
+  expect(onprofiles).toHaveBeenCalledOnce();
 });

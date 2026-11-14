@@ -474,6 +474,7 @@
       recent={native.launcher?.projects ?? []}
       choose={() => nativeController.choose()}
       onopen={(id) => void openInConsole(id)}
+      onprofiles={() => go('profiles')}
     />
     <WorkspaceView
       visible={activeView === 'workspace'}

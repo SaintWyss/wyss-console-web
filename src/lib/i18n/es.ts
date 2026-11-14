@@ -80,7 +80,6 @@ export const ES: Readonly<Record<string, string>> = {
   Role: 'Rol',
   Distributor: 'Distribuidor',
   'Default (no profile)': 'Por defecto (sin perfil)',
-  'default model': 'modelo por defecto',
   'Saved and recent folders': 'Carpetas guardadas y recientes',
   'Browse…': 'Examinar…',
   Saved: 'Guardadas',
@@ -3747,4 +3746,8 @@ export const ES: Readonly<Record<string, string>> = {
   'effort {level}': 'esfuerzo {level}',
   'Default: no profile; the agent starts with the model and permissions of its own settings.':
     'Por defecto: sin perfil; el agente arranca con el modelo y los permisos de su propia configuración.',
+  'the agent’s own model': 'el modelo propio del agente',
+  'Profiles: see what each one sets, edit them or make a new one.':
+    'Perfiles: ver qué fija cada uno, editarlos o crear uno nuevo.',
+  'Edit profiles…': 'Editar perfiles…',
 };

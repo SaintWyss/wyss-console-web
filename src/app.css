@@ -4981,3 +4981,15 @@ li.native-row .native-note {
 .le-field select:disabled {
   pointer-events: none;
 }
+.le-link {
+  align-self: flex-start;
+  padding: 0;
+  color: var(--accent);
+  font-size: var(--text-xs);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.le-link:hover {
+  text-decoration: underline;
+}
