@@ -552,3 +552,24 @@ it('hovering a switch or a distribution says what it does', async () => {
   ).toContain('Manjaro');
   expect(text('.dv-hint')).toContain('CachyOS');
 });
+
+it('hovering each field and each group says what it is', async () => {
+  await show([session('estudiar', 'Estudio')]);
+  const field = (label: string) =>
+    [...document.querySelectorAll<HTMLElement>('.le-field')].find(
+      (f) => f.querySelector('span')?.textContent === label,
+    )!;
+  expect(field('Mode').title).toContain('Managed');
+  expect(field('Model').title).toContain('without asking');
+  expect(field('Role').title).toContain('does not change what the agent does');
+  expect(field('Folder').title).toContain('Where the agent works');
+  expect(
+    field('Model').querySelector<HTMLSelectElement>('select')!.title,
+  ).toContain('Default');
+  const toggles = [
+    ...document.querySelectorAll<HTMLButtonElement>('.le-gtoggle'),
+  ];
+  expect(toggles.length).toBeGreaterThan(0);
+  for (const toggle of toggles) expect(toggle.title).not.toBe('');
+  expect(document.querySelector('.dv-info')).toBeNull();
+});

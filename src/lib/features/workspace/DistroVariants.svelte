@@ -295,7 +295,6 @@
                   onchange={(e) => setSwitch(s.id, e.currentTarget.checked)}
                 />
                 <span>{t(s.label)}</span>
-                <span class="dv-info" aria-hidden="true">?</span>
               </label>
             {/each}
           </fieldset>

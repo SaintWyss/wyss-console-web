@@ -81,8 +81,6 @@ export const ES: Readonly<Record<string, string>> = {
   Distributor: 'Distribuidor',
   'Default (no profile)': 'Por defecto (sin perfil)',
   'default model': 'modelo por defecto',
-  'Launches open Native sessions. Managed sessions start from Sessions.':
-    'Los lanzamientos abren sesiones nativas. Las administradas se inician desde Sesiones.',
   'Saved and recent folders': 'Carpetas guardadas y recientes',
   'Browse…': 'Examinar…',
   Saved: 'Guardadas',
@@ -3718,4 +3716,35 @@ export const ES: Readonly<Record<string, string>> = {
   'Finish with cachy-update': 'Terminar con cachy-update',
   'Adds “cachy-update” at the end: CachyOS’s own updater. It updates whatever is still pending and then offers to clean orphans and old cache, review .pacnew files and restart the services that need it. It asks before each step.':
     'Agrega «cachy-update» al final: el actualizador propio de CachyOS. Actualiza lo que haya quedado pendiente y después ofrece limpiar huérfanos y caché vieja, revisar archivos .pacnew y reiniciar los servicios que lo necesitan. Pregunta antes de cada paso.',
+  'Only for ordering this list: launches are grouped by role. It does not change what the agent does.':
+    'Solo para ordenar esta lista: los lanzamientos se agrupan por rol. No cambia lo que hace el agente.',
+  'Which agent the launch starts: Claude Code (Anthropic) or Codex (OpenAI). Changing it starts the profile, preset and environment over.':
+    'Qué agente arranca el lanzamiento: Claude Code (Anthropic) o Codex (OpenAI). Si lo cambiás, el perfil, el preset y el entorno vuelven a cero.',
+  'The profile the agent starts with: its model, how much it reasons and what it may do without asking. Default uses what the agent has configured.':
+    'El perfil con que arranca el agente: su modelo, cuánto razona y qué puede hacer sin preguntarte. Por defecto usa lo que el agente tenga configurado.',
+  'Native: the agent runs as its own program in a terminal of the Console, as when you type claude or codex. The other mode, Managed (the Console drives the session), starts from Sessions, not from a launch; that is why it is fixed here.':
+    'Native: el agente corre como su propio programa en una terminal de la Console, igual que si escribieras claude o codex. El otro modo, Managed (la Console maneja la sesión), se arranca desde Sesiones, no desde un lanzamiento; por eso acá está fijo.',
+  'Where the agent works: it reads and edits the files of this folder, and its project settings are this folder’s.':
+    'Dónde trabaja el agente: lee y edita los archivos de esta carpeta, y usa la configuración de proyecto de esta carpeta.',
+  'About how much context the agent loads before you write anything, from what is switched on below. The bar compares it with everything switched on. MCP servers are not counted.':
+    'Cuánto contexto carga el agente, más o menos, antes de que escribas nada, según lo que esté prendido abajo. La barra lo compara con todo prendido. Los servidores MCP no se cuentan.',
+  'CLAUDE.md and the rules files Claude Code reads when it starts: what you told it to always follow. Switching one off saves context, and the agent no longer follows it.':
+    'CLAUDE.md y los archivos de reglas que Claude Code lee al arrancar: lo que le pediste que siga siempre. Apagar uno ahorra contexto, y el agente deja de seguirlo.',
+  'Know-how the agent loads when a task needs it. At start only each one’s short description takes context.':
+    'Conocimientos que el agente carga cuando una tarea los necesita. Al arrancar solo ocupa contexto la descripción corta de cada uno.',
+  'Outside tools the agent can call (browser, docs, Notion…). How much context they take is not measured.':
+    'Herramientas externas que el agente puede usar (navegador, documentación, Notion…). No se mide cuánto contexto ocupan.',
+  'Helpers the agent can hand part of a task to, each with its own instructions.':
+    'Ayudantes a los que el agente puede pasarles parte de una tarea, cada uno con sus propias instrucciones.',
+  'The skills of your Claude account (claude.ai), on top of the ones installed on this computer.':
+    'Las skills de tu cuenta de Claude (claude.ai), además de las instaladas en esta PC.',
+  'Scripts that run on their own at fixed moments (before a command, when a turn ends…). They take no context.':
+    'Scripts que corren solos en momentos fijos (antes de un comando, al terminar un turno…). No ocupan contexto.',
+  'asks before every change': 'pregunta antes de cada cambio',
+  'read only': 'solo lectura',
+  'edits files without asking': 'edita archivos sin preguntar',
+  'does everything without asking': 'hace todo sin preguntar',
+  'effort {level}': 'esfuerzo {level}',
+  'Default: no profile; the agent starts with the model and permissions of its own settings.':
+    'Por defecto: sin perfil; el agente arranca con el modelo y los permisos de su propia configuración.',
 };

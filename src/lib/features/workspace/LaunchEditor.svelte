@@ -69,6 +69,65 @@
     { id: 'researcher', name: msg('Researcher') },
     { id: 'reviewer', name: msg('Reviewer') },
   ];
+  /** What each part of a launch is, shown on hover. */
+  const HINT = {
+    role: msg(
+      'Only for ordering this list: launches are grouped by role. It does not change what the agent does.',
+    ),
+    distributor: msg(
+      'Which agent the launch starts: Claude Code (Anthropic) or Codex (OpenAI). Changing it starts the profile, preset and environment over.',
+    ),
+    model: msg(
+      'The profile the agent starts with: its model, how much it reasons and what it may do without asking. Default uses what the agent has configured.',
+    ),
+    mode: msg(
+      'Native: the agent runs as its own program in a terminal of the Console, as when you type claude or codex. The other mode, Managed (the Console drives the session), starts from Sessions, not from a launch; that is why it is fixed here.',
+    ),
+    folder: msg(
+      'Where the agent works: it reads and edits the files of this folder, and its project settings are this folder’s.',
+    ),
+    estimate: msg(
+      'About how much context the agent loads before you write anything, from what is switched on below. The bar compares it with everything switched on. MCP servers are not counted.',
+    ),
+  } as const;
+  const GROUP_HINT: Record<string, string> = {
+    instructions: msg(
+      'CLAUDE.md and the rules files Claude Code reads when it starts: what you told it to always follow. Switching one off saves context, and the agent no longer follows it.',
+    ),
+    skills: msg(
+      'Know-how the agent loads when a task needs it. At start only each one’s short description takes context.',
+    ),
+    mcp: msg(
+      'Outside tools the agent can call (browser, docs, Notion…). How much context they take is not measured.',
+    ),
+    agents: msg(
+      'Helpers the agent can hand part of a task to, each with its own instructions.',
+    ),
+    account: msg(
+      'The skills of your Claude account (claude.ai), on top of the ones installed on this computer.',
+    ),
+    hooks: msg(
+      'Scripts that run on their own at fixed moments (before a command, when a turn ends…). They take no context.',
+    ),
+  };
+  const PERMISSION_LABEL: Record<string, string> = {
+    ask: msg('asks before every change'),
+    read_only: msg('read only'),
+    edits: msg('edits files without asking'),
+    bypass: msg('does everything without asking'),
+  };
+  /** A profile in one sentence: model, effort and what it may do. */
+  function profileHint(p: Profile): string {
+    return [
+      p.body.model ?? t('default model'),
+      p.body.effort ? t('effort {level}', { level: p.body.effort }) : null,
+      p.body.permission ? t(PERMISSION_LABEL[p.body.permission]) : null,
+      p.body.notes || null,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+  }
+
   const AGENTS: readonly { id: Agent; distributor: string }[] = (
     ['claude_code', 'codex'] as const
   ).map((id) => ({ id, distributor: distributorOf(id) }));
@@ -643,7 +702,7 @@
           maxlength="60"
           bind:value={d.name}
         />
-        <span class="le-total" aria-live="polite">
+        <span class="le-total" aria-live="polite" title={t(HINT.estimate)}>
           {#if est && ceiling}
             ~{kTokens(est.total)}
             <span class="le-bar" aria-hidden="true"
@@ -747,7 +806,7 @@
       {#if !readOnly}
         <fieldset class="le-fieldset" disabled={busy}>
           <div class="le-fields">
-            <label class="le-field"
+            <label class="le-field" title={t(HINT.role)}
               ><span>{t('Role')}</span>
               <select class="le-input" bind:value={d.role}>
                 {#each allRoles as role (role.id)}
@@ -755,7 +814,7 @@
                 {/each}
               </select>
             </label>
-            <label class="le-field"
+            <label class="le-field" title={t(HINT.distributor)}
               ><span>{t('Distributor')}</span>
               <select
                 class="le-input"
@@ -771,35 +830,39 @@
                 {/each}
               </select>
             </label>
-            <label class="le-field"
+            <label class="le-field" title={t(HINT.model)}
               ><span>{t('Model')}</span>
               <select
                 class="le-input"
+                title={(() => {
+                  const p = agentProfiles.find(
+                    (x) => x.body.name === d.profile,
+                  );
+                  return p
+                    ? `${p.body.name}: ${profileHint(p)}`
+                    : t(
+                        'Default: no profile; the agent starts with the model and permissions of its own settings.',
+                      );
+                })()}
                 value={d.profile ?? ''}
                 onchange={(e) => (d.profile = e.currentTarget.value || null)}
               >
                 <option value="">{t('Default (no profile)')}</option>
                 {#each agentProfiles as p (p.id)}
-                  <option value={p.body.name}
+                  <option value={p.body.name} title={profileHint(p)}
                     >{p.body.model ?? t('default model')} · {p.body
                       .name}</option
                   >
                 {/each}
               </select>
             </label>
-            <label class="le-field"
+            <label class="le-field" title={t(HINT.mode)}
               ><span>{t('Mode')}</span>
-              <select
-                class="le-input"
-                disabled
-                title={t(
-                  'Launches open Native sessions. Managed sessions start from Sessions.',
-                )}
-              >
+              <select class="le-input" disabled>
                 <option>Native</option>
               </select>
             </label>
-            <div class="le-field le-wide">
+            <div class="le-field le-wide" title={t(HINT.folder)}>
               <span>{t('Folder')}</span>
               <div class="le-folder">
                 <!-- Read only: a folder is chosen in the dialog or among the known projects. The
@@ -887,6 +950,9 @@
                 <button
                   type="button"
                   class="le-gtoggle"
+                  title={GROUP_HINT[group.id]
+                    ? t(GROUP_HINT[group.id])
+                    : undefined}
                   aria-expanded={open === group.id}
                   onclick={() => (open = open === group.id ? null : group.id)}
                 >
