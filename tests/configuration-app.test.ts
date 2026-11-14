@@ -7,6 +7,7 @@ import { parseTerminalId } from '../src/lib/contracts/identities';
 import { listing } from './agent-harness';
 import approvals from './fixtures/approval-list-v1.json';
 import fixture from './fixtures/configuration-inventory-v1.json';
+import changesFixture from './fixtures/configuration-changes-v1.json';
 import views from './fixtures/authority-view-v1.json';
 import pages from './fixtures/session-page-v4.json';
 
@@ -50,6 +51,7 @@ const entry = (name: string, set: string, description: string) => ({
   scope: 'both',
   codex_differs: true,
   unreadable: null,
+  description_cut: false,
 });
 const guideReply = {
   entries: [
@@ -59,6 +61,7 @@ const guideReply = {
       'Designs loops. Use when a task repeats. Do not use for one-off work.',
     ),
     entry('useful', 'mine', 'Helps.'),
+    entry('noisy', 'mine', 'Talks a lot.'),
     entry('gsd-help', 'gsd:claude_code', 'Shows the GSD commands.'),
     entry('gsd-plan', 'gsd:claude_code', 'Plans a phase.'),
   ],
@@ -76,12 +79,32 @@ const guideReply = {
 };
 
 const planned: unknown[] = [];
+const undone: unknown[] = [];
+/** When set, plans and applies answer, so a change can be made and undone. */
+let answering = false;
+let changeNumber = 0;
 function desktop(inventory: () => unknown = () => fixture) {
   const calls: string[] = [];
   mockIPC((command, payload) => {
     calls.push(command);
+    const asked = (payload as { request?: Record<string, unknown> })?.request;
     if (command === 'configuration_plan') {
-      planned.push((payload as { request: unknown }).request);
+      planned.push(asked);
+      if (!answering) return never();
+      changeNumber += 1;
+      return {
+        ...changesFixture.plan_skill,
+        id: String(changeNumber).padStart(32, '0'),
+      };
+    }
+    if (command === 'configuration_apply')
+      return {
+        change: `a${String(changeNumber).padStart(31, '0')}`,
+        outcome: 'applied',
+        revision: 0,
+      };
+    if (command === 'configuration_undo') {
+      undone.push(asked?.change);
       return never();
     }
     const request =
@@ -113,6 +136,7 @@ function desktop(inventory: () => unknown = () => fixture) {
           cut: false,
           files: ['SKILL.md'],
           more_files: 0,
+          files_cut: false,
         };
       case 'arsenal_discover':
         return {
@@ -331,4 +355,69 @@ it('switches one of Mine off through Configuration’s own plan', async () => {
   expect(planned).toEqual([
     { operation: 'skill_off', target: '4dadecba81158fed2b5d162fa7214374' },
   ]);
+});
+
+it('offers Undo on the card whose change it was, naming that change', async () => {
+  desktop();
+  answering = true;
+  changeNumber = 0;
+  undone.length = 0;
+  component = mount(App, { target: document.body });
+  await flush();
+  tab('Arsenal').click();
+  await flush();
+  kind('Mine').click();
+  await flush();
+  const library = document.querySelector<HTMLElement>('.library-feature')!;
+  for (const head of library.querySelectorAll<HTMLButtonElement>(
+    '.ars-group-head',
+  ))
+    head.click();
+  await flush();
+  const row = (name: string) =>
+    Array.from(library.querySelectorAll<HTMLButtonElement>('.ars-row')).find(
+      (b) => b.textContent?.includes(name),
+    )!;
+  const press = (label: string) =>
+    Array.from(library.querySelectorAll<HTMLButtonElement>('.ars-card button'))
+      .find((b) => b.textContent?.trim() === label)!
+      .click();
+  // `useful` is switched off (change 1), then `noisy` is switched on (change 2).
+  row('useful').click();
+  await flush();
+  press('Switch off');
+  await flush();
+  press('Apply');
+  await flush();
+  row('noisy').click();
+  await flush();
+  expect(text(library.querySelector('.ars-card'))).not.toContain('Undo');
+  press('Switch on');
+  await flush();
+  press('Apply');
+  await flush();
+  // Back on `useful`: its Undo names its own change, not the last one made.
+  row('useful').click();
+  await flush();
+  press('Undo');
+  await flush();
+  answering = false;
+  expect(undone).toEqual(['a0000000000000000000000000000001']);
+});
+
+it('comes back to Arsenal on its Guide', async () => {
+  desktop();
+  component = mount(App, { target: document.body });
+  await flush();
+  tab('Arsenal').click();
+  await flush();
+  kind('Global').click();
+  await flush();
+  nav('Console').click();
+  await flush();
+  tab('Arsenal').click();
+  await flush();
+  expect(
+    text(document.querySelector('.ars-tree-item[aria-current="page"]')),
+  ).toBe('Guide');
 });

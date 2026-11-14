@@ -264,32 +264,128 @@ fn reads_plugins_agents_and_the_body_by_id_only() {
 }
 
 #[test]
-fn reads_a_skills_folder_that_is_itself_a_link() {
+fn a_folder_linked_out_of_the_roots_is_not_read_and_says_the_lists_are_incomplete() {
     let home = home();
     let elsewhere = home.join("dotfiles/skills");
     skill(&elsewhere.join("loops"), "description: Loops.", "");
     fs::remove_dir(home.join(".claude/skills")).unwrap();
     symlink(&elsewhere, home.join(".claude/skills")).unwrap();
-    // A plugins folder that is a link too: its record and its plugin are read through it.
-    let plugins = home.join("dotfiles/plugins");
+    let (guide, _) = scan(&env(&home));
+    // The approved roots are the providers' folders and GSD Core, never where a link leads.
+    assert!(guide.entries.iter().all(|entry| entry.name != "loops"));
+    assert!(guide.truncated);
+    fs::remove_dir_all(&home).unwrap();
+}
+
+#[test]
+fn reads_plugins_through_a_link_that_stays_inside_the_roots() {
+    let home = home();
+    // `~/.claude/plugins` is a link to another folder inside `~/.claude`.
+    let plugins = home.join(".claude/plugins-real");
     let plugin = plugins.join("cache/m/p/1.0");
     fs::create_dir_all(plugin.join(".claude-plugin")).unwrap();
     fs::write(plugin.join(".claude-plugin/plugin.json"), r#"{"name":"p"}"#).unwrap();
     skill(&plugin.join("skills/ps"), "description: Plugin skill.", "");
     fs::write(
         plugins.join("installed_plugins.json"),
-        format!(r#"{{"plugins":{{"p@m":[{{"installPath":"{}"}}]}}}}"#, plugin.display()),
+        format!(
+            r#"{{"plugins":{{"p@m":[{{"installPath":"{}"}}]}}}}"#,
+            plugin.display()
+        ),
     )
     .unwrap();
     symlink(&plugins, home.join(".claude/plugins")).unwrap();
     let (guide, places) = scan(&env(&home));
-    let loops = find(&guide, "claude_code", "loops");
+    let ps = find(&guide, "claude_code", "ps");
+    assert_eq!(ps.set, "plugin:claude_code:p");
+    assert!(body(&env(&home), &places, &ps.id).is_some());
+    assert!(!guide.truncated);
+    fs::remove_dir_all(&home).unwrap();
+}
+
+#[test]
+fn a_link_of_mine_into_a_plugin_belongs_to_that_plugin() {
+    let home = home();
+    let plugin = home.join(".claude/plugins/cache/m/p/1.0");
+    fs::create_dir_all(plugin.join(".claude-plugin")).unwrap();
+    fs::write(plugin.join(".claude-plugin/plugin.json"), r#"{"name":"p"}"#).unwrap();
+    skill(&plugin.join("skills/ps"), "description: Plugin skill.", "");
+    fs::write(
+        home.join(".claude/plugins/installed_plugins.json"),
+        format!(
+            r#"{{"plugins":{{"p@m":[{{"installPath":"{}"}}]}}}}"#,
+            plugin.display()
+        ),
+    )
+    .unwrap();
+    symlink(
+        plugin.join("skills/ps"),
+        home.join(".claude/skills/ps-linked"),
+    )
+    .unwrap();
+    let (guide, _) = scan(&env(&home));
     assert_eq!(
-        (loops.description.as_str(), loops.unreadable),
-        ("Loops.", None)
+        find(&guide, "claude_code", "ps-linked").set,
+        "plugin:claude_code:p"
     );
-    assert!(body(&env(&home), &places, &loops.id).is_some());
-    assert_eq!(find(&guide, "claude_code", "ps").set, "plugin:claude_code:p");
+    fs::remove_dir_all(&home).unwrap();
+}
+
+#[test]
+fn a_folder_past_the_listing_bound_is_reported_incomplete() {
+    let home = home();
+    let skills = home.join(".agents/skills");
+    for n in 0..2100 {
+        fs::create_dir(skills.join(format!("s{n:04}"))).unwrap();
+    }
+    let (guide, _) = scan(&env(&home));
+    assert!(guide.truncated);
+    fs::remove_dir_all(&home).unwrap();
+}
+
+#[test]
+fn keeps_a_long_description_whole_and_says_when_it_is_cut() {
+    let home = home();
+    let long = format!("{}. Use when it is long.", "A".repeat(5000));
+    skill(
+        &home.join(".claude/skills/long"),
+        &format!("description: {long}"),
+        "",
+    );
+    let huge = "B".repeat(DESCRIPTION_CHARS + 10);
+    skill(
+        &home.join(".claude/skills/huge"),
+        &format!("description: {huge}"),
+        "",
+    );
+    let (guide, _) = scan(&env(&home));
+    let entry = find(&guide, "claude_code", "long");
+    assert!(entry.description.ends_with("Use when it is long."));
+    assert!(!entry.description_cut);
+    assert!(find(&guide, "claude_code", "huge").description_cut);
+    fs::remove_dir_all(&home).unwrap();
+}
+
+#[test]
+fn a_skill_with_too_many_files_is_counted_within_a_budget() {
+    let home = home();
+    let folder = home.join(".claude/skills/many");
+    skill(&folder, "description: Many.", "");
+    for d in 0..50 {
+        let sub = folder.join(format!("d{d:02}"));
+        fs::create_dir(&sub).unwrap();
+        for f in 0..100 {
+            fs::write(sub.join(format!("f{f:03}")), "x").unwrap();
+        }
+    }
+    skill(&home.join(".agents/skills/many"), "description: Many.", "");
+    let (guide, places) = scan(&env(&home));
+    let many = find(&guide, "claude_code", "many");
+    // The comparison with Codex's copy gave up instead of walking it all.
+    assert!(!many.codex_differs);
+    let read = body(&env(&home), &places, &many.id).unwrap();
+    assert!(read.files_cut);
+    assert!(read.files.len() <= 256);
     fs::remove_dir_all(&home).unwrap();
 }
 

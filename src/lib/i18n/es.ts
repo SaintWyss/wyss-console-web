@@ -3833,4 +3833,8 @@ export const ES: Readonly<Record<string, string>> = {
   Scope: 'Alcance',
   'Codex’s copy is different.': 'La copia de Codex es distinta.',
   'Choose a skill to see what it does.': 'Elegí una skill para ver qué hace.',
+  'The description is longer: only its beginning is shown.':
+    'La descripción es más larga: se muestra solo el comienzo.',
+  'The folder holds more files than are counted here.':
+    'La carpeta tiene más archivos de los que se cuentan acá.',
 };

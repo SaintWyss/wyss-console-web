@@ -175,11 +175,28 @@
     if (entry.description === '') return t('Its file has no description.');
     return firstSentence(entry.description);
   }
-  /** The card a change was drafted from: its plan and its Undo are shown there only. */
+  /** The card a change was drafted from: its plan is shown there only. */
   let changedFor = $state<string | null>(null);
+  /** The last change each card applied: its Undo names that change and no other. */
+  let applied = $state<Record<string, string>>({});
+  /** A card drafted a change and waits for it to be applied; `seen` is the change before it. */
+  let awaiting = $state<{ card: string; seen: string | null } | null>(null);
+  $effect(() => {
+    const last = changes.lastChange;
+    if (awaiting && last !== null && last !== awaiting.seen) {
+      applied = { ...applied, [awaiting.card]: last };
+      awaiting = null;
+    }
+  });
+  function draftFrom(card: string, make: () => void) {
+    changedFor = card;
+    awaiting = { card, seen: changes.lastChange };
+    make();
+  }
   /** Leaving a card drops a plan it left unconfirmed. */
   function leave() {
     if (changes.plan && !changes.applying) changesController.cancel();
+    if (!changes.applying) awaiting = null;
   }
   function choose(entry: GuideEntry) {
     leave();
@@ -373,6 +390,11 @@
               <h3>{t('What it does')}</h3>
               <p>{split.what || t('Its file has no description.')}</p>
             </section>
+            {#if open.description_cut}
+              <p class="lib-muted">
+                {t('The description is longer: only its beginning is shown.')}
+              </p>
+            {/if}
             {#if split.when}
               <section>
                 <h3>{t('Use it when')}</h3>
@@ -406,24 +428,25 @@
                   type="button"
                   class="action"
                   disabled={changes.planning || changes.applying}
-                  onclick={() => {
-                    changedFor = open.id;
-                    changesController.draft(
-                      switchChange.operation,
-                      switchItem.id,
-                    );
-                  }}
+                  onclick={() =>
+                    draftFrom(open.id, () =>
+                      changesController.draft(
+                        switchChange.operation,
+                        switchItem.id,
+                      ),
+                    )}
                   >{switchItem.persisted === 'present_disabled'
                     ? t('Switch on')
                     : t('Switch off')}</button
                 >
-                {#if changedFor === open.id && changes.lastChange && !changes.plan}
+                {#if applied[open.id] && !changes.plan}
+                  {@const change = applied[open.id]}
                   <button
                     type="button"
                     class="action quiet"
                     disabled={changes.planning || changes.applying}
                     onclick={() =>
-                      changesController.undo(changes.lastChange ?? '')}
+                      draftFrom(open.id, () => changesController.undo(change))}
                     >{t('Undo')}</button
                   >
                 {/if}
@@ -480,6 +503,11 @@
                   {#if store.body.more_files > 0}
                     <li class="lib-muted">
                       {t('and {n} more', { n: store.body.more_files })}
+                    </li>
+                  {/if}
+                  {#if store.body.files_cut}
+                    <li class="lib-muted">
+                      {t('The folder holds more files than are counted here.')}
                     </li>
                   {/if}
                 </ul>

@@ -27,6 +27,7 @@ const entry = (over: Partial<GuideEntry>): GuideEntry => ({
   scope: 'claude',
   codex_differs: false,
   unreadable: null,
+  description_cut: false,
   ...over,
 });
 

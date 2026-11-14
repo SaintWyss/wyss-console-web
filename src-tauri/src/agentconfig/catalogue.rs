@@ -1124,7 +1124,12 @@ fn description(bytes: &[u8]) -> String {
 /// The whole `description:` of a file's front matter, as `description` reads it but not cut short:
 /// the Guide splits it into "what it does" and "use it when", whose markers often come late.
 pub(super) fn full_description(bytes: &[u8]) -> String {
-    let head = &bytes[..bytes.len().min(FRONT_MATTER_BYTES)];
+    full_description_within(bytes, FRONT_MATTER_BYTES)
+}
+
+/// `full_description`, reading the front matter from the first `limit` bytes.
+pub(super) fn full_description_within(bytes: &[u8], limit: usize) -> String {
+    let head = &bytes[..bytes.len().min(limit)];
     // A head cut inside a character keeps what comes before it.
     let Ok(text) = std::str::from_utf8(head)
         .or_else(|error| std::str::from_utf8(&head[..error.valid_up_to()]))

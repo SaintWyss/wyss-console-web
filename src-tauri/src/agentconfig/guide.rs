@@ -14,15 +14,20 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
-use super::catalogue::full_description;
+use super::catalogue::full_description_within;
 use super::inventory::Environment;
-use super::model::Bounds;
+use super::model::{Bounds, SourceFailure, TooLarge};
 use super::reader::{ConfigReader, EntryKind};
 use super::redact;
 use super::roots::ApprovedRoots;
 
-/// Longest description kept. The Guide splits it; a longer one is cut at a character.
-const DESCRIPTION_CHARS: usize = 4000;
+/// Longest description kept. The Guide splits it; a longer one is cut and says so.
+pub const DESCRIPTION_CHARS: usize = 16_000;
+/// How much of a file is read for its front matter.
+const FRONT_MATTER_BYTES: usize = 64 * 1024;
+/// Most entries one walk of a skill's folder visits (files and folders), and most bytes it hashes.
+const WALK_ENTRIES: usize = 4096;
+const DIGEST_BYTES: u64 = 16 * 1024 * 1024;
 /// Largest instructions file shown. Past it, the text is cut and says so.
 pub const BODY_BYTES: usize = 256 * 1024;
 /// Most files one skill lists in its card; the rest are counted.
@@ -58,6 +63,8 @@ pub struct GuideEntry {
     pub codex_differs: bool,
     /// Why its text could not be read; `None` when it was.
     pub unreadable: Option<&'static str>,
+    /// The description is longer than is kept: what is shown is its beginning.
+    pub description_cut: bool,
 }
 
 /// Where a group of entries comes from, for the Guide's "Sets".
@@ -92,6 +99,8 @@ pub struct GuideBody {
     pub files: Vec<String>,
     /// Files past `MOST_FILES`, counted and not named.
     pub more_files: usize,
+    /// The folder holds more than the walk reads: `more_files` counts only what was walked.
+    pub files_cut: bool,
 }
 
 /// What a scan resolved for each entry, kept beside the reply so a later read names an entry by
@@ -116,21 +125,12 @@ struct Reader {
 
 impl Reader {
     fn new(env: &Environment) -> Option<Self> {
-        // The providers' folders, and each folder a tool reads skills, agents or plugins from,
-        // wherever it resolves: a skills folder may itself be a link (a dotfiles checkout).
-        let claude = env.claude_dir();
-        let codex = env.codex_dir();
+        // The closed list: the providers' folders and the GSD Core payload. Where a link leads
+        // never becomes a root; a folder linked out of these is not read and is reported.
         let wanted = [
-            claude.clone(),
-            claude.join("skills"),
-            claude.join("agents"),
-            claude.join("plugins"),
+            env.claude_dir(),
             env.home.join(".agents"),
-            env.agents_skills_dir(),
-            codex.clone(),
-            codex.join("skills"),
-            codex.join("agents"),
-            codex.join("plugins"),
+            env.codex_dir(),
             env.home.join(GSD_BASE),
         ];
         let roots: Vec<PathBuf> = wanted
@@ -170,7 +170,14 @@ impl Reader {
     /// The entries of a folder, without hidden ones, sorted. `None` when it cannot be listed.
     fn list(&self, path: &Path) -> Option<(Vec<(String, EntryKind)>, bool)> {
         let real = self.resolve(path).ok()?;
-        let listing = self.reader.list_directory(&real).ok()?;
+        let listing = match self.reader.list_directory(&real) {
+            Ok(listing) => listing,
+            // More entries than the reader lists: nothing of it is shown, and it says so.
+            Err(SourceFailure::TooLarge {
+                bound: TooLarge::Listing,
+            }) => return Some((Vec::new(), true)),
+            Err(_) => return None,
+        };
         let mut cut = false;
         let mut found = Vec::new();
         for entry in listing.entries {
@@ -197,14 +204,24 @@ impl Reader {
     }
 }
 
-fn clean(text: &str) -> String {
+/// The text redacted and cut to `DESCRIPTION_CHARS`, and whether it was cut.
+fn clean(text: &str) -> (String, bool) {
     let shown = redact::text(text);
-    shown
-        .text
-        .as_str()
-        .chars()
-        .take(DESCRIPTION_CHARS)
-        .collect()
+    let all = shown.text.as_str();
+    let kept: String = all.chars().take(DESCRIPTION_CHARS).collect();
+    let cut = kept.len() < all.len();
+    (kept, cut)
+}
+
+/// The description of a file and whether it is longer than is read or kept: a front matter still
+/// open at the end of what is read is cut too.
+fn description_of(bytes: &[u8]) -> (String, bool) {
+    let (text, cut) = clean(&full_description_within(bytes, FRONT_MATTER_BYTES));
+    let head = &bytes[..bytes.len().min(FRONT_MATTER_BYTES)];
+    let open = bytes.len() > FRONT_MATTER_BYTES
+        && head.starts_with(b"---\n")
+        && !head[4..].windows(4).any(|window| window == b"\n---");
+    (text, cut || open)
 }
 
 /// Every skill and agent of both tools, and the sets they come from.
@@ -219,6 +236,7 @@ pub fn scan(env: &Environment) -> (Guide, Places) {
         guide: &mut guide,
         places: &mut places,
         sets: BTreeMap::new(),
+        plugin_dirs: Vec::new(),
     };
 
     let claude_skills = env.claude_dir().join("skills");
@@ -226,12 +244,13 @@ pub fn scan(env: &Environment) -> (Guide, Places) {
     let claude_names = names(&reader, &claude_skills);
     let codex_names = names(&reader, &agents_skills);
 
+    // Plugins first: the account's folders are then classified against where they live.
+    scan.claude_plugins(env);
+    scan.codex_plugins(env);
     scan.user_skills("claude_code", &claude_skills, &codex_names);
     scan.user_skills("codex", &agents_skills, &claude_names);
     scan.user_skills("codex", &env.codex_dir().join("skills"), &BTreeSet::new());
     scan.system_skills(&env.codex_dir().join("skills/.system"));
-    scan.claude_plugins(env);
-    scan.codex_plugins(env);
     scan.agents("claude_code", &env.claude_dir().join("agents"), "md");
     scan.agents("codex", &env.codex_dir().join("agents"), "toml");
 
@@ -285,9 +304,22 @@ struct Scan<'a> {
     guide: &'a mut Guide,
     places: &'a mut Places,
     sets: BTreeMap<String, GuideSet>,
+    /// The resolved folder of each plugin read, with its set: a skill of the account's folder that
+    /// resolves inside one belongs to that plugin.
+    plugin_dirs: Vec<(PathBuf, String)>,
 }
 
 impl Scan<'_> {
+    /// A folder's entries. One that is there but cannot be read (a link out of the roots, a
+    /// folder the reader refuses) leaves the lists incomplete, and the Guide says so.
+    fn listed(&mut self, folder: &Path) -> Option<(Vec<(String, EntryKind)>, bool)> {
+        let found = self.reader.list(folder);
+        if found.is_none() && std::fs::symlink_metadata(folder).is_ok() {
+            self.guide.truncated = true;
+        }
+        found
+    }
+
     fn set(
         &mut self,
         key: &str,
@@ -303,7 +335,7 @@ impl Scan<'_> {
             kind,
             name: name.to_owned(),
             version: version.to_owned(),
-            description: clean(description),
+            description: clean(description).0,
         });
     }
 
@@ -327,7 +359,7 @@ impl Scan<'_> {
             id = format!("{tool}/{kind}/{set}/{name}#{n}");
             n += 1;
         }
-        let (description, unreadable) = match &resolved {
+        let ((description, description_cut), unreadable) = match &resolved {
             Ok(path) => {
                 let file = if kind == "skill" {
                     path.join("SKILL.md")
@@ -335,14 +367,14 @@ impl Scan<'_> {
                     path.clone()
                 };
                 match self.reader.read(&file) {
-                    Some(bytes) => (clean(&full_description(&bytes)), None),
+                    Some(bytes) => (description_of(&bytes), None),
                     None if kind == "skill" && !file.exists() => {
-                        (String::new(), Some("no_skill_file"))
+                        ((String::new(), false), Some("no_skill_file"))
                     }
-                    None => (String::new(), Some("unreadable")),
+                    None => ((String::new(), false), Some("unreadable")),
                 }
             }
-            Err(reason) => (String::new(), Some(*reason)),
+            Err(reason) => ((String::new(), false), Some(*reason)),
         };
         if let Ok(path) = &resolved {
             self.places.0.insert(
@@ -377,12 +409,13 @@ impl Scan<'_> {
             scope,
             codex_differs: false,
             unreadable,
+            description_cut,
         });
     }
 
     /// An account's skills folder: each entry, classified by where it resolves.
     fn user_skills(&mut self, tool: &'static str, folder: &Path, other: &BTreeSet<String>) {
-        let Some((entries, cut)) = self.reader.list(folder) else {
+        let Some((entries, cut)) = self.listed(folder) else {
             return;
         };
         self.guide.truncated |= cut;
@@ -428,6 +461,13 @@ impl Scan<'_> {
             let key = format!("gsd:{tool}");
             self.set(&key, tool, "gsd", "GSD Core", version, "");
             return key;
+        }
+        if let Some((_, key)) = self
+            .plugin_dirs
+            .iter()
+            .find(|(dir, key)| path.starts_with(dir) && key.contains(&format!(":{tool}:")))
+        {
+            return key.clone();
         }
         if path.join(".git").exists() {
             let key = format!("repos:{tool}");
@@ -592,6 +632,7 @@ impl Scan<'_> {
             }
             let key = format!("plugin:claude_code:{name}");
             self.set(&key, "claude_code", "plugin", &name, &version, &description);
+            self.plugin_dirs.push((real.clone(), key.clone()));
             self.plugin_skills("claude_code", &key, &real);
         }
     }
@@ -639,13 +680,14 @@ impl Scan<'_> {
                 };
                 let key = format!("plugin:codex:{name}");
                 self.set(&key, "codex", "plugin", &name, &shown_version, &description);
+                self.plugin_dirs.push((real.clone(), key.clone()));
                 self.plugin_skills("codex", &key, &real);
             }
         }
     }
 
     fn agents(&mut self, tool: &'static str, folder: &Path, extension: &str) {
-        let Some((entries, cut)) = self.reader.list(folder) else {
+        let Some((entries, cut)) = self.listed(folder) else {
             return;
         };
         self.guide.truncated |= cut;
@@ -672,12 +714,17 @@ impl Scan<'_> {
 }
 
 /// A digest of a skill's files (relative names and contents), to tell whether two copies match.
-/// `None` when the folder could not be read whole.
+/// `None` when the folder could not be read whole within the walk's budget.
 fn tree_digest(reader: &Reader, root: &Path) -> Option<String> {
     let mut hash = Sha256::new();
-    let mut files = Vec::new();
-    walk(reader, root, "", 0, &mut files, usize::MAX)?;
+    let mut walk = Walk::new(usize::MAX);
+    walk.folder(reader, root, "", 0)?;
+    if walk.exhausted {
+        return None;
+    }
+    let mut files = walk.found;
     files.sort();
+    let mut hashed = 0_u64;
     for relative in files {
         let path = root.join(&relative);
         let size = std::fs::metadata(&path).ok()?.len();
@@ -685,6 +732,10 @@ fn tree_digest(reader: &Reader, root: &Path) -> Option<String> {
             hash.update(relative.as_bytes());
             hash.update(size.to_le_bytes());
             continue;
+        }
+        hashed += size;
+        if hashed > DIGEST_BYTES {
+            return None;
         }
         let bytes = reader.read(&path)?;
         hash.update(relative.as_bytes());
@@ -694,44 +745,61 @@ fn tree_digest(reader: &Reader, root: &Path) -> Option<String> {
     Some(format!("{:x}", hash.finalize()))
 }
 
-/// The files under `root`, as relative names, without hidden ones and without following links.
-/// Stops after `limit` names; returns how many more there were.
-fn walk(
-    reader: &Reader,
-    root: &Path,
-    prefix: &str,
-    depth: usize,
-    found: &mut Vec<String>,
+/// One walk of a skill's folder: its files as relative names, without hidden ones and without
+/// following links. It names at most `limit` files and counts the rest, and visits at most
+/// `WALK_ENTRIES` entries in all; past that it stops and is `exhausted`.
+struct Walk {
+    found: Vec<String>,
+    more: usize,
     limit: usize,
-) -> Option<usize> {
-    let folder = if prefix.is_empty() {
-        root.to_path_buf()
-    } else {
-        root.join(prefix)
-    };
-    let (entries, _) = reader.list(&folder)?;
-    let mut more = 0;
-    for (name, kind) in entries {
-        let relative = if prefix.is_empty() {
-            name
-        } else {
-            format!("{prefix}/{name}")
-        };
-        match kind {
-            EntryKind::File => {
-                if found.len() < limit {
-                    found.push(relative);
-                } else {
-                    more += 1;
-                }
-            }
-            EntryKind::Directory if depth < MOST_DEPTH => {
-                more += walk(reader, root, &relative, depth + 1, found, limit).unwrap_or(0);
-            }
-            _ => {}
+    budget: usize,
+    exhausted: bool,
+}
+
+impl Walk {
+    fn new(limit: usize) -> Self {
+        Self {
+            found: Vec::new(),
+            more: 0,
+            limit,
+            budget: WALK_ENTRIES,
+            exhausted: false,
         }
     }
-    Some(more)
+
+    fn folder(&mut self, reader: &Reader, root: &Path, prefix: &str, depth: usize) -> Option<()> {
+        let folder = if prefix.is_empty() {
+            root.to_path_buf()
+        } else {
+            root.join(prefix)
+        };
+        let (entries, cut) = reader.list(&folder)?;
+        if cut {
+            self.exhausted = true;
+        }
+        for (name, kind) in entries {
+            if self.budget == 0 {
+                self.exhausted = true;
+                return Some(());
+            }
+            self.budget -= 1;
+            let relative = if prefix.is_empty() {
+                name
+            } else {
+                format!("{prefix}/{name}")
+            };
+            match kind {
+                EntryKind::File if self.found.len() < self.limit => self.found.push(relative),
+                EntryKind::File => self.more += 1,
+                EntryKind::Directory if depth < MOST_DEPTH => {
+                    // A subfolder that cannot be read is left out of the names.
+                    let _ = self.folder(reader, root, &relative, depth + 1);
+                }
+                _ => {}
+            }
+        }
+        Some(())
+    }
 }
 
 /// The text after a file's front matter.
@@ -770,12 +838,11 @@ pub fn body(env: &Environment, places: &Places, id: &str) -> Option<GuideBody> {
         .text
         .as_str()
         .to_owned();
-    let mut files = Vec::new();
-    let more_files = if place.skill {
-        walk(&reader, &real, "", 0, &mut files, MOST_FILES).unwrap_or(0)
-    } else {
-        0
-    };
+    let mut walk = Walk::new(MOST_FILES);
+    if place.skill {
+        let _ = walk.folder(&reader, &real, "", 0);
+    }
+    let (mut files, more_files, files_cut) = (walk.found, walk.more, walk.exhausted);
     files.sort();
     Some(GuideBody {
         id: id.to_owned(),
@@ -783,6 +850,7 @@ pub fn body(env: &Environment, places: &Places, id: &str) -> Option<GuideBody> {
         cut,
         files,
         more_files,
+        files_cut,
     })
 }
 

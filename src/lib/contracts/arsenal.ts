@@ -933,6 +933,8 @@ export interface GuideEntry {
   scope: GuideScope | null;
   codex_differs: boolean;
   unreadable: string | null;
+  /** The description is longer than is kept: what is shown is its beginning. */
+  description_cut: boolean;
 }
 export type GuideSetKind =
   'gsd' | 'repos' | 'plugin' | 'account' | 'bundle' | 'system';
@@ -955,6 +957,8 @@ export interface GuideBody {
   cut: boolean;
   files: string[];
   more_files: number;
+  /** The folder holds more than is walked: the count is a floor. */
+  files_cut: boolean;
 }
 
 const GUIDE_SET_KINDS: readonly GuideSetKind[] = [
@@ -981,6 +985,7 @@ function parseGuideEntry(value: unknown): GuideEntry {
     scope: nullable(v.scope, (x) => oneOf(x, GUIDE_SCOPES, 'scope')),
     codex_differs: flag(v.codex_differs, 'codex_differs'),
     unreadable: nullable(v.unreadable, (x) => text(x, 'unreadable')),
+    description_cut: flag(v.description_cut, 'description_cut'),
   };
 }
 
@@ -1013,5 +1018,6 @@ export function parseGuideBody(value: unknown): GuideBody {
     cut: flag(v.cut, 'cut'),
     files: list(v.files, 'files', (x) => text(x, 'file')),
     more_files: integer(v.more_files, 'more_files'),
+    files_cut: flag(v.files_cut, 'files_cut'),
   };
 }
