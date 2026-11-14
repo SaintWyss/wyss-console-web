@@ -51,6 +51,26 @@ Contexto: la pestaña Arsenal → Skills de hoy (commit `9958b79`) muestra la bi
 
 8. **Arreglar el lector de `description: >`** (escalar plegado de YAML), con test. Hoy `loops` muestra ">". Y también `|`.
 
+## Correcciones tras revisar el plan (2026-11-14, entran en el paso 1)
+
+- **Dos funciones quedaron sin acceso en `9958b79`, y hay que devolverlas:**
+  1. **Prender y apagar skills** (lo que hacía Configuración con `kind: skill`): `CONFIG_KINDS` de `LibraryView.svelte` no incluye `skill` y la vista suelta de Configuración ya no se monta. Va en la ficha de cada skill de "Mías" como **Apagada / Prendida**, por el mismo plan, aplicar y deshacer de Configuración. Es además la "baja reversible" que pidió el dueño.
+  2. **Configuración de OpenCode:** `TOOLS` solo tiene Claude Code y Codex, y el enlace "Configuración" de la fila de OpenCode en Distribuidores cae en Claude. Agregar OpenCode cuando tenga algo, y que el enlace abra la herramienta de su fila.
+- **"Mías" se clasifica por destino resuelto, no por "es enlace":** `humanizer` es un enlace (`../skills-src/humanizer/skills`) y es del dueño. Regla: el destino resuelto queda bajo `~/.local/share/wyss/gsd-core` → GSD Core; tiene `.git` → repo; está en la caché de plugins → plugin; si no, Mías. Los enlaces que no van a gsd-core (`humanizer`, `doctor` y `whatsapp-inbox` en `~/.agents/skills`, y uno en `~/.claude/.agents/skills`) se clasifican por esa regla y se muestran con su origen.
+- **Los números de este plan son de la .18.** Se calculan siempre del disco, y `~/.local/share/wyss` no se sincroniza entre las PC.
+- **El lado de Codex:** qué carpetas lee cada herramienta ya está medido en `docs/research/arsenal-home-por-lanzamiento.md` (Codex lee `~/.agents/skills`; los symlink de `SKILL.md` no cargan). Partir de ahí para la marca de alcance, y medir solo lo que falte.
+- **Agentes también se leen del disco** (`~/.claude/agents`, 35 en la .18). La biblioteca muestra 0.
+- **Dónde va la ficha:** dentro del panel, la lista a la izquierda y la ficha a la derecha. En ventana angosta, la ficha reemplaza a la lista y tiene un botón Volver.
+- **El contrato `docs/contracts/arsenal-UI-SPEC.md`** (sección "Etapa 4") todavía describe pestañas. Se actualiza en el mismo cambio, con Contenido, Estados y Breakpoints.
+
+## Trampas (costaron tiempo el 2026-11-14)
+
+- `npm run desktop:package` exige el árbol limpio: primero commit. `scripts/install.sh install` exige `--package .artifacts/package/wyss-console-0.2.0-linux-x64`.
+- Al tocar la navegación se rompen los tests que enumeran vistas: `tests/app-shell.test.ts`, `tests/ux-structure.test.ts`, `tests/view-visibility.test.ts` y `tests/configuration-app.test.ts`.
+- El test f8 `start_stop_cycles…` falla bajo carga y pasa al repetirlo solo.
+- Prueba aislada: **enlazar** `~/.claude/skills` (1,5 GB), `agents` y `plugins` al HOME aislado, no copiarlos. **Nunca** copiar `credentials` ni `~/.claude.json`. Los sockets van en `/tmp/claude-1000/wux-XXXXXX` (los paths largos no entran). Matar solo por PID guardado.
+- Con el HOME aislado, Claude y Codex salen "No instalado" salvo que el `PATH` de la app incluya `~/.local/bin`.
+
 ## Fuera de este paso (no dejar botones muertos)
 
 Editar, alta, baja, abrir en VS Code, cambiar el alcance y reescribir descripciones van en el **paso 2**, con lente +security, porque escriben en `~/.claude/skills`. "Agregar" sale de esta pestaña.
