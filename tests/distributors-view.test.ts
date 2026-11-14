@@ -124,7 +124,7 @@ const rows = (id: string) =>
   Array.from(card(id).querySelectorAll('.dist-models li')).map(text);
 // There is no refresh button: showing the view again reads everything again.
 const refresh = async () => {
-  tab('Configuration').click();
+  tab('Credentials').click();
   await flush();
   tab('Distributors').click();
   await flush();

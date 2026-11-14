@@ -92,12 +92,6 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: 'M4 5h16v14H4zM8 9h8M8 13h8M8 17h5',
   },
   {
-    id: 'configuration',
-    label: msg('Configuration'),
-    subtitle: msg('What the agents are set up with'),
-    icon: 'M4 6h16M4 12h16M4 18h16M8 4v4M15 10v4M10 16v4',
-  },
-  {
     id: 'credentials',
     label: msg('Credentials'),
     subtitle: msg('API keys, kept sealed'),
@@ -253,13 +247,6 @@ export const PERSONALIZATION: readonly PersonalizationTab[] = [
     label: msg('Arsenal'),
     hint: msg(
       'Skills, agents, MCP servers and presets: what a session can load.',
-    ),
-  },
-  {
-    id: 'configuration',
-    label: msg('Configuration'),
-    hint: msg(
-      'The real configuration files of Claude Code and Codex: what an agent starts with when a launch names no permission.',
     ),
   },
   {

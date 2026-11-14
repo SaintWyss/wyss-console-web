@@ -924,6 +924,11 @@ export const ES: Readonly<Record<string, string>> = {
   'Add a key': 'Agregar una clave',
   'Enter the key…': 'Ingresar la clave…',
   'Reading…': 'Leyendo…',
+  Global: 'Global',
+  'Nothing here yet. Add brings what is already on your computer.':
+    'Todavía no hay nada. Agregar trae lo que ya está en tu PC.',
+  'What Wyss Console found in your folders and is not in the library yet. It is copied to your library; your original files are not touched.':
+    'Lo que Wyss Console encontró en tus carpetas y todavía no está en la biblioteca. Se copia a tu biblioteca; tus archivos originales no se tocan.',
   'What Wyss Console found in your folders and is not in the library yet. Before it is added you see what it does, its files and whether it runs code.':
     'Lo que Wyss Console encontró en tus carpetas y todavía no está en la biblioteca. Antes de sumarlo ves qué hace, qué archivos trae y si ejecuta código.',
   '1 launch': '1 lanzamiento',

@@ -3,6 +3,7 @@
   import {
     ITEM_KINDS,
     NEW_DOCUMENT_KINDS,
+    type ItemKind,
     type NewDocumentKind,
   } from '../../contracts/configuration';
   import { t, tPhrase } from '../../i18n/index.svelte';
@@ -50,12 +51,18 @@
     changes,
     changesController,
     visible,
+    embedded = false,
+    kinds = null,
   }: {
     configuration: ConfigurationState;
     controller: ConfigurationController;
     changes: ChangesState;
     changesController: ChangesController;
     visible: boolean;
+    /** Inside Arsenal: no title, note or filters of its own; Arsenal picks agent and kinds. */
+    embedded?: boolean;
+    /** Only these kinds (Arsenal's Global, Hooks or MCP tab); null keeps the kind filter. */
+    kinds?: readonly ItemKind[] | null;
   } = $props();
 
   const parked = $derived(
@@ -76,8 +83,8 @@
           visibleItems(
             reply.inventory.items,
             configuration.provider,
-            configuration.kind,
-          ),
+            kinds ? 'all' : configuration.kind,
+          ).filter((item) => !kinds || kinds.includes(item.kind)),
           query,
         )
       : [],
@@ -143,36 +150,38 @@
   hidden={!visible}
   inert={!visible}
 >
-  <div class="sessions-toolbar">
-    <div class="sessions-heading">
-      <h2>{t('Configuration')}</h2>
-      <p class="sessions-count">
-        {#if reply}
-          {reply.inventory.items.length}
-          {reply.inventory.items.length === 1 ? t('item') : t('items')}
-          {t('from')}
-          {reply.inventory.sources.length}
-          {t('places')}
-        {:else if configuration.phase === 'unavailable'}
-          {t('Unavailable')}
-        {:else}
-          {t('Reading')}
-        {/if}
-      </p>
+  {#if !embedded}
+    <div class="sessions-toolbar">
+      <div class="sessions-heading">
+        <h2>{t('Configuration')}</h2>
+        <p class="sessions-count">
+          {#if reply}
+            {reply.inventory.items.length}
+            {reply.inventory.items.length === 1 ? t('item') : t('items')}
+            {t('from')}
+            {reply.inventory.sources.length}
+            {t('places')}
+          {:else if configuration.phase === 'unavailable'}
+            {t('Unavailable')}
+          {:else}
+            {t('Reading')}
+          {/if}
+        </p>
+      </div>
+      <button
+        type="button"
+        class="action"
+        disabled={configuration.phase === 'loading'}
+        onclick={() => controller.refresh()}>{t('Refresh')}</button
+      >
     </div>
-    <button
-      type="button"
-      class="action"
-      disabled={configuration.phase === 'loading'}
-      onclick={() => controller.refresh()}>{t('Refresh')}</button
-    >
-  </div>
 
-  <p class="configuration-note">
-    {t(
-      'This is what Claude Code and Codex are set up with, read from their own files. Nothing changes until you confirm a plan, and Claude Code hooks and skills, Codex skills and MCP servers, and OpenCode MCP servers and plugins can be switched here. You can also write a Claude Code hook or an MCP server for Codex or OpenCode, in a separate window. Secrets in commands, environments and headers are never shown.',
-    )}
-  </p>
+    <p class="configuration-note">
+      {t(
+        'This is what Claude Code and Codex are set up with, read from their own files. Nothing changes until you confirm a plan, and Claude Code hooks and skills, Codex skills and MCP servers, and OpenCode MCP servers and plugins can be switched here. You can also write a Claude Code hook or an MCP server for Codex or OpenCode, in a separate window. Secrets in commands, environments and headers are never shown.',
+      )}
+    </p>
+  {/if}
 
   {#if changes.plan}
     {@const plan = changes.plan}
@@ -675,46 +684,52 @@
         {/if}
       </div>
     {:else}
-      <div
-        class="events-filters"
-        role="group"
-        aria-label={t('Filter by agent')}
-      >
-        <button
-          type="button"
-          class="action chip"
-          aria-pressed={configuration.provider === 'all'}
-          onclick={() => controller.setProvider('all')}
-          >{t('All agents')}</button
+      {#if !embedded}
+        <div
+          class="events-filters"
+          role="group"
+          aria-label={t('Filter by agent')}
         >
-        {#each PROVIDERS as provider (provider)}
           <button
             type="button"
             class="action chip"
-            aria-pressed={configuration.provider === provider}
-            onclick={() => controller.setProvider(provider)}
-            >{PROVIDER_LABEL[provider]}</button
+            aria-pressed={configuration.provider === 'all'}
+            onclick={() => controller.setProvider('all')}
+            >{t('All agents')}</button
           >
-        {/each}
-      </div>
-      <div class="events-filters" role="group" aria-label={t('Filter by kind')}>
-        <button
-          type="button"
-          class="action chip"
-          aria-pressed={configuration.kind === 'all'}
-          onclick={() => controller.setKind('all')}
-          >{t('Everything')} {counts.all}</button
+          {#each PROVIDERS as provider (provider)}
+            <button
+              type="button"
+              class="action chip"
+              aria-pressed={configuration.provider === provider}
+              onclick={() => controller.setProvider(provider)}
+              >{PROVIDER_LABEL[provider]}</button
+            >
+          {/each}
+        </div>
+        <div
+          class="events-filters"
+          role="group"
+          aria-label={t('Filter by kind')}
         >
-        {#each ITEM_KINDS as kind (kind)}
           <button
             type="button"
             class="action chip"
-            aria-pressed={configuration.kind === kind}
-            onclick={() => controller.setKind(kind)}
-            >{t(KIND_LABEL[kind])} {counts[kind]}</button
+            aria-pressed={configuration.kind === 'all'}
+            onclick={() => controller.setKind('all')}
+            >{t('Everything')} {counts.all}</button
           >
-        {/each}
-      </div>
+          {#each ITEM_KINDS as kind (kind)}
+            <button
+              type="button"
+              class="action chip"
+              aria-pressed={configuration.kind === kind}
+              onclick={() => controller.setKind(kind)}
+              >{t(KIND_LABEL[kind])} {counts[kind]}</button
+            >
+          {/each}
+        </div>
+      {/if}
 
       <label class="configuration-search"
         >{t('Search by name')}

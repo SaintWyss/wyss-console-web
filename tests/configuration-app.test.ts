@@ -121,24 +121,29 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-it('is a view of its own that reads configuration only while it is shown', async () => {
+const kind = (label: string) =>
+  Array.from(document.querySelectorAll<HTMLButtonElement>('.ars-kind')).find(
+    (b) => b.textContent?.trim().startsWith(label),
+  )!;
+
+it('lives in Arsenal: its Global tab reads the configuration only while Arsenal is shown', async () => {
   const ipc = desktop();
   component = mount(App, { target: document.body });
   await flush();
-  expect(tab('Configuration').disabled).toBe(false);
-  expect(view().hidden).toBe(true);
   expect(ipc.count('configuration_inventory')).toBe(0);
 
-  tab('Configuration').click();
+  tab('Arsenal').click();
+  await flush();
+  kind('Global').click();
   await flush();
   expect(view().hidden).toBe(false);
-  // Its own heading names it: no title is drawn over it.
+  // Inside Arsenal it draws no title or filters of its own.
   expect(document.querySelector('.context-title')).toBeNull();
-  expect(view().querySelector('h2')?.textContent).toBe('Configuration');
+  expect(view().querySelector('h2')).toBeNull();
   expect(ipc.count('configuration_inventory')).toBe(1);
-  expect(text(view().querySelector('.sessions-count'))).toBe(
-    '13 items from 21 places',
-  );
+  // Global holds rule files, the configured model and plugins only.
+  for (const row of view().querySelectorAll('.configuration-row'))
+    expect(row.textContent).not.toMatch(/\bHook\b|MCP/);
 
   nav('Console').click();
   await flush();
@@ -152,23 +157,33 @@ it('does not take the desktop’s answer on faith', async () => {
   }));
   component = mount(App, { target: document.body });
   await flush();
-  tab('Configuration').click();
+  tab('Arsenal').click();
+  await flush();
+  kind('Hooks').click();
   await flush();
   expect(text(view())).toContain('The configuration could not be read');
   expect(view().querySelector('.configuration-row')).toBeNull();
 });
 
-it('opens Arsenal on its own library, not on the provider inventory', async () => {
+it('opens Arsenal on the tool, then the kind; the earlier screen is under More', async () => {
   const ipc = desktop();
   component = mount(App, { target: document.body });
   await flush();
   tab('Arsenal').click();
   await flush();
-  // The Personalization tab is the library (redesign stage 4); nothing is imported here yet.
   const library = document.querySelector<HTMLElement>('.library-feature')!;
   expect(library.hidden).toBe(false);
-  expect(text(library)).toContain('Bring what you already use');
-  // The earlier screen, with its tabs, is under More as Arsenal presets.
+  expect(
+    Array.from(library.querySelectorAll('.ars-tool')).map((b) => b.textContent),
+  ).toEqual(['Claude Code', 'Codex']);
+  expect(
+    Array.from(library.querySelectorAll('.ars-kind')).map((b) =>
+      b.textContent?.replace(/\s*\d+$/, '').trim(),
+    ),
+  ).toEqual(['Global', 'Skills', 'Agents', 'Hooks', 'MCP']);
+  // Skills first; nothing is imported here yet.
+  expect(text(library)).toContain('Nothing here yet');
+  expect(ipc.count('arsenal_capabilities')).toBe(1);
   Array.from(
     document.querySelectorAll<HTMLButtonElement>(
       '.sidebar .rail-menu .nav-item',
@@ -179,11 +194,7 @@ it('opens Arsenal on its own library, not on the provider inventory', async () =
   await flush();
   const arsenal = document.querySelector<HTMLElement>('.arsenal-feature')!;
   expect(arsenal.hidden).toBe(false);
-  expect(ipc.count('arsenal_capabilities')).toBe(1);
-  expect(ipc.count('configuration_inventory')).toBe(0);
-  // Arsenal opens on Presets; the library is one tab away.
   arsenal.querySelector<HTMLButtonElement>('#arsenal-tab-library')!.click();
   await flush();
-  expect(text(arsenal)).toContain('Installed does not mean imported');
   expect(text(arsenal)).toContain('Nothing is imported yet');
 });

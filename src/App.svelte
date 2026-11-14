@@ -10,7 +10,6 @@
   import ArsenalView from './lib/features/arsenal/ArsenalView.svelte';
   import LibraryView from './lib/features/arsenal/LibraryView.svelte';
   import { ArsenalController } from './lib/features/arsenal/controller';
-  import ConfigurationView from './lib/features/configuration/ConfigurationView.svelte';
   import { ChangesController } from './lib/features/configuration/changes-controller';
   import { ConfigurationController } from './lib/features/configuration/controller';
   import { CredentialsController } from './lib/features/credentials/controller';
@@ -225,7 +224,7 @@
   // Sessions view, and the runtime's list: it asks for nothing of its own.
   $effect(() => {
     configurationController.setVisible(
-      activeView === 'configuration' || activeView === 'distributors',
+      activeView === 'arsenal' || activeView === 'distributors',
     );
   });
   $effect(() => {
@@ -339,10 +338,16 @@
   $effect(() => {
     if (inPersonalization(activeView)) personalTab = activeView as ViewId;
   });
+  let arsenalFocus = $state<{ tab: 'global'; at: number } | null>(null);
   function go(view: ShownView) {
     navigated = true;
     // Models is part of Distributors now: a link or a saved page that names it lands there.
     if (view === 'models') view = 'distributors';
+    // Configuration is part of Arsenal now: its Global tab holds the agents' own files.
+    if (view === 'configuration') {
+      view = 'arsenal';
+      arsenalFocus = { tab: 'global', at: Date.now() };
+    }
     if (view === 'console') consoleOpened = true;
     activeView = view;
   }
@@ -550,18 +555,16 @@
           visible={activeView === 'arsenal'}
           {arsenal}
           controller={arsenalController}
+          {configuration}
+          {configurationController}
+          {changes}
+          {changesController}
+          focus={arsenalFocus}
         />
         <ArsenalView
           visible={activeView === 'arsenal-presets'}
           {arsenal}
           controller={arsenalController}
-        />
-        <ConfigurationView
-          visible={activeView === 'configuration'}
-          {configuration}
-          controller={configurationController}
-          {changes}
-          {changesController}
         />
         <CredentialsView
           visible={activeView === 'credentials'}

@@ -146,7 +146,6 @@ it('lists every view, and every one of them exists', () => {
     'Events',
     'Arsenal',
     'Arsenal presets',
-    'Configuration',
     'Credentials',
     'Settings',
   ]);
@@ -161,7 +160,6 @@ it('lists every view, and every one of them exists', () => {
     'events',
     'arsenal',
     'arsenal-presets',
-    'configuration',
     'credentials',
     'settings',
   ]);
