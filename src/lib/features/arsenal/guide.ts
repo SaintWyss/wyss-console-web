@@ -30,7 +30,7 @@ const WHEN_NOT = [
   /\bDo not use\b/i,
   /\bDon['’]t use\b/i,
   /\bNo l[ao] uses\b/i,
-  /\bNO usar\b/,
+  /\bN[Oo] usar\b/,
   /\bSKIP\b/,
   /\bNOT for\b/,
 ];

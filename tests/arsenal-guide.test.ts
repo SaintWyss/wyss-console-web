@@ -53,6 +53,15 @@ describe('splitDescription', () => {
       'Usala cuando Y.',
     );
   });
+  it('reads "No usar" as do-not-use', () => {
+    expect(
+      splitDescription('Método X. No usar si la causa se conoce.'),
+    ).toEqual({
+      what: 'Método X.',
+      when: null,
+      whenNot: 'No usar si la causa se conoce.',
+    });
+  });
   it('finds a marker past 500 characters', () => {
     const long = 'A'.repeat(600) + '. Use when needed.';
     expect(splitDescription(long).when).toBe('Use when needed.');

@@ -3808,8 +3808,6 @@ export const ES: Readonly<Record<string, string>> = {
     'Al arrancar, Claude lee solo el nombre y la descripción de cada una; si lo que pedís coincide, abre la skill entera y la sigue.',
   'You use one by typing /name or by asking for what its “Use it when” says.':
     'Se usa escribiendo /nombre o pidiendo lo que dice su “Usala cuando”.',
-  'Mine are the ones in your own folder. Sets come from outside: GSD Core, plugins, your account. Open one at the side to see what it holds.':
-    'Mías son las de tu propia carpeta. Los conjuntos vienen de afuera: GSD Core, plugins, tu cuenta. Abrí uno al costado para ver qué tiene.',
   'The skills on disk could not be read.':
     'No se pudieron leer las skills del disco.',
   'A folder holds more than is read: the lists are incomplete.':

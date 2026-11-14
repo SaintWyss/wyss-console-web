@@ -239,6 +239,22 @@ it('opens from the rail, reads only while shown, and draws what the desktop answ
   expect(
     text(document.querySelector('.ars-tree-item[aria-current="page"]')),
   ).toMatch(/^Global/);
+  // OpenCode's opens its own, even when its configuration holds nothing yet.
+  tab('Distributors').click();
+  await flush();
+  Array.from(card('opencode').querySelectorAll<HTMLButtonElement>('button'))
+    .find((b) => text(b) === 'Configuration')!
+    .click();
+  await flush();
+  expect(text(document.querySelector('.ars-tool[aria-selected="true"]'))).toBe(
+    'OpenCode',
+  );
+  // OpenCode has no skills: the tree keeps only its configuration pages.
+  expect(
+    Array.from(document.querySelectorAll('.ars-tree-item')).map((b) =>
+      text(b).replace(/\s*[\d…]+$/, ''),
+    ),
+  ).toEqual(['Hooks', 'MCP', 'Global']);
 });
 
 it('adds a tool by name and command, opens it from its file, and makes a launch of it', async () => {

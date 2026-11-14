@@ -53,8 +53,12 @@
       { id: 'claude_code', name: 'Claude Code' },
       { id: 'codex', name: 'Codex' },
     ];
-    // OpenCode has no skills; it is offered when its configuration holds something.
-    if (configItems.some((item) => item.provider === 'opencode'))
+    // OpenCode has no skills; it is offered when its configuration holds something, or when
+    // its own "Configuration" link opened it.
+    if (
+      store.tool === 'opencode' ||
+      configItems.some((item) => item.provider === 'opencode')
+    )
       tools.push({ id: 'opencode', name: 'OpenCode' });
     return tools;
   });
@@ -171,12 +175,23 @@
     if (entry.description === '') return t('Its file has no description.');
     return firstSentence(entry.description);
   }
+  /** The card a change was drafted from: its plan and its Undo are shown there only. */
+  let changedFor = $state<string | null>(null);
+  /** Leaving a card drops a plan it left unconfirmed. */
+  function leave() {
+    if (changes.plan && !changes.applying) changesController.cancel();
+  }
   function choose(entry: GuideEntry) {
+    leave();
     if (store.openId === entry.id) {
       store.close();
       return;
     }
     void store.open(entry.id);
+  }
+  function back() {
+    leave();
+    store.close();
   }
   let cardTitle = $state<HTMLHeadingElement | null>(null);
   $effect(() => {
@@ -234,11 +249,6 @@
           )}
         </li>
       </ol>
-      <p class="lib-muted">
-        {t(
-          'Mine are the ones in your own folder. Sets come from outside: GSD Core, plugins, your account. Open one at the side to see what it holds.',
-        )}
-      </p>
       {#if store.failed}
         <p class="notice" data-tone="error" role="alert">
           {t('The skills on disk could not be read.')}
@@ -274,7 +284,16 @@
             </p>
           </header>
         {/if}
-        {#if store.guide === null}
+        {#if store.failed}
+          <p class="notice" data-tone="error" role="alert">
+            {t('The skills on disk could not be read.')}
+            <button
+              type="button"
+              class="action"
+              onclick={() => void store.load()}>{t('Try again')}</button
+            >
+          </p>
+        {:else if store.guide === null}
           <p class="lib-muted" role="status">{t('Reading…')}</p>
         {:else if listed.length === 0}
           <p class="lib-muted">{t('Nothing here.')}</p>
@@ -333,10 +352,8 @@
 
       {#if open}
         <article class="ars-card" aria-labelledby="ars-card-title">
-          <button
-            type="button"
-            class="action quiet ars-back"
-            onclick={() => store.close()}>{t('Back')}</button
+          <button type="button" class="action quiet ars-back" onclick={back}
+            >{t('Back')}</button
           >
           <h2 id="ars-card-title" tabindex="-1" bind:this={cardTitle}>
             {open.name}
@@ -389,16 +406,18 @@
                   type="button"
                   class="action"
                   disabled={changes.planning || changes.applying}
-                  onclick={() =>
+                  onclick={() => {
+                    changedFor = open.id;
                     changesController.draft(
                       switchChange.operation,
                       switchItem.id,
-                    )}
+                    );
+                  }}
                   >{switchItem.persisted === 'present_disabled'
                     ? t('Switch on')
                     : t('Switch off')}</button
                 >
-                {#if changes.lastChange && !changes.plan}
+                {#if changedFor === open.id && changes.lastChange && !changes.plan}
                   <button
                     type="button"
                     class="action quiet"
@@ -409,7 +428,9 @@
                   >
                 {/if}
               </p>
-              <ChangePlan {changes} {changesController} />
+              {#if changedFor === open.id}
+                <ChangePlan {changes} {changesController} />
+              {/if}
             </section>
           {/if}
 
