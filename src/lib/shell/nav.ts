@@ -208,7 +208,8 @@ export const RAIL_ITEMS: readonly RailItem[] = [
   {
     id: 'personalization',
     label: msg('Personalization'),
-    icon: 'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M14 4v4M8 10v4M16 16v4',
+    // A palette: how the agents look and start is yours to set.
+    icon: 'M12 3a9 9 0 1 0 0 18c.9 0 1.5-.7 1.5-1.5 0-.4-.2-.8-.4-1.1-.3-.3-.4-.6-.4-1 0-.8.7-1.5 1.5-1.5H16a5 5 0 0 0 5-5c0-4.4-4-7.9-9-7.9zM7.5 11.5h.01M10 7.5h.01M14.5 7.5h.01M17 11h.01',
     // The tab last visited opens; Distributors the first time.
     view: 'distributors',
   },
