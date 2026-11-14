@@ -3711,4 +3711,11 @@ export const ES: Readonly<Record<string, string>> = {
     'Para openSUSE Tumbleweed y Leap. zypper refresh lee los repositorios; zypper dup lleva todo el sistema a sus versiones.',
   'A distribution added by hand: it runs on computers whose os-release ID is {id}.':
     'Distribución agregada a mano: corre en las PC cuyo ID de os-release es {id}.',
+  'Include AUR -git packages (--devel)':
+    'Incluir paquetes -git del AUR (--devel)',
+  'Adds --devel to paru: also rebuilds AUR packages that follow a repository (-git, -svn…), which a plain update leaves as they are.':
+    'Agrega --devel a paru: también recompila los paquetes del AUR que siguen un repositorio (-git, -svn…), que una actualización común deja como están.',
+  'Finish with cachy-update': 'Terminar con cachy-update',
+  'Adds “cachy-update” at the end: CachyOS’s own updater. It updates whatever is still pending and then offers to clean orphans and old cache, review .pacnew files and restart the services that need it. It asks before each step.':
+    'Agrega «cachy-update» al final: el actualizador propio de CachyOS. Actualiza lo que haya quedado pendiente y después ofrece limpiar huérfanos y caché vieja, revisar archivos .pacnew y reiniciar los servicios que lo necesitan. Pregunta antes de cada paso.',
 };

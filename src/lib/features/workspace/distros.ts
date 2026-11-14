@@ -76,6 +76,14 @@ const pacmanSwitches: readonly Switch[] = [
     flags: { paru: '--skipreview' },
   },
   {
+    id: 'devel',
+    label: msg('Include AUR -git packages (--devel)'),
+    hint: msg(
+      'Adds --devel to paru: also rebuilds AUR packages that follow a repository (-git, -svn…), which a plain update leaves as they are.',
+    ),
+    flags: { paru: '--devel' },
+  },
+  {
     id: 'clean',
     label: msg('Clean the package cache (paccache -rk2)'),
     hint: msg(
@@ -90,10 +98,22 @@ export const DISTROS: readonly Distro[] = [
     id: 'cachyos',
     label: 'CachyOS',
     hint: msg(
-      'For CachyOS. Same commands as Arch (pacman, and paru for the AUR), and pacman also updates CachyOS’s own optimized repositories. AUR comes switched on, since CachyOS ships paru.',
+      'For CachyOS. Same commands as Arch (pacman, and paru for the AUR), and pacman also updates CachyOS’s own optimized repositories. AUR comes switched on, since CachyOS ships paru. Only here: finishing with cachy-update.',
     ),
-    lines: PACMAN,
-    switches: pacmanSwitches,
+    lines: [
+      ...PACMAN,
+      { key: 'cachy', text: 'cachy-update', requires: 'cachy' },
+    ],
+    switches: [
+      ...pacmanSwitches,
+      {
+        id: 'cachy',
+        label: msg('Finish with cachy-update'),
+        hint: msg(
+          'Adds “cachy-update” at the end: CachyOS’s own updater. It updates whatever is still pending and then offers to clean orphans and old cache, review .pacnew files and restart the services that need it. It asks before each step.',
+        ),
+      },
+    ],
   },
   {
     id: 'arch',

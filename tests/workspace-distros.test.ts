@@ -57,5 +57,11 @@ it('every distribution and every switch says what it does', () => {
     expect(d.hint.length).toBeGreaterThan(20);
     for (const s of d.switches) expect(s.hint.length).toBeGreaterThan(20);
   }
-  expect(distroOf('cachyos')!.lines).toEqual(distroOf('arch')!.lines);
+  // CachyOS adds its own updater at the end; Arch has none.
+  expect(compose(distroOf('cachyos')!, ['aur', 'devel', 'cachy'])).toEqual([
+    'sudo pacman -Syu',
+    'paru -Sua --devel',
+    'cachy-update',
+  ]);
+  expect(distroOf('arch')!.switches.some((s) => s.id === 'cachy')).toBe(false);
 });
