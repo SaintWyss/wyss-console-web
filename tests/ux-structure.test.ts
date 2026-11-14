@@ -54,6 +54,7 @@ it('offers six entries on the rail, and every other view under More', () => {
     'remote',
     'approvals',
     'events',
+    'arsenal-presets',
     'providers',
     'settings',
   ]);

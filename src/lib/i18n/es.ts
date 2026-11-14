@@ -923,6 +923,44 @@ export const ES: Readonly<Record<string, string>> = {
   'Add a key': 'Agregar una clave',
   'Enter the key…': 'Ingresar la clave…',
   'Reading…': 'Leyendo…',
+  'What Wyss Console found in your folders and is not in the library yet. Before it is added you see what it does, its files and whether it runs code.':
+    'Lo que Wyss Console encontró en tus carpetas y todavía no está en la biblioteca. Antes de sumarlo ves qué hace, qué archivos trae y si ejecuta código.',
+  '1 launch': '1 lanzamiento',
+  'Activates when': 'Se activa cuando',
+  'Bring what you already use': 'Traé lo que ya usás',
+  Context: 'Contexto',
+  'Could not be saved. What was saved before this stays.':
+    'No se pudo guardar. Lo que ya estaba guardado sigue igual.',
+  'Import {n} items': 'Importar {n} elementos',
+  'In a launch’s environment': 'En el entorno de un lanzamiento',
+  '{n} launches': '{n} lanzamientos',
+  No: 'No',
+  'No launch of this agent has this role.':
+    'Ningún lanzamiento de este agente tiene este rol.',
+  'No launch of this agent yet.': 'Todavía no hay lanzamientos de este agente.',
+  'Not known': 'No se sabe',
+  'Nothing found to bring.': 'No se encontró nada para traer.',
+  'Nothing here.': 'No hay nada acá.',
+  'Nothing matches “{q}”.': 'Nada coincide con “{q}”.',
+  Origin: 'Origen',
+  'Putting it in a role adds it to every launch of that role.':
+    'Ponerla en un rol la suma a todos los lanzamientos de ese rol.',
+  'Suggestion: {group}': 'Sugerencia: {group}',
+  'This is chosen in each launch’s environment, in Workspace.':
+    'Esto se elige en el entorno de cada lanzamiento, en Workspace.',
+  'This launch runs commands before it starts: it is changed in its file.':
+    'Este lanzamiento corre comandos antes de arrancar: se cambia en su archivo.',
+  'tokens, estimated': 'tokens, estimado',
+  Unplaced: 'Sin ubicar',
+  'What it does': 'Qué hace',
+  'Where it goes': 'Dónde va',
+  'Works in': 'Funciona en',
+  'Wyss Console found this on your computer. It is copied to your library; your original files are not touched.':
+    'Wyss Console encontró esto en tu PC. Se copia a tu biblioteca; tus archivos originales no se tocan.',
+  Yes: 'Sí',
+  'Arsenal presets': 'Presets de Arsenal',
+  'The earlier Arsenal screen: presets by provider':
+    'La pantalla anterior de Arsenal: presets por proveedor',
   'No keys yet': 'Todavía no hay claves',
   'Add one above. Its value is asked for in a separate window.':
     'Agregá una arriba. Su valor se pide en una ventana aparte.',

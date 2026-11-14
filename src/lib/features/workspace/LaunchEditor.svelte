@@ -25,6 +25,7 @@
     PERMISSION_LABEL,
   } from '../native/present';
   import { kTokens } from './estimate';
+  import { BASIC_ROLES as BASIC } from './plan';
   import {
     loadOrder,
     renameInOrder,
@@ -70,12 +71,6 @@
     launches?: typeof listLaunches;
   } = $props();
 
-  const BASIC: readonly { id: string; name: string }[] = [
-    { id: 'orchestrator', name: msg('Orchestrator') },
-    { id: 'worker', name: msg('Worker') },
-    { id: 'researcher', name: msg('Researcher') },
-    { id: 'reviewer', name: msg('Reviewer') },
-  ];
   /** What each part of a launch is, shown on hover. */
   const HINT = {
     role: msg(

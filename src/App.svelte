@@ -8,6 +8,7 @@
   import ApprovalsView from './lib/features/approvals/ApprovalsView.svelte';
   import { ApprovalsController } from './lib/features/approvals/controller';
   import ArsenalView from './lib/features/arsenal/ArsenalView.svelte';
+  import LibraryView from './lib/features/arsenal/LibraryView.svelte';
   import { ArsenalController } from './lib/features/arsenal/controller';
   import ConfigurationView from './lib/features/configuration/ConfigurationView.svelte';
   import { ChangesController } from './lib/features/configuration/changes-controller';
@@ -228,7 +229,9 @@
     );
   });
   $effect(() => {
-    arsenalController.setVisible(activeView === 'arsenal');
+    arsenalController.setVisible(
+      activeView === 'arsenal' || activeView === 'arsenal-presets',
+    );
   });
   $effect(() => {
     // Distributors says what runs now: the managed sessions are read while it is shown.
@@ -543,8 +546,13 @@
             go('launches');
           }}
         />
-        <ArsenalView
+        <LibraryView
           visible={activeView === 'arsenal'}
+          {arsenal}
+          controller={arsenalController}
+        />
+        <ArsenalView
+          visible={activeView === 'arsenal-presets'}
           {arsenal}
           controller={arsenalController}
         />

@@ -1,3 +1,4 @@
+import { msg } from '../../i18n/msg';
 /**
  * The basic categories, in screen order: five sections, then Other. Corrections stay local to a
  * machine. The owner can add categories of their own (`u_…`), placed in one of the sections.
@@ -23,6 +24,28 @@ export const GROUPS = [
   'other',
 ] as const;
 export type Group = (typeof GROUPS)[number];
+
+/** Each category's name on screen. */
+export const GROUP_LABEL: Record<Group, string> = {
+  rules: msg('Rules'),
+  models: msg('Models'),
+  integrations: msg('Integrations'),
+  automations: msg('Automations'),
+  security: msg('Security'),
+  debug: msg('Fixing bugs'),
+  content: msg('Content and SEO'),
+  motion: msg('Animation and video'),
+  design: msg('Design and interface'),
+  study: msg('Study and knowledge'),
+  decide: msg('Decisions'),
+  research: msg('Research'),
+  review: msg('Review and testing'),
+  docs: msg('Docs and writing'),
+  planning: msg('Planning and method'),
+  build: msg('Building'),
+  system: msg('System and setup'),
+  other: msg('Other'),
+};
 
 /** The five sections the categories are ordered in. Other goes last, outside them. */
 export const SECTIONS = ['how', 'before', 'build', 'after', 'env'] as const;

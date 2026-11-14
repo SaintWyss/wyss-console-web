@@ -13,6 +13,7 @@
   import type { ArsenalController, ArsenalState } from './controller';
   import {
     familyFor,
+    GROUP_LABEL,
     groupFor,
     knownGroup,
     type Family,
@@ -50,26 +51,6 @@
   const PROVIDER_LABEL: Record<ArsenalProvider, string> = {
     claude_code: 'Claude Code',
     codex: 'Codex',
-  };
-  const GROUP_LABEL: Record<Group, string> = {
-    rules: msg('Rules'),
-    models: msg('Models'),
-    integrations: msg('Integrations'),
-    automations: msg('Automations'),
-    security: msg('Security'),
-    debug: msg('Fixing bugs'),
-    content: msg('Content and SEO'),
-    motion: msg('Animation and video'),
-    design: msg('Design and interface'),
-    study: msg('Study and knowledge'),
-    decide: msg('Decisions'),
-    research: msg('Research'),
-    review: msg('Review and testing'),
-    docs: msg('Docs and writing'),
-    planning: msg('Planning and method'),
-    build: msg('Building'),
-    system: msg('System and setup'),
-    other: msg('Other'),
   };
   /** Hover text for each group header: what kind of capability lives there. */
   const GROUP_HELP: Record<Group, string> = {

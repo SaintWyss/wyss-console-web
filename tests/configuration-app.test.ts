@@ -164,6 +164,19 @@ it('opens Arsenal on its own library, not on the provider inventory', async () =
   await flush();
   tab('Arsenal').click();
   await flush();
+  // The Personalization tab is the library (redesign stage 4); nothing is imported here yet.
+  const library = document.querySelector<HTMLElement>('.library-feature')!;
+  expect(library.hidden).toBe(false);
+  expect(text(library)).toContain('Bring what you already use');
+  // The earlier screen, with its tabs, is under More as Arsenal presets.
+  Array.from(
+    document.querySelectorAll<HTMLButtonElement>(
+      '.sidebar .rail-menu .nav-item',
+    ),
+  )
+    .find((b) => b.textContent?.trim() === 'Arsenal presets')!
+    .click();
+  await flush();
   const arsenal = document.querySelector<HTMLElement>('.arsenal-feature')!;
   expect(arsenal.hidden).toBe(false);
   expect(ipc.count('arsenal_capabilities')).toBe(1);

@@ -1,9 +1,18 @@
+import { msg } from '../../i18n/msg';
 import type { Item, Selection } from '../../contracts/arsenal';
 import type { Permission } from '../../contracts/native';
 import type { Launch } from '../../desktop/launch-client';
 import { isDefault, type HomeSpec } from '../arsenal/environment';
 
 export type Agent = 'claude_code' | 'codex';
+
+/** The basic Workspace roles: always there, never deleted (`roles.rs` BASIC). */
+export const BASIC_ROLES: readonly { id: string; name: string }[] = [
+  { id: 'orchestrator', name: msg('Orchestrator') },
+  { id: 'worker', name: msg('Worker') },
+  { id: 'researcher', name: msg('Researcher') },
+  { id: 'reviewer', name: msg('Reviewer') },
+];
 
 /** What the Workspace editor holds for one launch: launch, preset and environment together. */
 export interface LaunchDraft {

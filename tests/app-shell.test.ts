@@ -145,8 +145,8 @@ it('lists every view, and every one of them exists', () => {
     'Approvals',
     'Events',
     'Arsenal',
+    'Arsenal presets',
     'Configuration',
-
     'Credentials',
     'Settings',
   ]);
@@ -160,6 +160,7 @@ it('lists every view, and every one of them exists', () => {
     'approvals',
     'events',
     'arsenal',
+    'arsenal-presets',
     'configuration',
     'credentials',
     'settings',
@@ -204,6 +205,7 @@ it('renders the shell with brand, every view enabled and Console selected', asyn
     'Remote PCs',
     'Approvals',
     'Events',
+    'Arsenal presets',
     'Providers',
     'Settings',
   ]);

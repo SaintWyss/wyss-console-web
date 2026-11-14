@@ -833,6 +833,7 @@ code,
 .pipelines-feature[hidden],
 .providers-feature[hidden],
 .distributors-feature[hidden],
+.library-feature[hidden],
 .runtimes-feature[hidden] {
   display: none;
 }
@@ -5175,4 +5176,322 @@ li.native-row .native-note {
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   padding: 0 5px;
+}
+
+/* Arsenal library (redesign stage 4): Unplaced and the categories on the left, the rows on the
+   right; a row opens in place with three tabs. Tokens only. */
+.library-feature {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  container-type: inline-size;
+}
+.lib-split {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+  gap: 14px;
+}
+.lib-side,
+.lib-main {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+.lib-main {
+  gap: 10px;
+}
+.lib-grow {
+  flex: 1;
+}
+.lib-head {
+  margin: 10px 0 2px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--muted);
+}
+.lib-cat {
+  width: 100%;
+  min-height: var(--control-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 12px;
+  text-align: left;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-md);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  cursor: pointer;
+}
+.lib-cat:hover {
+  background: var(--surface-hover);
+}
+.lib-cat[aria-current='true'] {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+.lib-count,
+.lib-meta {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.lib-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.lib-search {
+  flex: 1 1 16rem;
+  min-height: var(--control-h);
+  padding: 0 12px;
+  font: inherit;
+  font-size: var(--text-md);
+  color: var(--text);
+  background: var(--surface-control);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+.lib-origins,
+.lib-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.lib-chip {
+  min-height: 34px;
+  padding: 0 12px;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-subtle);
+  cursor: pointer;
+}
+.lib-chip:hover:not(:disabled) {
+  background: var(--surface-raised);
+}
+.lib-chip[aria-pressed='true'] {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+.lib-chip:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.lib-rows,
+.lib-picks,
+.lib-files {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.lib-row {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.lib-row.open {
+  border-color: var(--accent-line);
+}
+.lib-line {
+  width: 100%;
+  min-height: 52px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  text-align: left;
+  color: var(--text);
+  font: inherit;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  cursor: pointer;
+}
+.lib-line:hover {
+  background: var(--surface-raised);
+}
+.lib-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.lib-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lib-desc {
+  font-size: var(--text-sm);
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lib-place {
+  font-size: var(--text-sm);
+  color: var(--accent);
+}
+.lib-place.none {
+  color: var(--muted);
+}
+.lib-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 14px 14px;
+}
+.lib-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--line);
+}
+.lib-tab {
+  min-height: var(--control-h);
+  padding: 0 12px;
+  font: inherit;
+  color: var(--muted);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  cursor: pointer;
+}
+.lib-tab[aria-selected='true'] {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+.lib-kv {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 16px;
+  margin: 0;
+}
+.lib-kv dt {
+  color: var(--muted);
+}
+.lib-kv dd {
+  margin: 0;
+}
+.lib-file {
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--accent);
+  border: 0;
+  background: none;
+  cursor: pointer;
+  padding: 2px 8px 2px 0;
+}
+.lib-pre {
+  max-height: 24rem;
+  overflow: auto;
+  margin: 0;
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  white-space: pre-wrap;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle);
+}
+.lib-sug {
+  margin: 0;
+}
+.lib-muted {
+  margin: 0;
+  color: var(--muted);
+}
+.lib-add,
+.lib-first {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+.lib-first {
+  max-width: 48rem;
+  margin: 24px auto;
+}
+.lib-first h2 {
+  margin: 0;
+  font-size: var(--text-xl);
+}
+.lib-picks label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  align-items: center;
+  min-height: 44px;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.lib-picks label:hover {
+  background: var(--surface-hover);
+}
+.lib-picks input {
+  grid-row: 1 / span 2;
+  accent-color: var(--accent);
+}
+.lib-picks .lib-desc {
+  grid-column: 2;
+}
+.lib-picks .lib-meta {
+  grid-row: 1 / span 2;
+  grid-column: 3;
+}
+.lib-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+@container (max-width: 860px) {
+  .lib-split {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .lib-side {
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  .lib-cat {
+    width: auto;
+    white-space: nowrap;
+  }
+  .lib-side .lib-head {
+    margin: 0;
+  }
+}
+@container (max-width: 480px) {
+  .lib-line {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .lib-line > .lib-meta {
+    display: none;
+  }
 }
