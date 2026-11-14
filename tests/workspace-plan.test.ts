@@ -37,7 +37,7 @@ const launch = (
     directory: '/home/me',
     kind: 'session',
     agent,
-    profile: null,
+    permission: null,
     before: [],
     preset,
   }) as Launch;
@@ -46,7 +46,7 @@ const draft = (over: Partial<LaunchDraft> = {}): LaunchDraft => ({
   name: 'Estudiar',
   role: 'researcher',
   agent: 'claude_code',
-  profile: null,
+  permission: null,
   directory: '/home/me/UTN',
   selection: selection(),
   items: [{ capability: 'a', revision: 3 }],

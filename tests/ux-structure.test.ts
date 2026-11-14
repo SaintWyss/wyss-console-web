@@ -71,10 +71,9 @@ it('offers six entries on the rail, and every other view under More', () => {
   expect(railOf('sessions')).toBe('more');
   // Providers is a view of its own under More; the rail's Distributors opens its own view.
   expect(railOf('providers')).toBe('more');
-  // Personalization holds six views as tabs, in this order; any of them lights its entry.
+  // Personalization holds five views as tabs, in this order; any of them lights its entry.
   expect(PERSONALIZATION.map((tab) => tab.id)).toEqual([
     'distributors',
-    'profiles',
     'arsenal',
     'configuration',
     'credentials',

@@ -23,7 +23,6 @@ export const ES: Readonly<Record<string, string>> = {
   'Configured model: {model}': 'Modelo configurado: {model}',
   'Configured models are from an earlier read.':
     'Los modelos configurados son de una lectura anterior.',
-  'Profile {name}: {model}': 'Perfil {name}: {model}',
   'This tool does not list its models to the Console.':
     'Esta herramienta no le lista sus modelos a la Console.',
   // Workspace: launch editor
@@ -77,7 +76,6 @@ export const ES: Readonly<Record<string, string>> = {
     'Este lanzamiento corre comandos de su archivo. Se abre desde acá; editalo en su archivo.',
   Role: 'Rol',
   Distributor: 'Distribuidor',
-  'Default (no profile)': 'Por defecto (sin perfil)',
   'Saved and recent folders': 'Carpetas guardadas y recientes',
   'Browse…': 'Examinar…',
   Saved: 'Guardadas',
@@ -123,7 +121,6 @@ export const ES: Readonly<Record<string, string>> = {
   'What is offered, set, selected and in use':
     'Qué se ofrece, qué está fijado, elegido y en uso',
   Profiles: 'Perfiles',
-  'What a session starts with': 'Con qué arranca una sesión',
   Credentials: 'Credenciales',
   'API keys, kept sealed': 'Claves de API, guardadas selladas',
   Settings: 'Ajustes',
@@ -871,11 +868,6 @@ export const ES: Readonly<Record<string, string>> = {
   'No profile names a model or an effort.':
     'Ningún perfil nombra un modelo ni un esfuerzo.',
   'Models selected by profiles': 'Modelos seleccionados por perfiles',
-  '(template)': '(plantilla)',
-  'Model:': 'Modelo:',
-  'Effort:': 'Esfuerzo:',
-  'inherited from {from}': 'heredado de {from}',
-  'the agent’s own choice': 'la elección propia del agente',
   'Reported in use': 'Informados en uso',
   'Managed sessions have not been read yet.':
     'Todavía no se leyeron las sesiones Managed.',
@@ -905,8 +897,6 @@ export const ES: Readonly<Record<string, string>> = {
     'El runtime marca que lo reemplaza {by}, y se retira el {retires}.',
   'The runtime marks it for replacement by {by}.':
     'El runtime marca que lo reemplaza {by}.',
-  'A profile passes these names to the agent when a session starts. Wyss Console cannot check them: the agent says so in its own session if it does not know one. Nothing changes the agent’s own files.':
-    'Un perfil pasa estos nombres al agente cuando arranca una sesión. Wyss Console no puede comprobarlos: si el agente no conoce uno, lo dice en su propia sesión. Nada cambia los archivos propios del agente.',
   'Agents you start in a terminal do not report the model they use, and this app adds no hook and reads no terminal to find out. What you see for them is what was asked for and what their files say, never what is in use.':
     'Los agentes que arrancás en una terminal no informan el modelo que usan, y esta app no agrega ningún hook ni lee la terminal para saberlo. Lo que se ve de ellos es lo que se pidió y lo que dicen sus archivos, nunca lo que está en uso.',
 
@@ -2513,7 +2503,6 @@ export const ES: Readonly<Record<string, string>> = {
   'Save as launch…': 'Guardar como lanzamiento…',
   'Save as launch': 'Guardar como lanzamiento',
   'Launch name': 'Nombre del lanzamiento',
-  'No profile — as configured': 'Sin perfil — como está configurado',
   'None — all installed skills': 'Ninguno — todas las skills instaladas',
   'A launch with that name exists.': 'Ya hay un lanzamiento con ese nombre.',
   Replace: 'Reemplazar',
@@ -2521,8 +2510,6 @@ export const ES: Readonly<Record<string, string>> = {
   'The launch could not be saved.': 'No se pudo guardar el lanzamiento.',
   'Launch saved as “{name}”. Find it in Launch ▾.':
     'Lanzamiento guardado como “{name}”. Está en Launch ▾.',
-  'No profile named “{name}” for this agent. Create it in Profiles, or change the launch file.':
-    'No hay un perfil llamado “{name}” para este agente. Créalo en Perfiles o cambia el archivo del lanzamiento.',
   'No preset named “{name}” for this agent. Create it in Arsenal, or change the launch file.':
     'No hay un preset llamado “{name}” para este agente. Créalo en Arsenal o cambia el archivo del lanzamiento.',
   'More than one preset is named “{name}” for this agent. Delete the extra ones in Arsenal, then start again.':
@@ -2800,14 +2787,8 @@ export const ES: Readonly<Record<string, string>> = {
   'The process was stopped, but the Console could not record that. Nothing was started again, and OpenCode and Hermes stay blocked until the store is confirmed.':
     'El proceso se detuvo, pero la consola no pudo registrarlo. No se volvió a iniciar nada, y OpenCode y Hermes siguen bloqueados hasta que se confirme el almacenamiento.',
   'Ask before acting': 'Preguntar antes de actuar',
-  'Read only (plan)': 'Solo lectura (plan)',
-  'Accept edits (Claude Code only)': 'Aceptar ediciones (solo Claude Code)',
-  'Full access: no prompts, no sandbox (bypass)':
-    'Acceso total: sin preguntas, sin sandbox (bypass)',
   'Full access: the agent asks nothing and runs every command and edit without a sandbox, with your account’s rights.':
     'Acceso total: el agente no pregunta nada y ejecuta cada comando y cada edición sin sandbox, con los permisos de tu cuenta.',
-  'Off for this session (Claude Code only)':
-    'Desactivados en esta sesión (solo Claude Code)',
   'To change the model in this session, type /model in it. Claude Code also saves your choice as its default.':
     'Para cambiar el modelo en esta sesión, escribí /model en ella. Claude Code también guarda tu elección como predeterminada.',
   'How to change the model of a running Codex session is not verified, so none is suggested.':
@@ -2818,15 +2799,6 @@ export const ES: Readonly<Record<string, string>> = {
     'Ese agente no está instalado en esta computadora.',
   'That folder cannot be used. Choose a folder with the folder button.':
     'Esa carpeta no se puede usar. Elegí una carpeta con el botón de carpeta.',
-  'This profile cannot be applied to that agent.':
-    'Este perfil no se puede aplicar a ese agente.',
-  'That profile no longer exists.': 'Ese perfil ya no existe.',
-  'Review the current profile preview before starting with it.':
-    'Revisá la vista previa actual del perfil antes de iniciar con él.',
-  'The profile changed after its preview. Review the new preview and start again.':
-    'El perfil cambió después de su vista previa. Revisá la nueva vista previa y volvé a iniciar.',
-  'This exact provider build is not verified for profile overrides, so the override was not launched. Choose “No profile — as configured” or use a qualified build.':
-    'Esta versión exacta del proveedor no está verificada para sobrescribir perfiles, así que la sobrescritura no se lanzó. Elegí “Sin perfil — según la configuración” o usá una versión calificada.',
   'Skill exclusion is not qualified for this exact provider build, so nothing was started with it. Start without applying the selection, or use a qualified build.':
     'La exclusión de skills no está calificada para esta versión exacta del proveedor, así que no se inició nada con ella. Iniciá sin aplicar la selección, o usá una versión calificada.',
   'The Arsenal plan changed since it was shown: the library, the installed skills or the provider build moved. Review the new plan and start again.':
@@ -2861,82 +2833,9 @@ export const ES: Readonly<Record<string, string>> = {
     'El host de terminales no responde. No se envió nada; no cambió nada.',
   'The terminal host did not confirm this request: it may or may not have taken effect, and it was not sent again. Check the sessions listed here before repeating it, so nothing runs twice.':
     'El host de terminales no confirmó esta solicitud: puede que haya surtido efecto o no, y no se volvió a enviar. Revisá las sesiones listadas acá antes de repetirla, para que nada corra dos veces.',
-  'The terminal host is older than this window and cannot keep these profile options. Update it before using effort or preview-bound profiles; existing sessions are unchanged.':
-    'El host de terminales es más viejo que esta ventana y no puede mantener estas opciones de perfil. Actualizalo antes de usar esfuerzo o perfiles atados a una vista previa; las sesiones existentes no cambian.',
   'The file could not be written.': 'No se pudo escribir el archivo.',
-  'Choose at least one agent, each once.':
-    'Elegí al menos un agente, cada uno una sola vez.',
-  'The model may hold letters, digits and . _ : - / only, and may not start with a dash.':
-    'El modelo solo puede tener letras, dígitos y . _ : - /, y no puede empezar con guion.',
-  'The effort may hold letters, digits and . _ - only (32 at most), and may not start with a dash.':
-    'El esfuerzo solo puede tener letras, dígitos y . _ - (32 como máximo), y no puede empezar con guion.',
-  'A skill name may hold letters, digits and . _ : - only (64 at most).':
-    'Un nombre de skill solo puede tener letras, dígitos y . _ : - (64 como máximo).',
-  'The notes are too long or hold control characters.':
-    'Las notas son demasiado largas o tienen caracteres de control.',
-  'The text looks like it holds a secret. A profile never holds one.':
-    'El texto parece tener un secreto. Un perfil nunca guarda uno.',
-  'The profile it extends does not exist.': 'El perfil que hereda no existe.',
-  'A profile cannot extend itself, directly or through others.':
-    'Un perfil no puede heredar de sí mismo, ni directa ni indirectamente.',
-  'Profiles may extend up to eight levels.':
-    'Los perfiles pueden heredar hasta ocho niveles.',
-  'A template is read only. Make a copy to change it.':
-    'Una plantilla es de solo lectura. Hacé una copia para cambiarla.',
-  'There are too many profiles (100).': 'Hay demasiados perfiles (100).',
-  'That version does not exist.': 'Esa versión no existe.',
-  'That file is not a profile this app can read.':
-    'Ese archivo no es un perfil que esta app pueda leer.',
-  'The profiles could not be read or written.':
-    'No se pudieron leer ni guardar los perfiles.',
-  'Another profile extends this one. Change that one first.':
-    'Otro perfil hereda de este. Cambiá ese primero.',
-  'Session profiles': 'Perfiles de sesión',
-  'A profile says what one session should start with. It is applied when the session starts and changes no global file: your Claude Code and Codex settings stay as they are. OpenCode and Hermes Native retain their own controls; unsupported profile fields are refused. A profile holds names and choices, never a secret.':
-    'Un perfil dice con qué debe arrancar una sesión. Se aplica al iniciar la sesión y no cambia ningún archivo global: tus ajustes de Claude Code y Codex quedan como están. OpenCode y Hermes Native conservan sus propios controles; los campos de perfil que no soportan se rechazan. Un perfil guarda nombres y opciones, nunca un secreto.',
-  'New profile': 'Nuevo perfil',
-  'Import…': 'Importar…',
-  'Version {n}': 'Versión {n}',
-  Template: 'Plantilla',
-  Profile: 'Perfil',
-  '· refers to something not present': '· apunta a algo que no está',
-  'Choose a profile or make a new one': 'Elegí un perfil o creá uno nuevo',
-  'Templates are read only. Make a copy to change one.':
-    'Las plantillas son de solo lectura. Hacé una copia para cambiar una.',
-  'Written for': 'Pensado para',
-  Extends: 'Hereda de',
-  Nothing: 'Nada',
-  Model: 'Modelo',
-  'the agent’s own default': 'el predeterminado del agente',
-  'Names are suggestions: Claude Code’s documented levels, its model aliases (':
-    'Los nombres son sugerencias: los niveles documentados de Claude Code, sus alias de modelo (',
-  it: 'el agente',
-  'decides what they mean), and what the managed Codex runtime lists':
-    'decide qué significan), y lo que lista el runtime Codex Managed',
-  'right now': 'ahora mismo',
-  '(not running, so none are offered)':
-    '(no está corriendo, así que no se ofrece ninguno)',
-  '. Wyss Console cannot check a name: the agent says so in its session if it does not know it. Claude Code takes only its documented levels; Codex takes the word as a configuration override for that session only.':
-    '. Wyss Console no puede verificar un nombre: el agente avisa en su sesión si no lo conoce. Claude Code acepta solo sus niveles documentados; Codex toma la palabra como una sobrescritura de configuración solo para esa sesión.',
   Permissions: 'Permisos',
-  'As configured': 'Según la configuración',
-  'Skills switched off (Claude Code), one per line':
-    'Skills desactivadas (Claude Code), una por línea',
-  Notes: 'Notas',
-  'Inherited values:': 'Valores heredados:',
-  '{field} from “{from}”;': '{field} de “{from}”;',
-  Create: 'Crear',
-  'Save as a new version': 'Guardar como versión nueva',
-  'Make a copy': 'Hacer una copia',
-  'Make a copy to edit': 'Hacer una copia para editar',
-  'This template comes with the app and cannot be changed. Make a copy to edit it: the copy is yours.':
-    'Esta plantilla viene con la app y no se puede cambiar. Hacé una copia para editarla: la copia es tuya.',
-  Versions: 'Versiones',
-  current: 'actual',
-  'Bring back': 'Volver a esta versión',
-  'Profile exported.': 'Perfil exportado.',
-  'Profile imported. It grants nothing: read what it asks for before using it.':
-    'Perfil importado. No otorga nada: leé lo que pide antes de usarlo.',
+  'As configured': 'Como está configurado',
   'Hand off to another agent': 'Traspasar el trabajo a otro agente',
   'Hand off {agent}’s work': 'Traspasar el trabajo de {agent}',
   'This starts a': 'Esto inicia una',
@@ -2950,9 +2849,6 @@ export const ES: Readonly<Record<string, string>> = {
     'La pantalla de esa sesión ya no se conserva, así que el brief tiene solo el estado del repositorio.',
   'Brief (Markdown, starts with “# ”)': 'Brief (Markdown, empieza con “# ”)',
   'Longer than 16 KiB: shorten it.': 'Más de 16 KiB: acortalo.',
-  'Could not verify this profile preview. Refresh Native before starting.':
-    'No se pudo verificar la vista previa de este perfil. Actualizá Native antes de iniciar.',
-  'What the profile does': 'Qué hace el perfil',
   'Start {agent} with this brief': 'Iniciar {agent} con este brief',
   'Save to a file…': 'Guardar en un archivo…',
   'Delegated agents': 'Agentes delegados',
@@ -3239,10 +3135,6 @@ export const ES: Readonly<Record<string, string>> = {
     'El portapapeles no está disponible; selecciona y copia el texto revisado.',
   // ---- final ----
   'Failed ({code})': 'Falló ({code})',
-  'none (the agent’s own choice)': 'ninguno (la elección del propio agente)',
-  'the profile no longer exists': 'el perfil ya no existe',
-  'the profile has changed since this session started':
-    'el perfil cambió desde que empezó esta sesión',
   'not read yet (open Configuration)': 'todavía sin leer (abre Configuración)',
   'not set in its files': 'sin fijar en sus archivos',
   'not observed by this provider configuration view':
@@ -3256,7 +3148,6 @@ export const ES: Readonly<Record<string, string>> = {
   'Started without applying {name}; the selection is recorded.':
     'Iniciado sin aplicar {name}; la selección queda registrada.',
   'ended {time}': 'terminó {time}',
-  profile: 'perfil',
   agent: 'agente',
   'this agent': 'este agente',
   'Home · {path}': 'Inicio · {path}',
@@ -3278,15 +3169,7 @@ export const ES: Readonly<Record<string, string>> = {
   'Start an agent': 'Iniciar un agente',
   installed: 'instalado',
   'Project folder': 'Carpeta del proyecto',
-  'Could not verify this profile preview. Start stays disabled until a fresh preview succeeds.':
-    'No se pudo verificar la vista previa de este perfil. Iniciar sigue deshabilitado hasta que una vista previa nueva funcione.',
-  'Refreshing the profile preview…': 'Actualizando la vista previa del perfil…',
-  'The selected profile changed. Checking a fresh preview before Start.':
-    'El perfil elegido cambió. Se verifica una vista previa nueva antes de Iniciar.',
   'Retry preview': 'Reintentar vista previa',
-  'Use for this project': 'Usar en este proyecto',
-  'This profile cannot be applied to {agent}, so it will not start.':
-    'Este perfil no se puede aplicar a {agent}, así que no se iniciará.',
   Delegation: 'Delegación',
   'Let it hand tasks to Claude Code and Codex through Wyss (2 agents at a time, 20 minutes each, writes only in the workspace).':
     'Permitir que pase tareas a Claude Code y Codex a través de Wyss (de a 2 agentes a la vez, 20 minutos cada uno, escribe solo en el workspace).',
@@ -3317,16 +3200,12 @@ export const ES: Readonly<Record<string, string>> = {
   'Two sessions run here and can write the same files. Nothing coordinates them.':
     'Dos sesiones corren aquí y pueden escribir los mismos archivos. Nada las coordina.',
   'Sessions in {folder}': 'Sesiones en {folder}',
-  'Profile {name} (v{version})': 'Perfil {name} (v{version})',
-  'No profile': 'Sin perfil',
   'up {time}': 'activa {time}',
   'started {date}': 'iniciada {date}',
   'started directly': 'iniciada directamente',
   'restart {count}': 'reinicio {count}',
   'process {pid}': 'proceso {pid}',
   '{count} processes': '{count} procesos',
-  'Model: asked for {requested} · set in its files {configured} · in use: {inUse} · Effort: asked for {effort} · set in its files {configuredEffort}':
-    'Modelo: pedido {requested} · fijado en sus archivos {configured} · en uso: {inUse} · Esfuerzo: pedido {effort} · fijado en sus archivos {configuredEffort}',
   Open: 'Abrir',
   Stop: 'Detener',
   Restart: 'Reiniciar',
@@ -3718,10 +3597,6 @@ export const ES: Readonly<Record<string, string>> = {
     'Agrega «cachy-update» al final: el actualizador propio de CachyOS. Actualiza lo que haya quedado pendiente y después ofrece limpiar huérfanos y caché vieja, revisar archivos .pacnew y reiniciar los servicios que lo necesitan. Pregunta antes de cada paso.',
   'Only for ordering this list: launches are grouped by role. It does not change what the agent does.':
     'Solo para ordenar esta lista: los lanzamientos se agrupan por rol. No cambia lo que hace el agente.',
-  'Which agent the launch starts: Claude Code (Anthropic) or Codex (OpenAI). Changing it starts the profile, preset and environment over.':
-    'Qué agente arranca el lanzamiento: Claude Code (Anthropic) o Codex (OpenAI). Si lo cambiás, el perfil, el preset y el entorno vuelven a cero.',
-  'The profile the agent starts with: its model, how much it reasons and what it may do without asking. Default uses what the agent has configured.':
-    'El perfil con que arranca el agente: su modelo, cuánto razona y qué puede hacer sin preguntarte. Por defecto usa lo que el agente tenga configurado.',
   'Native: the agent runs as its own program in a terminal of the Console, as when you type claude or codex. The other mode, Managed (the Console drives the session), starts from Sessions, not from a launch; that is why it is fixed here.':
     'Native: el agente corre como su propio programa en una terminal de la Console, igual que si escribieras claude o codex. El otro modo, Managed (la Console maneja la sesión), se arranca desde Sesiones, no desde un lanzamiento; por eso acá está fijo.',
   'Where the agent works: it reads and edits the files of this folder, and its project settings are this folder’s.':
@@ -3740,33 +3615,16 @@ export const ES: Readonly<Record<string, string>> = {
     'Las skills de tu cuenta de Claude (claude.ai), además de las instaladas en esta PC.',
   'Scripts that run on their own at fixed moments (before a command, when a turn ends…). They take no context.':
     'Scripts que corren solos en momentos fijos (antes de un comando, al terminar un turno…). No ocupan contexto.',
-  'asks before every change': 'pregunta antes de cada cambio',
-  'read only': 'solo lectura',
-  'edits files without asking': 'edita archivos sin preguntar',
-  'does everything without asking': 'hace todo sin preguntar',
-  'effort {level}': 'esfuerzo {level}',
-  'Default: no profile; the agent starts with the model and permissions of its own settings.':
-    'Por defecto: sin perfil; el agente arranca con el modelo y los permisos de su propia configuración.',
-  'the agent’s own model': 'el modelo propio del agente',
-  'Profiles: see what each one sets, edit them or make a new one.':
-    'Perfiles: ver qué fija cada uno, editarlos o crear uno nuevo.',
-  'Edit profiles…': 'Editar perfiles…',
   Personalization: 'Personalización',
   'Which agents are installed, their version and their models.':
     'Qué agentes hay instalados, su versión y sus modelos.',
   'What each distributor offers, which model is set and which one a session is using.':
     'Qué ofrece cada distribuidor, qué modelo está configurado y cuál usa cada sesión.',
-  'What a session starts with: model, effort, permissions and hooks. Made and edited here.':
-    'Con qué arranca una sesión: modelo, esfuerzo, permisos y hooks. Acá se crean y se editan.',
   'Skills, agents, MCP servers and presets: what a session can load.':
     'Skills, agentes, servidores MCP y presets: lo que una sesión puede cargar.',
-  'The real configuration files of Claude Code and Codex, which a profile writes over.':
-    'Los archivos de configuración reales de Claude Code y Codex, que un perfil pisa.',
   'The API keys each distributor needs, kept sealed.':
     'Las claves de API que necesita cada distribuidor, guardadas selladas.',
   // Distributors: added by the owner
-  'The profiles of this agent: model, effort and permissions a session starts with.':
-    'Los perfiles de este agente: modelo, esfuerzo y permisos con que arranca una sesión.',
   'This agent’s own configuration files: hooks, skills, MCP servers.':
     'Los archivos de configuración propios de este agente: hooks, skills, servidores MCP.',
   'The API key this agent uses.': 'La clave de API que usa este agente.',
@@ -3779,8 +3637,6 @@ export const ES: Readonly<Record<string, string>> = {
   'Added by you': 'Agregados por vos',
   'Add a tool the Console does not know: by its name and the commands that open and update it.':
     'Agregá una herramienta que la Console no conoce: con su nombre y los comandos que la abren y la actualizan.',
-  'A tool you add opens and updates in a terminal of the Console. Profiles, Arsenal and the context estimate are only for the tools the Console knows.':
-    'Una herramienta que agregás se abre y se actualiza en una terminal de la Console. Perfiles, Arsenal y la estimación de contexto son solo para las herramientas que la Console conoce.',
   'Edit distributor': 'Editar distribuidor',
   'Add distributor': 'Agregar distribuidor',
   'Suggestions:': 'Sugerencias:',
@@ -3812,25 +3668,61 @@ export const ES: Readonly<Record<string, string>> = {
   'Removes its card. The tool itself stays installed.':
     'Saca su tarjeta. La herramienta sigue instalada.',
   'Nothing added yet.': 'Todavía no agregaste ninguno.',
-  'What this tool offers, which profile asks for which model, and what is running with it now.':
-    'Qué ofrece esta herramienta, qué perfil pide qué modelo y qué está corriendo con ella ahora.',
   'Models in detail': 'Modelos en detalle',
   'Offered, with the efforts each accepts':
     'Ofrecidos, con los esfuerzos que acepta cada uno',
-  'Asked for by a profile': 'Pedidos por un perfil',
-  'No profile of this tool names a model or an effort.':
-    'Ningún perfil de esta herramienta nombra un modelo o un esfuerzo.',
-  'Opens this profile in Profiles.': 'Abre este perfil en Perfiles.',
   'Running now': 'Corriendo ahora',
   'Nothing of this tool is running now.':
     'Ahora no corre nada de esta herramienta.',
-  'In {folder}: started with no profile, as the agent is set up.':
-    'En {folder}: arrancó sin perfil, como está configurado el agente.',
-  'In {folder}: started with the profile {name}, which asks for {model}.':
-    'En {folder}: arrancó con el perfil {name}, que pide {model}.',
-  'In {folder}: started with the profile {name}.':
-    'En {folder}: arrancó con el perfil {name}.',
   '{session} (managed): {line}': '{session} (administrada): {line}',
-  'Which agents are installed and their version, how to update them, the models each offers, which profile asks for which, and what runs now.':
-    'Qué agentes hay instalados y su versión, cómo actualizarlos, los modelos que ofrece cada uno, qué perfil pide cuál y qué corre ahora.',
+  // ---- permissions ----
+  'What this tool offers and what is running with it now.':
+    'Qué ofrece esta herramienta y qué está corriendo con ella ahora.',
+  'A tool you add opens and updates in a terminal of the Console. Arsenal and the context estimate are only for the tools the Console knows.':
+    'Una herramienta que agregás se abre y se actualiza en una terminal de la Console. Arsenal y la estimación de contexto son solo para las herramientas que la Console conoce.',
+  'In {folder}: started with {permission}.':
+    'En {folder}: arrancó con {permission}.',
+  'In {folder}: started as the agent is configured.':
+    'En {folder}: arrancó como está configurado el agente.',
+  'Could not check what this permission would pass. Refresh Native before starting.':
+    'No se pudo comprobar qué pasaría este permiso. Actualizá Native antes de iniciar.',
+  'What the permission passes': 'Qué pasa el permiso',
+  'Could not check what this permission would pass. Start stays disabled until a fresh check succeeds.':
+    'No se pudo comprobar qué pasaría este permiso. Iniciar sigue deshabilitado hasta que una comprobación nueva funcione.',
+  'Checking what this permission would pass…':
+    'Comprobando qué pasaría este permiso…',
+  'The permission changed. Checking what it would pass before Start.':
+    'El permiso cambió. Se comprueba qué pasaría antes de Iniciar.',
+  'This permission cannot be applied to {agent}, so it will not start.':
+    'Este permiso no se puede aplicar a {agent}, así que no se iniciará.',
+  'Model: set in its files {configured} · in use: {inUse} · Effort: set in its files {configuredEffort}':
+    'Modelo: en sus archivos {configured} · en uso: {inUse} · Esfuerzo: en sus archivos {configuredEffort}',
+  'This permission cannot be applied to that agent.':
+    'Este permiso no se puede aplicar a ese agente.',
+  'What this session was started with no longer exists, so it cannot start that way. Start a new one from Workspace.':
+    'Eso con lo que arrancó esta sesión ya no existe, así que no puede arrancar igual. Iniciá una nueva desde Workspace.',
+  'The start was not checked first. Choose the permission again and start.':
+    'El inicio no se comprobó antes. Elegí el permiso de nuevo e iniciá.',
+  'What the start would do changed after it was checked. Check it again and start.':
+    'Lo que haría el inicio cambió después de comprobarlo. Comprobalo de nuevo e iniciá.',
+  'This exact provider build is not verified for permission flags, so nothing was launched with them. Choose “As configured” or use a qualified build.':
+    'Esta versión exacta del proveedor no está verificada para los flags de permisos, así que no se lanzó nada con ellos. Elegí “Como está configurado” o usá una versión calificada.',
+  'The terminal host is older than this window and cannot start with this option. Update it before using it; existing sessions are unchanged.':
+    'El host de terminales es más viejo que esta ventana y no puede iniciar con esta opción. Actualizalo antes de usarla; las sesiones existentes no cambian.',
+  'Accept edits': 'Aceptar ediciones',
+  'What the agent may do without asking you. “As configured” passes nothing: the agent starts with the permissions of its own settings. The model and the effort are chosen inside the agent.':
+    'Qué puede hacer el agente sin preguntarte. “Como está configurado” no pasa nada: el agente arranca con los permisos de su propia configuración. El modelo y el esfuerzo se eligen dentro del agente.',
+  'Profile {name}': 'Perfil {name}',
+  'Which agent the launch starts: Claude Code (Anthropic) or Codex (OpenAI). Changing it starts the preset and the environment over, and a permission the other agent does not have.':
+    'Qué agente arranca el lanzamiento: Claude Code (Anthropic) o Codex (OpenAI). Si lo cambiás, el preset y el entorno vuelven a cero, y también un permiso que el otro agente no tiene.',
+  'The agent asks before every change.':
+    'El agente pregunta antes de cada cambio.',
+  'The agent reads and plans; it changes nothing.':
+    'El agente lee y planifica; no cambia nada.',
+  'The agent edits files without asking; it still asks before running commands. Claude Code only.':
+    'El agente edita archivos sin preguntar; igual pregunta antes de ejecutar comandos. Solo Claude Code.',
+  'Which agents are installed and their version, how to update them, the models each offers, and what runs now.':
+    'Qué agentes hay instalados y su versión, cómo actualizarlos, los modelos que ofrece cada uno y qué corre ahora.',
+  'The real configuration files of Claude Code and Codex: what an agent starts with when a launch names no permission.':
+    'Los archivos de configuración reales de Claude Code y Codex: con lo que arranca un agente cuando un lanzamiento no nombra un permiso.',
 };

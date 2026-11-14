@@ -5,21 +5,13 @@ import type {
   NativeFailure,
   NativeSession,
   Preview,
-  Profile,
-  ProfileBody,
   StartReply,
 } from '../../contracts/native';
-import { msg } from '../../i18n/msg';
 import {
   NativeCallError,
   chooseProject,
-  createProfile,
-  deleteProfile,
-  duplicateProfile,
-  exportProfile,
   forgetNative,
-  importProfile,
-  previewProfile,
+  previewStart,
   prepareHandoff,
   readLauncher,
   readReadiness,
@@ -27,11 +19,7 @@ import {
   type ArsenalStart,
   type HandoffBrief,
   readNativeSessions,
-  readProfiles,
   restartNative,
-  restoreProfile,
-  saveProfile,
-  setProjectDefault,
   startNative,
   stopNative,
 } from '../../desktop/native-client';
@@ -47,7 +35,7 @@ export interface NativeClient {
   launcher(): Promise<Launcher>;
   readiness(): Promise<Readiness>;
   sessions(sample: boolean): Promise<NativeSession[]>;
-  profiles(): Promise<Profile[]>;
+  /** `profile` is the fixed template a permission is sent as (`permissionProfileId`). */
   preview(
     agent: AgentId,
     profile: string | null,
@@ -68,14 +56,6 @@ export interface NativeClient {
   stop(id: string): Promise<void>;
   forget(id: string): Promise<void>;
   chooseProject(): Promise<string | null>;
-  setDefault(project: string, profile: string | null): Promise<void>;
-  createProfile(body: ProfileBody): Promise<string>;
-  saveProfile(id: string, body: ProfileBody): Promise<void>;
-  deleteProfile(id: string): Promise<void>;
-  duplicateProfile(id: string): Promise<string>;
-  restoreProfile(id: string, version: number): Promise<void>;
-  exportProfile(id: string): Promise<boolean>;
-  importProfile(): Promise<string | null>;
 }
 
 /** What a terminal that has not been fitted yet is made with; it is resized at once. */
@@ -85,8 +65,7 @@ const desktopClient: NativeClient = {
   launcher: readLauncher,
   readiness: readReadiness,
   sessions: readNativeSessions,
-  profiles: readProfiles,
-  preview: previewProfile,
+  preview: previewStart,
   start: (
     agent,
     project,
@@ -112,14 +91,6 @@ const desktopClient: NativeClient = {
   stop: stopNative,
   forget: forgetNative,
   chooseProject,
-  setDefault: setProjectDefault,
-  createProfile,
-  saveProfile,
-  deleteProfile,
-  duplicateProfile,
-  restoreProfile,
-  exportProfile,
-  importProfile,
 };
 
 /** The sessions as they are drawn: usage rounded to a whole percent and a megabyte. */
@@ -151,13 +122,8 @@ export interface NativeState {
   phase: 'idle' | 'loading' | 'ready' | 'failed';
   launcher: Launcher | null;
   sessions: NativeSession[];
-  profiles: Profile[];
   starting: boolean;
   failure: NativeFailure | null;
-  /** Something that happened and is worth one line, such as an import. */
-  notice: string | null;
-  /** The profile being edited: an id, `new`, or none. */
-  editing: string | null;
   /** The M9 store is not confirmed since a failed read or write, until a read answers again. */
   m9Uncertain: boolean;
   /** Whether OpenCode and Hermes may not start now: the store is degraded or not confirmed. */
@@ -177,11 +143,8 @@ export class NativeController {
   private launcher: Launcher | null = null;
   private readiness: Readiness | null = null;
   private sessions: NativeSession[] = [];
-  private profiles: Profile[] = [];
   private starting = false;
   private failure: NativeFailure | null = null;
-  private notice: string | null = null;
-  private editing: string | null = null;
   private visible = false;
   private disposed = false;
   private reading = false;
@@ -212,11 +175,8 @@ export class NativeController {
       phase: this.phase,
       launcher: this.launcher,
       sessions: this.sessions,
-      profiles: this.profiles,
       starting: this.starting,
       failure: this.failure,
-      notice: this.notice,
-      editing: this.editing,
       m9Uncertain: this.m9Uncertain,
       m9Blocked: this.blocksM9(),
       checkingLauncher:
@@ -236,7 +196,7 @@ export class NativeController {
     this.emit();
   }
 
-  /** Reads what the launcher offers and the profiles, once at start. */
+  /** Reads what the launcher offers and the sessions, once at start. */
   start0() {
     if (this.disposed || this.phase !== 'idle') return;
     this.phase = 'loading';
@@ -249,7 +209,7 @@ export class NativeController {
     });
   }
   /**
-   * The first load discovers the catalogue once, then reads profiles, sessions and readiness.
+   * The first load discovers the catalogue once, then reads sessions and readiness.
    * A listing that observes an ending may have written the store, so readiness is confirmed last.
    */
   private async load() {
@@ -259,13 +219,11 @@ export class NativeController {
     await this.refreshCatalogue();
     if (this.disposed) return;
     const first = this.readReadiness();
-    const [, profiles, sessions] = await Promise.all([
+    const [, sessions] = await Promise.all([
       first,
-      this.client.profiles(),
       this.client.sessions(false),
     ]);
     if (this.disposed) return;
-    this.profiles = profiles;
     if (sessionsSeq === this.sessionsSeq) {
       this.sessions = sessions;
       this.lastShown = shownKey(sessions);
@@ -562,7 +520,7 @@ export class NativeController {
     if (this.disposed) return;
     const confirmed = await this.readReadiness();
     if (confirmed && !this.disposed && this.phase === 'failed') {
-      // The first load may have failed before sessions/profiles were available. A valid
+      // The first load may have failed before the sessions were available. A valid
       // retry reloads those too, instead of leaving a permanently failed page.
       this.phase = 'idle';
       this.start0();
@@ -583,21 +541,8 @@ export class NativeController {
       return;
     void this.refreshLauncher();
   }
-  async refreshProfiles() {
-    if (this.disposed) return;
-    try {
-      const profiles = await this.client.profiles();
-      if (this.disposed) return;
-      this.profiles = profiles;
-      this.emit();
-    } catch (error) {
-      this.fail(error);
-    }
-  }
-
   clearFailure() {
     this.failure = null;
-    this.notice = null;
     this.emit();
   }
 
@@ -741,7 +686,7 @@ export class NativeController {
   }
   /**
    * Starts again, one after another, what was lost when the window closed: same agent,
-   * project and profile, each a new session. Nothing is claimed to have survived.
+   * project and permission, each a new session. Nothing is claimed to have survived.
    */
   async restoreLost(): Promise<number> {
     let started = 0;
@@ -826,86 +771,6 @@ export class NativeController {
     workspace.activate(tab);
     return true;
   }
-  async setProjectDefault(project: string, profile: string | null) {
-    try {
-      await this.client.setDefault(project, profile);
-      await this.refreshCatalogue();
-      await this.refreshLauncher();
-    } catch (error) {
-      this.fail(error);
-    }
-  }
-
-  // ---- profiles ---------------------------------------------------------------------------
-
-  edit(id: string | null) {
-    this.editing = id;
-    this.failure = null;
-    this.emit();
-  }
-  /** Saves a new profile (`id` null) or a new version of one. True when it was saved. */
-  async saveProfile(id: string | null, body: ProfileBody): Promise<boolean> {
-    try {
-      if (id === null) this.editing = await this.client.createProfile(body);
-      else await this.client.saveProfile(id, body);
-      this.failure = null;
-      await this.refreshProfiles();
-      return true;
-    } catch (error) {
-      this.fail(error);
-      return false;
-    }
-  }
-  async removeProfile(id: string) {
-    try {
-      await this.client.deleteProfile(id);
-      if (this.editing === id) this.editing = null;
-      await this.refreshProfiles();
-    } catch (error) {
-      this.fail(error);
-    }
-  }
-  async duplicate(id: string) {
-    try {
-      this.editing = await this.client.duplicateProfile(id);
-      await this.refreshProfiles();
-    } catch (error) {
-      this.fail(error);
-    }
-  }
-  async restore(id: string, version: number) {
-    try {
-      await this.client.restoreProfile(id, version);
-      await this.refreshProfiles();
-    } catch (error) {
-      this.fail(error);
-    }
-  }
-  async exportOne(id: string) {
-    try {
-      this.notice = (await this.client.exportProfile(id))
-        ? msg('Profile exported.')
-        : null;
-      this.emit();
-    } catch (error) {
-      this.fail(error);
-    }
-  }
-  async importOne() {
-    try {
-      const id = await this.client.importProfile();
-      if (id) {
-        this.editing = id;
-        this.notice = msg(
-          'Profile imported. It grants nothing: read what it asks for before using it.',
-        );
-        await this.refreshProfiles();
-      }
-    } catch (error) {
-      this.fail(error);
-    }
-  }
-
   dispose() {
     this.disposed = true;
     this.launcherSeq++;

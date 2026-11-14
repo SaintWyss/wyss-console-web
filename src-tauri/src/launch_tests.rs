@@ -65,7 +65,7 @@ fn a_missing_folder_is_made_once_with_the_shipped_launches() {
     ] {
         let Kind::Session {
             agent: a,
-            profile,
+            permission,
             before,
             ..
         } = &launch.kind
@@ -73,7 +73,7 @@ fn a_missing_folder_is_made_once_with_the_shipped_launches() {
             panic!("{launch:?}")
         };
         assert_eq!(a, agent);
-        assert_eq!(profile.as_deref(), Some("Full access (bypass)"));
+        assert_eq!(permission.as_deref(), Some("bypass"));
         assert_eq!(before.len(), 1);
         assert!(before[0].contains("rest/db/scan"));
     }
@@ -297,21 +297,12 @@ fn what_a_before_command_leaves_running_is_stopped_when_it_ends() {
     );
 }
 
-/// What the desktop holds in these tests: profiles and presets, each for one agent.
+/// What the desktop holds in these tests: presets, each for one agent.
 struct Fake {
-    profiles: Vec<(&'static str, &'static str)>,
     presets: Vec<(&'static str, &'static str)>,
 }
 
 impl Known for Fake {
-    fn profiles(&self, agent: &str) -> Result<Vec<String>, String> {
-        Ok(self
-            .profiles
-            .iter()
-            .filter(|(a, _)| *a == agent)
-            .map(|(_, n)| n.to_string())
-            .collect())
-    }
     fn presets(&self, agent: &str) -> Result<Vec<String>, String> {
         Ok(self
             .presets
@@ -324,10 +315,6 @@ impl Known for Fake {
 
 fn fake() -> Fake {
     Fake {
-        profiles: vec![
-            ("claude_code", "Full access (bypass)"),
-            ("codex", "Estudio"),
-        ],
         presets: vec![("claude_code", "Estudio"), ("codex", "Codex base")],
     }
 }
@@ -344,7 +331,7 @@ fn a_saved_launch_is_private_names_its_preset_and_reads_back_the_same() {
         &places,
         &request(json!({
             "name": "Estudiar UTN", "directory": work, "agent": "claude_code",
-            "profile": "Full access (bypass)", "preset": "Estudio",
+            "permission": "bypass", "preset": "Estudio",
         })),
         &fake(),
     )
@@ -355,7 +342,7 @@ fn a_saved_launch_is_private_names_its_preset_and_reads_back_the_same() {
         saved.kind,
         Kind::Session {
             agent: "claude_code".into(),
-            profile: Some("Full access (bypass)".into()),
+            permission: Some("bypass".into()),
             before: vec![],
             preset: Some("Estudio".into()),
         }
@@ -368,6 +355,9 @@ fn a_saved_launch_is_private_names_its_preset_and_reads_back_the_same() {
     );
     let text = fs::read_to_string(&path).unwrap();
     assert!(text.contains("directory = \"~/work\""), "{text}");
+    // What is written is the permission, never the key profiles had.
+    assert!(text.contains("permission = \"bypass\"\n"), "{text}");
+    assert!(!text.contains("profile"), "{text}");
     assert!(
         !text.contains("commands") && !text.contains("before"),
         "{text}"
@@ -415,16 +405,16 @@ fn a_save_is_checked_against_the_desktop_and_writes_nothing_when_refused() {
             "not found",
         ),
         (
-            json!({"name": "x", "directory": work, "agent": "codex", "profile": "Full access (bypass)"}),
-            "no profile named",
+            json!({"name": "x", "directory": work, "agent": "codex", "permission": "edits"}),
+            "only for claude_code",
         ),
         (
             json!({"name": "x", "directory": work, "agent": "claude_code", "preset": "Codex base"}),
             "no preset named",
         ),
         (
-            json!({"name": "x", "directory": work, "agent": "codex", "profile": ""}),
-            "profile must be",
+            json!({"name": "x", "directory": work, "agent": "codex", "permission": "Full access (bypass)"}),
+            "permission must be",
         ),
     ];
     for (value, why) in cases {
@@ -746,4 +736,127 @@ fn the_earlier_shipped_update_is_upgraded_only_while_untouched() {
         fs::read_to_string(places.folder.join("actualizar-sistema.toml")).unwrap(),
         mine
     );
+}
+
+fn session_file(session: &str) -> String {
+    format!("name = \"S\"\n\n[session]\n{session}\n")
+}
+
+fn permission_of(places: &Places, id: &str) -> Option<String> {
+    match get(places, id).unwrap().kind {
+        Kind::Session { permission, .. } => permission,
+        other => panic!("{other:?}"),
+    }
+}
+
+#[test]
+fn a_session_names_its_permission_and_edits_is_only_for_claude_code() {
+    let places = places();
+    fs::create_dir_all(&places.folder).unwrap();
+    for (agent, word) in [
+        ("claude_code", "ask"),
+        ("claude_code", "read_only"),
+        ("claude_code", "edits"),
+        ("claude_code", "bypass"),
+        ("codex", "ask"),
+        ("codex", "read_only"),
+        ("codex", "bypass"),
+    ] {
+        write(
+            &places,
+            "s.toml",
+            &session_file(&format!("agent = \"{agent}\"\npermission = \"{word}\"")),
+        );
+        assert_eq!(
+            permission_of(&places, "s").as_deref(),
+            Some(word),
+            "{agent}"
+        );
+    }
+    // Without the key the agent starts as it is configured.
+    write(&places, "s.toml", &session_file("agent = \"codex\""));
+    assert_eq!(permission_of(&places, "s"), None);
+    for (session, why) in [
+        (
+            "agent = \"codex\"\npermission = \"edits\"",
+            "only for claude_code",
+        ),
+        (
+            "agent = \"claude_code\"\npermission = \"Bypass\"",
+            "permission must be",
+        ),
+        (
+            "agent = \"claude_code\"\npermission = \"\"",
+            "permission must be",
+        ),
+        (
+            "agent = \"claude_code\"\npermission = \"template-full-access\"",
+            "permission must be",
+        ),
+    ] {
+        write(&places, "s.toml", &session_file(session));
+        let error = get(&places, "s").unwrap_err();
+        assert!(error.contains(why), "{session}: {error}");
+    }
+}
+
+#[test]
+fn a_file_from_before_profiles_were_removed_is_read_by_its_template_name_only() {
+    let places = places();
+    fs::create_dir_all(&places.folder).unwrap();
+    for (name, permission) in [
+        ("Full access (bypass)", Some("bypass")),
+        ("Review, read only", Some("read_only")),
+        ("Strict", Some("ask")),
+        ("As configured", None),
+    ] {
+        for agent in ["claude_code", "codex"] {
+            let text = session_file(&format!("agent = \"{agent}\"\nprofile = \"{name}\""));
+            write(&places, "old.toml", &text);
+            assert_eq!(
+                permission_of(&places, "old").as_deref(),
+                permission,
+                "{name}"
+            );
+            // Reading never rewrites the owner's file.
+            assert_eq!(
+                fs::read_to_string(places.folder.join("old.toml")).unwrap(),
+                text
+            );
+        }
+    }
+    // A profile the owner made, and a template that no longer ships: refused, with what to write.
+    for name in [
+        "Estudio",
+        "Exploration, fewer hooks",
+        "full access (bypass)",
+        "",
+    ] {
+        write(
+            &places,
+            "old.toml",
+            &session_file(&format!("agent = \"claude_code\"\nprofile = \"{name}\"")),
+        );
+        let error = get(&places, "old").unwrap_err();
+        assert!(
+            error.contains("profiles were removed: set permission = "),
+            "{name}: {error}"
+        );
+    }
+    // Both keys: refused, even when they agree.
+    write(
+        &places,
+        "old.toml",
+        &session_file(
+            "agent = \"claude_code\"\npermission = \"bypass\"\nprofile = \"Full access (bypass)\"",
+        ),
+    );
+    let error = get(&places, "old").unwrap_err();
+    assert!(error.contains("not both"), "{error}");
+    // The refused file is listed with why, and the others still load.
+    write(&places, "ok.toml", "name = \"Ok\"\ncommands = [\"ls\"]\n");
+    let listed = list(&places).unwrap();
+    assert_eq!(listed.launches.len(), 1);
+    assert_eq!(listed.refused.len(), 1);
+    assert_eq!(listed.refused[0].id, "old");
 }

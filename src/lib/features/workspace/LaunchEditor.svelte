@@ -2,7 +2,7 @@
   import { untrack } from 'svelte';
   import { msg, t } from '../../i18n/index.svelte';
   import type { Item, Selection } from '../../contracts/arsenal';
-  import type { Profile } from '../../contracts/native';
+  import { permissionsFor, type Permission } from '../../contracts/native';
   import {
     arsenalClient,
     type ArsenalClient,
@@ -19,6 +19,11 @@
   import DistroVariants from './DistroVariants.svelte';
   import { DEFAULT_SPEC, hookLabel, toggle } from '../arsenal/environment';
   import { distributorOf } from '../distributors/present';
+  import {
+    AS_CONFIGURED,
+    BYPASS_WARNING,
+    PERMISSION_LABEL,
+  } from '../native/present';
   import { kTokens } from './estimate';
   import {
     loadOrder,
@@ -45,25 +50,20 @@
 
   let {
     visible,
-    profiles,
     recent,
     choose,
     onopen,
-    onprofiles,
     select = null,
     client = arsenalClient,
     launches: loadLaunches = listLaunches,
   }: {
     visible: boolean;
-    profiles: readonly Profile[];
     /** Folders the Console knows, newest first (the project registry). */
     recent: readonly { path: string; last_used: number }[];
     /** The native folder dialog; `null` when dismissed. */
     choose: () => Promise<string | null>;
     /** Opens a saved launch in the Console. */
     onopen: (id: string) => void;
-    /** Opens Profiles, where profiles are made and edited. */
-    onprofiles?: () => void;
     /** A launch to show when it appears: one just made elsewhere (a distributor's). */
     select?: string | null;
     client?: ArsenalClient;
@@ -76,18 +76,16 @@
     { id: 'researcher', name: msg('Researcher') },
     { id: 'reviewer', name: msg('Reviewer') },
   ];
-  /** The Model list's first entry: it opens Profiles and is never a launch's profile. */
-  const EDIT_PROFILES = '__edit_profiles__';
   /** What each part of a launch is, shown on hover. */
   const HINT = {
     role: msg(
       'Only for ordering this list: launches are grouped by role. It does not change what the agent does.',
     ),
     distributor: msg(
-      'Which agent the launch starts: Claude Code (Anthropic) or Codex (OpenAI). Changing it starts the profile, preset and environment over.',
+      'Which agent the launch starts: Claude Code (Anthropic) or Codex (OpenAI). Changing it starts the preset and the environment over, and a permission the other agent does not have.',
     ),
-    profile: msg(
-      'The profile the agent starts with: its model, how much it reasons and what it may do without asking. Default uses what the agent has configured.',
+    permission: msg(
+      'What the agent may do without asking you. “As configured” passes nothing: the agent starts with the permissions of its own settings. The model and the effort are chosen inside the agent.',
     ),
     mode: msg(
       'Native: the agent runs as its own program in a terminal of the Console, as when you type claude or codex. The other mode, Managed (the Console drives the session), starts from Sessions, not from a launch; that is why it is fixed here.',
@@ -119,23 +117,15 @@
       'Scripts that run on their own at fixed moments (before a command, when a turn ends…). They take no context.',
     ),
   };
-  const PERMISSION_LABEL: Record<string, string> = {
-    ask: msg('asks before every change'),
-    read_only: msg('read only'),
-    edits: msg('edits files without asking'),
-    bypass: msg('does everything without asking'),
+  /** What each permission does, shown on hover over the chosen one. */
+  const PERMISSION_HINT: Record<Permission, string> = {
+    ask: msg('The agent asks before every change.'),
+    read_only: msg('The agent reads and plans; it changes nothing.'),
+    edits: msg(
+      'The agent edits files without asking; it still asks before running commands. Claude Code only.',
+    ),
+    bypass: BYPASS_WARNING,
   };
-  /** A profile in one sentence: model, effort and what it may do. */
-  function profileHint(p: Profile): string {
-    return [
-      p.body.model ?? t('the agent’s own model'),
-      p.body.effort ? t('effort {level}', { level: p.body.effort }) : null,
-      p.body.permission ? t(PERMISSION_LABEL[p.body.permission]) : null,
-      p.body.notes || null,
-    ]
-      .filter(Boolean)
-      .join(' · ');
-  }
 
   const AGENTS: readonly { id: Agent; distributor: string }[] = (
     ['claude_code', 'codex'] as const
@@ -212,7 +202,7 @@
         name: launch?.name ?? t('New launch'),
         role: launch ? knownRole(roleOf(launch.id)) : 'worker',
         agent,
-        profile: null,
+        permission: null,
         directory: launch?.directory ?? recent[0]?.path ?? '',
         selection: null,
         items: allItemsOf(data.library, agent),
@@ -226,7 +216,7 @@
       name: launch.name,
       role: knownRole(roleOf(launch.id)),
       agent: launch.agent,
-      profile: launch.profile,
+      permission: launch.permission,
       directory: launch.directory,
       selection,
       items: selection
@@ -299,11 +289,7 @@
         )
       : null,
   );
-  const agentProfiles = $derived(
-    draft
-      ? profiles.filter((p) => p.body.applies_to.includes(draft!.agent))
-      : [],
-  );
+  const agentPermissions = $derived(draft ? permissionsFor(draft.agent) : []);
   // Only folders the Console knows as projects: the desktop reads no other.
   const known = $derived(new Set(recent.map((r) => r.path)));
   const saved = $derived([
@@ -315,9 +301,11 @@
 
   function setAgent(agent: Agent) {
     if (!draft || draft.agent === agent) return;
-    // Profile, preset and environment belong to an agent: they start over.
+    // Preset and environment belong to an agent: they start over. A permission stays when the
+    // other agent has it too (accepting edits is Claude Code's own).
     draft.agent = agent;
-    draft.profile = null;
+    if (draft.permission && !permissionsFor(agent).includes(draft.permission))
+      draft.permission = null;
     draft.selection = null;
     draft.items = allItemsOf(data.library, agent);
     draft.composites = [];
@@ -524,7 +512,7 @@
         name: d.name.trim(),
         directory: d.directory,
         agent: d.agent,
-        profile: d.profile,
+        permission: d.permission,
         preset: target?.name ?? null,
         replace: plan.launch.replace,
       });
@@ -821,6 +809,11 @@
           )}
         </p>
       {/if}
+      {#if !readOnly && d.permission === 'bypass'}
+        <p class="notice" data-tone="warn" role="status">
+          {t(BYPASS_WARNING)}
+        </p>
+      {/if}
       {#if !readOnly}
         <fieldset class="le-fieldset" disabled={busy}>
           <div class="le-fields">
@@ -848,46 +841,27 @@
                 {/each}
               </select>
             </label>
-            <label class="le-field" title={t(HINT.profile)}
-              ><span>{t('Profile')}</span>
+            <label class="le-field" title={t(HINT.permission)}
+              ><span>{t('Permissions')}</span>
               <select
                 class="le-input"
-                title={(() => {
-                  const p = agentProfiles.find(
-                    (x) => x.body.name === d.profile,
-                  );
-                  return p
-                    ? `${p.body.name}: ${profileHint(p)}`
-                    : t(
-                        'Default: no profile; the agent starts with the model and permissions of its own settings.',
-                      );
-                })()}
-                value={d.profile ?? ''}
+                aria-label={t('Permissions')}
+                title={t(
+                  d.permission
+                    ? PERMISSION_HINT[d.permission]
+                    : HINT.permission,
+                )}
+                value={d.permission ?? ''}
                 onchange={(e) => {
-                  const select = e.currentTarget;
-                  if (select.value === EDIT_PROFILES) {
-                    // An action, not a value: the choice stays as it was, and Profiles opens.
-                    select.value = d.profile ?? '';
-                    onprofiles?.();
-                    return;
-                  }
-                  d.profile = select.value || null;
+                  const word = e.currentTarget.value;
+                  d.permission =
+                    agentPermissions.find((p) => p === word) ?? null;
                 }}
               >
-                {#if onprofiles}
-                  <option
-                    value={EDIT_PROFILES}
-                    title={t(
-                      'Profiles: see what each one sets, edit them or make a new one.',
-                    )}>{t('Edit profiles…')}</option
-                  >
-                {/if}
-                <option value="">{t('Default (no profile)')}</option>
-                {#each agentProfiles as p (p.id)}
-                  <option value={p.body.name} title={profileHint(p)}
-                    >{p.body.model
-                      ? `${p.body.name} · ${p.body.model}`
-                      : p.body.name}</option
+                <option value="">{t(AS_CONFIGURED)}</option>
+                {#each agentPermissions as p (p)}
+                  <option value={p} title={t(PERMISSION_HINT[p])}
+                    >{t(PERMISSION_LABEL[p])}</option
                   >
                 {/each}
               </select>

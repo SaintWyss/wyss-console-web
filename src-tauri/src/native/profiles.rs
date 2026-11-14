@@ -1,34 +1,26 @@
-//! The profile store (09 §4.4, §4.5): one file per profile holding its versions, a pointer to
-//! the current one, at most 20 versions kept; templates ship with the product and are read
-//! only. Export and import move one profile as one file that carries no secret and grants
-//! nothing.
+//! Resolves the id a start names (09 §4.4): one of the fixed templates, or a profile saved
+//! before profiles were removed from the window, read from its file so a session registered
+//! with it can restart. Nothing here writes: a saved profile is only ever read as it was left.
 use super::{
     profile::{Body, MAX_DEPTH, ProfileError, Resolved, merge, templates},
     store,
 };
-use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
+use serde::Deserialize;
 use std::{
-    fs,
     path::PathBuf,
     sync::{Mutex, PoisonError},
 };
 
-pub const MAX_VERSIONS: usize = 20;
-pub const MAX_PROFILES: usize = 100;
 const MAX_FILE: u64 = 512 * 1024;
-const MAX_IMPORT: u64 = 16 * 1024;
-const FORMAT: &str = "wyss-session-profile";
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// One saved version. The file also carries when it was saved and its hash; neither is read.
+#[derive(Debug, Clone, Deserialize)]
 struct Version {
     n: u32,
-    saved_at: u64,
-    hash: String,
     body: Body,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 struct Stored {
     id: String,
     current: u32,
@@ -42,40 +34,6 @@ impl Stored {
             .find(|v| v.n == self.current)
             .map(|v| &v.body)
     }
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct VersionInfo {
-    pub n: u32,
-    pub saved_at: u64,
-    pub hash: String,
-    pub name: String,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct Summary {
-    pub id: String,
-    pub template: bool,
-    pub current: u32,
-    pub versions: Vec<VersionInfo>,
-    pub body: Body,
-    /// Which profile each inherited value came from (empty without a parent).
-    pub from: std::collections::BTreeMap<&'static str, String>,
-    pub refers_to_missing: bool,
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Export {
-    format: String,
-    schema: u32,
-    body: Body,
-}
-
-pub fn hash(body: &Body) -> String {
-    let bytes = serde_json::to_vec(body).unwrap_or_default();
-    let digest = Sha256::digest(bytes);
-    digest[..8].iter().map(|b| format!("{b:02x}")).collect()
 }
 
 pub struct ProfileStore {
@@ -112,28 +70,6 @@ impl ProfileStore {
         (stored.id == id && stored.body().is_some()).then_some(stored)
     }
 
-    fn write(&self, stored: &Stored) -> Result<(), ProfileError> {
-        let bytes =
-            serde_json::to_vec_pretty(stored).map_err(|_| ProfileError::StoreUnavailable)?;
-        store::write_atomic(&self.path(&stored.id), &bytes)
-            .map_err(|_| ProfileError::StoreUnavailable)
-    }
-
-    fn ids(&self) -> Vec<String> {
-        let mut ids: Vec<String> = fs::read_dir(&self.dir)
-            .into_iter()
-            .flatten()
-            .flatten()
-            .filter_map(|entry| {
-                let name = entry.file_name().into_string().ok()?;
-                let id = name.strip_suffix(".json")?;
-                id_ok(id).then(|| id.to_owned())
-            })
-            .collect();
-        ids.sort();
-        ids
-    }
-
     fn lock(&self) -> std::sync::MutexGuard<'_, ()> {
         self.guard.lock().unwrap_or_else(PoisonError::into_inner)
     }
@@ -145,6 +81,9 @@ impl ProfileStore {
         }
         let stored = self.read(id)?;
         let body = stored.body()?.clone();
+        // Nothing saves a profile any more, so the shape rules a save applied are applied to
+        // what is read: a file changed by hand passes no word a saved one could not.
+        body.validate().ok()?;
         Some((body, stored.current))
     }
 
@@ -178,222 +117,29 @@ impl ProfileStore {
         Ok((merge(&chain), version))
     }
 
-    pub fn list(&self) -> Vec<Summary> {
-        let _guard = self.lock();
-        let mut out = Vec::new();
-        let mut push =
-            |id: String, template: bool, current: u32, versions: Vec<VersionInfo>, body: Body| {
-                let resolved = self.resolve_unlocked(&id);
-                let (from, missing) = match &resolved {
-                    Ok((resolved, _)) => (resolved.from.clone(), false),
-                    Err(_) => (Default::default(), true),
-                };
-                out.push(Summary {
-                    id,
-                    template,
-                    current,
-                    versions,
-                    body,
-                    from,
-                    refers_to_missing: missing,
-                });
-            };
-        for (id, body) in templates() {
-            push(id.to_owned(), true, 0, Vec::new(), body);
-        }
-        for id in self.ids() {
-            if let Some(stored) = self.read(&id) {
-                let body = stored.body().cloned().unwrap_or_default();
-                let versions = stored
-                    .versions
-                    .iter()
-                    .map(|v| VersionInfo {
-                        n: v.n,
-                        saved_at: v.saved_at,
-                        hash: v.hash.clone(),
-                        name: v.body.name.clone(),
-                    })
-                    .collect();
-                push(id, false, stored.current, versions, body);
-            }
-        }
-        out
+    /// Writes a profile file as the window saved one before profiles were removed from it:
+    /// the tests' only way to have one, since nothing in the product writes one any more.
+    #[cfg(test)]
+    fn put(&self, id: &str, version: u32, body: &Body) {
+        let text = serde_json::json!({
+            "id": id,
+            "current": version,
+            "versions": [{"n": version, "saved_at": 0, "hash": "", "body": body}],
+        });
+        std::fs::write(self.path(id), serde_json::to_vec(&text).unwrap()).unwrap();
     }
 
-    /// Profiles in the protocol accepted by M1-M6 windows. A profile that names an M9-only
-    /// provider is withheld as a whole because older clients deserialize provider IDs closed.
-    pub fn list_legacy(&self) -> Vec<Summary> {
-        self.list()
-            .into_iter()
-            .filter(|summary| {
-                summary
-                    .body
-                    .applies_to
-                    .iter()
-                    .all(|agent| agent.is_legacy())
-            })
-            .collect()
-    }
-
-    /// The parent must exist, and following it must not come back to `id` nor go deeper
-    /// than `MAX_DEPTH`.
-    fn check_extends(&self, id: &str, body: &Body) -> Result<(), ProfileError> {
-        let mut seen = vec![id.to_owned()];
-        let mut next = body.extends.clone();
-        let mut depth = 1;
-        while let Some(parent_id) = next {
-            if seen.contains(&parent_id) {
-                return Err(ProfileError::ProfileCycle);
-            }
-            depth += 1;
-            if depth > MAX_DEPTH {
-                return Err(ProfileError::TooDeep);
-            }
-            let (parent, _) = self
-                .body_of(&parent_id)
-                .ok_or(ProfileError::ExtendsUnknown)?;
-            seen.push(parent_id);
-            next = parent.extends;
-        }
-        Ok(())
-    }
-
-    pub fn create(&self, body: Body) -> Result<String, ProfileError> {
-        body.validate()?;
-        let _guard = self.lock();
-        if self.ids().len() >= MAX_PROFILES {
-            return Err(ProfileError::TooMany);
-        }
+    #[cfg(test)]
+    pub(crate) fn create(&self, body: Body) -> Result<String, ProfileError> {
         let id = uuid::Uuid::new_v4().simple().to_string();
-        self.check_extends(&id, &body)?;
-        let stored = Stored {
-            id: id.clone(),
-            current: 1,
-            versions: vec![Version {
-                n: 1,
-                saved_at: store::now(),
-                hash: hash(&body),
-                body,
-            }],
-        };
-        self.write(&stored)?;
+        self.put(&id, 1, &body);
         Ok(id)
     }
 
-    /// A save that changes nothing makes no new version.
-    pub fn save(&self, id: &str, body: Body) -> Result<u32, ProfileError> {
-        if templates().iter().any(|(t, _)| *t == id) {
-            return Err(ProfileError::ReadOnlyTemplate);
-        }
-        body.validate()?;
-        let _guard = self.lock();
-        let mut stored = self.read(id).ok_or(ProfileError::Unknown)?;
-        self.check_extends(id, &body)?;
-        let digest = hash(&body);
-        if stored.body().is_some_and(|b| hash(b) == digest) {
-            return Ok(stored.current);
-        }
-        let next = stored.versions.iter().map(|v| v.n).max().unwrap_or(0) + 1;
-        stored.versions.push(Version {
-            n: next,
-            saved_at: store::now(),
-            hash: digest,
-            body,
-        });
-        while stored.versions.len() > MAX_VERSIONS {
-            // The oldest that is not the current one.
-            let at = stored
-                .versions
-                .iter()
-                .position(|v| v.n != next)
-                .unwrap_or(0);
-            stored.versions.remove(at);
-        }
-        stored.current = next;
-        self.write(&stored)?;
+    #[cfg(test)]
+    pub(crate) fn save(&self, id: &str, body: Body) -> Result<u32, ProfileError> {
+        let next = self.read(id).ok_or(ProfileError::Unknown)?.current + 1;
+        self.put(id, next, &body);
         Ok(next)
-    }
-
-    /// Moves the pointer to an earlier version. Nothing is deleted.
-    pub fn restore(&self, id: &str, n: u32) -> Result<(), ProfileError> {
-        let _guard = self.lock();
-        let mut stored = self.read(id).ok_or(ProfileError::Unknown)?;
-        let body = stored
-            .versions
-            .iter()
-            .find(|v| v.n == n)
-            .map(|v| v.body.clone())
-            .ok_or(ProfileError::VersionUnknown)?;
-        self.check_extends(id, &body)?;
-        stored.current = n;
-        self.write(&stored)
-    }
-
-    pub fn delete(&self, id: &str) -> Result<(), ProfileError> {
-        if templates().iter().any(|(t, _)| *t == id) {
-            return Err(ProfileError::ReadOnlyTemplate);
-        }
-        let _guard = self.lock();
-        if self.read(id).is_none() {
-            return Err(ProfileError::Unknown);
-        }
-        // A profile another one extends is not removed from under it.
-        for other in self.ids() {
-            if other != id
-                && self
-                    .read(&other)
-                    .and_then(|s| s.body().and_then(|b| b.extends.clone()))
-                    .as_deref()
-                    == Some(id)
-            {
-                return Err(ProfileError::InUse);
-            }
-        }
-        fs::remove_file(self.path(id)).map_err(|_| ProfileError::StoreUnavailable)
-    }
-
-    /// A copy under a new name; of a template too, which is how a template is made editable.
-    pub fn duplicate(&self, id: &str) -> Result<String, ProfileError> {
-        let (mut body, _) = self.body_of(id).ok_or(ProfileError::Unknown)?;
-        body.name = format!("{} copy", body.name.chars().take(50).collect::<String>());
-        self.create(body)
-    }
-
-    pub fn export(&self, id: &str) -> Result<Vec<u8>, ProfileError> {
-        let _guard = self.lock();
-        let (mut body, _) = self.body_of(id).ok_or(ProfileError::Unknown)?;
-        // A parent is a local id: it means nothing on another computer.
-        body.extends = None;
-        let export = Export {
-            format: FORMAT.to_owned(),
-            schema: 1,
-            body,
-        };
-        serde_json::to_vec_pretty(&export).map_err(|_| ProfileError::StoreUnavailable)
-    }
-
-    /// Validates the file, drops what it should not carry (a parent id), keeps the name
-    /// unique by a suffix, and stores it as a new profile. It never overwrites, and it asks
-    /// for nothing: a profile is a description.
-    pub fn import(&self, bytes: &[u8]) -> Result<String, ProfileError> {
-        if bytes.len() as u64 > MAX_IMPORT {
-            return Err(ProfileError::ImportInvalid);
-        }
-        let export: Export =
-            serde_json::from_slice(bytes).map_err(|_| ProfileError::ImportInvalid)?;
-        if export.format != FORMAT || export.schema != 1 {
-            return Err(ProfileError::ImportInvalid);
-        }
-        let mut body = export.body;
-        body.extends = None;
-        body.validate().map_err(|_| ProfileError::ImportInvalid)?;
-        let names: Vec<String> = self.list().into_iter().map(|s| s.body.name).collect();
-        let original = body.name.clone();
-        let mut n = 1;
-        while names.contains(&body.name) {
-            n += 1;
-            body.name = format!("{} ({n})", original.chars().take(50).collect::<String>());
-        }
-        self.create(body)
     }
 }

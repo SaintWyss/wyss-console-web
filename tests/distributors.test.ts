@@ -10,7 +10,6 @@ import {
 } from '../src/lib/features/models/controller';
 import { ConfigurationController } from '../src/lib/features/configuration/controller';
 import {
-  chosenBy,
   distributorCards,
   inUse,
   SET_UP_IN,
@@ -27,7 +26,7 @@ import {
 import { setLanguage, t, tPhrase } from '../src/lib/i18n/index.svelte';
 import catalogues from './fixtures/model-catalogue-v1.json';
 import inventory from './fixtures/configuration-inventory-v1.json';
-import { launcher, profiles } from './native-harness';
+import { launcher } from './native-harness';
 
 const KEY = 'wyss-console.distributors-seen';
 afterEach(() => {
@@ -122,13 +121,12 @@ it('knows three tools, each with where it is set up; Kimi is a suggestion under 
   expect(SUGGESTED.map((s) => s.open)).toEqual(['kimi', 'gemini', 'aider']);
 });
 
-it('names the configured model and the owner’s profiles for the tools that list nothing', () => {
-  const cards = distributorCards(launcher(), idle, items, profiles());
+it('names the configured model for the tools that list nothing', () => {
+  const cards = distributorCards(launcher(), idle, items);
   const anthropic = card(cards, 'anthropic');
-  // The same value in two files is one row; a template is not the owner's profile.
+  // The same value in two files is one row.
   expect(labels(anthropic)).toEqual([
     ['Configured model: {model}', { model: 'opus' }],
-    ['Profile {name}: {model}', { name: 'Mine', model: 'sonnet' }],
   ]);
   expect(anthropic.models.every((m) => !m.fresh)).toBe(true);
   expect(anthropic.notes).toEqual([
@@ -143,7 +141,7 @@ it('names the configured model and the owner’s profiles for the tools that lis
 
 it('lists what Codex offers, and says why when there is no list', () => {
   const offered = card(
-    distributorCards(launcher(), ready(listed), items, [], ['model-b']),
+    distributorCards(launcher(), ready(listed), items, ['model-b']),
     'openai',
   );
   expect(labels(offered)).toEqual(['model-a', 'model-b']);
@@ -272,7 +270,7 @@ it('reads storage that is missing or damaged as never read, and survives storage
 
 it('says each state in Spanish in the words the owner fixed', () => {
   setLanguage('es');
-  const cards = distributorCards(launcher(), ready(listed), items, profiles());
+  const cards = distributorCards(launcher(), ready(listed), items);
   expect(tPhrase(card(cards, 'anthropic').status)).toBe(
     'Instalado · 2.1.303 (Claude Code)',
   );
@@ -288,7 +286,7 @@ it('says each state in Spanish in the words the owner fixed', () => {
     anthropic.models.map((m) =>
       typeof m.label === 'string' ? m.label : tPhrase(m.label),
     ),
-  ).toEqual(['Modelo configurado: opus', 'Perfil Mine: sonnet']);
+  ).toEqual(['Modelo configurado: opus']);
   expect(tPhrase(anthropic.notes[0])).toBe(
     'Esta herramienta no le lista sus modelos a la Console.',
   );
@@ -296,18 +294,11 @@ it('says each state in Spanish in the words the owner fixed', () => {
 
 it('says a configured model is from an earlier read only on a card that shows one', () => {
   const note = { text: 'Configured models are from an earlier read.' };
-  const stale = distributorCards(launcher(), idle, items, profiles(), [], true);
+  const stale = distributorCards(launcher(), idle, items, [], true);
   expect(card(stale, 'anthropic').notes).toContainEqual(note);
   expect(card(stale, 'opencode').notes).not.toContainEqual(note);
   expect(card(stale, 'openai').notes).not.toContainEqual(note);
-  const whole = distributorCards(
-    launcher(),
-    idle,
-    items,
-    profiles(),
-    [],
-    false,
-  );
+  const whole = distributorCards(launcher(), idle, items, [], false);
   expect(card(whole, 'anthropic').notes).not.toContainEqual(note);
   setLanguage('es');
   expect(tPhrase(note)).toBe(
@@ -377,50 +368,36 @@ it('lets a configuration read be waited for, and reports a failed one as older',
   controller.dispose();
 });
 
-it('says which profile asks for which model, and what runs now without claiming a model in use', () => {
-  const all = profiles();
-  const mine = all.find((p) => p.body.name === 'Mine')!;
-  // Mine names sonnet; the templates name neither a model nor an effort.
-  expect(chosenBy('claude_code', all).map((r) => [r.name, r.model])).toEqual([
-    ['Mine', 'sonnet'],
-  ]);
+it('says what each running session started with, without claiming a model in use', () => {
   const session = (over: Record<string, unknown>) =>
     ({
       id: 's1',
       agent_id: 'claude_code',
       project: '/home/me/UTN',
-      profile: { id: mine.id, name: 'Mine', version: mine.current },
+      profile: { id: 'template-edits', name: 'Accept edits', version: 0 },
       state: 'running',
       ...over,
     }) as never;
   const said = (rows: ReturnType<typeof inUse>) =>
     rows.map((r) => [r.line.text, r.line.values]);
-  // Started with the profile's current version: its model is named, as what it asks for.
-  expect(said(inUse('claude_code', [session({})], all, null))).toEqual([
+  expect(said(inUse('claude_code', [session({})], null))).toEqual([
     [
-      'In {folder}: started with the profile {name}, which asks for {model}.',
-      { folder: 'UTN', name: 'Mine', model: 'sonnet' },
+      'In {folder}: started with {permission}.',
+      {
+        folder: 'UTN',
+        permission: { text: 'Accept edits' },
+      },
     ],
   ]);
-  // An older version of the profile: no model is claimed.
+  // Started with no permission: as the agent is configured.
   expect(
-    said(
-      inUse(
-        'claude_code',
-        [session({ profile: { id: mine.id, name: 'Mine', version: 1 } })],
-        all,
-        null,
-      ),
-    ),
+    said(inUse('claude_code', [session({ profile: null })], null)),
   ).toEqual([
-    [
-      'In {folder}: started with the profile {name}.',
-      { folder: 'UTN', name: 'Mine' },
-    ],
+    ['In {folder}: started as the agent is configured.', { folder: 'UTN' }],
   ]);
   // Ended sessions and other tools are not running here.
-  expect(
-    inUse('claude_code', [session({ state: 'exited' })], all, null),
-  ).toEqual([]);
-  expect(inUse('codex', [session({})], all, null)).toEqual([]);
+  expect(inUse('claude_code', [session({ state: 'exited' })], null)).toEqual(
+    [],
+  );
+  expect(inUse('codex', [session({})], null)).toEqual([]);
 });

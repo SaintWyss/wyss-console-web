@@ -1,11 +1,10 @@
-import type {
-  AgentId,
-  HooksMode,
-  NativeSession,
-  Permission,
-  Profile,
-  ProfileBody,
-  SessionState,
+import {
+  profilePermission,
+  type AgentId,
+  type NativeSession,
+  type Permission,
+  type ProfileRef,
+  type SessionState,
 } from '../../contracts/native';
 import type { ConfigItem } from '../../contracts/configuration';
 import { msg, type Phrase } from '../../i18n/msg';
@@ -80,16 +79,21 @@ export const FAILURE_TEXT: Record<string, string> = {
   project_invalid: msg(
     'That folder cannot be used. Choose a folder with the folder button.',
   ),
-  profile_not_applicable: msg('This profile cannot be applied to that agent.'),
-  profile_unknown: msg('That profile no longer exists.'),
+  // The host's codes still say "profile": a permission is sent as its fixed template.
+  profile_not_applicable: msg(
+    'This permission cannot be applied to that agent.',
+  ),
+  profile_unknown: msg(
+    'What this session was started with no longer exists, so it cannot start that way. Start a new one from Workspace.',
+  ),
   profile_preview_required: msg(
-    'Review the current profile preview before starting with it.',
+    'The start was not checked first. Choose the permission again and start.',
   ),
   profile_preview_stale: msg(
-    'The profile changed after its preview. Review the new preview and start again.',
+    'What the start would do changed after it was checked. Check it again and start.',
   ),
   provider_version_unverified: msg(
-    'This exact provider build is not verified for profile overrides, so the override was not launched. Choose “No profile — as configured” or use a qualified build.',
+    'This exact provider build is not verified for permission flags, so nothing was launched with them. Choose “As configured” or use a qualified build.',
   ),
   arsenal_unqualified: msg(
     'Skill exclusion is not qualified for this exact provider build, so nothing was started with it. Start without applying the selection, or use a qualified build.',
@@ -137,43 +141,9 @@ export const FAILURE_TEXT: Record<string, string> = {
     'The terminal host did not confirm this request: it may or may not have taken effect, and it was not sent again. Check the sessions listed here before repeating it, so nothing runs twice.',
   ),
   host_outdated: msg(
-    'The terminal host is older than this window and cannot keep these profile options. Update it before using effort or preview-bound profiles; existing sessions are unchanged.',
+    'The terminal host is older than this window and cannot start with this option. Update it before using it; existing sessions are unchanged.',
   ),
   export_failed: msg('The file could not be written.'),
-  profile_name_invalid: msg(
-    'The name must be 1 to 60 characters, without control characters.',
-  ),
-  profile_applies_to_invalid: msg('Choose at least one agent, each once.'),
-  profile_model_invalid: msg(
-    'The model may hold letters, digits and . _ : - / only, and may not start with a dash.',
-  ),
-  profile_effort_invalid: msg(
-    'The effort may hold letters, digits and . _ - only (32 at most), and may not start with a dash.',
-  ),
-  profile_skill_invalid: msg(
-    'A skill name may hold letters, digits and . _ : - only (64 at most).',
-  ),
-  profile_notes_invalid: msg(
-    'The notes are too long or hold control characters.',
-  ),
-  profile_notes_hold_secret: msg(
-    'The text looks like it holds a secret. A profile never holds one.',
-  ),
-  profile_extends_unknown: msg('The profile it extends does not exist.'),
-  profile_profile_cycle: msg(
-    'A profile cannot extend itself, directly or through others.',
-  ),
-  profile_too_deep: msg('Profiles may extend up to eight levels.'),
-  profile_read_only_template: msg(
-    'A template is read only. Make a copy to change it.',
-  ),
-  profile_too_many: msg('There are too many profiles (100).'),
-  profile_version_unknown: msg('That version does not exist.'),
-  profile_import_invalid: msg('That file is not a profile this app can read.'),
-  profile_store_unavailable: msg('The profiles could not be read or written.'),
-  profile_in_use: msg(
-    'Another profile extends this one. Change that one first.',
-  ),
   internal: msg('Something went wrong in the desktop.'),
 };
 export const failureText = (code: string) =>
@@ -181,19 +151,51 @@ export const failureText = (code: string) =>
 
 export const PERMISSION_LABEL: Record<Permission, string> = {
   ask: msg('Ask before acting'),
-  read_only: msg('Read only (plan)'),
-  edits: msg('Accept edits (Claude Code only)'),
-  bypass: msg('Full access: no prompts, no sandbox (bypass)'),
+  read_only: msg('Read only'),
+  edits: msg('Accept edits'),
+  bypass: msg('Full access'),
 };
+/** No permission named: the agent starts with what its own files say. */
+export const AS_CONFIGURED = msg('As configured');
+/** What choosing a permission does, said under the choice. */
+export const PERMISSION_HELP = msg(
+  'What the agent may do without asking you. “As configured” passes nothing: the agent starts with the permissions of its own settings. The model and the effort are chosen inside the agent.',
+);
+/**
+ * What a session was started with, in a phrase: its permission, as configured, or the name of
+ * the profile it was started with before profiles were removed (what that one set is not known).
+ */
+export function startedWith(profile: ProfileRef | null): Phrase {
+  if (!profile) return { text: AS_CONFIGURED };
+  const permission = profilePermission(profile);
+  return permission
+    ? { text: PERMISSION_LABEL[permission] }
+    : { text: msg('Profile {name}'), values: { name: profile.name } };
+}
+/** The names of the fixed templates, which is all a terminal's tab carries from the host. */
+const TEMPLATE_NAME: Record<string, Permission | null> = {
+  'As configured': null,
+  Strict: 'ask',
+  'Review, read only': 'read_only',
+  'Accept edits': 'edits',
+  'Full access (bypass)': 'bypass',
+};
+/**
+ * What a tab says its agent was started with, from the name the host recorded: the permission
+ * when it is a template's, the name itself when it is a profile saved before profiles were
+ * removed, and nothing when the agent started as configured.
+ */
+export function tabStartedWith(name: string | null): Phrase | null {
+  if (name === null) return null;
+  if (!Object.hasOwn(TEMPLATE_NAME, name))
+    return { text: msg('Profile {name}'), values: { name } };
+  const permission = TEMPLATE_NAME[name];
+  return permission ? { text: PERMISSION_LABEL[permission] } : null;
+}
 /** Said wherever full access is chosen or shown: what it costs. */
 export const BYPASS_WARNING = msg(
   'Full access: the agent asks nothing and runs every command and edit without a sandbox, with your account’s rights.',
 );
-export const HOOKS_LABEL: Record<HooksMode, string> = {
-  inherit: msg('As configured'),
-  off: msg('Off for this session (Claude Code only)'),
-};
-
 export function folderName(path: string): string {
   return path.split('/').filter(Boolean).pop() ?? '/';
 }
@@ -211,31 +213,14 @@ export function since(from: number, now: number): string {
   return `${Math.floor(seconds / 86400)}d`;
 }
 
-export function emptyBody(): ProfileBody {
-  return {
-    name: '',
-    applies_to: ['claude_code', 'codex'],
-    extends: null,
-    model: null,
-    effort: null,
-    permission: null,
-    hooks: null,
-    skills_off: [],
-    notes: '',
-  };
-}
-
-/** Profiles that can be chosen to start `agent`: written for it. */
 /**
- * The three things said about the model of a native session, kept apart because they are
- * different facts: what the session's profile asked for, what the agent's own files are set
- * to, and what is in use. The last is never filled from the other two: neither agent reports
- * the model it runs without a hook or a read of the terminal, and this app adds neither.
+ * The two things said about the model of a native session, kept apart because they are
+ * different facts: what the agent's own files are set to, and what is in use. The Console
+ * passes neither a model nor an effort: they are chosen inside the agent. What is in use is
+ * never filled from the files: neither agent reports the model it runs without a hook or a
+ * read of the terminal, and this app adds neither.
  */
 export interface ModelFacts {
-  requested: string;
-  /** The effort the profile asked for, or why there is none to say. */
-  requestedEffort: string;
   configured: string;
   /** The effort the agent's own files hold, or why there is none to say. */
   configuredEffort: string;
@@ -243,24 +228,8 @@ export interface ModelFacts {
 }
 export function modelFacts(
   session: NativeSession,
-  profiles: Profile[],
   config: readonly ConfigItem[] | null,
 ): ModelFacts {
-  let requested: string = msg('none (the agent’s own choice)');
-  let requestedEffort: string = requested;
-  if (session.profile) {
-    const profile = profiles.find((p) => p.id === session.profile?.id);
-    if (!profile)
-      requested = requestedEffort = msg('the profile no longer exists');
-    else if (profile.current !== session.profile.version)
-      requested = requestedEffort = msg(
-        'the profile has changed since this session started',
-      );
-    else {
-      if (profile.body.model) requested = profile.body.model;
-      if (profile.body.effort) requestedEffort = profile.body.effort;
-    }
-  }
   let configured: string = msg('not read yet (open Configuration)');
   let configuredEffort: string = configured;
   if (config !== null) {
@@ -296,8 +265,6 @@ export function modelFacts(
     }
   }
   return {
-    requested,
-    requestedEffort,
     configured,
     configuredEffort,
     inUse: msg('not reported by the agent'),
@@ -325,46 +292,6 @@ export function switchHint(agent: AgentId): string {
         'How to change the model in a running session is not verified, so none is suggested.',
       );
   }
-}
-
-export function profilesFor(profiles: Profile[], agent: AgentId): Profile[] {
-  return profiles.filter((p) => p.body.applies_to.includes(agent));
-}
-
-/** A preview is current only for the selected profile and every revision it inherits. */
-export function profileRevisionKey(
-  profiles: readonly Profile[],
-  id: string | null,
-): string {
-  if (!id) return '';
-  const byId = new Map(profiles.map((profile) => [profile.id, profile]));
-  const revisions: unknown[] = [];
-  const seen = new Set<string>();
-  let next: string | null = id;
-  while (next && revisions.length < 8) {
-    if (seen.has(next)) {
-      revisions.push([next, 'cycle']);
-      next = null;
-      break;
-    }
-    seen.add(next);
-    const profile = byId.get(next);
-    if (!profile) {
-      revisions.push([next, 'missing']);
-      next = null;
-      break;
-    }
-    const version = profile.versions.find((item) => item.n === profile.current);
-    revisions.push([
-      profile.id,
-      profile.current,
-      version?.hash ?? null,
-      profile.body.extends,
-    ]);
-    next = profile.body.extends;
-  }
-  if (next) revisions.push([next, 'depth']);
-  return JSON.stringify(revisions);
 }
 
 /** Sessions of one project, then by start: grouping for the overview (FR-NAT-08). */

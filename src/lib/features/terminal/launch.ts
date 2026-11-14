@@ -1,8 +1,8 @@
-import type {
-  AgentId,
-  Profile,
-  Preview,
-  StartReply,
+import {
+  permissionProfileId,
+  type AgentId,
+  type Preview,
+  type StartReply,
 } from '../../contracts/native';
 import type { Selection, TerminalPlan } from '../../contracts/arsenal';
 import type { ArsenalStart } from '../../desktop/native-client';
@@ -16,7 +16,6 @@ export type SelectionName = Pick<Selection, 'id' | 'name' | 'provider'>;
 export interface LaunchDeps {
   getLaunch(id: string): Promise<Launch>;
   runBefore(id: string): Promise<BeforeOutcome[]>;
-  profiles(): Promise<Profile[]>;
   /** The Arsenal selections of every provider; a launch finds its preset among them by name. */
   selections(): Promise<SelectionName[]>;
   /** The Arsenal selection the folder's last terminal of this agent started with. */
@@ -26,6 +25,7 @@ export interface LaunchDeps {
     agent: AgentId,
     project: string,
   ): Promise<TerminalPlan>;
+  /** `profile` is the fixed template the launch's permission is sent as. */
   preview(
     agent: AgentId,
     profile: string | null,
@@ -77,43 +77,9 @@ export interface Opened {
   notes: LaunchNote[];
 }
 
-/** The profile a session launch names, by its name, for its agent. */
-export function profileFor(
-  profiles: readonly Profile[],
-  name: string,
-  agent: AgentId,
-): Profile | undefined {
-  return profiles.find(
-    (p) => p.body.name === name && p.body.applies_to.includes(agent),
-  );
-}
-
-/**
- * The permission a profile starts with once what it extends is merged in, as the host merges it:
- * the nearest profile that sets one decides. A chain that is broken, too deep or a cycle gives
- * `null`, and the host refuses to start it anyway.
- */
-export function effectivePermission(
-  profiles: Profile[],
-  profile: Profile,
-): Profile['body']['permission'] {
-  const byId = new Map(profiles.map((p) => [p.id, p]));
-  const seen = new Set<string>();
-  let current: Profile | undefined = profile;
-  for (let depth = 0; current && depth < 8; depth++) {
-    if (seen.has(current.id)) return null;
-    seen.add(current.id);
-    if (current.body.permission) return current.body.permission;
-    current = current.body.extends ? byId.get(current.body.extends) : undefined;
-  }
-  return null;
-}
-
-/** Whether the profile a session launch names gives full access, itself or by what it extends. */
-export function isFullAccess(launch: Launch, profiles: Profile[]): boolean {
-  if (launch.kind !== 'session' || !launch.profile) return false;
-  const profile = profileFor(profiles, launch.profile, launch.agent);
-  return !!profile && effectivePermission(profiles, profile) === 'bypass';
+/** Whether a session launch gives full access: the permission its file names. */
+export function isFullAccess(launch: Launch): boolean {
+  return launch.kind === 'session' && launch.permission === 'bypass';
 }
 
 /** The selections of a provider named like a launch's preset: exactly one, none, or several. */
@@ -135,22 +101,13 @@ export function presetMatch(
 
 /**
  * Why a launch cannot start, from what the desktop holds: a commands launch always can; a session
- * launch needs its profile to exist for its agent, and its preset to name exactly one selection of
- * that agent. The reason is a sentence the view draws through t(); null when the launch may start.
+ * launch needs its preset to name exactly one selection of its agent. The reason is a sentence the view draws through t(); null when the launch may start.
  */
 export function launchBlock(
   launch: Launch,
-  profiles: readonly Profile[],
   selections: readonly SelectionName[],
 ): LaunchRefusal | null {
   if (launch.kind !== 'session') return null;
-  if (launch.profile && !profileFor(profiles, launch.profile, launch.agent))
-    return new LaunchRefusal(
-      msg(
-        'No profile named “{name}” for this agent. Create it in Profiles, or change the launch file.',
-      ),
-      { name: launch.profile },
-    );
   if (launch.preset) {
     const match = presetMatch(selections, launch.preset, launch.agent);
     if (match.state === 'none')
@@ -173,7 +130,7 @@ export function launchBlock(
 
 /**
  * Opens a launch by its id: re-read from its file, then a terminal with its commands typed, or
- * its `before` commands run and its agent started with the profile it names and the Arsenal
+ * its `before` commands run and its agent started with the permission it names and the Arsenal
  * selection its folder remembers, exactly as a start from the Agents view.
  */
 export async function openLaunch(
@@ -196,15 +153,12 @@ export async function openLaunch(
     return { notes: [] };
   }
   const { agent, directory } = launch;
-  // A profile or a preset the desktop does not hold, or a preset name held twice, stops the launch
-  // before anything runs, with the reason.
-  const profiles = launch.profile ? await deps.profiles() : [];
+  // A preset the desktop does not hold, or a preset name held twice, stops the launch before
+  // anything runs, with the reason.
   const selections = launch.preset ? await deps.selections() : [];
-  const refusal = launchBlock(launch, profiles, selections);
+  const refusal = launchBlock(launch, selections);
   if (refusal) throw refusal;
-  const profileId = launch.profile
-    ? (profileFor(profiles, launch.profile, agent)?.id ?? null)
-    : null;
+  const profileId = permissionProfileId(launch.permission);
   // The preset the launch names wins over the one its folder remembers.
   let selection: string | null;
   if (launch.preset) {
@@ -234,7 +188,7 @@ export async function openLaunch(
   const preview = await deps.preview(agent, profileId, apply ? arsenal : null);
   if (apply && !preview.can_start)
     throw new Error(
-      `The Arsenal selection ${plan!.selection_name} cannot be applied with this profile now; start it from Agents to choose.`,
+      `The Arsenal selection ${plan!.selection_name} cannot be applied with this permission now; start it from Agents to choose.`,
     );
   const reply = await deps.start(
     agent,

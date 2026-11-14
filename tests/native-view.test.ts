@@ -2,14 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { flushSync, mount, unmount } from 'svelte';
 import NativeHarness from './NativeHarness.svelte';
 import type { NativeClient } from '../src/lib/features/native/controller';
-import type { Preview, Profile } from '../src/lib/contracts/native';
-import {
-  fakeClient,
-  launcher,
-  profiles,
-  reply,
-  session,
-} from './native-harness';
+import type { Preview } from '../src/lib/contracts/native';
+import { fakeClient, launcher, reply, session } from './native-harness';
 
 let component: ReturnType<typeof mount> | undefined;
 afterEach(() => {
@@ -26,9 +20,6 @@ const button = (label: string) =>
   Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find((b) =>
     text(b).includes(label),
   )!;
-const profileId = 'b'.repeat(32);
-const parentProfileId = 'c'.repeat(32);
-
 function preview(token: string, applied = `Model: ${token}.`): Preview {
   return {
     applied: [applied],
@@ -42,53 +33,17 @@ function preview(token: string, applied = `Model: ${token}.`): Preview {
   };
 }
 
-function updateProfile(
-  profiles: Profile[],
-  id: string,
-  body: Profile['body'],
-): Profile[] {
-  return profiles.map((profile) => {
-    if (profile.id !== id) return profile;
-    const next = profile.current + 1;
-    return {
-      ...profile,
-      current: next,
-      versions: [
-        ...profile.versions,
-        {
-          n: next,
-          saved_at: 1_700_000_200,
-          hash: `revision-${next}`,
-          name: body.name,
-        },
-      ],
-      body,
-    };
-  });
-}
-
-async function selectProfile(id: string) {
-  const select = document.querySelector<HTMLSelectElement>('#native-profile')!;
-  select.value = id;
+async function selectPermission(word: string) {
+  const select =
+    document.querySelector<HTMLSelectElement>('#native-permission')!;
+  select.value = word;
   select.dispatchEvent(new Event('change', { bubbles: true }));
   await settle();
 }
-
-async function editProfileInProfilesView(name: string, model: string) {
-  Array.from(document.querySelectorAll('.native-profile-item'))
-    .find((node) => text(node).includes(name))!
-    .dispatchEvent(new MouseEvent('click', { bubbles: true }));
-  await settle();
-  const input = document.querySelector<HTMLInputElement>('#p-model')!;
-  input.value = model;
-  input.dispatchEvent(new Event('input', { bubbles: true }));
-  input.dispatchEvent(new Event('change', { bubbles: true }));
-  await settle();
-  const save = button('Save as a new version');
-  expect(save.disabled).toBe(false);
-  save.click();
-  await settle();
-}
+const permissionOptions = () =>
+  Array.from(
+    document.querySelector<HTMLSelectElement>('#native-permission')!.options,
+  ).map((option) => text(option));
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -112,7 +67,7 @@ async function shown(
 }
 
 describe('the launcher', () => {
-  it('updates the chosen agent from a button, in a terminal, and says nothing about unverified profiles', async () => {
+  it('updates the chosen agent from a button, in a terminal, and says nothing about unverified builds', async () => {
     const onupdate = vi.fn();
     await shown(fakeClient(), { onupdate });
     expect(document.querySelector('.native-capability')).toBeNull();
@@ -194,7 +149,7 @@ describe('the launcher', () => {
     expect(details).toContain('Reload: Not tested.');
   });
 
-  it('disables profile overrides for an unverified build while preserving As configured', async () => {
+  it('refuses a permission for an unverified build while preserving As configured', async () => {
     const current = launcher();
     const client = fakeClient({
       launcher: vi.fn(async () =>
@@ -203,150 +158,200 @@ describe('the launcher', () => {
         }),
       ),
       preview: vi.fn(async () => ({
-        applied: ['Model: sonnet.'],
+        applied: ['Permission mode: plan.'],
         with_cost: [],
         not_applicable: [
-          'Profile overrides are refused for an unverified provider build.',
+          'Permission flags are refused for an unverified provider build.',
         ],
         can_start: false,
         through_shell: true,
         warnings: [
-          'Profile overrides are not verified for 2.1.310 (Claude Code). Choose As configured.',
+          'Permission flags are not verified for 2.1.310 (Claude Code). Choose As configured.',
         ],
         plan_token: 'preview-token',
         provider_version: '2.1.310 (Claude Code)',
       })),
     });
     await shown(client);
-    const select =
-      document.querySelector<HTMLSelectElement>('#native-profile')!;
-    select.value = 'b'.repeat(32);
-    select.dispatchEvent(new Event('change', { bubbles: true }));
-    await settle();
+    await selectPermission('read_only');
 
     expect(document.querySelector('.native-capability')).toBeNull();
     expect(text(document.querySelector('.native-preview'))).toContain(
       'not verified for 2.1.310 (Claude Code)',
     );
     expect(button('Start Claude Code').disabled).toBe(true);
-    expect(
-      Array.from(select.options).find((option) => option.value === '')?.text,
-    ).toContain('as configured');
+    await selectPermission('');
+    expect(permissionOptions()[0]).toBe('As configured');
+    expect(button('Start Claude Code').disabled).toBe(false);
   });
 
-  it('starts the chosen agent on the chosen project with the chosen profile and shows the terminals', async () => {
-    const client = fakeClient();
-    const started = vi.fn();
-    const onconsole = vi.fn();
-    await shown(client, { started, onconsole });
-    const project =
-      document.querySelector<HTMLSelectElement>('#native-project')!;
-    // The project the registry knows remembers its agent and profile.
-    project.value = '/home/u/work/app';
-    project.dispatchEvent(new Event('change', { bubbles: true }));
-    await settle();
-    expect(
-      document.querySelector<HTMLSelectElement>('#native-profile')!.value,
-    ).toBe('template-review');
-    button('Start Claude Code').click();
-    await settle();
-    expect(client.start).toHaveBeenCalledWith(
-      'claude_code',
-      '/home/u/work/app',
-      'template-review',
-      null,
-      expect.objectContaining({
-        plan_token: 'preview-token',
-        provider_version: '2.1.309 (Claude Code)',
+  it('offers the permissions of the chosen agent and no profile', async () => {
+    await shown(fakeClient());
+    expect(permissionOptions()).toEqual([
+      'As configured',
+      'Ask before acting',
+      'Read only',
+      'Accept edits',
+      'Full access',
+    ]);
+    expect(document.querySelector('#native-profile')).toBeNull();
+    const card = text(document.querySelector('.native-feature'));
+    expect(card).not.toContain('Profile');
+    expect(card).not.toContain('Use for this project');
+    // What full access costs is said when it is chosen, and only then.
+    expect(card).not.toContain('without a sandbox');
+    await selectPermission('bypass');
+    expect(text(document.querySelector('.native-feature'))).toContain(
+      'the agent asks nothing and runs every command and edit without a sandbox',
+    );
+    await selectPermission('ask');
+    expect(text(document.querySelector('.native-feature'))).not.toContain(
+      'without a sandbox',
+    );
+  });
+
+  it('does not offer accept edits to Codex, and nothing but as configured to OpenCode', async () => {
+    const agent = (agent_id: string, name: string) => ({
+      agent_id,
+      name,
+      executable: agent_id,
+      installed: true,
+      path: `/x/${agent_id}`,
+      version: '1',
+    });
+    await shown(
+      fakeClient({
+        launcher: vi.fn(async () =>
+          launcher({ agents: [agent('codex', 'Codex')] }),
+        ),
       }),
     );
-    expect(started).toHaveBeenCalledTimes(1);
-    expect(onconsole).toHaveBeenCalledTimes(1);
+    expect(permissionOptions()).toEqual([
+      'As configured',
+      'Ask before acting',
+      'Read only',
+      'Full access',
+    ]);
+    unmount(component!);
+    component = undefined;
+    await shown(
+      fakeClient({
+        launcher: vi.fn(async () =>
+          launcher({ agents: [agent('opencode', 'OpenCode')] }),
+        ),
+      }),
+    );
+    expect(permissionOptions()).toEqual(['As configured']);
   });
 
-  it('shows what a profile does for the agent and will not start one the agent cannot apply', async () => {
+  it('starts the chosen agent on the chosen project with the chosen permission, sent as its template, and shows the terminals', async () => {
+    for (const [word, template] of [
+      ['ask', 'template-strict'],
+      ['read_only', 'template-review'],
+      ['edits', 'template-edits'],
+      ['bypass', 'template-full-access'],
+    ] as const) {
+      const client = fakeClient();
+      const started = vi.fn();
+      const onconsole = vi.fn();
+      await shown(client, { started, onconsole });
+      const project =
+        document.querySelector<HTMLSelectElement>('#native-project')!;
+      project.value = '/home/u/work/app';
+      project.dispatchEvent(new Event('change', { bubbles: true }));
+      await settle();
+      // A project remembers its agent; the default profile an older host still answers is not read.
+      expect(
+        document.querySelector<HTMLSelectElement>('#native-permission')!.value,
+      ).toBe('');
+      await selectPermission(word);
+      expect(client.preview).toHaveBeenLastCalledWith('claude_code', template);
+      button('Start Claude Code').click();
+      await settle();
+      expect(client.start).toHaveBeenCalledWith(
+        'claude_code',
+        '/home/u/work/app',
+        template,
+        null,
+        expect.objectContaining({
+          plan_token: 'preview-token',
+          provider_version: '2.1.309 (Claude Code)',
+        }),
+      );
+      expect(started).toHaveBeenCalledTimes(1);
+      expect(onconsole).toHaveBeenCalledTimes(1);
+      unmount(component!);
+      component = undefined;
+    }
+  });
+
+  it('starts as configured without a template and without a preview', async () => {
+    const client = fakeClient();
+    await shown(client);
+    button('Start Claude Code').click();
+    await settle();
+    expect(client.preview).not.toHaveBeenCalled();
+    expect(client.start).toHaveBeenCalledWith(
+      'claude_code',
+      '/home/u',
+      null,
+      null,
+      null,
+    );
+  });
+
+  it('shows what a permission passes to the agent and will not start one the agent cannot apply', async () => {
     const client = fakeClient({
       preview: vi.fn(async () => ({
-        applied: ['Model: sonnet.'],
-        with_cost: ['Hooks are off for this session only.'],
-        not_applicable: ['Codex hooks cannot be switched off for one session.'],
+        applied: [],
+        with_cost: [],
+        not_applicable: ['This profile was not written for this agent.'],
         can_start: false,
         through_shell: true,
         warnings: [],
         plan_token: 'preview-token',
         provider_version: '2.1.309 (Claude Code)',
       })),
-      launcher: vi.fn(async () =>
-        launcher({
-          agents: [
-            {
-              agent_id: 'codex',
-              name: 'Codex',
-              executable: 'codex',
-              installed: true,
-              path: '/x',
-              version: '1',
-            },
-          ],
-        }),
-      ),
     });
     await shown(client);
-    const select =
-      document.querySelector<HTMLSelectElement>('#native-profile')!;
-    select.value = 'template-review';
-    select.dispatchEvent(new Event('change', { bubbles: true }));
-    await settle();
+    await selectPermission('edits');
     const preview = text(document.querySelector('.native-preview'));
-    expect(preview).toContain('Model: sonnet.');
-    expect(preview).toContain('Hooks are off for this session only.');
-    expect(preview).toContain('Codex hooks cannot be switched off');
-    expect(button('Start Codex').disabled).toBe(true);
-    expect(text(document.querySelector('.native-warning'))).toContain(
-      'will not start',
+    expect(preview).toContain('was not written for this agent');
+    expect(button('Start Claude Code').disabled).toBe(true);
+    expect(text(document.querySelector('.native-feature'))).toContain(
+      'This permission cannot be applied to Claude Code, so it will not start.',
     );
   });
 
-  it('refreshes a selected profile after a direct edit while Profiles is open and starts only with the new token', async () => {
-    let savedProfiles = profiles();
+  it('checks again when the permission changes, and starts only with the token of the one chosen', async () => {
     const fresh = deferred<Preview>();
     let previewCalls = 0;
     const client = fakeClient({
-      profiles: vi.fn(async () => structuredClone(savedProfiles)),
-      saveProfile: vi.fn(async (id, body) => {
-        savedProfiles = updateProfile(savedProfiles, id, body);
-      }),
       preview: vi.fn(async () => {
         previewCalls++;
         return previewCalls === 1 ? preview('old-token') : fresh.promise;
       }),
     });
     await shown(client);
-    await selectProfile(profileId);
+    await selectPermission('read_only');
     expect(previewCalls).toBe(1);
     expect(button('Start Claude Code').disabled).toBe(false);
 
-    button('Profiles').click();
-    await settle();
-    await editProfileInProfilesView('Mine', 'opus');
-    await settle();
-    expect(client.saveProfile).toHaveBeenCalledTimes(1);
+    await selectPermission('bypass');
     expect(previewCalls).toBe(2);
-
-    // WorkspaceView remains mounted while hidden, and its new token is required on return.
-    button('Workspace').click();
-    await settle();
     expect(button('Start Claude Code').disabled).toBe(true);
-    expect(text(document.querySelector('[role="status"]'))).toContain(
-      'Refreshing the profile preview',
-    );
+    expect(
+      Array.from(document.querySelectorAll('[role="status"]'))
+        .map((node) => text(node))
+        .join(' '),
+    ).toContain('Checking what this permission would pass');
     expect(document.querySelector('.native-preview')).toBeNull();
 
-    fresh.resolve(preview('new-token', 'Model: opus.'));
+    fresh.resolve(preview('new-token', 'Permissions: skipped.'));
     await settle();
     expect(button('Start Claude Code').disabled).toBe(false);
     expect(text(document.querySelector('.native-preview'))).toContain(
-      'Model: opus.',
+      'Permissions: skipped.',
     );
     expect(previewCalls).toBe(2);
     button('Start Claude Code').click();
@@ -354,74 +359,10 @@ describe('the launcher', () => {
     expect(client.start).toHaveBeenCalledWith(
       'claude_code',
       '/home/u',
-      profileId,
+      'template-full-access',
       null,
       expect.objectContaining({ plan_token: 'new-token' }),
     );
-  });
-
-  it('refreshes a selected child profile when an inherited parent changes', async () => {
-    const base = profiles();
-    const child = base.find((item) => item.id === profileId)!;
-    let savedProfiles: Profile[] = [
-      ...base.filter((item) => item.id !== profileId),
-      {
-        ...child,
-        current: 1,
-        versions: [
-          { n: 1, saved_at: 1_700_000_100, hash: 'child-v1', name: 'Child' },
-        ],
-        body: {
-          ...child.body,
-          name: 'Child',
-          model: null,
-          extends: parentProfileId,
-        },
-      },
-      {
-        ...child,
-        id: parentProfileId,
-        current: 1,
-        versions: [
-          { n: 1, saved_at: 1_700_000_100, hash: 'parent-v1', name: 'Parent' },
-        ],
-        body: { ...child.body, name: 'Parent', model: 'sonnet', extends: null },
-      },
-    ];
-    const fresh = deferred<Preview>();
-    let previewCalls = 0;
-    const client = fakeClient({
-      profiles: vi.fn(async () => structuredClone(savedProfiles)),
-      saveProfile: vi.fn(async (id, body) => {
-        savedProfiles = updateProfile(savedProfiles, id, body);
-      }),
-      preview: vi.fn(async () => {
-        previewCalls++;
-        return previewCalls === 1 ? preview('child-old') : fresh.promise;
-      }),
-    });
-    await shown(client);
-    await selectProfile(profileId);
-    expect(previewCalls).toBe(1);
-
-    button('Profiles').click();
-    await settle();
-    await editProfileInProfilesView('Parent', 'opus');
-    await settle();
-    expect(client.saveProfile).toHaveBeenCalledTimes(1);
-    expect(previewCalls).toBe(2);
-
-    button('Workspace').click();
-    await settle();
-    expect(button('Start Claude Code').disabled).toBe(true);
-    expect(document.querySelector('.native-preview')).toBeNull();
-    fresh.resolve(preview('child-new', 'Model: opus.'));
-    await settle();
-    expect(button('Start Claude Code').disabled).toBe(false);
-    expect(text(document.querySelector('.native-preview'))).toContain(
-      'Model: opus.',
-    );
-    expect(previewCalls).toBe(2);
   });
 
   it('ignores an older concurrent preview response and does not refetch an unchanged context', async () => {
@@ -435,22 +376,22 @@ describe('the launcher', () => {
       }),
     });
     await shown(client);
-    await selectProfile('template-review');
+    await selectPermission('read_only');
     expect(button('Start Claude Code').disabled).toBe(true);
-    await selectProfile(profileId);
+    await selectPermission('ask');
     expect(previewCalls).toBe(2);
 
-    newer.resolve(preview('newer-token', 'Newest selected profile.'));
+    newer.resolve(preview('newer-token', 'Newest selected permission.'));
     await settle();
     expect(button('Start Claude Code').disabled).toBe(false);
     expect(text(document.querySelector('.native-preview'))).toContain(
-      'Newest selected profile.',
+      'Newest selected permission.',
     );
     older.resolve(preview('older-token', 'Stale earlier selection.'));
     await settle();
     expect(button('Start Claude Code').disabled).toBe(false);
     expect(text(document.querySelector('.native-preview'))).toContain(
-      'Newest selected profile.',
+      'Newest selected permission.',
     );
     expect(text(document.querySelector('.native-preview'))).not.toContain(
       'Stale earlier selection.',
@@ -469,7 +410,7 @@ describe('the launcher', () => {
       }),
     });
     await shown(client);
-    await selectProfile(profileId);
+    await selectPermission('ask');
     await settle();
 
     expect(previewCalls).toBe(1);
@@ -616,100 +557,6 @@ describe('the overview', () => {
 
   it('uses the reply of a start for the terminal tab', () => {
     expect(reply().terminal.shell).toBe('/usr/bin/fish');
-  });
-});
-
-describe('the profiles view', () => {
-  it('lists templates read only and a profile with its version', async () => {
-    await shown(fakeClient(), { which: 'profiles' });
-    const items = Array.from(
-      document.querySelectorAll('.native-profile-item'),
-    ).map((i) => text(i));
-    expect(items[0]).toContain('Review, read only');
-    expect(items[0]).toContain('Template');
-    expect(items[2]).toContain('Version 2');
-    (
-      document.querySelectorAll('.native-profile-item')[0] as HTMLButtonElement
-    ).click();
-    await settle();
-    expect(document.querySelector<HTMLInputElement>('#p-name')!.disabled).toBe(
-      true,
-    );
-    expect(text(document.querySelector('.native-profile-editor'))).toContain(
-      'Template',
-    );
-    expect(button('Save as a new version')).toBeUndefined();
-    expect(button('Make a copy')).toBeDefined();
-  });
-
-  it('saves a new version of a profile and can bring an earlier one back', async () => {
-    const client = fakeClient();
-    await shown(client, { which: 'profiles' });
-    (
-      document.querySelectorAll('.native-profile-item')[2] as HTMLButtonElement
-    ).click();
-    await settle();
-    const model = document.querySelector<HTMLInputElement>('#p-model')!;
-    model.value = 'opus';
-    model.dispatchEvent(new Event('input', { bubbles: true }));
-    await settle();
-    button('Save as a new version').click();
-    await settle();
-    expect(client.saveProfile).toHaveBeenCalledWith(
-      'b'.repeat(32),
-      expect.objectContaining({ name: 'Mine', model: 'opus' }),
-    );
-    button('Bring back').click();
-    await settle();
-    expect(client.restoreProfile).toHaveBeenCalledWith('b'.repeat(32), 1);
-  });
-
-  it('makes a new profile, with skills one per line', async () => {
-    const client = fakeClient();
-    await shown(client, { which: 'profiles' });
-    button('New profile').click();
-    await settle();
-    const name = document.querySelector<HTMLInputElement>('#p-name')!;
-    name.value = 'Quiet';
-    name.dispatchEvent(new Event('input', { bubbles: true }));
-    const skills = document.querySelector<HTMLTextAreaElement>('#p-skills')!;
-    skills.value = 'noisy\n\n  other  ';
-    skills.dispatchEvent(new Event('input', { bubbles: true }));
-    await settle();
-    button('Create').click();
-    await settle();
-    expect(client.createProfile).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: 'Quiet',
-        skills_off: ['noisy', 'other'],
-        applies_to: ['claude_code', 'codex'],
-      }),
-    );
-  });
-
-  it('shows a refusal of the desktop in words', async () => {
-    const { NativeCallError } =
-      await import('../src/lib/desktop/native-client');
-    const client = fakeClient({
-      createProfile: vi.fn(async () => {
-        throw new NativeCallError({
-          code: 'profile_notes_hold_secret',
-          reasons: [],
-        });
-      }),
-    });
-    await shown(client, { which: 'profiles' });
-    button('New profile').click();
-    await settle();
-    const name = document.querySelector<HTMLInputElement>('#p-name')!;
-    name.value = 'X';
-    name.dispatchEvent(new Event('input', { bubbles: true }));
-    await settle();
-    button('Create').click();
-    await settle();
-    expect(text(document.querySelector('[role="alert"]'))).toContain(
-      'never holds one',
-    );
   });
 });
 

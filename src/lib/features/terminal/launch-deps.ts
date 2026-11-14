@@ -1,9 +1,5 @@
 import { getLaunch, runBefore } from '../../desktop/launch-client';
-import {
-  previewProfile,
-  readProfiles,
-  startNative,
-} from '../../desktop/native-client';
+import { previewStart, startNative } from '../../desktop/native-client';
 import { arsenalClient } from '../../desktop/arsenal-client';
 import type { LaunchDeps } from './launch';
 
@@ -17,14 +13,12 @@ export function desktopLaunchDeps(
   return {
     getLaunch,
     runBefore,
-    profiles: readProfiles,
     remembered: (project, agent) =>
       arsenalClient.projectSelection(project, agent).catch(() => null),
     selections: () => arsenalClient.selections(),
     plan: (selection, agent, project) =>
       arsenalClient.terminalPlan(selection, agent, project),
-    preview: (agent, profile, arsenal) =>
-      previewProfile(agent, profile, arsenal),
+    preview: (agent, profile, arsenal) => previewStart(agent, profile, arsenal),
     start: (agent, project, profile, preview, arsenal) =>
       startNative(
         agent,

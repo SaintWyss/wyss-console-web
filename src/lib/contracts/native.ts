@@ -1,10 +1,10 @@
 /**
  * Native sessions (F3): what the desktop says about the agents it started in terminals, the
- * profiles they start with, and why a start was refused. Closed words and counts; the window
+ * permission they start with, and why a start was refused. Closed words and counts; the window
  * checks every answer against this shape and believes nothing that does not fit.
  *
  * Nothing here is a command, an argument list or an environment: the page names an agent from
- * a closed list, a project the user chose, and a profile.
+ * a closed list, a project the user chose, and a permission (sent as its fixed template).
  */
 import type { TerminalInfo } from './terminal';
 import { parseTerminalId } from './identities';
@@ -29,8 +29,42 @@ export type SessionState = (typeof SESSION_STATES)[number];
 
 export const PERMISSIONS = ['ask', 'read_only', 'edits', 'bypass'] as const;
 export type Permission = (typeof PERMISSIONS)[number];
-export const HOOKS_MODES = ['inherit', 'off'] as const;
-export type HooksMode = (typeof HOOKS_MODES)[number];
+
+/**
+ * The fixed template each permission is sent to the desktop as. The request still carries a
+ * `profile_id`, because a host kept running across an upgrade refuses a field it does not know.
+ */
+const PERMISSION_TEMPLATE: Record<Permission, string> = {
+  ask: 'template-strict',
+  read_only: 'template-review',
+  edits: 'template-edits',
+  bypass: 'template-full-access',
+};
+/** The `profile_id` a start or a preview carries for a permission; none when there is none. */
+export function permissionProfileId(
+  permission: Permission | null,
+): string | null {
+  return permission === null ? null : PERMISSION_TEMPLATE[permission];
+}
+/**
+ * The permission a session was started with, from the profile the host recorded for it. Null
+ * for a session started as configured, and for one started with a profile saved before
+ * profiles were removed: what that one set is not known here.
+ */
+export function profilePermission(
+  profile: Pick<ProfileRef, 'id'> | null,
+): Permission | null {
+  if (!profile) return null;
+  return PERMISSIONS.find((p) => PERMISSION_TEMPLATE[p] === profile.id) ?? null;
+}
+/**
+ * The permissions a start of `agent` may name. Accepting edits is Claude Code's own mode, and
+ * the Console manages no permission of OpenCode or Hermes: they only start as configured.
+ */
+export function permissionsFor(agent: AgentId): Permission[] {
+  if (agent !== 'claude_code' && agent !== 'codex') return [];
+  return PERMISSIONS.filter((p) => p !== 'edits' || agent === 'claude_code');
+}
 
 export const PROFILE_CAPABILITY_STATUSES = [
   'syntax_verified',
@@ -83,7 +117,6 @@ export interface ProjectEntry {
   path: string;
   home: boolean;
   default_agent: AgentId | null;
-  default_profile: string | null;
   last_used: number;
 }
 /** Live storage confirmation, independent of the provider/project catalogue. */
@@ -113,7 +146,7 @@ export interface Preview {
   can_start: boolean;
   through_shell: boolean;
   warnings: string[];
-  /** Opaque token for the exact profile plan reviewed in this preview. */
+  /** Opaque token for the exact plan reviewed in this preview. */
   plan_token: string | null;
   /** Exact `--version` result for the discovered CLI path at preview time. */
   provider_version: string | null;
@@ -161,34 +194,6 @@ export interface StartReply {
   session: NativeSession;
   terminal: TerminalInfo;
 }
-export interface ProfileBody {
-  name: string;
-  applies_to: AgentId[];
-  extends: string | null;
-  model: string | null;
-  /** A reasoning effort as the provider names it; passed, never checked here. */
-  effort: string | null;
-  permission: Permission | null;
-  hooks: HooksMode | null;
-  skills_off: string[];
-  notes: string;
-}
-export interface ProfileVersion {
-  n: number;
-  saved_at: number;
-  hash: string;
-  name: string;
-}
-export interface Profile {
-  id: string;
-  template: boolean;
-  current: number;
-  versions: ProfileVersion[];
-  body: ProfileBody;
-  from: Record<string, string>;
-  refers_to_missing: boolean;
-}
-
 export type NativeErrorCode = string;
 export interface NativeFailure {
   code: NativeErrorCode;
@@ -303,7 +308,6 @@ function project(value: unknown): ProjectEntry {
     path: str(o.path, 'path'),
     home: bool(o.home, 'home'),
     default_agent: orNull(o.default_agent, (v) => one(v, AGENT_IDS, 'agent')),
-    default_profile: orNull(o.default_profile, (v) => str(v, 'profile')),
     last_used: num(o.last_used, 'last_used'),
   };
 }
@@ -411,50 +415,6 @@ export function parseStartReply(value: unknown): StartReply {
   if (session.terminal_id !== t.terminal_id) throw bad('terminal');
   parseTerminalId(t.terminal_id);
   return { session, terminal: o.terminal as TerminalInfo };
-}
-
-export function parseBody(value: unknown): ProfileBody {
-  const o = obj(value, 'body');
-  return {
-    name: str(o.name, 'name'),
-    applies_to: arr(o.applies_to, 'applies_to').map((v) =>
-      one(v, AGENT_IDS, 'applies_to'),
-    ),
-    extends: orNull(o.extends, (v) => str(v, 'extends')),
-    model: orNull(o.model, (v) => str(v, 'model')),
-    // Absent from a profile saved before efforts existed, and from one that sets none.
-    effort:
-      o.effort === undefined ? null : orNull(o.effort, (v) => str(v, 'effort')),
-    permission: orNull(o.permission, (v) => one(v, PERMISSIONS, 'permission')),
-    hooks: orNull(o.hooks, (v) => one(v, HOOKS_MODES, 'hooks')),
-    skills_off: strings(o.skills_off, 'skills_off'),
-    notes: str(o.notes, 'notes'),
-  };
-}
-export function parseProfiles(value: unknown): Profile[] {
-  return arr(value, 'profiles').map((v) => {
-    const o = obj(v, 'profile');
-    const from = obj(o.from, 'from');
-    return {
-      id: str(o.id, 'id'),
-      template: bool(o.template, 'template'),
-      current: num(o.current, 'current'),
-      versions: arr(o.versions, 'versions').map((x) => {
-        const version = obj(x, 'version');
-        return {
-          n: num(version.n, 'n'),
-          saved_at: num(version.saved_at, 'saved_at'),
-          hash: str(version.hash, 'hash'),
-          name: str(version.name, 'name'),
-        };
-      }),
-      body: parseBody(o.body),
-      from: Object.fromEntries(
-        Object.entries(from).map(([k, name]) => [k, str(name, 'from')]),
-      ),
-      refers_to_missing: bool(o.refers_to_missing, 'refers_to_missing'),
-    };
-  });
 }
 
 export function parseFailure(error: unknown): NativeFailure {

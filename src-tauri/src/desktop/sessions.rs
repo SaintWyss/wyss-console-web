@@ -620,15 +620,6 @@ mod tests {
             "allow-native-restart",
             "allow-native-forget",
             "allow-native-choose-project",
-            "allow-native-project-default",
-            "allow-native-profiles",
-            "allow-native-profile-create",
-            "allow-native-profile-save",
-            "allow-native-profile-delete",
-            "allow-native-profile-duplicate",
-            "allow-native-profile-restore",
-            "allow-native-profile-export",
-            "allow-native-profile-import",
             // Launch files (ADR 0059): named by their file, read by the desktop.
             "allow-launch-list",
             "allow-launch-get",
@@ -637,6 +628,13 @@ mod tests {
             // Workspace, and the removal of one the window saved. Neither takes a command.
             "allow-launch-save",
             "allow-launch-delete",
+            "allow-launch-save-variants",
+            // Distributors (redesign stage 3): the owner's own tools, read and written by the desktop.
+            "allow-distributor-list",
+            "allow-distributor-get",
+            "allow-distributor-save",
+            "allow-distributor-delete",
+            "allow-distributor-make-launch",
             // The host that holds the terminals past the window (F9).
             "allow-host-terminals",
             "allow-host-info",

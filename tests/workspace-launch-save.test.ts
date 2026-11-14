@@ -79,7 +79,7 @@ describe('Save as launch… on Workspace', () => {
       name: 'Claude Code · u',
       directory: '/home/u',
       agent: 'claude_code',
-      profile: null,
+      permission: null,
       preset: null,
       replace: false,
     });
@@ -135,7 +135,7 @@ describe('Saved launches on Workspace', () => {
     directory: '/home/u',
     kind: 'session',
     agent: 'claude_code',
-    profile: null,
+    permission: null,
     before: [],
     preset: 'Estudio',
     ...over,
@@ -164,7 +164,7 @@ describe('Saved launches on Workspace', () => {
     vi.mocked(listLaunches).mockResolvedValue(listing(launchFile()));
     await shown();
     expect(text(row('Estudiar'))).toContain(
-      'Claude Code · u · No profile — as configured · Preset Estudio',
+      'Claude Code · u · As configured · Preset Estudio',
     );
     expect(rowButton('Estudiar', 'Start')!.disabled).toBe(false);
     rowButton('Estudiar', 'Start')!.click();

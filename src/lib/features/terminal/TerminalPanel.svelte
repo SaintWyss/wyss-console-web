@@ -6,7 +6,8 @@
   } from './session-manager';
   import { failureWords, inputNoticeWords } from './failure-words';
   import { parserNote } from './parser-status';
-  import { t } from '../../i18n/index.svelte';
+  import { t, tPhrase } from '../../i18n/index.svelte';
+  import { tabStartedWith } from '../native/present';
   let {
     session,
     tabId,
@@ -32,6 +33,8 @@
   } = $props();
   let host: HTMLDivElement;
   const note = $derived(parserNote(session.view));
+  /** The permission a native session was started with; none when it started as configured. */
+  const startedWith = $derived(tabStartedWith(session.native?.profile ?? null));
   let query = $state('');
   let caseSensitive = $state(false);
   let result = $state({ total: 0, current: 0 });
@@ -90,9 +93,7 @@
             'Started by the Console in your shell. Not mediated, contained or approved by the Console.',
           )}><span class="dot" aria-hidden="true"></span>Native</span
         >
-        {session.native.agent}{session.native.profile
-          ? ` · ${session.native.profile}`
-          : ''} ·
+        {session.native.agent}{startedWith ? ` · ${tPhrase(startedWith)}` : ''} ·
       {/if}
       {#if session.view.state === 'starting'}{session.native
           ? t('Starting agent…')

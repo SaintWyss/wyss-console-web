@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import type { Permission } from '../contracts/native';
 
 /** A launch as its file says (ADR 0059). The window shows it and names it by `id`. */
 export type Launch =
@@ -20,7 +21,8 @@ export type Launch =
       directory: string;
       kind: 'session';
       agent: 'claude_code' | 'codex';
-      profile: string | null;
+      /** What the agent may do without asking; none when it starts as it is configured. */
+      permission: Permission | null;
       before: string[];
       /** The Arsenal preset's name, for this agent (arsenal-UI-SPEC, phase D). */
       preset: string | null;
@@ -45,7 +47,8 @@ export interface SaveLaunchInput {
   name: string;
   directory: string;
   agent: 'claude_code' | 'codex';
-  profile: string | null;
+  /** `edits` only with Claude Code; the desktop refuses it otherwise. */
+  permission: Permission | null;
   preset: string | null;
   /** Only with the owner's say-so: an existing launch with that name is replaced. */
   replace: boolean;

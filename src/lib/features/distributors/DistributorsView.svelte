@@ -3,19 +3,8 @@
   import { t, tPhrase } from '../../i18n/index.svelte';
   import type { ModelsState } from '../models/controller';
   import type { NativeState } from '../native/controller';
-  import {
-    chosenBy,
-    distributorCards,
-    inUse,
-    SET_UP_IN,
-    SUGGESTED,
-  } from './present';
-  import {
-    ENTITLEMENT_NOTE,
-    entryRow,
-    NATIVE_NOTE,
-    SELECTED_NOTE,
-  } from '../models/present';
+  import { distributorCards, inUse, SET_UP_IN, SUGGESTED } from './present';
+  import { ENTITLEMENT_NOTE, entryRow, NATIVE_NOTE } from '../models/present';
   import type { SessionSummary } from '../../contracts/sessions';
   import {
     distributorsClient,
@@ -36,7 +25,6 @@
     onrun = () => undefined,
     ongo = () => undefined,
     onlaunch = () => undefined,
-    onprofile = () => undefined,
     managed = null,
     client = distributorsClient,
   }: {
@@ -51,25 +39,19 @@
     /** Opens a terminal in the Console that types `input`, where it is seen. */
     onrun?: (title: string, cwd: string, input: string) => void;
     /** Opens another Personalization tab. */
-    ongo?: (view: 'profiles' | 'configuration' | 'credentials') => void;
+    ongo?: (view: 'configuration' | 'credentials') => void;
     /** A launch was made: Workspace opens on it. */
     onlaunch?: (id: string) => void;
-    /** Opens Profiles on this profile. */
-    onprofile?: (id: string) => void;
     /** The managed sessions the Sessions view read (Codex only); null before a read. */
     managed?: readonly SessionSummary[] | null;
     client?: DistributorsClient;
   } = $props();
 
   const VIEW_LABEL = {
-    profiles: msg('Profiles'),
     configuration: msg('Configuration'),
     credentials: msg('Credentials'),
   } as const;
   const VIEW_HINT = {
-    profiles: msg(
-      'The profiles of this agent: model, effort and permissions a session starts with.',
-    ),
     configuration: msg(
       'This agent’s own configuration files: hooks, skills, MCP servers.',
     ),
@@ -234,7 +216,6 @@
       answered ? native.launcher : null,
       models,
       configItems,
-      native.profiles,
       fresh,
       configStale,
     ),
@@ -262,13 +243,7 @@
   {#if notice}<p class="notice" data-tone="ok" role="status">{notice}</p>{/if}
   <div class="dist-grid">
     {#each cards as card (card.id)}
-      {@const chosen = chosenBy(card.agent, native.profiles)}
-      {@const running = inUse(
-        card.agent,
-        native.sessions,
-        native.profiles,
-        managed,
-      )}
+      {@const running = inUse(card.agent, native.sessions, managed)}
       <article class="dist-card" aria-label={card.name} data-id={card.id}>
         <div class="dist-head">
           <h3>{card.name}</h3>
@@ -297,9 +272,8 @@
         {/each}
         <details class="dist-more">
           <summary
-            title={t(
-              'What this tool offers, which profile asks for which model, and what is running with it now.',
-            )}>{t('Models in detail')}</summary
+            title={t('What this tool offers and what is running with it now.')}
+            >{t('Models in detail')}</summary
           >
           {#if card.agent === 'codex' && offered.length > 0}
             <h4 class="dist-sub">
@@ -324,41 +298,6 @@
               {/each}
             </ul>
             <p class="dist-note">{t(ENTITLEMENT_NOTE)}</p>
-          {/if}
-          <h4 class="dist-sub" title={t(SELECTED_NOTE)}>
-            {t('Asked for by a profile')}
-          </h4>
-          {#if chosen.length === 0}
-            <p class="dist-note">
-              {t('No profile of this tool names a model or an effort.')}
-            </p>
-          {:else}
-            <ul class="dist-offered">
-              {#each chosen as row (row.id)}
-                <li>
-                  <button
-                    type="button"
-                    class="dist-link"
-                    title={t('Opens this profile in Profiles.')}
-                    onclick={() => onprofile(row.id)}
-                    >{row.name}{row.template
-                      ? ` ${t('(template)')}`
-                      : ''}</button
-                  >
-                  <span class="dist-cmd"
-                    >{t('Model:')}
-                    {row.model ??
-                      (row.modelFrom
-                        ? t('inherited from {from}', { from: row.modelFrom })
-                        : t('the agent’s own choice'))} · {t('Effort:')}
-                    {row.effort ??
-                      (row.effortFrom
-                        ? t('inherited from {from}', { from: row.effortFrom })
-                        : t('the agent’s own choice'))}</span
-                  >
-                </li>
-              {/each}
-            </ul>
           {/if}
           <h4 class="dist-sub" title={t(NATIVE_NOTE)}>{t('Running now')}</h4>
           {#if running.length === 0}
@@ -414,7 +353,7 @@
   </div>
   <p class="dist-note">
     {t(
-      'A tool you add opens and updates in a terminal of the Console. Profiles, Arsenal and the context estimate are only for the tools the Console knows.',
+      'A tool you add opens and updates in a terminal of the Console. Arsenal and the context estimate are only for the tools the Console knows.',
     )}
   </p>
   {#each refusedFiles as r (r.id)}

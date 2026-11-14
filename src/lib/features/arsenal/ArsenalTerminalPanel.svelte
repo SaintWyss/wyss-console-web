@@ -37,12 +37,13 @@
     agent: AgentId | null;
     /** The launcher's project path for this terminal. */
     project: string | null;
+    /** The fixed template the chosen permission is sent as; none as configured. */
     profile: string | null;
-    /** Changes when the chosen profile's saved revision changes. */
+    /** Changes when what `profile` would pass must be previewed again. */
     profileKey?: string | null;
     /** Changes when the plan must be computed again: the view is shown again, a start was refused. */
     refreshKey?: number;
-    /** The Native preview of the profile with this selection applied. */
+    /** The Native preview of the permission with this selection applied. */
     previewer: (start: ArsenalStart) => Promise<Preview>;
     onchange: (choice: ArsenalChoice | null) => void;
     client?: ArsenalClient;
@@ -143,7 +144,7 @@
     );
   });
 
-  // Applying needs the Native preview of exactly this profile with this exclusion.
+  // Applying needs the Native preview of exactly this permission with this exclusion.
   let previewSeq = 0;
   $effect(() => {
     const current = plan;

@@ -27,11 +27,22 @@
   import { whenWorkspaceReady } from './bridge';
   import { msg, t, tPhrase } from '../../i18n/index.svelte';
   import type { Binding } from '../../contracts/arsenal';
-  import type { AgentId, NativeSession, Preview } from '../../contracts/native';
+  import {
+    permissionProfileId,
+    permissionsFor,
+    type AgentId,
+    type NativeSession,
+    type Permission,
+    type Preview,
+  } from '../../contracts/native';
   import type { ConfigItem } from '../../contracts/configuration';
   import type { NativeController, NativeState } from './controller';
   import {
     AGENT_LABEL,
+    AS_CONFIGURED,
+    BYPASS_WARNING,
+    PERMISSION_HELP,
+    PERMISSION_LABEL,
     STATE_NOTE,
     failureText,
     folderName,
@@ -40,12 +51,11 @@
     isM9Agent,
     modelFacts,
     switchHint,
-    profilesFor,
     restorable,
     sharedFolders,
     since,
+    startedWith,
     stateLabel,
-    profileRevisionKey,
   } from './present';
 
   let {
@@ -73,7 +83,9 @@
   let agent = $state<AgentId | null>(null);
   let delegate = $state(false);
   let project = $state<string | null>(null);
-  let profile = $state<string | null>(null);
+  let permission = $state<Permission | null>(null);
+  // The fixed template the permission is sent as; none when the agent starts as configured.
+  const profile = $derived(permissionProfileId(permission));
   let preview = $state<Preview | null>(null);
   let previewFor = $state<string | null>(null);
   let previewPendingFor = $state<string | null>(null);
@@ -138,15 +150,9 @@
   const launcher = $derived(native.launcher);
   const entries = $derived(launcher?.agents ?? []);
   const chosen = $derived(entries.find((e) => e.agent_id === agent) ?? null);
-  const profiles = $derived(agent ? profilesFor(native.profiles, agent) : []);
+  const permissions = $derived(agent ? permissionsFor(agent) : []);
   const previewContext = $derived(
-    agent && profile
-      ? JSON.stringify([
-          agent,
-          profile,
-          profileRevisionKey(native.profiles, profile),
-        ])
-      : null,
+    agent && profile ? JSON.stringify([agent, profile]) : null,
   );
   const previewCurrent = $derived(
     !profile ||
@@ -178,7 +184,7 @@
     if (project === null || !projects.some((p) => p.path === project))
       project = projects.find((p) => p.home)?.path ?? projects[0]?.path ?? null;
   });
-  // A project remembers the agent and profile it was last used with.
+  // A project remembers the agent it was last used with.
   let lastProject: string | null = null;
   $effect(() => {
     if (!known || known.path === lastProject) return;
@@ -188,13 +194,12 @@
       entries.some((e) => e.agent_id === known.default_agent && e.installed)
     )
       agent = known.default_agent;
-    profile = known.default_profile;
   });
-  // A profile written for another agent does not follow a change of agent.
+  // A permission another agent does not have does not follow a change of agent.
   $effect(() => {
-    if (profile && !profiles.some((p) => p.id === profile)) profile = null;
+    if (permission && !permissions.includes(permission)) permission = null;
   });
-  // What the profile would do for this agent, read from the desktop before starting.
+  // What the permission would pass to this agent, read from the desktop before starting.
   let previewSeq = 0;
   let lastPreviewRequest: string | null = null;
   let lastPreviewRetry = -1;
@@ -258,7 +263,6 @@
     if (path) {
       lastProject = path;
       project = path;
-      profile = null;
     }
   }
   async function launch() {
@@ -268,7 +272,7 @@
     );
     const choice = arsenalChoice;
     if (choice && !choice.pending) {
-      // Applied: the preview that binds the exclusion. Recorded only: the profile's own preview.
+      // Applied: the preview that binds the exclusion. Recorded only: the permission's own preview.
       const reply = await controller.startWithArsenal(
         agent,
         project,
@@ -313,11 +317,8 @@
     });
     return ` · ${t('ended {time}', { time })}`;
   }
-  const profileName = (id: string) =>
-    native.profiles.find((p) => p.id === id)?.body.name ?? t('profile');
-
   // Save as launch… (arsenal-UI-SPEC, phase D): the choices on this card, written as a session
-  // launch that Launch ▾ lists. The desktop checks the profile and the preset again.
+  // launch that Launch ▾ lists. The desktop checks the permission and the preset again.
   let launchForm = $state<{
     name: string;
     busy: boolean;
@@ -330,11 +331,6 @@
     arsenalChoice === null || arsenalChoice.pending
       ? null
       : arsenalChoice.plan.selection_name,
-  );
-  const launchProfile = $derived(
-    profile
-      ? (native.profiles.find((p) => p.id === profile)?.body.name ?? null)
-      : null,
   );
   function openLaunchForm() {
     if (!launchAgent || !project) return;
@@ -350,6 +346,14 @@
   const launchAgent = $derived(
     agent === 'claude_code' || agent === 'codex' ? agent : null,
   );
+  // A launch file has no word for a permission its agent does not have.
+  const launchPermission = $derived(
+    permission &&
+      launchAgent &&
+      permissionsFor(launchAgent).includes(permission)
+      ? permission
+      : null,
+  );
   async function saveAsLaunch(replace: boolean) {
     const form = launchForm;
     const chosen = launchAgent;
@@ -362,7 +366,7 @@
         name: form.name.trim(),
         directory: project,
         agent: chosen,
-        profile: launchProfile,
+        permission: launchPermission,
         preset: launchPreset,
         replace,
       });
@@ -433,9 +437,8 @@
   $effect(() => {
     if (visible) untrack(() => void readSaved());
   });
-  /** Why a saved launch cannot start now, from the profiles and selections this window holds. */
-  const blockOf = (launch: Launch) =>
-    launchBlock(launch, native.profiles, savedSelections);
+  /** Why a saved launch cannot start now, from the selections this window holds. */
+  const blockOf = (launch: Launch) => launchBlock(launch, savedSelections);
   function summaryOf(launch: Launch): string {
     if (launch.kind === 'commands')
       return t('Terminal commands · {folder}', {
@@ -444,7 +447,9 @@
     return [
       AGENT_LABEL[launch.agent],
       folderName(launch.directory),
-      launch.profile ?? t('No profile — as configured'),
+      t(
+        launch.permission ? PERMISSION_LABEL[launch.permission] : AS_CONFIGURED,
+      ),
       launch.preset
         ? t('Preset {name}', { name: launch.preset })
         : t('None — all installed skills'),
@@ -654,13 +659,13 @@
               <p class="native-warning" role="status">
                 {#if previewFailedFor === previewContext}
                   {t(
-                    'Could not verify this profile preview. Start stays disabled until a fresh preview succeeds.',
+                    'Could not check what this permission would pass. Start stays disabled until a fresh check succeeds.',
                   )}
                 {:else if previewPendingFor === previewContext}
-                  {t('Refreshing the profile preview…')}
+                  {t('Checking what this permission would pass…')}
                 {:else}
                   {t(
-                    'The selected profile changed. Checking a fresh preview before Start.',
+                    'The permission changed. Checking what it would pass before Start.',
                   )}
                 {/if}
               </p>
@@ -674,35 +679,29 @@
               {/if}
             {/if}
             <div class="native-field">
-              <label class="visually-hidden" for="native-profile"
-                >{t('Profile')}</label
+              <label class="visually-hidden" for="native-permission"
+                >{t('Permissions')}</label
               >
               <div class="native-row">
-                <select id="native-profile" bind:value={profile}>
-                  <option value={null}>{t('No profile — as configured')}</option
-                  >
-                  {#each profiles as p (p.id)}
-                    <option value={p.id}
-                      >{p.body.name}{p.template
-                        ? ` ${t('(template)')}`
-                        : ''}</option
-                    >
+                <select
+                  id="native-permission"
+                  bind:value={permission}
+                  title={t(PERMISSION_HELP)}
+                >
+                  <option value={null}>{t(AS_CONFIGURED)}</option>
+                  {#each permissions as p (p)}
+                    <option value={p}>{t(PERMISSION_LABEL[p])}</option>
                   {/each}
                 </select>
-                {#if project && known && (known.default_profile ?? null) !== profile}
-                  <button
-                    type="button"
-                    class="action"
-                    onclick={() =>
-                      project && controller.setProjectDefault(project, profile)}
-                    >{t('Use for this project')}</button
-                  >
-                {/if}
               </div>
+              <p class="event-meta">{t(PERMISSION_HELP)}</p>
+              {#if permission === 'bypass'}
+                <p class="native-warning" role="status">{t(BYPASS_WARNING)}</p>
+              {/if}
               {#if preview && previewFor === previewContext}
                 <ul
                   class="native-preview"
-                  aria-label={t('What the profile does')}
+                  aria-label={t('What the permission passes')}
                 >
                   {#each preview.applied as line (line)}<li>{line}</li>{/each}
                   {#each preview.with_cost as line (line)}<li class="cost">
@@ -720,7 +719,7 @@
                 {#if !preview.can_start}
                   <p class="native-warning">
                     {t(
-                      'This profile cannot be applied to {agent}, so it will not start.',
+                      'This permission cannot be applied to {agent}, so it will not start.',
                       { agent: agent ? AGENT_LABEL[agent] : t('this agent') },
                     )}
                   </p>
@@ -920,9 +919,11 @@
               disabled={launchForm.busy}
             />
             <p class="event-meta">
-              {AGENT_LABEL[launchAgent]} · {folderName(project)} · {launchProfile ??
-                t('No profile — as configured')} · {launchPreset ??
-                t('None — all installed skills')}
+              {AGENT_LABEL[launchAgent]} · {folderName(project)} · {t(
+                launchPermission
+                  ? PERMISSION_LABEL[launchPermission]
+                  : AS_CONFIGURED,
+              )} · {launchPreset ?? t('None — all installed skills')}
             </p>
             {#if launchForm.exists}
               <p class="native-warning" role="alert">
@@ -1127,12 +1128,7 @@
                         )}
                       </span>
                       <span class="event-meta native-facts">
-                        {#if session.profile}{t('Profile {name} (v{version})', {
-                            name: profileName(session.profile.id),
-                            version: session.profile.version,
-                          })} ·
-                        {:else}{t('No profile')} ·
-                        {/if}
+                        {tPhrase(startedWith(session.profile))} ·
                         {#if session.state === 'running' || session.state === 'requested'}
                           {t('up {time}', {
                             time: since(session.started_at, now),
@@ -1168,22 +1164,16 @@
                         {/if}
                       </span>
                       {#if session.state === 'running' || session.state === 'requested'}
-                        {@const facts = modelFacts(
-                          session,
-                          native.profiles,
-                          configItems,
-                        )}
+                        {@const facts = modelFacts(session, configItems)}
                         <span
                           class="event-meta native-facts"
                           data-testid="models"
                         >
                           {t(
-                            'Model: asked for {requested} · set in its files {configured} · in use: {inUse} · Effort: asked for {effort} · set in its files {configuredEffort}',
+                            'Model: set in its files {configured} · in use: {inUse} · Effort: set in its files {configuredEffort}',
                             {
-                              requested: t(facts.requested),
                               configured: t(facts.configured),
                               inUse: t(facts.inUse),
-                              effort: t(facts.requestedEffort),
                               configuredEffort: t(facts.configuredEffort),
                             },
                           )}

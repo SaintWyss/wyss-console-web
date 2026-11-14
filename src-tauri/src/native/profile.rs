@@ -1,6 +1,8 @@
-//! Session profiles (F3c, 09 §4): what one session should run with. A profile holds names and
-//! closed words, never a secret and never a free command; it is applied when the session
-//! starts and changes no global file.
+//! What one session starts with (F3c, 09 §4): a permission, sent as one of the fixed templates.
+//! A body holds names and closed words, never a secret and never a free command; it is applied
+//! when the session starts and changes no global file. The fields beyond the permission are
+//! read only from a profile saved before profiles were removed from the window, and from an
+//! Arsenal exclusion.
 use super::catalogue::AgentId;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -78,12 +80,7 @@ pub enum ProfileError {
     ProfileCycle,
     TooDeep,
     Unknown,
-    ReadOnlyTemplate,
-    TooMany,
-    VersionUnknown,
-    ImportInvalid,
     StoreUnavailable,
-    InUse,
 }
 
 fn text_ok(text: &str, most: usize) -> bool {
@@ -372,8 +369,8 @@ pub fn plan(profile: &Resolved, agent: AgentId, applies: bool) -> LaunchPlan {
     plan
 }
 
-/// The profiles that ship with the product (09 §4.6): names for common shapes, read only,
-/// meant to be copied. Each is only as strong as the provider's start flags make it.
+/// The fixed templates a launch's permission is sent as (09 §4.6): one per permission, read
+/// only. Each is only as strong as the provider's start flags make it.
 pub fn templates() -> Vec<(&'static str, Body)> {
     let both = vec![AgentId::ClaudeCode, AgentId::Codex];
     vec![
@@ -397,12 +394,12 @@ pub fn templates() -> Vec<(&'static str, Body)> {
             },
         ),
         (
-            "template-exploration",
+            "template-edits",
             Body {
-                name: "Exploration, fewer hooks".to_owned(),
+                name: "Accept edits".to_owned(),
                 applies_to: vec![AgentId::ClaudeCode],
-                hooks: Some(HooksMode::Off),
-                notes: "No hooks in this session. Claude Code only.".to_owned(),
+                permission: Some(Permission::Edits),
+                notes: "Edits are accepted without asking. Claude Code only.".to_owned(),
                 ..Body::default()
             },
         ),

@@ -30,7 +30,6 @@
   import RuntimesView from './lib/features/f8/RuntimesView.svelte';
   import { ModelsController } from './lib/features/models/controller';
   import { NativeController } from './lib/features/native/controller';
-  import ProfilesView from './lib/features/native/ProfilesView.svelte';
   import WorkspaceView from './lib/features/native/WorkspaceView.svelte';
   import LaunchEditor from './lib/features/workspace/LaunchEditor.svelte';
   import { SettingsController } from './lib/features/settings/controller';
@@ -130,7 +129,7 @@
     () => configurationController.refresh(),
   );
   let changes = $state(changesController.state());
-  // Agents started in terminals and the profiles they start with. An agent that was started
+  // Agents started in terminals and the permission they start with. An agent that was started
   // opens as a tab of the Console, which is shown.
   const nativeController = new NativeController(
     (next) => {
@@ -222,7 +221,7 @@
     eventsController.setVisible(activeView === 'events' || activity);
   });
   // The Models view reads the same inventory as Configuration, the managed sessions of the
-  // Sessions view and the profiles, and the runtime's list: it asks for nothing of its own.
+  // Sessions view, and the runtime's list: it asks for nothing of its own.
   $effect(() => {
     configurationController.setVisible(
       activeView === 'configuration' || activeView === 'distributors',
@@ -238,20 +237,16 @@
     );
   });
   $effect(() => {
-    modelsController.setVisible(
-      activeView === 'profiles' || activeView === 'distributors',
-    );
+    modelsController.setVisible(activeView === 'distributors');
   });
   $effect(() => {
     credentialsController.setVisible(activeView === 'credentials');
   });
-  // The overview reads the registry (with resources) while it is shown, and the profiles
-  // are read once when either of their views first is.
+  // The overview reads the registry (with resources) while it is shown.
   $effect(() => {
     nativeController.setVisible(
       activeView === 'workspace' ||
         activeView === 'launches' ||
-        activeView === 'profiles' ||
         activeView === 'distributors' ||
         activeView === 'projects',
     );
@@ -422,12 +417,11 @@
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
   }
-  /** Distributors' refresh: the tools, the agents' files, the profiles and the Codex list. */
+  /** Distributors' refresh: the tools, the agents' files and the Codex list. */
   async function refreshDistributors(): Promise<boolean> {
     const [answered] = await Promise.all([
       nativeController.rediscover(),
       configurationController.refresh(),
-      nativeController.refreshProfiles(),
       modelsController.refresh(),
     ]);
     return answered;
@@ -475,11 +469,9 @@
     {/if}
     <LaunchEditor
       visible={activeView === 'launches'}
-      profiles={native.profiles}
       recent={native.launcher?.projects ?? []}
       choose={() => nativeController.choose()}
       onopen={(id) => void openInConsole(id)}
-      onprofiles={() => go('profiles')}
       select={launchToOpen}
     />
     <WorkspaceView
@@ -520,7 +512,6 @@
         {projects}
         controller={projectsController}
         client={desktopProjects}
-        nativeProfiles={native.profiles}
       />
     {/if}
     <!-- Personalization: how the agents start. Its tabs are views of their own, one under another. -->
@@ -547,20 +538,10 @@
           onrun={(title, cwd, input) => void runInConsole(title, cwd, input)}
           ongo={go}
           managed={sessions.page?.sessions ?? null}
-          onprofile={(id) => {
-            nativeController.edit(id);
-            go('profiles');
-          }}
           onlaunch={(id) => {
             launchToOpen = id;
             go('launches');
           }}
-        />
-        <ProfilesView
-          visible={activeView === 'profiles'}
-          {native}
-          controller={nativeController}
-          catalogue={models.catalogue}
         />
         <ArsenalView
           visible={activeView === 'arsenal'}

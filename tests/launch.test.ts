@@ -7,7 +7,13 @@ import {
   type SelectionName,
 } from '../src/lib/features/terminal/launch';
 import type { Launch } from '../src/lib/desktop/launch-client';
-import type { Profile, StartReply } from '../src/lib/contracts/native';
+import {
+  PERMISSIONS,
+  permissionProfileId,
+  permissionsFor,
+  profilePermission,
+  type StartReply,
+} from '../src/lib/contracts/native';
 import { t } from '../src/lib/i18n/index.svelte';
 
 // A note is a sentence and its values; the terminal view draws it through t(), and so do these.
@@ -16,26 +22,6 @@ const shown = (note: {
   values?: Record<string, string | number>;
 }) => t(note.text, note.values);
 
-const profile = (
-  id: string,
-  name: string,
-  permission: string | null,
-  applies = ['claude_code', 'codex'],
-) =>
-  ({
-    id,
-    template: false,
-    current: 1,
-    versions: [],
-    body: { name, applies_to: applies, permission },
-    from: {},
-    refers_to_missing: false,
-  }) as unknown as Profile;
-const PROFILES = [
-  profile('p-safe', 'Strict', 'ask'),
-  profile('p-full', 'Full access (bypass)', 'bypass'),
-  profile('p-claude-only', 'Claude only', 'edits', ['claude_code']),
-];
 const session = (
   over: Partial<Extract<Launch, { kind: 'session' }>> = {},
 ): Launch => ({
@@ -44,7 +30,7 @@ const session = (
   directory: '/home/me',
   kind: 'session',
   agent: 'codex',
-  profile: 'Full access (bypass)',
+  permission: 'bypass',
   before: ['scan'],
   preset: null,
   ...over,
@@ -72,7 +58,6 @@ function deps(
   const d: LaunchDeps = {
     getLaunch: vi.fn(async () => launch),
     runBefore: vi.fn(async () => before),
-    profiles: vi.fn(async () => PROFILES),
     remembered: vi.fn(async () => selection),
     selections: vi.fn(async () => named),
     plan: vi.fn(
@@ -145,15 +130,19 @@ describe('openLaunch', () => {
     expect(d.openTerminal).not.toHaveBeenCalled();
   });
 
-  it('a session launch runs before, previews the named profile and starts with that plan', async () => {
+  it('a session launch runs before, previews its permission as its template and starts with that plan', async () => {
     const { d, reply } = deps(session());
     expect(await openLaunch('codex', d)).toEqual({ notes: [] });
     expect(d.runBefore).toHaveBeenCalledWith('codex');
-    expect(d.preview).toHaveBeenCalledWith('codex', 'p-full', null);
+    expect(d.preview).toHaveBeenCalledWith(
+      'codex',
+      'template-full-access',
+      null,
+    );
     expect(d.start).toHaveBeenCalledWith(
       'codex',
       '/home/me',
-      'p-full',
+      'template-full-access',
       expect.objectContaining({ plan_token: 'tok' }),
       null,
     );
@@ -237,20 +226,42 @@ describe('openLaunch', () => {
     expect(d.plan).toHaveBeenCalledWith('b', 'codex', '/home/me');
   });
 
-  it('a profile that does not exist for the agent stops before anything runs', async () => {
-    for (const name of ['Missing', 'Claude only']) {
-      const { d } = deps(session({ profile: name }));
-      await expect(openLaunch('codex', d)).rejects.toThrow(name);
-      expect(d.runBefore).not.toHaveBeenCalled();
-      expect(d.preview).not.toHaveBeenCalled();
-      expect(d.start).not.toHaveBeenCalled();
+  it('each permission a launch names is sent as its fixed template', async () => {
+    for (const [permission, template] of [
+      ['ask', 'template-strict'],
+      ['read_only', 'template-review'],
+      ['bypass', 'template-full-access'],
+    ] as const) {
+      const { d } = deps(session({ permission }));
+      await openLaunch('codex', d);
+      expect(d.preview).toHaveBeenCalledWith('codex', template, null);
+      expect(d.start).toHaveBeenCalledWith(
+        'codex',
+        '/home/me',
+        template,
+        expect.objectContaining({ plan_token: 'tok' }),
+        null,
+      );
     }
+    const { d } = deps(session({ agent: 'claude_code', permission: 'edits' }));
+    await openLaunch('codex', d);
+    expect(d.preview).toHaveBeenCalledWith(
+      'claude_code',
+      'template-edits',
+      null,
+    );
+    expect(d.start).toHaveBeenCalledWith(
+      'claude_code',
+      '/home/me',
+      'template-edits',
+      expect.anything(),
+      null,
+    );
   });
 
-  it('no profile starts the agent as configured', async () => {
-    const { d } = deps(session({ profile: null }));
+  it('no permission starts the agent as configured', async () => {
+    const { d } = deps(session({ permission: null }));
     await openLaunch('codex', d);
-    expect(d.profiles).not.toHaveBeenCalled();
     expect(d.preview).toHaveBeenCalledWith('codex', null, null);
     expect(d.start).toHaveBeenCalledWith(
       'codex',
@@ -273,11 +284,15 @@ describe('a session launch and the Arsenal selection its folder remembers', () =
     const opened = await openLaunch('codex', d);
     expect(d.remembered).toHaveBeenCalledWith('/home/me', 'codex');
     expect(d.plan).toHaveBeenCalledWith('sel-1', 'codex', '/home/me');
-    expect(d.preview).toHaveBeenCalledWith('codex', 'p-full', start);
+    expect(d.preview).toHaveBeenCalledWith(
+      'codex',
+      'template-full-access',
+      start,
+    );
     expect(d.start).toHaveBeenCalledWith(
       'codex',
       '/home/me',
-      'p-full',
+      'template-full-access',
       expect.anything(),
       start,
     );
@@ -290,11 +305,15 @@ describe('a session launch and the Arsenal selection its folder remembers', () =
       canApply: false,
     });
     const opened = await openLaunch('codex', d);
-    expect(d.preview).toHaveBeenCalledWith('codex', 'p-full', null);
+    expect(d.preview).toHaveBeenCalledWith(
+      'codex',
+      'template-full-access',
+      null,
+    );
     expect(d.start).toHaveBeenCalledWith(
       'codex',
       '/home/me',
-      'p-full',
+      'template-full-access',
       expect.anything(),
       null,
     );
@@ -311,49 +330,58 @@ describe('a session launch and the Arsenal selection its folder remembers', () =
   });
 });
 
-it('full access is shown only for a session whose named profile is bypass for its agent', () => {
-  expect(isFullAccess(session(), PROFILES)).toBe(true);
-  expect(isFullAccess(session({ profile: 'Strict' }), PROFILES)).toBe(false);
-  expect(isFullAccess(session({ profile: null }), PROFILES)).toBe(false);
-  expect(
-    isFullAccess(
-      {
-        id: 'x',
-        name: 'x',
-        directory: '/',
-        kind: 'commands',
-        commands: ['ls'],
-        variants: [],
-        active: null,
-        template: null,
-      },
-      PROFILES,
-    ),
-  ).toBe(false);
+describe('a permission and the template it is sent as', () => {
+  it('maps the five cases: none, ask, read only, edits and bypass', () => {
+    expect(permissionProfileId(null)).toBeNull();
+    expect(permissionProfileId('ask')).toBe('template-strict');
+    expect(permissionProfileId('read_only')).toBe('template-review');
+    expect(permissionProfileId('edits')).toBe('template-edits');
+    expect(permissionProfileId('bypass')).toBe('template-full-access');
+    // One template per permission, none shared.
+    expect(new Set(PERMISSIONS.map(permissionProfileId)).size).toBe(
+      PERMISSIONS.length,
+    );
+  });
+
+  it('reads a recorded session back to its permission, and nothing else as one', () => {
+    for (const permission of PERMISSIONS)
+      expect(profilePermission({ id: permissionProfileId(permission)! })).toBe(
+        permission,
+      );
+    expect(profilePermission(null)).toBeNull();
+    // As configured, the template that no longer ships, and a profile the owner had saved.
+    expect(profilePermission({ id: 'template-as-configured' })).toBeNull();
+    expect(profilePermission({ id: 'template-exploration' })).toBeNull();
+    expect(profilePermission({ id: 'a'.repeat(32) })).toBeNull();
+  });
+
+  it('offers accept edits only to Claude Code, and nothing to an agent it does not manage', () => {
+    expect(permissionsFor('claude_code')).toEqual([
+      'ask',
+      'read_only',
+      'edits',
+      'bypass',
+    ]);
+    expect(permissionsFor('codex')).toEqual(['ask', 'read_only', 'bypass']);
+    expect(permissionsFor('opencode')).toEqual([]);
+    expect(permissionsFor('hermes')).toEqual([]);
+  });
 });
 
-it('full access is shown for a profile that inherits it, and a broken chain gives nothing', () => {
-  const child = (id: string, name: string, parent: string | null) => {
-    const p = profile(id, name, null);
-    (p.body as { extends: string | null }).extends = parent;
-    return p;
-  };
-  const list = [
-    ...PROFILES,
-    child('p-kid', 'Kid', 'p-full'),
-    child('p-grandkid', 'Grandkid', 'p-kid'),
-    child('p-orphan', 'Orphan', 'p-gone'),
-    child('p-a', 'Loop A', 'p-b'),
-    child('p-b', 'Loop B', 'p-a'),
-  ];
-  expect(isFullAccess(session({ profile: 'Kid' }), list)).toBe(true);
-  expect(isFullAccess(session({ profile: 'Grandkid' }), list)).toBe(true);
-  expect(isFullAccess(session({ profile: 'Orphan' }), list)).toBe(false);
-  expect(isFullAccess(session({ profile: 'Loop A' }), list)).toBe(false);
-  // A nearer profile that sets another word wins over an inherited bypass.
-  const safer = profile('p-safer', 'Safer', 'ask');
-  (safer.body as { extends: string | null }).extends = 'p-full';
-  expect(isFullAccess(session({ profile: 'Safer' }), [...list, safer])).toBe(
-    false,
-  );
+it('full access is shown only for a session launch whose permission is bypass', () => {
+  expect(isFullAccess(session())).toBe(true);
+  for (const permission of ['ask', 'read_only', 'edits', null] as const)
+    expect(isFullAccess(session({ permission }))).toBe(false);
+  expect(
+    isFullAccess({
+      id: 'x',
+      name: 'x',
+      directory: '/',
+      kind: 'commands',
+      commands: ['ls'],
+      variants: [],
+      active: null,
+      template: null,
+    }),
+  ).toBe(false);
 });

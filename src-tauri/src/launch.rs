@@ -2,7 +2,7 @@
 //! `$XDG_CONFIG_HOME/wyss-console/launch/*.toml`, read by the desktop and named by the window.
 //!
 //! A launch either opens a terminal in a folder and types its commands there, as if the owner
-//! typed them, or starts a Native session with an agent and a profile named by its name, after
+//! typed them, or starts a Native session with an agent and the permission it names, after
 //! running its `before` commands. To start, the window names a file by its stem, and every
 //! command comes from that file. The window writes commands in two places, both one line each
 //! with no control character: a commands launch's distribution variants (`save_variants`, never
@@ -10,11 +10,8 @@
 //! the shell's own start-up files do, so both computers get the same launches.
 use crate::arsenal::Arsenal;
 use crate::arsenal::store::Store;
-use crate::host::client::HostLink;
 use crate::host::protocol::HostError;
-use crate::native::commands::call_extended_or_legacy;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::fs;
 use std::io::{Read, Write};
 use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt};
@@ -120,6 +117,12 @@ pub const MAX_OPTIONS: usize = 16;
 #[serde(deny_unknown_fields)]
 struct SessionSpec {
     agent: String,
+    /// What the agent may do without asking: one of `PERMISSIONS`. Absent, it starts as it is
+    /// configured.
+    #[serde(default)]
+    permission: Option<String>,
+    /// Read only from a file written before profiles were removed, and only for the names of
+    /// the templates that shipped; `permission` is what is written.
     #[serde(default)]
     profile: Option<String>,
     /// An Arsenal preset's name, for this agent's provider (ADR 0059 / arsenal-UI-SPEC).
@@ -142,7 +145,8 @@ pub enum Kind {
     /// A Native session; `before` runs first, without a terminal.
     Session {
         agent: String,
-        profile: Option<String>,
+        /// One of `PERMISSIONS`; none when the agent starts as it is configured.
+        permission: Option<String>,
         before: Vec<String>,
         preset: Option<String>,
     },
@@ -214,7 +218,8 @@ pub const DEFAULTS: [(&str, &str); 3] = [
     ("actualizar-sistema.toml", SYSTEM_UPDATE),
     (
         "claude-code.toml",
-        r#"# Starts Claude Code as a Native session with the profile named here (by its name).
+        r#"# Starts Claude Code as a Native session with the permission named here:
+# "ask", "read_only", "edits" (Claude Code only) or "bypass"; without it, as it is configured.
 # `before` runs first in /bin/sh, without a terminal; a failure is reported and the start goes on.
 name = "Claude Code"
 directory = "~"
@@ -224,12 +229,13 @@ before = [
 
 [session]
 agent = "claude_code"
-profile = "Full access (bypass)"
+permission = "bypass"
 "#,
     ),
     (
         "codex.toml",
-        r#"# Starts Codex as a Native session with the profile named here (by its name).
+        r#"# Starts Codex as a Native session with the permission named here:
+# "ask", "read_only" or "bypass"; without it, as it is configured.
 # `before` runs first in /bin/sh, without a terminal; a failure is reported and the start goes on.
 name = "Codex"
 directory = "~"
@@ -239,7 +245,7 @@ before = [
 
 [session]
 agent = "codex"
-profile = "Full access (bypass)"
+permission = "bypass"
 "#,
     ),
 ];
@@ -315,6 +321,49 @@ fn commands_ok(commands: &[String]) -> Result<(), String> {
     Ok(())
 }
 
+/// What a session may do without asking, as a launch file names it. `edits` is Claude Code's.
+pub const PERMISSIONS: [&str; 4] = ["ask", "read_only", "edits", "bypass"];
+
+/// The permission of a session launch. `profile` is the key a file written before profiles
+/// were removed carries: the templates that shipped are read as the permission each one was,
+/// and any other name is refused with what to write instead. The file is never rewritten here.
+fn session_permission(
+    agent: &str,
+    permission: Option<&str>,
+    profile: Option<&str>,
+) -> Result<Option<String>, String> {
+    let permission = match (permission, profile) {
+        (Some(_), Some(_)) => {
+            return Err(
+                "a session names permission or profile, not both: profiles were removed, keep permission"
+                    .into(),
+            );
+        }
+        (Some(word), None) => {
+            if !PERMISSIONS.contains(&word) {
+                return Err(
+                    "permission must be \"ask\", \"read_only\", \"edits\" or \"bypass\"".into(),
+                );
+            }
+            Some(word)
+        }
+        (None, Some("Full access (bypass)")) => Some("bypass"),
+        (None, Some("Review, read only")) => Some("read_only"),
+        (None, Some("Strict")) => Some("ask"),
+        (None, Some("As configured")) | (None, None) => None,
+        (None, Some(_)) => {
+            return Err(
+                "profiles were removed: set permission = \"ask\", \"read_only\", \"edits\" or \"bypass\" in this launch, or remove the profile line to start as configured"
+                    .into(),
+            );
+        }
+    };
+    if permission == Some("edits") && agent != "claude_code" {
+        return Err("permission = \"edits\" is only for claude_code".into());
+    }
+    Ok(permission.map(str::to_owned))
+}
+
 fn variants_of(
     distro: std::collections::BTreeMap<String, VariantSpec>,
 ) -> Result<Vec<Variant>, String> {
@@ -388,13 +437,11 @@ fn parse(id: &str, text: &str, home: &Path, system: &System) -> Result<Launch, S
             if !matches!(session.agent.as_str(), "claude_code" | "codex") {
                 return Err("session agent must be claude_code or codex".into());
             }
-            if session
-                .profile
-                .as_deref()
-                .is_some_and(|p| !text_ok(p, crate::native::profile::MAX_NAME))
-            {
-                return Err("profile must be a profile's name".into());
-            }
+            let permission = session_permission(
+                &session.agent,
+                session.permission.as_deref(),
+                session.profile.as_deref(),
+            )?;
             if spec.before.len() > MAX_BEFORE || !spec.before.iter().all(|c| command_ok(c)) {
                 return Err(format!(
                     "at most {MAX_BEFORE} before commands, each one line of at most {MAX_COMMAND} characters"
@@ -411,7 +458,7 @@ fn parse(id: &str, text: &str, home: &Path, system: &System) -> Result<Launch, S
             }
             Kind::Session {
                 agent: session.agent,
-                profile: session.profile,
+                permission,
                 before: spec.before,
                 preset: session.preset,
             }
@@ -689,10 +736,9 @@ fn run_one(command: &str, folder: &Path, timeout: Duration) -> String {
 // ---------------------------------------------------------------------------------------------
 // Saving and deleting a launch from Workspace (arsenal-UI-SPEC, phase D)
 
-/// What the desktop holds that a launch file names, by agent: its profiles (by name) and its
-/// presets (Arsenal selections, by name, for that agent's provider).
+/// What the desktop holds that a launch file names, by agent: its presets (Arsenal selections,
+/// by name, for that agent's provider).
 pub trait Known {
-    fn profiles(&self, agent: &str) -> Result<Vec<String>, String>;
     fn presets(&self, agent: &str) -> Result<Vec<String>, String>;
 }
 
@@ -705,7 +751,7 @@ pub struct SaveRequest {
     directory: String,
     agent: String,
     #[serde(default)]
-    profile: Option<String>,
+    permission: Option<String>,
     #[serde(default)]
     preset: Option<String>,
     #[serde(default)]
@@ -789,7 +835,7 @@ fn write_then_rename(temporary: &Path, target: &Path, text: &str) -> std::io::Re
     fs::rename(temporary, target)
 }
 
-/// Saves a session launch: the agent, the folder, the profile and the preset, written as the
+/// Saves a session launch: the agent, the folder, the permission and the preset, written as the
 /// file the reader already takes. Everything is checked again here, against what the desktop
 /// holds, and the file is read back before the answer goes out.
 pub fn save(
@@ -813,17 +859,8 @@ pub fn save(
     }
     let folder =
         directory(Some(&request.directory), &places.home).map_err(|why| invalid(why.to_owned()))?;
-    if let Some(profile) = request.profile.as_deref() {
-        if !text_ok(profile, crate::native::profile::MAX_NAME) {
-            return Err(invalid("profile must be a profile's name".into()));
-        }
-        let names = known.profiles(agent).map_err(invalid)?;
-        if !names.iter().any(|n| n == profile) {
-            return Err(invalid(format!(
-                "no profile named “{profile}” for this agent"
-            )));
-        }
-    }
+    let permission =
+        session_permission(agent, request.permission.as_deref(), None).map_err(invalid)?;
     if let Some(preset) = request.preset.as_deref() {
         if !text_ok(preset, MAX_NAME) {
             return Err(invalid("preset must be a preset's name".into()));
@@ -858,8 +895,8 @@ pub fn save(
         toml_string(&shown),
         toml_string(agent),
     );
-    if let Some(profile) = &request.profile {
-        text.push_str(&format!("profile = {}\n", toml_string(profile)));
+    if let Some(permission) = &permission {
+        text.push_str(&format!("permission = {}\n", toml_string(permission)));
     }
     if let Some(preset) = &request.preset {
         text.push_str(&format!("preset = {}\n", toml_string(preset)));
@@ -928,30 +965,12 @@ pub async fn launch_before(request: LaunchRequest) -> Result<Vec<Outcome>, HostE
     .map_err(|_| HostError::new("internal"))?
 }
 
-/// What the desktop holds: the profiles from the host, the presets from the Arsenal library.
+/// What the desktop holds: the presets from the Arsenal library.
 struct Desktop {
-    link: HostLink,
     library: Option<Arc<Mutex<Store>>>,
 }
 
 impl Known for Desktop {
-    fn profiles(&self, agent: &str) -> Result<Vec<String>, String> {
-        let value =
-            call_extended_or_legacy(&self.link, "profiles_extended", "profiles", Value::Null)
-                .map_err(|e| format!("the profiles could not be read ({})", e.code))?;
-        Ok(value
-            .as_array()
-            .into_iter()
-            .flatten()
-            .filter(|p| {
-                p["body"]["applies_to"]
-                    .as_array()
-                    .is_some_and(|agents| agents.iter().any(|a| a.as_str() == Some(agent)))
-            })
-            .filter_map(|p| p["body"]["name"].as_str().map(str::to_owned))
-            .collect())
-    }
-
     fn presets(&self, agent: &str) -> Result<Vec<String>, String> {
         let library = self
             .library
@@ -979,15 +998,13 @@ fn saving(refusal: SaveRefusal) -> HostError {
 }
 
 /// Saves the launch the window describes. The file is written by the desktop, which checks the
-/// profile and the preset itself; a launch that already exists is replaced only when asked.
+/// permission and the preset itself; a launch that already exists is replaced only when asked.
 #[tauri::command]
 pub async fn launch_save(
     request: SaveRequest,
     arsenal: State<'_, Arsenal>,
-    link: State<'_, HostLink>,
 ) -> Result<Launch, HostError> {
     let known = Desktop {
-        link: link.inner().clone(),
         library: arsenal.launch_handle(),
     };
     tauri::async_runtime::spawn_blocking(move || save(&places()?, &request, &known).map_err(saving))

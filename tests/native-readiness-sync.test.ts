@@ -2,18 +2,8 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { NativeController } from '../src/lib/features/native/controller';
 import { NativeCallError } from '../src/lib/desktop/native-client';
 import { START_UNRECORDED } from '../src/lib/features/native/present';
-import type {
-  Launcher,
-  NativeSession,
-  Profile,
-} from '../src/lib/contracts/native';
-import {
-  fakeClient,
-  launcherWithM9,
-  profiles,
-  reply,
-  session,
-} from './native-harness';
+import type { Launcher, NativeSession } from '../src/lib/contracts/native';
+import { fakeClient, launcherWithM9, reply, session } from './native-harness';
 
 const controllers: NativeController[] = [];
 const own = (controller: NativeController) => {
@@ -363,11 +353,9 @@ it('clears the visible heartbeat on hide, verifies on show, and creates no dupli
 
 it('ignores late initial reads and sends no work after dispose', async () => {
   const launcher = deferred<Launcher>();
-  const p = deferred<Profile[]>();
   const s = deferred<NativeSession[]>();
   const client = fakeClient({
     launcher: vi.fn(() => launcher.promise),
-    profiles: vi.fn(() => p.promise),
     sessions: vi.fn(() => s.promise),
   });
   const publish = vi.fn();
@@ -376,7 +364,6 @@ it('ignores late initial reads and sends no work after dispose', async () => {
   controller.dispose();
   const count = publish.mock.calls.length;
   launcher.resolve(launcherWithM9('ready'));
-  p.resolve(profiles());
   s.resolve([session()]);
   await settle();
   await controller.refreshLauncher();
@@ -413,9 +400,10 @@ it('does not adopt a late Start reply after the controller is disposed', async (
   expect(vi.getTimerCount()).toBe(0);
 });
 
-it('reloads profiles and sessions after a valid retry of an initially failed launcher', async () => {
+it('reloads the sessions after a valid retry of an initially failed launcher', async () => {
   let failing = true;
   const client = fakeClient({
+    sessions: vi.fn(async () => [session()]),
     launcher: vi.fn(async () => {
       if (failing) throw new Error('down');
       return launcherWithM9('ready');
@@ -432,7 +420,7 @@ it('reloads profiles and sessions after a valid retry of an initially failed lau
   await settle();
   expect(controller.state().phase).toBe('ready');
   expect(controller.state().m9Blocked).toBe(false);
-  expect(controller.state().profiles).toEqual(profiles());
+  expect(controller.state().sessions).toEqual([session()]);
   expect(client.start).not.toHaveBeenCalled();
   expect(vi.getTimerCount()).toBe(1);
 });

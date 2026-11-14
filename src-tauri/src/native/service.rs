@@ -462,6 +462,7 @@ impl NativeService {
         }
     }
 
+    #[cfg(test)]
     pub fn profiles(&self) -> &ProfileStore {
         &self.inner.profiles
     }
@@ -733,23 +734,6 @@ impl NativeService {
         }
         let canonical = Path::new(path).canonicalize().map_err(|_| invalid())?;
         canonical.is_dir().then_some(canonical).ok_or_else(invalid)
-    }
-
-    /// Sets (or clears) the profile a project starts with by default.
-    pub fn set_project_default(
-        &self,
-        path: &str,
-        profile_id: Option<String>,
-    ) -> Result<(), NativeError> {
-        self.project_allowed(path)?;
-        if let Some(id) = &profile_id {
-            self.inner.profiles.resolve(id)?;
-        }
-        let mut registry = lock(&self.inner.registry);
-        registry.project_mut(path).default_profile = profile_id;
-        registry
-            .save()
-            .map_err(|_| NativeError::new("store_unavailable"))
     }
 
     // ---- profiles applied -----------------------------------------------------------------

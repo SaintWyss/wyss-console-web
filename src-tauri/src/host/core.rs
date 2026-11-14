@@ -7,10 +7,7 @@ use super::{
     protocol::HostError,
     ring::{self, Ring},
 };
-use crate::native::{
-    profile::Body,
-    service::{NativeError, NativeService, StartRequest},
-};
+use crate::native::service::{NativeError, NativeService, StartRequest};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use std::{
@@ -309,29 +306,6 @@ struct Preview {
 #[serde(deny_unknown_fields)]
 struct Path {
     path: String,
-}
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Default {
-    project: String,
-    profile_id: Option<String>,
-}
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Save {
-    id: String,
-    body: Body,
-}
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Restore {
-    id: String,
-    version: u32,
-}
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Text {
-    text: String,
 }
 
 fn entry_rows(entry: &Entry) -> u16 {
@@ -822,78 +796,6 @@ impl HostCore {
                 self.native()?.remember_chosen(request.path);
                 Ok(Value::Null)
             }
-            "native_project_default" => {
-                let request: Default = params(value)?;
-                self.native()?
-                    .set_project_default(&request.project, request.profile_id)
-                    .map_err(|e| native_error(&e))?;
-                Ok(Value::Null)
-            }
-
-            // ---- profiles ----
-            "profiles" => to_value(self.native()?.profiles().list_legacy()),
-            "profiles_extended" => to_value(self.native()?.profiles().list()),
-            "profile_create" => {
-                let body: Body = params(value)?;
-                let id = self
-                    .native()?
-                    .profiles()
-                    .create(body)
-                    .map_err(profile_error)?;
-                Ok(json!({ "id": id }))
-            }
-            "profile_save" => {
-                let request: Save = params(value)?;
-                let version = self
-                    .native()?
-                    .profiles()
-                    .save(&request.id, request.body)
-                    .map_err(profile_error)?;
-                Ok(json!({ "version": version }))
-            }
-            "profile_delete" => {
-                let request: Id = params(value)?;
-                self.native()?
-                    .profiles()
-                    .delete(&request.id)
-                    .map_err(profile_error)?;
-                Ok(Value::Null)
-            }
-            "profile_duplicate" => {
-                let request: Id = params(value)?;
-                let id = self
-                    .native()?
-                    .profiles()
-                    .duplicate(&request.id)
-                    .map_err(profile_error)?;
-                Ok(json!({ "id": id }))
-            }
-            "profile_restore" => {
-                let request: Restore = params(value)?;
-                self.native()?
-                    .profiles()
-                    .restore(&request.id, request.version)
-                    .map_err(profile_error)?;
-                Ok(Value::Null)
-            }
-            "profile_export" => {
-                let request: Id = params(value)?;
-                let bytes = self
-                    .native()?
-                    .profiles()
-                    .export(&request.id)
-                    .map_err(profile_error)?;
-                Ok(json!({ "text": String::from_utf8_lossy(&bytes) }))
-            }
-            "profile_import" => {
-                let request: Text = params(value)?;
-                let id = self
-                    .native()?
-                    .profiles()
-                    .import(request.text.as_bytes())
-                    .map_err(profile_error)?;
-                Ok(json!({ "id": id }))
-            }
             _ => Err(HostError::new("unknown_op")),
         }
     }
@@ -1026,10 +928,6 @@ impl HostCore {
         };
         Ok(answer)
     }
-}
-
-fn profile_error(error: crate::native::profile::ProfileError) -> HostError {
-    native_error(&NativeError::from(error))
 }
 
 /// Reads one terminal's output into its ring until the terminal is closed or its process has

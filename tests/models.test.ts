@@ -18,12 +18,10 @@ import {
   listedModels,
   observedRows,
   provenance,
-  selectedRows,
 } from '../src/lib/features/models/present';
 import catalogues from './fixtures/model-catalogue-v1.json';
 import pages from './fixtures/session-page-v4.json';
 import { tJoin, tPhrase, type Phrase } from '../src/lib/i18n/index.svelte';
-import { profiles } from './native-harness';
 
 /** The sentence a presenter hands over, drawn in the language in force; null when there is none. */
 const said = (phrase: Phrase | null) =>
@@ -205,42 +203,6 @@ describe('configured, selected and observed are three lists', () => {
       configuredRows([setting('model', 'x', 'codex', { detail: null })])[0]
         ?.value,
     ).toBeNull();
-  });
-  it('shows what a profile would pass, and says by whom a field it does not name is inherited', () => {
-    const all = profiles();
-    const mine = all.find((p) => !p.template)!;
-    mine.body.effort = 'high';
-    // It names its own model and effort: nothing is inherited, whatever the source says.
-    mine.from = { model: mine.body.name, effort: mine.body.name };
-    expect(selectedRows(all)).toEqual([
-      {
-        profile: 'Mine',
-        agents: 'Claude Code · Codex',
-        model: 'sonnet',
-        effort: 'high',
-        modelFrom: null,
-        effortFrom: null,
-        template: false,
-      },
-    ]);
-    // A profile that names neither itself but extends one that does.
-    const child = structuredClone(mine);
-    child.id = 'c'.repeat(32);
-    child.body.name = 'Child';
-    child.body.model = null;
-    child.body.effort = null;
-    child.from = { model: 'Mine', effort: 'Mine' };
-    const rows = selectedRows([mine, child]);
-    expect(rows[1]).toMatchObject({
-      profile: 'Child',
-      model: null,
-      modelFrom: 'Mine',
-      effortFrom: 'Mine',
-    });
-    // A profile that names nothing and inherits nothing is not a selection.
-    child.from = {};
-    expect(selectedRows([child])).toEqual([]);
-    expect(selectedRows(all.filter((p) => p.template))).toEqual([]);
   });
   it('shows only what a runtime reported for an attached session, in the Sessions view’s words', () => {
     const page = damaged(pages.loaded);

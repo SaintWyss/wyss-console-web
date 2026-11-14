@@ -253,7 +253,7 @@ Decisiones del dueño del 2026-11-13. Este contrato no las reabre. El Workspace 
 
 1. **Un lanzamiento es lanzamiento + preset + entorno**, editados juntos y guardados con un solo botón. Por debajo cada cosa se sigue guardando donde ya estaba: el TOML en `~/.config/wyss-console/launch/`, el preset en `selection` y el entorno en `environment.json`.
 2. **Preset propio:** si el preset que nombra el lanzamiento lo usa otro lanzamiento del mismo agente, o es el que recuerda la carpeta, al guardar se copia a uno nuevo con el nombre del lanzamiento. Nunca cambia otro lanzamiento.
-3. **Modelo = perfil:** el campo Modelo lista los perfiles del agente como "modelo · perfil", o "Por defecto (sin perfil)". No se escriben perfiles.
+3. **Permisos (reemplaza "Modelo = perfil", decisión del dueño del 2026-11-14):** los perfiles se eliminaron. El lanzamiento elige **Permisos**: Como está configurado · Preguntar antes de actuar · Solo lectura · Aceptar ediciones (solo Claude Code) · Acceso total. La consola no pasa modelo ni esfuerzo: se eligen dentro del agente.
 4. **Contexto estimado por archivos:** bytes ÷ 4 de lo que se carga, sobre la base medida de 14.002 tokens (`src/lib/features/workspace/estimate.ts`). Cuenta las instrucciones con sus `@imports`, cada regla, nombre y descripción de cada skill y agente, las skills de la cuenta y lo que lista cada plugin. MCP queda "sin medir". El total de referencia es la estimación con todo prendido.
    - **Control (2026-11-13, `~/.claude` real):** unos 40,4k sin MCP contra 68,1k medidos con los 18 MCP. La diferencia no se ajusta a mano.
 5. **Modo:** solo Nativa. Los lanzamientos abren sesiones nativas; las administradas se inician desde Sesiones.
@@ -277,6 +277,67 @@ Decisiones del dueño del 2026-11-13. Este contrato no las reabre. El Workspace 
 | Carpeta       | Browse… · Saved · Recently used                                       | Examinar… · Guardadas · Usadas hace poco                                        |
 
 "Usadas hace poco" ordena por `last_used` del registro de proyectos. La app no cuenta usos, así que no se muestran números de veces.
+
+## Etapa 4: Arsenal como biblioteca (2026-11-14)
+
+Pedido del dueño del 2026-11-14 ("hacé la fase 4 de Arsenal"). Referencia visual: el boceto aprobado `Main.dc.html`, vista Arsenal (copia local `~/.cache/wyss-ux-boceto/Main.dc.html`, líneas 358–447; artefacto `U54hoFZ17m3hhh9SajsQzV`). Donde el boceto no dice nada, se mantiene lo que ya hay. La pantalla anterior de Arsenal (presets por provider) **no se borra**: pasa a **Más → Presets de Arsenal**, igual que el Workspace viejo en la etapa 2.
+
+**Regla de corte:** entra todo lo que no pide un archivo nuevo, un cambio de esquema de `arsenal.sqlite` ni una operación nueva del host. Fuera de esta etapa, **sin botón muerto**: "Ordenar con IA" (gasta la cuenta del dueño y necesita su propia evaluación) y "Agregar desde GitHub". El resto va al cierre como siguiente paso.
+
+### Qué muestra
+
+1. **Columna izquierda:**
+   - **Sin ubicar** con su cantidad.
+   - El título **Biblioteca** y debajo las categorías que ya existen (secciones y grupos de `groups.ts`, más las del dueño de `groups.json`), cada una con su cantidad.
+   - Al pie, **Agregar**.
+2. **Cabecera:** **Buscar…**, que filtra por nombre y descripción, y los chips de origen (las fuentes de `librarySources`; uno elegido a la vez, o Todos).
+3. **Filas:** nombre, descripción en una línea, origen, contexto estimado y dónde está ubicada.
+   - El contexto se calcula con la misma regla que `estimate.ts`: bytes ÷ 4 del nombre más la descripción, como se carga una skill. Si no se puede medir, dice "sin medir".
+   - La ubicación se muestra como "N lanzamientos" o "Sin ubicar".
+4. **Ficha** (la fila se despliega) con tres pestañas:
+   - **Qué hace:** descripción, cuándo se activa (si la descripción lo dice; si no, no se muestra), si ejecuta código (sí cuando trae scripts o es hook/MCP; si no se sabe, "no se sabe"), contexto y en qué funciona (`libraryCompatibility`).
+   - **Archivos:** la lista de `arsenal_capability`, y un botón Abrir que usa `arsenal_file`, como hoy.
+   - **Dónde va:** la sugerencia por reglas (el grupo de `groupFor` y su porqué) y dos grupos de chips.
+     - **Roles:** los de `roles.json`.
+     - **Lanzamientos:** los lanzamientos de sesión del agente compatible.
+     - Prender un chip **agrega** la capacidad al preset del lanzamiento; apagarlo la saca.
+     - En un rol, se aplica en ese momento a cada lanzamiento de ese rol. No se guarda una regla: "Ponerla en un rol la suma a todos los lanzamientos de ese rol" describe la acción. Un chip de rol está prendido cuando todos los lanzamientos de ese rol la tienen.
+
+### Datos: nada nuevo persistido
+
+- **Sin ubicar** = capacidades de la biblioteca que no figuran en el preset de ningún lanzamiento guardado. Se deriva de los presets (`arsenal_selections`) y de los lanzamientos (`launch_list`).
+- **Ubicar** usa el mismo camino que **Guardar** del Workspace, con la regla de **preset propio**: si el preset lo comparte otro lanzamiento o es el que recuerda la carpeta, se copia a uno nuevo con el nombre del lanzamiento. Nunca cambia otro lanzamiento.
+- Un lanzamiento sin preset recibe uno nuevo con su nombre. Un lanzamiento de solo lectura (con `commands` o `before`) aparece apagado, con el motivo en el title.
+- **Agregar** abre el diálogo de carpeta y corre el descubrimiento sobre esa carpeta, con la misma función que hoy usa la carpeta del proyecto. Lista lo encontrado con su revisión previa: qué hace, qué archivos trae y si ejecuta código. Recién con **Importar** copia a la biblioteca, por `arsenal_import`. Nunca enlaza.
+- **Primera apertura:** con la biblioteca vacía se muestra "Traé lo que ya usás", con lo que encontró el descubrimiento normal, tildado por defecto, e **Importar N elementos**. Usa la misma copia que hoy.
+
+### Contenido
+
+| Elemento          | en                                                                                                                                        | es                                                                                                                        |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Bandeja           | Unplaced                                                                                                                                  | Sin ubicar                                                                                                                |
+| Título lista      | Library                                                                                                                                   | Biblioteca                                                                                                                |
+| Botones           | Add · Import {n} items · Add another folder… · Open folder                                                                                | Agregar · Importar {n} elementos · Agregar otra carpeta… · Abrir carpeta                                                  |
+| Pestañas          | What it does · Files · Where it goes                                                                                                      | Qué hace · Archivos · Dónde va                                                                                            |
+| Ficha             | Activates when · Runs code · Context · Works in                                                                                           | Se activa cuando · Ejecuta código · Contexto · Funciona en                                                                |
+| Sugerencia        | Suggestion: {group}                                                                                                                       | Sugerencia: {group}                                                                                                       |
+| Ayuda rol         | Putting it in a role adds it to every launch of that role.                                                                                | Ponerla en un rol la suma a todos los lanzamientos de ese rol.                                                            |
+| Primera apertura  | Bring what you already use · Wyss Console found this on your computer. It is copied to your library; your original files are not touched. | Traé lo que ya usás · Wyss Console encontró esto en tu PC. Se copia a tu biblioteca; tus archivos originales no se tocan. |
+| Vacío de búsqueda | Nothing matches “{q}”.                                                                                                                    | Nada coincide con “{q}”.                                                                                                  |
+
+### Estados
+
+- **Fila:** default · hover (`--surface-raised`) · focus visible (anillo de foco de la app) · abierta (borde `--accent-line`).
+- **Chip:** apagado · prendido (`--accent-soft` y borde de acento, no solo el color: lleva ✓) · guardando (deshabilitado, `aria-busy`) · error (el mensaje queda junto a la ficha y el chip vuelve a como estaba) · deshabilitado (lanzamiento de solo lectura o agente incompatible, con title).
+- **Lista:** cargando (lo que ya había y "Leyendo…") · vacía (primera apertura) · búsqueda sin resultado · error de lectura (`messages.ts`).
+- **Agregar:** elegir carpeta · analizando · encontrado (lista con revisión) · nada encontrado · error.
+
+### Breakpoints
+
+- **≥ 1024 px:** dos columnas; la izquierda mide 220–260 px.
+- **768 px:** la izquierda pasa a una fila de chips con scroll horizontal, arriba.
+- **375 y 320 px:** una columna; la ficha ocupa el ancho; los chips se reacomodan.
+- **Siempre:** objetivos ≥ 44 px de alto en táctil (`--control-h` 40 + padding); texto al 200 % sin cortar; nombres largos con elipsis y title. Los dos temas usan solo tokens de `app.css`.
 
 ## Fases de construcción
 

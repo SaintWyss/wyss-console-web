@@ -1,8 +1,6 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { t } from '../../i18n/index.svelte';
+  import { t, tPhrase } from '../../i18n/index.svelte';
   import type { SessionGit } from '../../contracts/terminal';
-  import type { Profile } from '../../contracts/native';
   import type { TerminalId } from '../../contracts/identities';
   import type { TerminalSession } from './session-manager';
   import { agentPart, gitParts } from './session-bar';
@@ -11,7 +9,6 @@
     session,
     visible = true,
     read,
-    profiles: loadProfiles,
     every = 5000,
     slowEvery = 60000,
   }: {
@@ -20,7 +17,6 @@
     visible?: boolean;
     /** Asks the desktop for the git state of the folder it holds for this terminal. */
     read: (id: TerminalId) => Promise<SessionGit>;
-    profiles: () => Promise<Profile[]>;
     /** How often the git state is read again while the Console is shown. */
     every?: number;
     /** After git ran past its limit, how long until it is asked again. */
@@ -28,7 +24,6 @@
   } = $props();
 
   let git = $state<SessionGit | null>(null);
-  let profiles = $state<Profile[]>([]);
   const terminal = $derived(session?.view.info?.terminal_id);
   let asked: TerminalId | undefined;
   let busy = false;
@@ -67,14 +62,8 @@
     const timer = setInterval(() => void refresh(), every);
     return () => clearInterval(timer);
   });
-  onMount(() => {
-    loadProfiles().then(
-      (list) => (profiles = list),
-      () => undefined,
-    );
-  });
   const parts = $derived(gitParts(git, session?.view.info?.cwd ?? ''));
-  const agent = $derived(agentPart(session?.native, profiles));
+  const agent = $derived(agentPart(session?.native));
 </script>
 
 {#if session}
@@ -113,7 +102,7 @@
         agent.kind.text,
         agent.kind.values as Record<string, string>,
       )}{#if agent.detail}&#32;·
-        {agent.detail}{/if}</span
+        {tPhrase(agent.detail)}{/if}</span
     >
   </div>
 {/if}

@@ -5,7 +5,7 @@ import App from '../src/App.svelte';
 import type { TerminalRenderer } from '../src/lib/features/terminal/renderer';
 import { parseTerminalId } from '../src/lib/contracts/identities';
 import { listing } from './agent-harness';
-import { launcher, profiles } from './native-harness';
+import { launcher } from './native-harness';
 import approvals from './fixtures/approval-list-v1.json';
 import inventory from './fixtures/configuration-inventory-v1.json';
 import catalogues from './fixtures/model-catalogue-v1.json';
@@ -81,8 +81,6 @@ function desktop() {
         return { m9_native_status: 'ready' };
       case 'native_sessions':
         return [];
-      case 'native_profiles':
-        return profiles();
       case 'managed_model_catalogue':
         return typeof answers.catalogue === 'function'
           ? (answers.catalogue as () => unknown)()
@@ -201,10 +199,7 @@ it('opens from the rail, reads only while shown, and draws what the desktop answ
   expect(status('opencode')).toBe('Unknown');
   expect(text(view())).not.toMatch(/connected/i);
 
-  expect(rows('anthropic')).toEqual([
-    'Configured model: opus',
-    'Profile Mine: sonnet',
-  ]);
+  expect(rows('anthropic')).toEqual(['Configured model: opus']);
   expect(text(card('anthropic'))).toContain(
     'This tool does not list its models to the Console.',
   );
@@ -224,11 +219,9 @@ it('opens from the rail, reads only while shown, and draws what the desktop answ
       .map(text),
   ).toEqual([
     'Update',
-    'Profiles',
     'Configuration',
     'Credentials',
     'Update',
-    'Profiles',
     'Configuration',
     'Credentials',
     'Configuration',
@@ -467,7 +460,7 @@ it('waits for the configuration read, and says when the configured model shown i
   expect(text(view())).not.toContain(note);
 });
 
-it('shows each card’s models in detail, and a profile there opens Profiles', async () => {
+it('shows each card’s models in detail', async () => {
   desktop();
   component = mount(App, { target: document.body });
   await flush();
@@ -479,15 +472,8 @@ it('shows each card’s models in detail, and a profile there opens Profiles', a
   expect(text(card('anthropic').querySelector('.dist-more'))).toContain(
     'Nothing of this tool is running now.',
   );
-  const mine = Array.from(
-    card('anthropic').querySelectorAll<HTMLButtonElement>('.dist-more button'),
-  ).find((b) => text(b) === 'Mine')!;
-  expect(mine.title).toContain('Opens this profile');
-  mine.click();
-  await flush();
-  expect(
-    document
-      .querySelector('.personal-tab[aria-current="page"]')
-      ?.textContent?.trim(),
-  ).toBe('Profiles');
+  // No profile is offered there any more.
+  expect(text(card('anthropic').querySelector('.dist-more'))).not.toMatch(
+    /profile/i,
+  );
 });

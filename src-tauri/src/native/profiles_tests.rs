@@ -1,7 +1,7 @@
 use super::{
     catalogue::AgentId,
-    profile::{Body, HooksMode, Permission, ProfileError},
-    profiles::{MAX_VERSIONS, ProfileStore},
+    profile::{Body, HooksMode, Permission, ProfileError, templates},
+    profiles::ProfileStore,
 };
 use std::{fs, path::PathBuf};
 
@@ -20,131 +20,182 @@ fn body(name: &str) -> Body {
     }
 }
 
-#[test]
-fn templates_ship_read_only_and_a_copy_is_how_one_becomes_editable() {
-    let (store, dir) = store();
-    let templates: Vec<_> = store.list().into_iter().filter(|s| s.template).collect();
-    assert_eq!(templates.len(), 5);
-    let id = &templates[0].id;
-    assert_eq!(
-        store.save(id, body("x")),
-        Err(ProfileError::ReadOnlyTemplate)
-    );
-    assert_eq!(store.delete(id), Err(ProfileError::ReadOnlyTemplate));
-    let copy = store.duplicate("template-review").unwrap();
-    let copied = store.list().into_iter().find(|s| s.id == copy).unwrap();
-    assert!(!copied.template);
-    assert_eq!(copied.body.permission, Some(Permission::ReadOnly));
-    assert_eq!(copied.body.name, "Review, read only copy");
-    fs::remove_dir_all(dir).unwrap();
+/// Writes a profile file as the window saved one before profiles were removed from it: the
+/// versions with their time and hash, and the pointer to the current one.
+fn saved(dir: &std::path::Path, id: &str, versions: &[(u32, &Body)], current: u32) {
+    let versions: Vec<_> = versions
+        .iter()
+        .map(|(n, body)| serde_json::json!({"n": n, "saved_at": 1_700_000_000u64, "hash": "0011223344556677", "body": body}))
+        .collect();
+    let text = serde_json::json!({"id": id, "current": current, "versions": versions});
+    fs::write(
+        dir.join("profiles").join(format!("{id}.json")),
+        serde_json::to_vec_pretty(&text).unwrap(),
+    )
+    .unwrap();
 }
 
 #[test]
-fn every_save_is_a_new_version_up_to_twenty_and_an_earlier_one_can_be_brought_back() {
+fn the_templates_are_one_per_permission_and_the_removed_one_is_unknown() {
     let (store, dir) = store();
-    let id = store.create(body("p")).unwrap();
-    // The same content again makes no version.
-    assert_eq!(store.save(&id, body("p")), Ok(1));
-    for n in 0..25 {
-        let mut b = body("p");
-        b.model = Some(format!("m{n}"));
-        store.save(&id, b).unwrap();
+    let ids: Vec<&str> = templates().iter().map(|(id, _)| *id).collect();
+    assert_eq!(
+        ids,
+        [
+            "template-as-configured",
+            "template-review",
+            "template-edits",
+            "template-full-access",
+            "template-strict"
+        ]
+    );
+    let permission = |id: &str| store.resolve(id).unwrap().0.body.permission;
+    assert_eq!(permission("template-as-configured"), None);
+    assert_eq!(permission("template-review"), Some(Permission::ReadOnly));
+    assert_eq!(permission("template-edits"), Some(Permission::Edits));
+    assert_eq!(permission("template-full-access"), Some(Permission::Bypass));
+    assert_eq!(permission("template-strict"), Some(Permission::Ask));
+    let (edits, version) = store.resolve("template-edits").unwrap();
+    assert_eq!(version, 0);
+    assert_eq!(edits.body.name, "Accept edits");
+    assert_eq!(edits.body.applies_to, vec![AgentId::ClaudeCode]);
+    // No template carries anything but a permission: model, effort, hooks and skills are not
+    // the Console's to pass at a launch.
+    for (id, body) in templates() {
+        assert!(
+            body.model.is_none()
+                && body.effort.is_none()
+                && body.hooks.is_none()
+                && body.skills_off.is_empty()
+                && body.extends.is_none(),
+            "{id}"
+        );
     }
-    let summary = store.list().into_iter().find(|s| s.id == id).unwrap();
-    assert_eq!(summary.versions.len(), MAX_VERSIONS);
-    assert_eq!(summary.current, 26);
-    assert_eq!(summary.body.model.as_deref(), Some("m24"));
-    let earlier = summary.versions[3].n;
-    store.restore(&id, earlier).unwrap();
-    let back = store.list().into_iter().find(|s| s.id == id).unwrap();
-    assert_eq!(back.current, earlier);
     assert_eq!(
-        back.versions.len(),
-        MAX_VERSIONS,
-        "nothing is deleted by going back"
+        store.resolve("template-exploration").unwrap_err(),
+        ProfileError::Unknown
     );
-    assert_eq!(store.restore(&id, 999), Err(ProfileError::VersionUnknown));
     fs::remove_dir_all(dir).unwrap();
 }
 
 #[test]
-fn a_child_overrides_scalars_lists_combine_and_the_source_of_each_value_is_shown() {
+fn each_permission_template_becomes_the_flags_its_agent_documents() {
+    use super::profile::plan;
     let (store, dir) = store();
+    let flags = |id: &str, agent: AgentId| {
+        let (resolved, _) = store.resolve(id).unwrap();
+        let applies = resolved.body.applies_to.contains(&agent);
+        plan(&resolved, agent, applies)
+    };
+    for agent in [AgentId::ClaudeCode, AgentId::Codex] {
+        let plain = flags("template-as-configured", agent);
+        assert!(words(&plain).is_empty() && plain.applied.is_empty());
+        assert!(plain.not_applicable.is_empty());
+    }
+    assert_eq!(
+        words(&flags("template-strict", AgentId::ClaudeCode)),
+        ["--permission-mode", "manual"]
+    );
+    assert_eq!(
+        words(&flags("template-review", AgentId::ClaudeCode)),
+        ["--permission-mode", "plan"]
+    );
+    assert_eq!(
+        words(&flags("template-edits", AgentId::ClaudeCode)),
+        ["--permission-mode", "acceptEdits"]
+    );
+    assert_eq!(
+        words(&flags("template-full-access", AgentId::ClaudeCode)),
+        ["--dangerously-skip-permissions"]
+    );
+    assert_eq!(
+        words(&flags("template-strict", AgentId::Codex)),
+        ["-s", "workspace-write", "-a", "on-request"]
+    );
+    assert_eq!(
+        words(&flags("template-review", AgentId::Codex)),
+        ["-s", "read-only", "-a", "on-request"]
+    );
+    assert_eq!(
+        words(&flags("template-full-access", AgentId::Codex)),
+        ["--dangerously-bypass-approvals-and-sandbox"]
+    );
+    // Accept edits was not written for Codex: nothing is passed, and the start is refused.
+    let codex_edits = flags("template-edits", AgentId::Codex);
+    assert!(words(&codex_edits).is_empty());
+    assert!(!codex_edits.not_applicable.is_empty());
+    fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn a_profile_saved_before_they_were_removed_is_still_read_at_its_current_version() {
+    let (store, dir) = store();
+    let (parent_id, child_id) = ("a".repeat(32), "b".repeat(32));
     let mut parent = body("parent");
     parent.model = Some("opus".to_owned());
     parent.hooks = Some(HooksMode::Off);
     parent.skills_off = vec!["a".to_owned()];
-    let parent_id = store.create(parent).unwrap();
+    saved(&dir, &parent_id, &[(1, &parent)], 1);
+    let mut first = body("child");
+    first.permission = Some(Permission::Bypass);
     let mut child = body("child");
     child.extends = Some(parent_id.clone());
     child.model = Some("sonnet".to_owned());
+    child.permission = Some(Permission::ReadOnly);
     child.skills_off = vec!["b".to_owned()];
-    let child_id = store.create(child).unwrap();
-    let (resolved, _) = store.resolve(&child_id).unwrap();
+    // The pointer decides, not the newest or the widest version on file.
+    saved(&dir, &child_id, &[(1, &first), (2, &child)], 2);
+    let (resolved, version) = store.resolve(&child_id).unwrap();
+    assert_eq!(version, 2);
     assert_eq!(resolved.body.model.as_deref(), Some("sonnet"));
+    assert_eq!(resolved.body.permission, Some(Permission::ReadOnly));
     assert_eq!(resolved.body.hooks, Some(HooksMode::Off));
     assert_eq!(resolved.body.skills_off, ["a", "b"]);
     assert_eq!(resolved.from["model"], "child");
     assert_eq!(resolved.from["hooks"], "parent");
-    // A parent another profile extends is not removed from under it.
-    assert_eq!(store.delete(&parent_id), Err(ProfileError::InUse));
     fs::remove_dir_all(dir).unwrap();
 }
 
 #[test]
-fn a_cycle_and_too_deep_a_chain_are_refused_on_save() {
+fn an_id_that_cannot_be_resolved_is_an_error_and_never_a_start_without_a_profile() {
     let (store, dir) = store();
-    let a = store.create(body("a")).unwrap();
-    let mut b = body("b");
-    b.extends = Some(a.clone());
-    let b = store.create(b).unwrap();
-    let mut a_again = body("a");
-    a_again.extends = Some(b);
-    assert_eq!(store.save(&a, a_again), Err(ProfileError::ProfileCycle));
-    let mut itself = body("a");
-    itself.extends = Some(a.clone());
-    assert_eq!(store.save(&a, itself), Err(ProfileError::ProfileCycle));
-    let mut missing = body("m");
-    missing.extends = Some("0".repeat(32));
-    assert_eq!(store.create(missing), Err(ProfileError::ExtendsUnknown));
-    // Depth: eight is the most.
-    let mut last = store.create(body("d0")).unwrap();
-    for n in 1..8 {
-        let mut next = body(&format!("d{n}"));
-        next.extends = Some(last);
-        last = store.create(next).unwrap();
+    assert_eq!(
+        store.resolve(&"0".repeat(32)).unwrap_err(),
+        ProfileError::Unknown
+    );
+    assert_eq!(
+        store.resolve("../registry").unwrap_err(),
+        ProfileError::Unknown
+    );
+    let (a, b) = ("a".repeat(32), "b".repeat(32));
+    // A file that names another id, or whose pointer names no version, is not a profile.
+    saved(&dir, &a, &[(1, &body("a"))], 7);
+    assert_eq!(store.resolve(&a).unwrap_err(), ProfileError::Unknown);
+    // A parent that is gone, a cycle, and a chain deeper than eight.
+    let mut orphan = body("orphan");
+    orphan.extends = Some("c".repeat(32));
+    saved(&dir, &a, &[(1, &orphan)], 1);
+    assert_eq!(store.resolve(&a).unwrap_err(), ProfileError::ExtendsUnknown);
+    let mut one = body("one");
+    one.extends = Some(b.clone());
+    let mut two = body("two");
+    two.extends = Some(a.clone());
+    saved(&dir, &a, &[(1, &one)], 1);
+    saved(&dir, &b, &[(1, &two)], 1);
+    assert_eq!(store.resolve(&a).unwrap_err(), ProfileError::ProfileCycle);
+    let ids: Vec<String> = (0..9).map(|n| format!("{n}").repeat(32)).collect();
+    for (n, id) in ids.iter().enumerate() {
+        let mut link = body(&format!("d{n}"));
+        link.extends = ids.get(n + 1).cloned();
+        saved(&dir, id, &[(1, &link)], 1);
     }
-    let mut ninth = body("d8");
-    ninth.extends = Some(last);
-    assert_eq!(store.create(ninth), Err(ProfileError::TooDeep));
+    assert_eq!(store.resolve(&ids[0]).unwrap_err(), ProfileError::TooDeep);
+    assert!(store.resolve(&ids[1]).is_ok());
     fs::remove_dir_all(dir).unwrap();
 }
 
 #[test]
-fn a_profile_holds_closed_words_and_no_secret() {
-    let (store, dir) = store();
-    let mut bad = body("p");
-    bad.model = Some("--dangerously-skip-permissions".to_owned());
-    assert_eq!(store.create(bad), Err(ProfileError::ModelInvalid));
-    let mut bad = body("p");
-    bad.model = Some("a b; rm".to_owned());
-    assert_eq!(store.create(bad), Err(ProfileError::ModelInvalid));
-    let mut bad = body("p");
-    bad.skills_off = vec!["../x".to_owned()];
-    assert_eq!(store.create(bad), Err(ProfileError::SkillInvalid));
-    let mut bad = body("p");
-    bad.notes = concat!(
-        "use sk-ant-",
-        "api03-abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
-    )
-    .to_owned();
-    assert_eq!(store.create(bad), Err(ProfileError::NotesHoldSecret));
-    let mut bad = body("");
-    bad.applies_to = vec![];
-    assert_eq!(store.create(bad), Err(ProfileError::NameInvalid));
-    let mut bad = body("p");
-    bad.applies_to = vec![];
-    assert_eq!(store.create(bad), Err(ProfileError::AppliesToInvalid));
+fn a_body_holds_closed_words_only() {
     // A word the schema does not have is not a field.
     let parsed: Result<Body, _> =
         serde_json::from_str(r#"{"name":"p","applies_to":["codex"],"command":"rm -rf /"}"#);
@@ -153,96 +204,11 @@ fn a_profile_holds_closed_words_and_no_secret() {
         r#"{"name":"p","applies_to":["codex"],"permission":"bypass_permissions"}"#,
     );
     assert!(parsed.is_err(), "the dangerous mode is not a word");
-    fs::remove_dir_all(dir).unwrap();
-}
-
-#[test]
-fn export_and_import_carry_one_profile_grant_nothing_and_never_overwrite() {
-    let (store, dir) = store();
-    let parent = store.create(body("parent")).unwrap();
-    let mut b = body("Shared");
-    b.model = Some("sonnet".to_owned());
-    b.extends = Some(parent);
-    let id = store.create(b).unwrap();
-    let bytes = store.export(&id).unwrap();
-    assert!(
-        !String::from_utf8_lossy(&bytes).contains("parent"),
-        "a local id means nothing elsewhere"
-    );
-    let first = store.import(&bytes).unwrap();
-    let second = store.import(&bytes).unwrap();
-    let names: Vec<String> = store.list().into_iter().map(|s| s.body.name).collect();
-    assert!(names.contains(&"Shared".to_owned()));
-    assert!(names.contains(&"Shared (2)".to_owned()));
-    assert!(names.contains(&"Shared (3)".to_owned()));
-    assert!(first != id && second != first);
-    let imported = store.list().into_iter().find(|s| s.id == first).unwrap();
-    assert_eq!(imported.body.extends, None);
-    // Not a profile file, a file with something extra, one too large, a wrong version.
-    for text in [
-        "not json".to_owned(),
-        r#"{"format":"wyss-session-profile","schema":1,"body":{"name":"x","applies_to":["codex"]},"run":"x"}"#.to_owned(),
-        r#"{"format":"other","schema":1,"body":{"name":"x","applies_to":["codex"]}}"#.to_owned(),
-        r#"{"format":"wyss-session-profile","schema":2,"body":{"name":"x","applies_to":["codex"]}}"#.to_owned(),
-        " ".repeat(20_000),
-    ] {
-        assert_eq!(store.import(text.as_bytes()), Err(ProfileError::ImportInvalid), "{text:.40}");
-    }
-    fs::remove_dir_all(dir).unwrap();
-}
-
-#[test]
-fn an_effort_is_a_short_word_that_cannot_end_a_string_or_start_a_flag() {
-    let (store, dir) = store();
-    for good in [
-        "low",
-        "medium",
-        "xhigh",
-        "max",
-        "x-high",
-        "e.1_a",
-        &"e".repeat(32),
-    ] {
-        let mut b = body("p");
-        b.effort = Some(good.to_owned());
-        assert!(store.create(b).is_ok(), "{good}");
-    }
-    for bad in [
-        "",
-        "-low",
-        "high\"",
-        "high\"; rm",
-        "hi gh",
-        "hi\nh",
-        "a=b",
-        "é",
-        &"e".repeat(33),
-    ] {
-        let mut b = body("p");
-        b.effort = Some(bad.to_owned());
-        assert_eq!(store.create(b), Err(ProfileError::EffortInvalid), "{bad:?}");
-    }
-    fs::remove_dir_all(dir).unwrap();
-}
-
-#[test]
-fn a_profile_without_an_effort_keeps_the_bytes_and_so_the_hash_it_always_had() {
-    use super::profiles::hash;
+    // A body saved before efforts existed, without the key, reads back as the same body.
     let plain = body("p");
     let text = serde_json::to_string(&plain).unwrap();
     assert!(!text.contains("effort"), "{text}");
-    // An older stored body, without the key, reads back as the same body and hash.
-    let older: Body = serde_json::from_str(&text).unwrap();
-    assert_eq!(older, plain);
-    assert_eq!(hash(&older), hash(&plain));
-    let mut with = body("p");
-    with.effort = Some("high".into());
-    assert_ne!(hash(&with), hash(&plain));
-    assert!(
-        serde_json::to_string(&with)
-            .unwrap()
-            .contains("\"effort\":\"high\"")
-    );
+    assert_eq!(serde_json::from_str::<Body>(&text).unwrap(), plain);
 }
 
 fn resolved(effort: Option<&str>, model: Option<&str>) -> super::profile::Resolved {
@@ -365,28 +331,10 @@ fn an_effort_is_inherited_like_a_model_and_the_nearer_profile_wins() {
 }
 
 #[test]
-fn only_a_body_that_carries_an_effort_needs_the_newer_host() {
-    use super::commands::needed_feature;
-    // Everything that existed before efforts goes to an older host, kept across an upgrade.
-    assert_eq!(needed_feature(&body("p")), None);
-    let mut with_model = body("p");
-    with_model.model = Some("sonnet".into());
-    assert_eq!(needed_feature(&with_model), None);
-    let mut with_effort = body("p");
-    with_effort.effort = Some("high".into());
-    assert_eq!(needed_feature(&with_effort), Some("profile_effort"));
-    // …and what it would send an older host for a body without an effort has no new key.
-    let sent = serde_json::to_value(&with_model).unwrap();
-    assert!(sent.get("effort").is_none(), "{sent}");
-}
-
-#[test]
-fn full_access_is_one_explicit_word_with_its_cost_said_and_needs_the_newer_host() {
-    use super::commands::needed_feature;
+fn full_access_is_one_explicit_word_with_its_cost_said() {
     use super::profile::{BYPASS_COST, Resolved, plan};
     let mut full = body("Full");
     full.permission = Some(Permission::Bypass);
-    full.validate().unwrap();
     let resolved = Resolved {
         body: full.clone(),
         from: Default::default(),
@@ -417,10 +365,6 @@ fn full_access_is_one_explicit_word_with_its_cost_said_and_needs_the_newer_host(
             assert!(!w.contains("dangerously"), "{other:?} {agent:?}: {w}");
         }
     }
-    // An older host cannot keep the word: it is refused before it is sent.
-    assert_eq!(needed_feature(&full), Some("native_permission_bypass_v1"));
-    full.effort = Some("high".into());
-    assert_eq!(needed_feature(&full), Some("native_permission_bypass_v1"));
     assert_eq!(
         serde_json::to_value(Permission::Bypass).unwrap(),
         serde_json::json!("bypass")
@@ -428,21 +372,15 @@ fn full_access_is_one_explicit_word_with_its_cost_said_and_needs_the_newer_host(
 }
 
 #[test]
-fn the_full_access_template_ships_read_only_for_both_agents() {
-    let (store, dir) = store();
-    let template = store
-        .list()
+fn the_full_access_template_is_for_both_agents() {
+    let (_, template) = templates()
         .into_iter()
-        .find(|s| s.template && s.body.name == "Full access (bypass)")
+        .find(|(id, _)| *id == "template-full-access")
         .expect("template");
-    assert_eq!(template.body.permission, Some(Permission::Bypass));
+    assert_eq!(template.name, "Full access (bypass)");
+    assert_eq!(template.permission, Some(Permission::Bypass));
     assert_eq!(
-        template.body.applies_to,
+        template.applies_to,
         vec![AgentId::ClaudeCode, AgentId::Codex]
     );
-    assert_eq!(
-        store.save(&template.id, body("x")),
-        Err(ProfileError::ReadOnlyTemplate)
-    );
-    fs::remove_dir_all(dir).ok();
 }

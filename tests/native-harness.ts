@@ -2,12 +2,10 @@ import { vi } from 'vitest';
 import type { NativeClient } from '../src/lib/features/native/controller';
 import {
   parseLauncher,
-  parseProfiles,
   parseSession,
   parseStartReply,
   type Launcher,
   type NativeSession,
-  type Profile,
   type StartReply,
 } from '../src/lib/contracts/native';
 
@@ -39,6 +37,7 @@ export function launcher(over: Record<string, unknown> = {}): Launcher {
         path: '/home/u',
         home: true,
         default_agent: null,
+        // A host from before profiles were removed still answers this; it is not read.
         default_profile: null,
         last_used: 0,
       },
@@ -121,63 +120,12 @@ export function reply(over: Record<string, unknown> = {}): StartReply {
   });
 }
 
-const body = (name: string, over: Record<string, unknown> = {}) => ({
-  name,
-  applies_to: ['claude_code', 'codex'],
-  extends: null,
-  model: null,
-  permission: null,
-  hooks: null,
-  skills_off: [],
-  notes: '',
-  ...over,
-});
-
-export function profiles(): Profile[] {
-  return parseProfiles([
-    {
-      id: 'template-review',
-      template: true,
-      current: 0,
-      versions: [],
-      body: body('Review, read only', { permission: 'read_only' }),
-      from: {},
-      refers_to_missing: false,
-    },
-    {
-      id: 'template-exploration',
-      template: true,
-      current: 0,
-      versions: [],
-      body: body('Exploration, fewer hooks', {
-        applies_to: ['claude_code'],
-        hooks: 'off',
-      }),
-      from: {},
-      refers_to_missing: false,
-    },
-    {
-      id: 'b'.repeat(32),
-      template: false,
-      current: 2,
-      versions: [
-        { n: 1, saved_at: 1_700_000_000, hash: 'aa', name: 'Mine' },
-        { n: 2, saved_at: 1_700_000_100, hash: 'bb', name: 'Mine' },
-      ],
-      body: body('Mine', { model: 'sonnet' }),
-      from: {},
-      refers_to_missing: false,
-    },
-  ]);
-}
-
 /** A client over canned answers; every call is a spy the test can read. */
 export function fakeClient(over: Partial<NativeClient> = {}) {
   const client: NativeClient = {
     launcher: vi.fn(async () => launcher()),
     readiness: vi.fn(async () => ({ m9_native_status: 'ready' as const })),
     sessions: vi.fn(async () => [] as NativeSession[]),
-    profiles: vi.fn(async () => profiles()),
     preview: vi.fn(async () => ({
       applied: [],
       with_cost: [],
@@ -202,14 +150,6 @@ export function fakeClient(over: Partial<NativeClient> = {}) {
     stop: vi.fn(async () => undefined),
     forget: vi.fn(async () => undefined),
     chooseProject: vi.fn(async () => null),
-    setDefault: vi.fn(async () => undefined),
-    createProfile: vi.fn(async () => 'd'.repeat(32)),
-    saveProfile: vi.fn(async () => undefined),
-    deleteProfile: vi.fn(async () => undefined),
-    duplicateProfile: vi.fn(async () => 'e'.repeat(32)),
-    restoreProfile: vi.fn(async () => undefined),
-    exportProfile: vi.fn(async () => true),
-    importProfile: vi.fn(async () => null),
     ...over,
   };
   return client;

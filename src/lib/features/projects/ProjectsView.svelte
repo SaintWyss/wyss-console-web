@@ -1,5 +1,4 @@
 <script lang="ts">
-  import type { Profile } from '../../contracts/native';
   import type {
     AdoptionPreview,
     ProjectView,
@@ -20,14 +19,12 @@
     controller,
     client,
     visible,
-    nativeProfiles = [],
     standalone = false,
   }: {
     projects: ProjectsState;
     controller: ProjectsController;
     client: ProjectsClient;
     visible: boolean;
-    nativeProfiles?: Profile[];
     /** A window of its own, opened from the application. */
     standalone?: boolean;
   } = $props();
@@ -35,11 +32,9 @@
   const store = $derived(projects.overview?.store);
   const enabled = $derived(projects.overview?.enabled ?? false);
   const host = $derived(projects.overview?.host);
-  const profiles = $derived<NativeProfileOption[]>(
-    nativeProfiles
-      .filter((p) => !p.template)
-      .map((p) => ({ id: p.id, name: p.body.name, version: p.current })),
-  );
+  // Session profiles were removed: a Native launch from a project starts as configured, and
+  // the launch panel draws no choice for an empty list.
+  const profiles: NativeProfileOption[] = [];
   // A Managed owner answering is not known from here; the launch says so if it does not.
   const managedAvailable = true;
   const scratch = $derived(projects.project === null);

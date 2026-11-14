@@ -8,7 +8,6 @@ use super::{
     arsenal::ArsenalLaunch,
     capabilities::{self, Evidence, Status},
     catalogue::{self, AgentId},
-    profile::Body,
     service::StartRequest,
 };
 use crate::arsenal::{Arsenal, commands::TerminalRequest};
@@ -29,15 +28,33 @@ fn well_formed(id: &str) -> Result<&str, HostError> {
     .ok_or_else(|| HostError::new("request_invalid"))
 }
 
-/// A profile id: 32 hex digits, or a template's own word.
-fn profile_id(id: &str) -> Result<&str, HostError> {
-    if id.starts_with("template-")
+/// What the window names to start with a permission: one of the fixed templates, by its own
+/// word. A profile saved before profiles were removed is never named by the window; a session
+/// registered with one restarts with it through the host, which holds the id.
+fn template_id(id: &str) -> Result<&str, HostError> {
+    (id.starts_with("template-")
         && id.len() <= 40
-        && id.bytes().all(|b| b.is_ascii_lowercase() || b == b'-')
-    {
-        return Ok(id);
+        && id.bytes().all(|b| b.is_ascii_lowercase() || b == b'-'))
+    .then_some(id)
+    .ok_or_else(|| HostError::new("request_invalid"))
+}
+
+/// The host feature a template needs beyond protocol 1. A host kept running across an upgrade
+/// does not hold a template added since: the start is refused as outdated here, instead of
+/// the host answering that the profile is unknown.
+pub(crate) fn template_feature(id: &str) -> Option<&'static str> {
+    match id {
+        "template-full-access" => Some("native_permission_bypass_v1"),
+        "template-edits" => Some("native_template_edits_v1"),
+        _ => None,
     }
-    well_formed(id)
+}
+
+fn host_has_template(link: &HostLink, profile_id: Option<&str>) -> Result<(), HostError> {
+    match profile_id.and_then(template_feature) {
+        Some(feature) if !link.has_feature(feature) => Err(HostError::new("host_outdated")),
+        _ => Ok(()),
+    }
 }
 
 async fn blocking<T: Send + 'static>(
@@ -172,11 +189,11 @@ fn push_string(value: &mut Value, field: &str, text: String) {
 fn preview_capability_message(evidence: Evidence, version: Option<&str>) -> String {
     match evidence.status {
         Status::SyntaxVerified => format!(
-            "Profile override syntax is verified for {}. This does not prove provider-resolved or effective use.",
+            "Permission flag syntax is verified for {}. This does not prove provider-resolved or effective use.",
             version.unwrap_or("the reported build")
         ),
         Status::Unverified => format!(
-            "Profile overrides are not verified for {}. Choose As configured to launch the Native CLI without overrides.",
+            "Permission flags are not verified for {}. Choose As configured to launch the Native CLI without them.",
             version.unwrap_or("an unknown provider version")
         ),
     }
@@ -357,7 +374,7 @@ fn annotate_preview(
         push_string(
             &mut preview,
             "warnings",
-            "The Native host cannot bind profile preview to start. Update the host before using profiles.".to_owned(),
+            "The Native host cannot bind this preview to the start. Update the host before choosing permissions.".to_owned(),
         );
         return Ok(preview);
     }
@@ -390,7 +407,7 @@ fn annotate_preview(
         push_string(
             &mut preview,
             "not_applicable",
-            "Profile overrides are refused for an unverified provider build.".to_owned(),
+            "Permission flags are refused for an unverified provider build.".to_owned(),
         );
     }
     Ok(preview)
@@ -430,6 +447,7 @@ fn preview_with_link(
     request: PreviewRequest,
     launch: Option<ArsenalLaunch>,
 ) -> Answer {
+    host_has_template(link, request.profile_id.as_deref())?;
     let mut params = json!({"agent_id": request.agent_id, "profile_id": request.profile_id});
     if let Some(launch) = &launch {
         if !link.has_feature("native_arsenal_v1")
@@ -459,7 +477,7 @@ pub async fn native_preview(
     request: PreviewRequest,
 ) -> Answer {
     if let Some(id) = request.profile_id.as_deref() {
-        profile_id(id)?;
+        template_id(id)?;
     }
     let launch = match &request.arsenal {
         None => None,
@@ -511,6 +529,7 @@ fn start_with_link(link: &HostLink, request: StartRequest) -> Answer {
     } else {
         request.expected_cli_version.clone()
     };
+    host_has_template(link, request.profile_id.as_deref())?;
     check_start_capability(
         link,
         request.agent_id,
@@ -556,7 +575,7 @@ pub async fn native_start(
     request: WindowStart,
 ) -> Answer {
     if let Some(id) = request.profile_id.as_deref() {
-        profile_id(id)?;
+        template_id(id)?;
     }
     let launch = match &request.arsenal {
         None => None,
@@ -838,179 +857,9 @@ pub async fn native_choose_project(
     .await
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct DefaultRequest {
-    project: String,
-    profile_id: Option<String>,
-}
-
-#[tauri::command]
-pub async fn native_project_default(link: State<'_, HostLink>, request: DefaultRequest) -> Answer {
-    if let Some(id) = request.profile_id.as_deref() {
-        profile_id(id)?;
-    }
-    let link = link.inner().clone();
-    blocking(move || {
-        link.call(
-            "native_project_default",
-            json!({"project": request.project, "profile_id": request.profile_id}),
-        )
-    })
-    .await
-}
-
-// ---- profiles -------------------------------------------------------------------------------
-
-#[tauri::command]
-pub async fn native_profiles(link: State<'_, HostLink>) -> Answer {
-    let link = link.inner().clone();
-    blocking(move || call_extended_or_legacy(&link, "profiles_extended", "profiles", Value::Null))
-        .await
-}
-
-/// What a profile body needs of the host beyond protocol 1: nothing for a body that existed
-/// before efforts did, so that an older host kept running across an upgrade still takes it.
-/// The newest host feature the body needs; a host that has it has every older one.
-pub(crate) fn needed_feature(body: &Body) -> Option<&'static str> {
-    if body.permission == Some(super::profile::Permission::Bypass) {
-        return Some("native_permission_bypass_v1");
-    }
-    body.effort.is_some().then_some("profile_effort")
-}
-
-/// Says so plainly when the host that is running cannot keep what the body carries, instead of
-/// letting it answer with a request it does not understand.
-fn host_can_keep(link: &HostLink, body: &Body) -> Result<(), HostError> {
-    if body.applies_to.iter().any(|agent| !agent.is_legacy())
-        && !link.has_feature("native_extended_catalogue_v1")
-    {
-        return Err(HostError::new("host_outdated"));
-    }
-    match needed_feature(body) {
-        Some(feature) if !link.has_feature(feature) => Err(HostError::new("host_outdated")),
-        _ => Ok(()),
-    }
-}
-
-#[tauri::command]
-pub async fn native_profile_create(link: State<'_, HostLink>, body: Body) -> Answer {
-    let link = link.inner().clone();
-    blocking(move || {
-        host_can_keep(&link, &body)?;
-        link.call(
-            "profile_create",
-            serde_json::to_value(body).map_err(|_| HostError::new("internal"))?,
-        )
-    })
-    .await
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct SaveRequest {
-    id: String,
-    body: Body,
-}
-
-#[tauri::command]
-pub async fn native_profile_save(link: State<'_, HostLink>, request: SaveRequest) -> Answer {
-    profile_id(&request.id)?;
-    let link = link.inner().clone();
-    blocking(move || {
-        host_can_keep(&link, &request.body)?;
-        link.call(
-            "profile_save",
-            json!({"id": request.id, "body": request.body}),
-        )
-    })
-    .await
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct ProfileRequest {
-    id: String,
-}
-
-#[tauri::command]
-pub async fn native_profile_delete(link: State<'_, HostLink>, request: ProfileRequest) -> Answer {
-    profile_id(&request.id)?;
-    let link = link.inner().clone();
-    blocking(move || link.call("profile_delete", json!({"id": request.id}))).await
-}
-
-#[tauri::command]
-pub async fn native_profile_duplicate(
-    link: State<'_, HostLink>,
-    request: ProfileRequest,
-) -> Answer {
-    profile_id(&request.id)?;
-    let link = link.inner().clone();
-    blocking(move || link.call("profile_duplicate", json!({"id": request.id}))).await
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct RestoreRequest {
-    id: String,
-    version: u32,
-}
-
-#[tauri::command]
-pub async fn native_profile_restore(link: State<'_, HostLink>, request: RestoreRequest) -> Answer {
-    profile_id(&request.id)?;
-    let link = link.inner().clone();
-    blocking(move || {
-        link.call(
-            "profile_restore",
-            json!({"id": request.id, "version": request.version}),
-        )
-    })
-    .await
-}
-
 #[derive(Debug, Serialize)]
 pub struct Done {
     done: bool,
-}
-
-#[tauri::command]
-pub async fn native_profile_export(
-    app: AppHandle,
-    link: State<'_, HostLink>,
-    request: ProfileRequest,
-) -> Result<Done, HostError> {
-    profile_id(&request.id)?;
-    let link = link.inner().clone();
-    blocking(move || {
-        let exported = link.call("profile_export", json!({"id": request.id}))?;
-        let text = exported["text"].as_str().unwrap_or_default().to_owned();
-        let Some(path) = choose_file_titled(&app, true, "wyss-profile.json", "Export profile")
-        else {
-            return Ok(Done { done: false });
-        };
-        crate::configuration::write_private_file(&path, text.as_bytes())
-            .map_err(|()| HostError::new("export_failed"))?;
-        Ok(Done { done: true })
-    })
-    .await
-}
-
-#[tauri::command]
-pub async fn native_profile_import(app: AppHandle, link: State<'_, HostLink>) -> Answer {
-    let link = link.inner().clone();
-    blocking(move || {
-        let Some(path) = choose_file_titled(&app, false, "", "Import profile") else {
-            return Ok(Value::Null);
-        };
-        let bytes = crate::configuration::read_small_file(&path)
-            .map_err(|()| HostError::new("profile_import_invalid"))?;
-        let text =
-            String::from_utf8(bytes).map_err(|_| HostError::new("profile_import_invalid"))?;
-        link.call("profile_import", json!({"text": text}))
-    })
-    .await
 }
 
 /// The brief for handing a session's work to another agent, to be reviewed. Starts nothing.
@@ -1057,15 +906,6 @@ const COMMANDS: &[&str] = &[
     "native_restart",
     "native_forget",
     "native_choose_project",
-    "native_project_default",
-    "native_profiles",
-    "native_profile_create",
-    "native_profile_save",
-    "native_profile_delete",
-    "native_profile_duplicate",
-    "native_profile_restore",
-    "native_profile_export",
-    "native_profile_import",
     "native_handoff_prepare",
     "native_handoff_save",
     "native_delegations",
@@ -1087,15 +927,6 @@ pub fn extension() -> wyss_console::Extension {
             native_restart,
             native_forget,
             native_choose_project,
-            native_project_default,
-            native_profiles,
-            native_profile_create,
-            native_profile_save,
-            native_profile_delete,
-            native_profile_duplicate,
-            native_profile_restore,
-            native_profile_export,
-            native_profile_import,
             native_handoff_prepare,
             native_handoff_save
         ]),
@@ -1108,16 +939,16 @@ pub fn extension() -> wyss_console::Extension {
 #[cfg(test)]
 mod capability_tests {
     use super::{
-        PreviewRequest, annotate_launcher, effectful_preview, host_can_keep, launcher_view,
-        preview_with_link, profile_requires_effort_from_list, readiness_with_link,
-        sessions_with_link, start_with_link,
+        PreviewRequest, annotate_launcher, effectful_preview, launcher_view, preview_with_link,
+        profile_requires_effort_from_list, readiness_with_link, sessions_with_link,
+        start_with_link,
     };
     use crate::{
         host::{
             client::HostLink,
             protocol::{Answer as WireAnswer, HostError, Request, read_frame, write_frame},
         },
-        native::{catalogue::AgentId, profile::Body, service::StartRequest},
+        native::{catalogue::AgentId, service::StartRequest},
     };
     use serde_json::Value;
     use serde_json::json;
@@ -1538,18 +1369,9 @@ mod capability_tests {
     }
 
     #[test]
-    fn a_legacy_host_cannot_admit_m9_providers_or_profiles_by_direct_ipc() {
+    fn a_legacy_host_cannot_admit_m9_providers_by_direct_ipc() {
         let host = LegacyHost::new(false);
         let link = host.link();
-        let body = Body {
-            name: "OpenCode profile".to_owned(),
-            applies_to: vec![AgentId::Opencode],
-            ..Body::default()
-        };
-        assert_eq!(
-            host_can_keep(&link, &body).unwrap_err().code,
-            "host_outdated"
-        );
 
         let error = start_with_link(
             &link,
@@ -1682,5 +1504,64 @@ mod capability_tests {
         let error = start_with_link(&link, start_request()).unwrap_err();
         assert_eq!(error.code, "host_outdated");
         assert!(!host.requests().iter().any(|(op, _)| op == "native_start"));
+    }
+
+    #[test]
+    fn the_window_names_only_a_template_and_never_a_saved_profile() {
+        for id in [
+            "template-as-configured",
+            "template-strict",
+            "template-review",
+            "template-edits",
+            "template-full-access",
+        ] {
+            assert_eq!(super::template_id(id), Ok(id));
+        }
+        for id in [PROFILE_ID, "template-Edits", "template-a b", "", "edits"] {
+            assert_eq!(
+                super::template_id(id).unwrap_err().code,
+                "request_invalid",
+                "{id}"
+            );
+        }
+        // …the longest word a template may be.
+        assert!(super::template_id(&format!("template-{}", "a".repeat(32))).is_err());
+    }
+
+    #[test]
+    fn a_host_kept_from_before_a_template_existed_is_told_apart_from_an_unknown_profile() {
+        let host = LegacyHost::new(false);
+        let link = host.link();
+        for id in ["template-edits", "template-full-access"] {
+            let error = preview_with_link(
+                &link,
+                PreviewRequest {
+                    agent_id: AgentId::ClaudeCode,
+                    profile_id: Some(id.into()),
+                    arsenal: None,
+                },
+                None,
+            )
+            .unwrap_err();
+            assert_eq!(error.code, "host_outdated", "{id}");
+            let mut request = start_request();
+            request.profile_id = Some(id.into());
+            assert_eq!(
+                start_with_link(&link, request).unwrap_err().code,
+                "host_outdated",
+                "{id}"
+            );
+        }
+        // Nothing reached the host: it would have answered that the profile is unknown.
+        assert!(
+            !host
+                .requests()
+                .iter()
+                .any(|(op, _)| op == "native_preview" || op == "native_start")
+        );
+        assert_eq!(super::template_feature("template-strict"), None);
+        assert_eq!(super::template_feature("template-review"), None);
+        assert_eq!(super::template_feature("template-as-configured"), None);
+        assert_eq!(super::template_feature(PROFILE_ID), None);
     }
 }

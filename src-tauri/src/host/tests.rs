@@ -283,7 +283,8 @@ fn it_says_what_it_is_and_refuses_what_it_does_not_know() {
             "native_arsenal_v1",
             "native_arsenal_codex_v1",
             "agent_delegation_v1",
-            "native_permission_bypass_v1"
+            "native_permission_bypass_v1",
+            "native_template_edits_v1"
         ])
     );
     assert_eq!(
@@ -341,26 +342,6 @@ fn extended_native_views_do_not_break_the_m6_closed_protocol_projection() {
         .collect();
     assert!(extended_ids.contains(&"opencode"));
     assert!(extended_ids.contains(&"hermes"));
-
-    let body = json!({
-        "name": "OpenCode project profile",
-        "applies_to": ["opencode"],
-        "model": "openai/gpt-test"
-    });
-    let created = client.call("profile_create", body).unwrap();
-    let profile_id = created["id"].as_str().unwrap();
-    let legacy_profiles = client.call("profiles", Value::Null).unwrap();
-    assert!(legacy_profiles.as_array().unwrap().iter().all(|profile| {
-        !profile["body"]["applies_to"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|agent| agent == "opencode" || agent == "hermes")
-    }));
-    let extended_profiles = client.call("profiles_extended", Value::Null).unwrap();
-    assert!(extended_profiles.as_array().unwrap().iter().any(|profile| {
-        profile["id"] == profile_id && profile["body"]["applies_to"] == json!(["opencode"])
-    }));
 
     let legacy_sessions = client
         .call("native_sessions", json!({"sample": false}))
@@ -429,30 +410,52 @@ fn a_host_with_nothing_to_hold_exits_by_itself_and_one_that_holds_a_terminal_doe
 }
 
 #[test]
-fn profiles_travel_as_text_through_the_host() {
+fn the_host_has_no_operation_that_lists_or_changes_a_profile() {
     let host = Host::start(Duration::from_secs(600));
     let client = host.client();
-    let created = client
-        .call(
+    for (op, params) in [
+        ("profiles", Value::Null),
+        ("profiles_extended", Value::Null),
+        (
             "profile_create",
-            json!({"name": "Shared", "applies_to": ["codex"], "extends": null, "model": null,
-                   "permission": null, "hooks": null, "skills_off": [], "notes": ""}),
-        )
-        .unwrap();
-    let id = created["id"].as_str().unwrap();
-    let exported = client.call("profile_export", json!({"id": id})).unwrap();
-    let again = client
-        .call("profile_import", json!({"text": exported["text"]}))
-        .unwrap();
-    assert_ne!(again["id"], created["id"]);
-    let all = client.call("profiles", Value::Null).unwrap();
-    assert!(
-        all.as_array()
-            .unwrap()
-            .iter()
-            .any(|p| p["body"]["name"] == "Shared (2)")
-    );
-    let _ = Path::new("/");
+            json!({"name": "Shared", "applies_to": ["codex"]}),
+        ),
+        ("profile_save", json!({"id": "a".repeat(32), "body": {}})),
+        ("profile_delete", json!({"id": "a".repeat(32)})),
+        ("profile_duplicate", json!({"id": "template-review"})),
+        (
+            "profile_restore",
+            json!({"id": "a".repeat(32), "version": 1}),
+        ),
+        ("profile_export", json!({"id": "template-review"})),
+        ("profile_import", json!({"text": "{}"})),
+        (
+            "native_project_default",
+            json!({"project": "/", "profile_id": "template-full-access"}),
+        ),
+    ] {
+        assert_eq!(
+            client.call(op, params).unwrap_err().code,
+            "unknown_op",
+            "{op}"
+        );
+    }
+    // The templates a permission is sent as are still resolved for a preview.
+    for id in [
+        "template-strict",
+        "template-review",
+        "template-edits",
+        "template-full-access",
+    ] {
+        let preview = client
+            .call(
+                "native_preview",
+                json!({"agent_id": "claude_code", "profile_id": id}),
+            )
+            .unwrap();
+        assert_eq!(preview["can_start"], true, "{id}");
+        assert!(preview["plan_token"].is_string(), "{id}");
+    }
 }
 
 #[test]

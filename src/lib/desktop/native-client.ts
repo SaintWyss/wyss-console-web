@@ -4,7 +4,6 @@ import {
   parseLauncher,
   parseReadiness,
   parsePreview,
-  parseProfiles,
   parseSessions,
   parseStartReply,
   type AgentId,
@@ -13,8 +12,6 @@ import {
   type NativeFailure,
   type NativeSession,
   type Preview,
-  type Profile,
-  type ProfileBody,
   type StartReply,
 } from '../contracts/native';
 import type { TerminalSize } from '../contracts/terminal';
@@ -57,7 +54,8 @@ export interface ArsenalStart {
   config_hash: string;
   project: string;
 }
-export async function previewProfile(
+/** What starting `agent_id` with this permission template (`profile_id`) would pass. */
+export async function previewStart(
   agent_id: AgentId,
   profile_id: string | null,
   arsenal: ArsenalStart | null = null,
@@ -130,54 +128,6 @@ export async function chooseProject(): Promise<string | null> {
     return path;
   });
 }
-export async function setProjectDefault(
-  project: string,
-  profile_id: string | null,
-): Promise<void> {
-  await call('native_project_default', { request: { project, profile_id } });
-}
-
-export async function readProfiles(): Promise<Profile[]> {
-  return checked(await call('native_profiles'), parseProfiles);
-}
-const created = (v: unknown): string => {
-  const id = (v as { id?: unknown }).id;
-  if (typeof id !== 'string') throw new Error('id');
-  return id;
-};
-export async function createProfile(body: ProfileBody): Promise<string> {
-  return checked(await call('native_profile_create', { body }), created);
-}
-export async function saveProfile(
-  id: string,
-  body: ProfileBody,
-): Promise<void> {
-  await call('native_profile_save', { request: { id, body } });
-}
-export async function deleteProfile(id: string): Promise<void> {
-  await call('native_profile_delete', { request: { id } });
-}
-export async function duplicateProfile(id: string): Promise<string> {
-  return checked(
-    await call('native_profile_duplicate', { request: { id } }),
-    created,
-  );
-}
-export async function restoreProfile(
-  id: string,
-  version: number,
-): Promise<void> {
-  await call('native_profile_restore', { request: { id, version } });
-}
-export async function exportProfile(id: string): Promise<boolean> {
-  const answer = await call('native_profile_export', { request: { id } });
-  return (answer as { done?: unknown }).done === true;
-}
-export async function importProfile(): Promise<string | null> {
-  const answer = await call('native_profile_import');
-  return answer === null ? null : checked(answer, created);
-}
-
 export interface HandoffBrief {
   text: string;
   agent_id: AgentId;

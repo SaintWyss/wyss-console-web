@@ -31,7 +31,7 @@ beforeEach(() => {
         directory: r.directory,
         kind: 'session',
         agent: r.agent,
-        profile: r.profile,
+        permission: r.permission,
         before: [],
         preset: r.preset,
       };
@@ -54,7 +54,7 @@ const session = (id: string, preset: string | null): Launch => ({
   directory: '/home/me/UTN',
   kind: 'session',
   agent: 'claude_code',
-  profile: null,
+  permission: null,
   before: [],
   preset,
 });
@@ -146,7 +146,6 @@ async function show(
     target: document.body,
     props: {
       visible: true,
-      profiles: [],
       ...extra,
       recent: [{ path: '/home/me/UTN', last_used: 2 }],
       choose: async () => null,
@@ -359,7 +358,6 @@ it('saves the draft as it was when Save was pressed, with the fields disabled me
     target: document.body,
     props: {
       visible: true,
-      profiles: [],
       recent: [],
       choose: async () => null,
       onopen: vi.fn(),
@@ -565,12 +563,12 @@ it('hovering each field and each group says what it is', async () => {
       (f) => f.querySelector('span')?.textContent === label,
     )!;
   expect(field('Mode').title).toContain('Managed');
-  expect(field('Profile').title).toContain('without asking');
+  expect(field('Permissions').title).toContain('without asking');
   expect(field('Role').title).toContain('does not change what the agent does');
   expect(field('Folder').title).toContain('Where the agent works');
   expect(
-    field('Profile').querySelector<HTMLSelectElement>('select')!.title,
-  ).toContain('Default');
+    field('Permissions').querySelector<HTMLSelectElement>('select')!.title,
+  ).toContain('As configured');
   const toggles = [
     ...document.querySelectorAll<HTMLButtonElement>('.le-gtoggle'),
   ];
@@ -579,54 +577,87 @@ it('hovering each field and each group says what it is', async () => {
   expect(document.querySelector('.dv-info')).toBeNull();
 });
 
-it('a profile is listed by its name, with its model only when it sets one, and Profiles is one click away', async () => {
-  const profile = (name: string, model: string | null) => ({
-    id: name,
-    template: false,
-    current: 1,
-    versions: [],
-    from: {},
-    refers_to_missing: false,
-    body: {
-      name,
-      applies_to: ['claude_code'],
-      extends: null,
-      model,
-      effort: null,
-      permission: 'bypass',
-      hooks: null,
-      skills_off: [],
-      notes: '',
-    },
-  });
-  const onprofiles = vi.fn();
-  await show(
-    [session('estudiar', 'Estudio')],
-    {},
-    {
-      profiles: [
-        profile('Full access (bypass)', null),
-        profile('Rápido', 'haiku'),
-      ],
-      onprofiles,
-    },
-  );
-  const options = [
-    ...document.querySelectorAll<HTMLOptionElement>('.le-field select option'),
-  ].map((o) => o.textContent?.trim());
-  expect(options).toContain('Full access (bypass)');
-  expect(options).toContain('Rápido · haiku');
-  expect(options.join(' ')).not.toContain('default model');
-  // The first entry opens Profiles and leaves the choice and the draft as they were.
-  const select = [
-    ...document.querySelectorAll<HTMLSelectElement>('.le-field select'),
-  ].find((x) => x.textContent?.includes('Edit profiles…'))!;
-  expect(select.options[0].textContent?.trim()).toBe('Edit profiles…');
-  const before = select.value;
-  select.value = select.options[0].value;
+const fieldSelect = (label: string) =>
+  [...document.querySelectorAll<HTMLElement>('.le-field')]
+    .find((f) => f.querySelector('span')?.textContent === label)!
+    .querySelector<HTMLSelectElement>('select')!;
+const optionsOf = (select: HTMLSelectElement) =>
+  [...select.options].map((o) => [o.value, o.textContent?.trim()]);
+function choose(select: HTMLSelectElement, value: string) {
+  select.value = value;
   select.dispatchEvent(new Event('change', { bubbles: true }));
   flushSync();
-  expect(onprofiles).toHaveBeenCalledOnce();
-  expect(select.value).toBe(before);
+}
+const savedRequest = () =>
+  (
+    ipc.filter((c) => c.command === 'launch_save').at(-1)!.args as {
+      request: Record<string, unknown>;
+    }
+  ).request;
+
+it('the permissions of a launch are chosen directly, and accept edits is offered only for Claude Code', async () => {
+  await show([session('estudiar', 'Estudio')]);
+  const permissions = fieldSelect('Permissions');
+  // No profile is listed, nor a way to edit one.
+  expect(optionsOf(permissions)).toEqual([
+    ['', 'As configured'],
+    ['ask', 'Ask before acting'],
+    ['read_only', 'Read only'],
+    ['edits', 'Accept edits'],
+    ['bypass', 'Full access'],
+  ]);
+  expect(document.body.textContent).not.toContain('Profile');
+  expect(permissions.value).toBe('');
+  choose(permissions, 'edits');
+  expect(permissions.title).toContain('Claude Code only');
+  // Codex has no such mode: the option goes, and so does the choice.
+  choose(fieldSelect('Distributor'), 'codex');
+  expect(optionsOf(fieldSelect('Permissions'))).toEqual([
+    ['', 'As configured'],
+    ['ask', 'Ask before acting'],
+    ['read_only', 'Read only'],
+    ['bypass', 'Full access'],
+  ]);
+  expect(fieldSelect('Permissions').value).toBe('');
+  // A permission both agents have follows the change of agent.
+  choose(fieldSelect('Permissions'), 'read_only');
+  choose(fieldSelect('Distributor'), 'claude_code');
+  expect(fieldSelect('Permissions').value).toBe('read_only');
+});
+
+it('saves the permission as its word, never a profile, and warns what full access costs', async () => {
+  await show([session('estudiar', 'Estudio')]);
+  expect(text('.notice[data-tone="warn"]')).not.toContain('Full access');
+  choose(fieldSelect('Permissions'), 'bypass');
+  expect(text('.notice[data-tone="warn"]')).toContain(
+    'Full access: the agent asks nothing',
+  );
+  button('Save').click();
+  await settle();
+  expect(savedRequest()).toMatchObject({
+    name: 'Estudiar',
+    agent: 'claude_code',
+    permission: 'bypass',
+  });
+  expect(savedRequest()).not.toHaveProperty('profile');
+});
+
+it('a launch set back to as configured is saved without a permission', async () => {
+  await show([
+    { ...session('estudiar', 'Estudio'), permission: 'bypass' } as Launch,
+  ]);
+  expect(text('.notice[data-tone="warn"]')).toContain('Full access');
+  choose(fieldSelect('Permissions'), '');
+  expect(text('.notice[data-tone="warn"]')).not.toContain('Full access');
+  button('Save').click();
+  await settle();
+  expect(savedRequest().permission).toBeNull();
+});
+
+it('opens a saved launch on the permission its file names', async () => {
+  await show([
+    { ...session('estudiar', 'Estudio'), permission: 'edits' } as Launch,
+  ]);
+  expect(fieldSelect('Permissions').value).toBe('edits');
   expect(button('Save').disabled).toBe(true);
 });

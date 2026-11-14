@@ -1,6 +1,6 @@
 import type { SessionGit } from '../../contracts/terminal';
-import type { Profile } from '../../contracts/native';
 import { msg, type Phrase } from '../../i18n/msg';
+import { tabStartedWith } from '../native/present';
 import type { NativeTag } from './session-manager';
 
 /** One part of the session bar: words, and the state tone they carry (never color alone). */
@@ -73,17 +73,14 @@ export function gitParts(
 }
 
 /** What runs in the session, as the right side of the bar says it. */
-export function agentPart(
-  native: NativeTag | undefined,
-  profiles: readonly Profile[],
-): { kind: Phrase; detail: string | null } {
+export function agentPart(native: NativeTag | undefined): {
+  kind: Phrase;
+  /** The permission it was started with; none when it started as configured. */
+  detail: Phrase | null;
+} {
   if (!native) return { kind: { text: msg('Terminal') }, detail: null };
-  const profile = native.profile
-    ? profiles.find((p) => p.body.name === native.profile)
-    : undefined;
-  const model = profile?.body.model ?? null;
   return {
     kind: { text: msg('Native · {agent}'), values: { agent: native.agent } },
-    detail: model ?? native.profile,
+    detail: tabStartedWith(native.profile),
   };
 }

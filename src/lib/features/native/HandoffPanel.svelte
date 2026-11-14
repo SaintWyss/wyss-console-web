@@ -1,8 +1,20 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { AgentId, NativeSession, Preview } from '../../contracts/native';
+  import {
+    permissionProfileId,
+    permissionsFor,
+    type AgentId,
+    type NativeSession,
+    type Permission,
+    type Preview,
+  } from '../../contracts/native';
   import type { NativeController, NativeState } from './controller';
-  import { AGENT_LABEL, profilesFor } from './present';
+  import {
+    AGENT_LABEL,
+    AS_CONFIGURED,
+    BYPASS_WARNING,
+    PERMISSION_LABEL,
+  } from './present';
   import { t } from '../../i18n/index.svelte';
 
   let {
@@ -29,13 +41,15 @@
   let target = $state<AgentId>(
     session.agent_id === 'claude_code' ? 'codex' : 'claude_code',
   );
-  let profile = $state<string | null>(null);
+  let permission = $state<Permission | null>(null);
+  // The fixed template the permission is sent as; none when the agent starts as configured.
+  const profile = $derived(permissionProfileId(permission));
   const agents = $derived(
     (native.launcher?.agents ?? []).filter(
       (a) => a.installed && a.agent_id !== 'hermes',
     ),
   );
-  const profiles = $derived(profilesFor(native.profiles, target));
+  const permissions = $derived(permissionsFor(target));
   const tooLong = $derived(text.length > 16 * 1024);
   const ready = $derived(
     !loading &&
@@ -46,7 +60,7 @@
       agents.some((a) => a.agent_id === target),
   );
   $effect(() => {
-    if (profile && !profiles.some((p) => p.id === profile)) profile = null;
+    if (permission && !permissions.includes(permission)) permission = null;
   });
   let previewSeq = 0;
   $effect(() => {
@@ -133,25 +147,28 @@
           {/each}
         </select>
         <select
-          id="handoff-profile"
-          aria-label={t('Profile')}
-          bind:value={profile}
+          id="handoff-permission"
+          aria-label={t('Permissions')}
+          bind:value={permission}
         >
-          <option value={null}>{t('No profile — as configured')}</option>
-          {#each profiles as p (p.id)}
-            <option value={p.id}>{p.body.name}</option>
+          <option value={null}>{t(AS_CONFIGURED)}</option>
+          {#each permissions as p (p)}
+            <option value={p}>{t(PERMISSION_LABEL[p])}</option>
           {/each}
         </select>
       </div>
     </div>
+    {#if permission === 'bypass'}
+      <p class="native-warning" role="status">{t(BYPASS_WARNING)}</p>
+    {/if}
     {#if profile && previewFailed}
       <p class="native-warning" role="status">
         {t(
-          'Could not verify this profile preview. Refresh Native before starting.',
+          'Could not check what this permission would pass. Refresh Native before starting.',
         )}
       </p>
     {:else if preview}
-      <ul class="native-preview" aria-label={t('What the profile does')}>
+      <ul class="native-preview" aria-label={t('What the permission passes')}>
         {#each preview.applied as line (line)}<li>{line}</li>{/each}
         {#each preview.with_cost as line (line)}<li class="cost">
             {line}

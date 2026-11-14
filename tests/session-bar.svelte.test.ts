@@ -7,7 +7,6 @@ import {
   type SessionGit,
 } from '../src/lib/contracts/terminal';
 import type { TerminalSession } from '../src/lib/features/terminal/session-manager';
-import type { Profile } from '../src/lib/contracts/native';
 
 let component: ReturnType<typeof mount> | undefined;
 afterEach(() => {
@@ -142,24 +141,41 @@ it('says all committed, N changes, N not pushed, no git, and only the folder whe
   ]);
 });
 
-it('names a plain terminal and a native agent with its model when its profile sets one', () => {
-  expect(agentPart(undefined, []).kind.text).toBe('Terminal');
-  const native = {
+it('names a plain terminal, and a native agent with the permission it was started with', () => {
+  expect(agentPart(undefined).kind.text).toBe('Terminal');
+  const native = (profile: string | null) => ({
     sessionId: 's',
     agent: 'Codex',
     project: '/p',
-    profile: 'Revisión',
+    profile,
     throughShell: false,
-  };
-  const profile = {
-    body: { name: 'Revisión', model: 'gpt-6-luna' },
-  } as unknown as Profile;
-  expect(agentPart(native, [profile])).toEqual({
-    kind: { text: 'Native · {agent}', values: { agent: 'Codex' } },
-    detail: 'gpt-6-luna',
   });
-  // A profile without a model is named as the profile, not as a model.
-  expect(agentPart(native, []).detail).toBe('Revisión');
+  expect(agentPart(native('Full access (bypass)'))).toEqual({
+    kind: { text: 'Native · {agent}', values: { agent: 'Codex' } },
+    detail: { text: 'Full access' },
+  });
+  expect(agentPart(native('Strict')).detail).toEqual({
+    text: 'Ask before acting',
+  });
+  expect(agentPart(native('Review, read only')).detail).toEqual({
+    text: 'Read only',
+  });
+  expect(agentPart(native('Accept edits')).detail).toEqual({
+    text: 'Accept edits',
+  });
+  // Started as configured: nothing is said, whether the host recorded no profile or that template.
+  expect(agentPart(native(null)).detail).toBeNull();
+  expect(agentPart(native('As configured')).detail).toBeNull();
+  // A session started with a profile saved before profiles were removed keeps its name.
+  expect(agentPart(native('Revisión')).detail).toEqual({
+    text: 'Profile {name}',
+    values: { name: 'Revisión' },
+  });
+  // A name that is also a property of every object is a name, not a template.
+  expect(agentPart(native('toString')).detail).toEqual({
+    text: 'Profile {name}',
+    values: { name: 'toString' },
+  });
 });
 
 const session = (id: string, cwd = '/home/me/a'): TerminalSession =>
@@ -178,7 +194,6 @@ it('asks for the focused terminal only, and drops an answer that arrives after t
   const props = $state({
     session: session('t-1'),
     read,
-    profiles: () => Promise.resolve([]),
   });
   component = mount(SessionBar, { target: document.body, props });
   flushSync();
@@ -219,7 +234,6 @@ it('waits longer before asking again where git ran past its limit', async () => 
     props: {
       session: session('t-1'),
       read,
-      profiles: () => Promise.resolve([]),
       every: 100,
       slowEvery: 1000,
     },

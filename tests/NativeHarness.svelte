@@ -1,5 +1,4 @@
 <script lang="ts">
-  import ProfilesView from '../src/lib/features/native/ProfilesView.svelte';
   import WorkspaceView from '../src/lib/features/native/WorkspaceView.svelte';
   import {
     NativeController,
@@ -9,7 +8,6 @@
 
   let {
     client,
-    which = 'workspace',
     visible = true,
     started = () => undefined,
     onconsole = () => undefined,
@@ -18,14 +16,11 @@
   }: {
     client: NativeClient;
     onarsenal?: () => void;
-    which?: 'workspace' | 'profiles';
     visible?: boolean;
     started?: (reply: StartReply) => void;
     onconsole?: () => void;
     onupdate?: (title: string, cwd: string, input: string) => void;
   } = $props();
-  // svelte-ignore state_referenced_locally
-  let active = $state(which);
   // Built once for one client, as the application does.
   // svelte-ignore state_referenced_locally
   const controller = new NativeController(
@@ -43,21 +38,11 @@
   });
 </script>
 
-<nav aria-label="Native test navigation">
-  <button type="button" onclick={() => (active = 'workspace')}>Workspace</button
-  >
-  <button type="button" onclick={() => (active = 'profiles')}>Profiles</button>
-</nav>
 <WorkspaceView
   {native}
   {controller}
-  visible={visible && active === 'workspace'}
+  {visible}
   {onconsole}
   {onupdate}
   {onarsenal}
-/>
-<ProfilesView
-  {native}
-  {controller}
-  visible={visible && active === 'profiles'}
 />

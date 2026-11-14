@@ -29,10 +29,12 @@ import {
 } from '../src/lib/features/sessions/present';
 import { catalogueFailure, entryRow } from '../src/lib/features/models/present';
 import {
+  AS_CONFIGURED,
   BYPASS_WARNING,
   FAILURE_TEXT,
   modelFacts,
   PERMISSION_LABEL,
+  startedWith,
   START_UNRECORDED,
   STATE_NOTE,
   stateLabel,
@@ -362,13 +364,26 @@ it('draws the m3 labels, reasons and refusals in Spanish, and keeps the English'
   );
 });
 
-it('draws the native profile and session sentences in Spanish', () => {
+it('draws the native permission and session sentences in Spanish', () => {
   setLanguage('es');
-  expect(t(FAILURE_TEXT.profile_unknown)).toBe('Ese perfil ya no existe.');
-  expect(t(FAILURE_TEXT.internal)).toBe('Algo salió mal en el escritorio.');
-  expect(t(PERMISSION_LABEL.bypass)).toBe(
-    'Acceso total: sin preguntas, sin sandbox (bypass)',
+  expect(t(FAILURE_TEXT.profile_not_applicable)).toBe(
+    'Este permiso no se puede aplicar a ese agente.',
   );
+  expect(t(FAILURE_TEXT.internal)).toBe('Algo salió mal en el escritorio.');
+  expect(t(AS_CONFIGURED)).toBe('Como está configurado');
+  expect(
+    (['ask', 'read_only', 'edits', 'bypass'] as const).map((p) =>
+      t(PERMISSION_LABEL[p]),
+    ),
+  ).toEqual([
+    'Preguntar antes de actuar',
+    'Solo lectura',
+    'Aceptar ediciones',
+    'Acceso total',
+  ]);
+  expect(
+    tPhrase(startedWith({ id: 'b'.repeat(32), name: 'Estudio', version: 1 })),
+  ).toBe('Perfil Estudio');
   expect(t(BYPASS_WARNING)).toBe(
     'Acceso total: el agente no pregunta nada y ejecuta cada comando y cada edición sin sandbox, con los permisos de tu cuenta.',
   );
@@ -379,8 +394,8 @@ it('draws the native profile and session sentences in Spanish', () => {
     /^La consola no pudo registrar este inicio/,
   );
   setLanguage('en');
-  expect(t(FAILURE_TEXT.profile_unknown)).toBe(
-    'That profile no longer exists.',
+  expect(t(FAILURE_TEXT.profile_not_applicable)).toBe(
+    'This permission cannot be applied to that agent.',
   );
   expect(t(switchHint('claude_code'))).toBe(
     'To change the model in this session, type /model in it. Claude Code also saves your choice as its default.',
@@ -402,12 +417,12 @@ it('draws the native state phrase, facts and notes in Spanish, with their places
   expect(t(STATE_NOTE.exited)).toBe('El proceso terminó solo.');
   expect(t(FAILURE_TEXT.internal)).toBe('Algo salió mal en el escritorio.');
   expect(t(START_UNRECORDED)).toMatch(/^La consola no pudo registrar/);
-  const facts = modelFacts(bare, [], null);
-  expect(t(facts.requested)).toBe('ninguno (la elección del propio agente)');
+  const facts = modelFacts(bare, null);
+  expect(t(facts.configured)).toBe('todavía sin leer (abre Configuración)');
   expect(t(facts.inUse)).toBe('el agente no lo informa');
   setLanguage('en');
   expect(tPhrase(stateLabel(exited).label)).toBe('Failed (2)');
-  expect(t(facts.requested)).toBe('none (the agent’s own choice)');
+  expect(t(facts.configured)).toBe('not read yet (open Configuration)');
   expect(t(facts.inUse)).toBe('not reported by the agent');
 });
 

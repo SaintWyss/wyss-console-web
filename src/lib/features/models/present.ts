@@ -1,6 +1,5 @@
 import type { ConfigItem, Provider } from '../../contracts/configuration';
 import type { CatalogueEntry, ModelCatalogue } from '../../contracts/models';
-import type { Profile } from '../../contracts/native';
 import type {
   SessionFailureCode,
   SessionSummary,
@@ -11,14 +10,14 @@ import {
   SCOPE_LABEL,
   SOURCE_LABEL,
 } from '../configuration/present';
-import { AGENT_LABEL } from '../native/present';
 import { observedModelLine, sessionLabel } from '../sessions/present';
 
 /**
- * The four facts about "the model", kept apart on purpose (12 §1.1): what a runtime
- * OFFERS, what an agent's files are CONFIGURED with, what a profile SELECTS for a session it
- * starts, and what a runtime REPORTED in use. None is filled from another: a default in a list,
- * a value in a file or a flag passed at start says what was asked for, not what answered.
+ * The three facts about "the model", kept apart on purpose (12 §1.1): what a runtime
+ * OFFERS, what an agent's files are CONFIGURED with, and what a runtime REPORTED in use. The
+ * Console passes no model when a session starts: it is chosen inside the agent. None is filled
+ * from another: a default in a list or a value in a file says what was asked for, not what
+ * answered.
  */
 
 /** Why the list could not be read, in the words of a person, never a code. */
@@ -222,55 +221,6 @@ export function configuredRows(
       }))
   );
 }
-
-export interface SelectedRow {
-  profile: string;
-  agents: string;
-  /** What the profile itself names; null when it names none. */
-  model: string | null;
-  effort: string | null;
-  /** When the profile names none itself: the profile it takes the field from. */
-  modelFrom: string | null;
-  effortFrom: string | null;
-  template: boolean;
-}
-
-/**
- * What each profile would pass when a session starts with it (a flag, never a check). A value the
- * profile does not name itself but takes from a profile it extends is said as inherited, by the
- * name of that profile: the value itself is shown in the profile it comes from.
- */
-export function selectedRows(profiles: readonly Profile[]): SelectedRow[] {
-  const from = (p: Profile, field: 'model' | 'effort'): string | null => {
-    const source = p.from[field];
-    return p.body[field] === null &&
-      source !== undefined &&
-      source !== p.body.name
-      ? source
-      : null;
-  };
-  return profiles
-    .map((p) => ({
-      profile: p.body.name,
-      agents: p.body.applies_to.map((a) => AGENT_LABEL[a]).join(' · '),
-      model: p.body.model,
-      effort: p.body.effort,
-      modelFrom: from(p, 'model'),
-      effortFrom: from(p, 'effort'),
-      template: p.template,
-    }))
-    .filter(
-      (row) =>
-        row.model !== null ||
-        row.effort !== null ||
-        row.modelFrom !== null ||
-        row.effortFrom !== null,
-    );
-}
-
-export const SELECTED_NOTE = msg(
-  'A profile passes these names to the agent when a session starts. Wyss Console cannot check them: the agent says so in its own session if it does not know one. Nothing changes the agent’s own files.',
-);
 
 export interface ObservedRow {
   id: string;

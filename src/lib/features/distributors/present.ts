@@ -1,10 +1,5 @@
 import type { ConfigItem } from '../../contracts/configuration';
-import type {
-  AgentId,
-  Launcher,
-  NativeSession,
-  Profile,
-} from '../../contracts/native';
+import type { AgentId, Launcher, NativeSession } from '../../contracts/native';
 import type { SessionSummary } from '../../contracts/sessions';
 import { msg, type Phrase } from '../../i18n/msg';
 import type { ModelsState } from '../models/controller';
@@ -15,7 +10,7 @@ import {
   observedRows,
   provenance,
 } from '../models/present';
-import { AGENT_LABEL } from '../native/present';
+import { AGENT_LABEL, startedWith } from '../native/present';
 
 /**
  * Who makes each tool the Console knows and starts. Any other tool is added by the owner
@@ -42,10 +37,10 @@ export const UPDATE_COMMAND: Partial<Record<AgentId, string>> = {
 
 /** Where each known tool is set up, by view: only the views that cover it. */
 export const SET_UP_IN: Partial<
-  Record<AgentId, readonly ('profiles' | 'configuration' | 'credentials')[]>
+  Record<AgentId, readonly ('configuration' | 'credentials')[]>
 > = {
-  claude_code: ['profiles', 'configuration', 'credentials'],
-  codex: ['profiles', 'configuration', 'credentials'],
+  claude_code: ['configuration', 'credentials'],
+  codex: ['configuration', 'credentials'],
   opencode: ['configuration'],
 };
 
@@ -118,13 +113,12 @@ function statusOf(
 }
 
 /**
- * The names an agent would be asked for: the `model` its own files hold and the one each of
- * the owner's profiles passes. Neither is a list of what exists, and the card says so.
+ * The names an agent would be asked for: the `model` its own files hold. It is not a list of
+ * what exists, and the card says so.
  */
 function namedModels(
   agent: AgentId,
   items: readonly ConfigItem[] | null,
-  profiles: readonly Profile[],
 ): ModelRow[] {
   const configured = [
     ...new Set(
@@ -133,30 +127,11 @@ function namedModels(
         .flatMap((row) => (row.value === null ? [] : [row.value])),
     ),
   ];
-  return [
-    ...configured.map((model): ModelRow => ({
-      key: `configured:${model}`,
-      label: { text: msg('Configured model: {model}'), values: { model } },
-      fresh: false,
-    })),
-    ...profiles
-      // A template ships with the Console: it is not the owner's.
-      .filter((p) => !p.template && p.body.applies_to.includes(agent))
-      .flatMap((p): ModelRow[] =>
-        p.body.model === null
-          ? []
-          : [
-              {
-                key: `profile:${p.id}`,
-                label: {
-                  text: msg('Profile {name}: {model}'),
-                  values: { name: p.body.name, model: p.body.model },
-                },
-                fresh: false,
-              },
-            ],
-      ),
-  ];
+  return configured.map((model): ModelRow => ({
+    key: `configured:${model}`,
+    label: { text: msg('Configured model: {model}'), values: { model } },
+    fresh: false,
+  }));
 }
 
 /** What the managed Codex runtime listed, or the sentence that says why there is no list. */
@@ -194,13 +169,11 @@ export function distributorCards(
   launcher: Launcher | null,
   models: ModelsState,
   items: readonly ConfigItem[] | null,
-  profiles: readonly Profile[],
   fresh: readonly string[] = [],
   configStale = false,
 ): DistributorCard[] {
   return DISTRIBUTORS.map((d): DistributorCard => {
-    const named =
-      d.agent === 'codex' ? [] : namedModels(d.agent, items, profiles);
+    const named = d.agent === 'codex' ? [] : namedModels(d.agent, items);
     const listing =
       d.agent === 'codex'
         ? codexModels(models, fresh)
@@ -227,88 +200,30 @@ export function distributorCards(
 // ---------------------------------------------------------------------------------------------
 // A card's Models section: what the Models view showed, for this tool only.
 
-/** A profile of this tool that names a model or an effort, itself or through one it extends. */
-export interface ChosenRow {
-  id: string;
-  name: string;
-  template: boolean;
-  model: string | null;
-  effort: string | null;
-  modelFrom: string | null;
-  effortFrom: string | null;
-}
-
-export function chosenBy(
-  agent: AgentId,
-  profiles: readonly Profile[],
-): ChosenRow[] {
-  const from = (p: Profile, field: 'model' | 'effort'): string | null => {
-    const source = p.from[field];
-    return p.body[field] === null &&
-      source !== undefined &&
-      source !== p.body.name
-      ? source
-      : null;
-  };
-  return profiles
-    .filter((p) => p.body.applies_to.includes(agent))
-    .map((p) => ({
-      id: p.id,
-      name: p.body.name,
-      template: p.template,
-      model: p.body.model,
-      effort: p.body.effort,
-      modelFrom: from(p, 'model'),
-      effortFrom: from(p, 'effort'),
-    }))
-    .filter(
-      (r) =>
-        r.model !== null ||
-        r.effort !== null ||
-        r.modelFrom !== null ||
-        r.effortFrom !== null,
-    );
-}
-
 /**
- * What runs now with this tool. A session in a terminal reports no model: it is said by the
- * profile it started with, and the profile's model only while that profile is the version it
- * started with. A managed session (Codex) says what its runtime reported.
+ * What runs now with this tool. A session in a terminal reports no model, and the Console
+ * passes none: it is said by the permission it started with. A managed session (Codex) says
+ * what its runtime reported.
  */
 export function inUse(
   agent: AgentId,
   native: readonly NativeSession[],
-  profiles: readonly Profile[],
   managed: readonly SessionSummary[] | null,
 ): { key: string; line: Phrase }[] {
   const rows: { key: string; line: Phrase }[] = native
     .filter((s) => s.agent_id === agent && s.state === 'running')
     .map((s): { key: string; line: Phrase } => {
       const where = s.project.split('/').filter(Boolean).pop() ?? s.project;
-      if (!s.profile)
-        return {
-          key: s.id,
-          line: {
-            text: msg(
-              'In {folder}: started with no profile, as the agent is set up.',
-            ),
-            values: { folder: where },
-          },
-        };
-      const p = profiles.find((x) => x.id === s.profile!.id);
-      const model = p && p.current === s.profile.version ? p.body.model : null;
       return {
         key: s.id,
-        line: model
+        line: s.profile
           ? {
-              text: msg(
-                'In {folder}: started with the profile {name}, which asks for {model}.',
-              ),
-              values: { folder: where, name: s.profile.name, model },
+              text: msg('In {folder}: started with {permission}.'),
+              values: { folder: where, permission: startedWith(s.profile) },
             }
           : {
-              text: msg('In {folder}: started with the profile {name}.'),
-              values: { folder: where, name: s.profile.name },
+              text: msg('In {folder}: started as the agent is configured.'),
+              values: { folder: where },
             },
       };
     });

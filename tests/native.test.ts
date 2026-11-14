@@ -18,6 +18,7 @@ import {
   groupByProject,
   modelFacts,
   sharedFolders,
+  startedWith,
   stateLabel,
   START_UNRECORDED,
   STOP_UNRECORDED,
@@ -27,7 +28,6 @@ import {
   fakeClient,
   launcher,
   launcherWithM9,
-  profiles,
   reply,
   session,
 } from './native-harness';
@@ -177,16 +177,14 @@ describe('what the overview says', () => {
     expect(folderName('/home/u/work/app')).toBe('app');
     expect(formatBytes(300 * 1024 * 1024)).toBe('300 MB');
   });
-  it('explains when a profile override was refused for an unverified provider build', () => {
+  it('explains when a permission was refused for an unverified provider build', () => {
     expect(failureText('provider_version_unverified')).toContain(
       'exact provider build is not verified',
     );
     expect(failureText('provider_version_unverified')).toContain(
-      'was not launched',
+      'nothing was launched',
     );
-    expect(failureText('profile_preview_stale')).toContain(
-      'Review the new preview',
-    );
+    expect(failureText('profile_preview_stale')).toContain('Check it again');
   });
 });
 
@@ -440,13 +438,8 @@ describe('the controller', () => {
 });
 
 describe('the model of a native session', () => {
-  it('keeps the effort asked for and the effort the files hold as two facts, per agent’s own key', () => {
-    const p = structuredClone(profiles()[0]);
-    p.id = 'p'.repeat(32);
-    p.template = false;
-    p.current = 3;
-    p.body.effort = 'high';
-    const claude = session({ profile: { id: p.id, name: 'x', version: 3 } });
+  it('says the effort the files hold, by each agent’s own key, and never one it passed', () => {
+    const claude = session();
     const effort = (key: string, provider: string, text: string): ConfigItem =>
       ({
         id: 'e'.repeat(32),
@@ -462,30 +455,44 @@ describe('the model of a native session', () => {
         detail: { kind: 'text', value: { text, found: [] } },
         hash: null,
       }) as ConfigItem;
-    const facts = modelFacts(
-      claude,
-      [p],
-      [effort('effortLevel', 'claude_code', 'low')],
-    );
-    expect(facts.requestedEffort).toBe('high');
+    const facts = modelFacts(claude, [
+      effort('effortLevel', 'claude_code', 'low'),
+    ]);
+    // The Console passes no model and no effort: there is nothing "asked for" to say.
+    expect(Object.keys(facts).sort()).toEqual([
+      'configured',
+      'configuredEffort',
+      'inUse',
+    ]);
     expect(facts.configuredEffort).toBe('low');
     // Another agent's key is not this agent's setting, and nothing is filled in for it.
     expect(
-      modelFacts(
-        claude,
-        [p],
-        [effort('model_reasoning_effort', 'codex', 'xhigh')],
-      ).configuredEffort,
+      modelFacts(claude, [effort('model_reasoning_effort', 'codex', 'xhigh')])
+        .configuredEffort,
     ).toBe('not set in its files');
-    expect(modelFacts(claude, [p], null).configuredEffort).toContain(
-      'not read yet',
-    );
+    expect(modelFacts(claude, null).configuredEffort).toContain('not read yet');
     expect(facts.inUse).toBe('not reported by the agent');
   });
-  it('says in plain words that an older terminal host cannot keep an effort, and a code it has no words for is never shown raw', () => {
+  it('says in plain words that an older terminal host cannot start with an option, and a code it has no words for is never shown raw', () => {
     expect(failureText('host_outdated')).toContain('older than this window');
-    expect(failureText('host_outdated')).toContain('preview-bound profiles');
-    expect(failureText('profile_effort_invalid')).toContain('letters, digits');
+    expect(failureText('host_outdated')).toContain(
+      'existing sessions are unchanged',
+    );
+    // The codes the host still answers say "profile"; the words say what the owner chose.
+    for (const code of [
+      'profile_not_applicable',
+      'profile_unknown',
+      'profile_preview_required',
+      'profile_preview_stale',
+      'provider_version_unverified',
+    ]) {
+      expect(failureText(code)).not.toBe(failureText('some_unknown_code'));
+      expect(failureText(code).toLowerCase()).not.toContain('profile');
+    }
+    // A code only the removed profile editor could get has no words of its own any more.
+    expect(failureText('profile_effort_invalid')).toBe(
+      failureText('some_unknown_code'),
+    );
     expect(failureText('some_unknown_code')).not.toContain('some_unknown_code');
   });
   it('offers Claude Code’s own command to change it, and none for Codex, whose is not verified', () => {
@@ -496,14 +503,6 @@ describe('the model of a native session', () => {
     expect(switchHint('codex')).toContain('not verified');
     expect(switchHint('codex')).not.toContain('/model');
   });
-  const saved = () => {
-    const p = structuredClone(profiles()[0]);
-    p.id = 'p'.repeat(32);
-    p.template = false;
-    p.current = 3;
-    p.body.model = 'sonnet';
-    return p;
-  };
   const modelItem = (text: string, provider = 'claude_code'): ConfigItem =>
     ({
       id: 'b'.repeat(32),
@@ -520,34 +519,44 @@ describe('the model of a native session', () => {
       hash: null,
     }) as ConfigItem;
 
-  it('keeps what was asked for, what the files say and what is in use as three facts', () => {
-    const p = saved();
-    const s = session({ profile: { id: p.id, name: 'x', version: 3 } });
-    const facts = modelFacts(s, [p], [modelItem('opus')]);
-    expect(facts.requested).toBe('sonnet');
+  it('keeps what the files say and what is in use as two facts', () => {
+    const s = session({
+      profile: { id: 'template-full-access', name: 'x', version: 0 },
+    });
+    const facts = modelFacts(s, [modelItem('opus')]);
     expect(facts.configured).toBe('opus');
-    // Never filled from either of the other two.
+    // Never filled from the files.
     expect(facts.inUse).toBe('not reported by the agent');
-    expect(facts.inUse).not.toContain('sonnet');
     expect(facts.inUse).not.toContain('opus');
   });
 
-  it('says so when nothing was asked, when the profile moved on or is gone, and when nothing was read', () => {
-    const p = saved();
-    expect(modelFacts(session(), [p], null).requested).toContain('own choice');
-    expect(modelFacts(session(), [p], null).configured).toContain(
-      'not read yet',
-    );
-    const moved = session({ profile: { id: p.id, name: 'x', version: 2 } });
-    expect(modelFacts(moved, [p], []).requested).toContain('changed since');
-    expect(modelFacts(moved, [], []).requested).toContain('no longer exists');
-    expect(modelFacts(session(), [], []).configured).toBe(
-      'not set in its files',
-    );
+  it('says so when nothing was read, and when the files set nothing', () => {
+    expect(modelFacts(session(), null).configured).toContain('not read yet');
+    expect(modelFacts(session(), []).configured).toBe('not set in its files');
     // Another agent's setting is not this agent's.
     expect(
-      modelFacts(session(), [], [modelItem('gpt-6', 'codex')]).configured,
+      modelFacts(session(), [modelItem('gpt-6', 'codex')]).configured,
     ).toBe('not set in its files');
+  });
+
+  it('says what a session was started with: its permission, as configured, or the name of a profile saved before', () => {
+    expect(startedWith(null)).toEqual({ text: 'As configured' });
+    expect(
+      startedWith({ id: 'template-full-access', name: 'x', version: 0 }),
+    ).toEqual({ text: 'Full access' });
+    expect(
+      startedWith({ id: 'template-strict', name: 'x', version: 0 }),
+    ).toEqual({ text: 'Ask before acting' });
+    expect(
+      startedWith({ id: 'template-review', name: 'x', version: 0 }),
+    ).toEqual({ text: 'Read only' });
+    expect(
+      startedWith({ id: 'template-edits', name: 'x', version: 0 }),
+    ).toEqual({ text: 'Accept edits' });
+    // What a saved profile set is not known here: it is named, never guessed as a permission.
+    expect(
+      startedWith({ id: 'b'.repeat(32), name: 'Estudio', version: 3 }),
+    ).toEqual({ text: 'Profile {name}', values: { name: 'Estudio' } });
   });
 });
 

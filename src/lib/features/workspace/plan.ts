@@ -1,4 +1,5 @@
 import type { Item, Selection } from '../../contracts/arsenal';
+import type { Permission } from '../../contracts/native';
 import type { Launch } from '../../desktop/launch-client';
 import { isDefault, type HomeSpec } from '../arsenal/environment';
 
@@ -11,7 +12,8 @@ export interface LaunchDraft {
   name: string;
   role: string;
   agent: Agent;
-  profile: string | null;
+  /** What the agent may do without asking; `null` starts it as it is configured. */
+  permission: Permission | null;
   directory: string;
   /** The preset the launch names now, if any. */
   selection: Selection | null;

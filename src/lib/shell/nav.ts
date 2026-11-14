@@ -17,7 +17,6 @@ export type ViewId =
   | 'arsenal'
   | 'configuration'
   | 'models'
-  | 'profiles'
   | 'credentials'
   | 'settings';
 
@@ -90,12 +89,6 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: msg('Configuration'),
     subtitle: msg('What the agents are set up with'),
     icon: 'M4 6h16M4 12h16M4 18h16M8 4v4M15 10v4M10 16v4',
-  },
-  {
-    id: 'profiles',
-    label: msg('Profiles'),
-    subtitle: msg('What a session starts with'),
-    icon: 'M12 4a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM5 20c0-3.3 3.1-6 7-6s7 2.7 7 6',
   },
   {
     id: 'credentials',
@@ -232,7 +225,7 @@ export type ShownView = ViewId | 'activity';
 
 /**
  * Personalization: how the agents start, in one place. Each tab is a view of its own, by its own
- * id (so a saved landing page or a link to Profiles still opens it), listed one under another.
+ * id (so a saved landing page or a link to one still opens it), listed one under another.
  */
 export interface PersonalizationTab {
   id: ViewId;
@@ -245,14 +238,7 @@ export const PERSONALIZATION: readonly PersonalizationTab[] = [
     id: 'distributors',
     label: msg('Distributors'),
     hint: msg(
-      'Which agents are installed and their version, how to update them, the models each offers, which profile asks for which, and what runs now.',
-    ),
-  },
-  {
-    id: 'profiles',
-    label: msg('Profiles'),
-    hint: msg(
-      'What a session starts with: model, effort, permissions and hooks. Made and edited here.',
+      'Which agents are installed and their version, how to update them, the models each offers, and what runs now.',
     ),
   },
   {
@@ -266,7 +252,7 @@ export const PERSONALIZATION: readonly PersonalizationTab[] = [
     id: 'configuration',
     label: msg('Configuration'),
     hint: msg(
-      'The real configuration files of Claude Code and Codex, which a profile writes over.',
+      'The real configuration files of Claude Code and Codex: what an agent starts with when a launch names no permission.',
     ),
   },
   {

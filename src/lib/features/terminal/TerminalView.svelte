@@ -12,10 +12,12 @@
   import { registerWorkspace } from '../native/bridge';
   import TerminalPanel from './TerminalPanel.svelte';
   import { listLaunches, type LaunchList } from '../../desktop/launch-client';
-  import { readProfiles } from '../../desktop/native-client';
-  import type { Profile } from '../../contracts/native';
   import { desktopLaunchDeps } from './launch-deps';
-  import { BYPASS_WARNING, failureText } from '../native/present';
+  import {
+    BYPASS_WARNING,
+    PERMISSION_LABEL,
+    failureText,
+  } from '../native/present';
   import {
     isFullAccess,
     LaunchRefusal,
@@ -58,7 +60,6 @@
   let searchFor = $state<ConsoleSessionId>();
   /** The launch panel (ADR 0059): the owner's launch files, read when it opens. */
   let launches = $state<LaunchList | null>(null);
-  let launchProfiles = $state<Profile[]>([]);
   /** For each launch's estimated context; read when the menu opens, best effort. */
   let estimates = $state<EstimateData | null>(null);
   let launchBusy = $state<string | null>(null);
@@ -151,7 +152,6 @@
     launchError = null;
     try {
       launches = await listLaunches();
-      launchProfiles = await readProfiles().catch(() => []);
       void loadEstimateData(arsenalClient).then((data) => (estimates = data));
     } catch (error) {
       launches = null;
@@ -436,7 +436,7 @@
         {:else}
           <ul class="launch-list">
             {#each ordered as launch, index (launch.id)}
-              {@const full = isFullAccess(launch, launchProfiles)}
+              {@const full = isFullAccess(launch)}
               <li class="launch-row">
                 <button
                   class="launch-item"
@@ -444,7 +444,7 @@
                   aria-busy={launchBusy === launch.id}
                   title={launch.kind === 'commands'
                     ? launch.commands.join(' ; ')
-                    : `${launch.agent === 'claude_code' ? 'Claude Code' : 'Codex'}${launch.profile ? ` · ${launch.profile}` : ''} in ${launch.directory}`}
+                    : `${launch.agent === 'claude_code' ? 'Claude Code' : 'Codex'}${launch.permission ? ` · ${t(PERMISSION_LABEL[launch.permission])}` : ''} in ${launch.directory}`}
                   onclick={() => void open(launch.id)}
                 >
                   <span class="launch-name"
@@ -590,10 +590,5 @@
         >{t('New terminal')} <kbd>Ctrl+Shift+T</kbd></button
       >
     </div>{/if}
-  <SessionBar
-    session={focused}
-    {visible}
-    read={terminalGitStatus}
-    profiles={readProfiles}
-  />
+  <SessionBar session={focused} {visible} read={terminalGitStatus} />
 </section>
