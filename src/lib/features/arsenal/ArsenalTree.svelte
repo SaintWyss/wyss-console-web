@@ -18,7 +18,8 @@
     store: GuideStore;
     /** Arsenal is the page shown: one of its entries is lit. */
     current: boolean;
-    configItems: readonly ConfigItem[];
+    /** The agents' configuration as last read; `null` until it is read. */
+    configItems: readonly ConfigItem[] | null;
     onpick: (section: GuideSection) => void;
   } = $props();
 
@@ -33,7 +34,8 @@
     store.tool === 'opencode' ? null : treeOf(store.guide, store.tool),
   );
   const loading = $derived(store.guide === null);
-  function configCount(kinds: readonly ItemKind[]): number {
+  function configCount(kinds: readonly ItemKind[]): number | '…' {
+    if (configItems === null) return '…';
     return configItems.filter(
       (item) => item.provider === store.tool && kinds.includes(item.kind),
     ).length;

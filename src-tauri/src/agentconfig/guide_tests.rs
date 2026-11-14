@@ -270,6 +270,18 @@ fn reads_a_skills_folder_that_is_itself_a_link() {
     skill(&elsewhere.join("loops"), "description: Loops.", "");
     fs::remove_dir(home.join(".claude/skills")).unwrap();
     symlink(&elsewhere, home.join(".claude/skills")).unwrap();
+    // A plugins folder that is a link too: its record and its plugin are read through it.
+    let plugins = home.join("dotfiles/plugins");
+    let plugin = plugins.join("cache/m/p/1.0");
+    fs::create_dir_all(plugin.join(".claude-plugin")).unwrap();
+    fs::write(plugin.join(".claude-plugin/plugin.json"), r#"{"name":"p"}"#).unwrap();
+    skill(&plugin.join("skills/ps"), "description: Plugin skill.", "");
+    fs::write(
+        plugins.join("installed_plugins.json"),
+        format!(r#"{{"plugins":{{"p@m":[{{"installPath":"{}"}}]}}}}"#, plugin.display()),
+    )
+    .unwrap();
+    symlink(&plugins, home.join(".claude/plugins")).unwrap();
     let (guide, places) = scan(&env(&home));
     let loops = find(&guide, "claude_code", "loops");
     assert_eq!(
@@ -277,6 +289,7 @@ fn reads_a_skills_folder_that_is_itself_a_link() {
         ("Loops.", None)
     );
     assert!(body(&env(&home), &places, &loops.id).is_some());
+    assert_eq!(find(&guide, "claude_code", "ps").set, "plugin:claude_code:p");
     fs::remove_dir_all(&home).unwrap();
 }
 

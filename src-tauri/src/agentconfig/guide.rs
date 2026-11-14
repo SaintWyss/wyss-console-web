@@ -157,16 +157,20 @@ impl Reader {
         }
     }
 
+    /// Reads a file at the place its path resolves to: the reader follows only a final link, and a
+    /// folder on the way may be one (`~/.claude/plugins` linked elsewhere).
     fn read(&self, path: &Path) -> Option<Vec<u8>> {
+        let real = self.resolve(path).ok()?;
         self.reader
-            .read_file(path)
+            .read_file(&real)
             .ok()
             .map(|read| read.bytes().to_vec())
     }
 
     /// The entries of a folder, without hidden ones, sorted. `None` when it cannot be listed.
     fn list(&self, path: &Path) -> Option<(Vec<(String, EntryKind)>, bool)> {
-        let listing = self.reader.list_directory(path).ok()?;
+        let real = self.resolve(path).ok()?;
+        let listing = self.reader.list_directory(&real).ok()?;
         let mut cut = false;
         let mut found = Vec::new();
         for entry in listing.entries {

@@ -546,7 +546,7 @@
             <ArsenalTree
               store={guide}
               current={activeView === 'arsenal'}
-              configItems={configuration.reply?.inventory.items ?? []}
+              configItems={configuration.reply?.inventory.items ?? null}
               onpick={(section) => {
                 guide.choose({ section });
                 go('arsenal');
