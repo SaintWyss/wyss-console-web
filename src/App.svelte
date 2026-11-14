@@ -338,6 +338,8 @@
     };
   });
 
+  /** A launch just made from a distributor: Workspace opens on it. */
+  let launchToOpen = $state<string | null>(null);
   // The Personalization tab last visited: the rail opens it again.
   let personalTab = $state<ViewId>('distributors');
   $effect(() => {
@@ -480,6 +482,7 @@
       choose={() => nativeController.choose()}
       onopen={(id) => void openInConsole(id)}
       onprofiles={() => go('profiles')}
+      select={launchToOpen}
     />
     <WorkspaceView
       visible={activeView === 'workspace'}
@@ -543,6 +546,12 @@
           configItems={configuration.reply?.inventory.items ?? null}
           configStale={configuration.stale}
           onrefresh={refreshDistributors}
+          onrun={(title, cwd, input) => void runInConsole(title, cwd, input)}
+          ongo={go}
+          onlaunch={(id) => {
+            launchToOpen = id;
+            go('launches');
+          }}
         />
         <ModelsView
           visible={activeView === 'models'}

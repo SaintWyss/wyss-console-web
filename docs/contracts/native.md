@@ -39,6 +39,15 @@ and a `template` name. The variant whose ID is this computer's `ID`, else the fi
 `before`), each line validated as above, the file re-parsed before it is written, and the
 variant this computer runs cannot be removed. The shipped `actualizar-sistema.toml` is replaced
 by the variant one only while it is byte-identical to the earlier shipped file.
+
+Distributors the owner adds live in `$XDG_CONFIG_HOME/wyss-console/distributors/*.toml` (at
+most 32): `name`, optional `maker` and `note`, `open` (the one-line command that opens the
+tool) and optional `update`. Personalization › Distributors writes them with `distributor_save`;
+`src-tauri/src/distributors.rs` owns the keys and validation. Installed means the first word of
+`open` is found as the agents are (`PATH`, then the per-user folders); nothing is run to learn a
+version. Open and Update read the file again by id and type its command in a visible terminal.
+`distributor_make_launch` writes a commands launch from the file (the window sends no command)
+and never replaces an existing launch. Added tools get no profiles, Arsenal or context estimate.
 The backend parser in `src-tauri/src/launch.rs` owns exact keys and validation.
 
 `preset` is the name of an Arsenal preset of that agent's provider. A launch that names one

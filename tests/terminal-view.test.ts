@@ -294,6 +294,11 @@ it('preserves narrow IPC capabilities and production script/network restrictions
     'allow-launch-save',
     'allow-launch-delete',
     'allow-launch-save-variants',
+    'allow-distributor-list',
+    'allow-distributor-get',
+    'allow-distributor-save',
+    'allow-distributor-delete',
+    'allow-distributor-make-launch',
     // The host that holds the terminals past the window (F9): what it holds, whether it is
     // a host process, and a redraw of a program's screen after a window attaches.
     'allow-host-terminals',
@@ -419,6 +424,11 @@ it('preserves narrow IPC capabilities and production script/network restrictions
       // character, never a session's `before`; the file is re-parsed before it is written and
       // the variant this computer runs cannot be removed (launch_tests.rs).
       p !== 'allow-launch-save-variants' &&
+      // Fifth exception, deliberate and bounded: the distributors the owner adds. The window
+      // sends a name and the one-line commands that open and update the tool; they are typed in
+      // a visible terminal only when the owner presses Open or Update, read again from the file
+      // by id. Nothing is run to learn whether it is installed (distributors_tests.rs).
+      p !== 'allow-distributor-save' &&
       !p.startsWith('allow-native-'),
   ))
     expect(permission).not.toMatch(

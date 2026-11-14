@@ -5052,3 +5052,55 @@ li.native-row .native-note {
     white-space: nowrap;
   }
 }
+
+/* Distributors: what each card does, and the ones the owner added */
+.dist-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.dist-spacer {
+  flex: 1;
+}
+.dist-cmd {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+.dist-link {
+  padding: 2px 4px;
+  color: var(--accent);
+  font-size: var(--text-sm);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.dist-link:hover {
+  text-decoration: underline;
+}
+.dist-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.dist-section {
+  margin: 0;
+  font-size: var(--text-md);
+  color: var(--text);
+}
+.dist-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+.dist-form .dist-actions,
+.dist-form .dist-suggest {
+  grid-column: 1 / -1;
+}
+.dist-suggest {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}

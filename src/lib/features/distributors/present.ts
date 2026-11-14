@@ -11,19 +11,46 @@ import {
 import { AGENT_LABEL } from '../native/present';
 
 /**
- * Who makes each tool the Console can start. Kimi has no tool the Console knows: its card is
- * fixed and nothing is looked for.
+ * Who makes each tool the Console knows and starts. Any other tool is added by the owner
+ * (Personalization › Distributors › Add), with the commands that open and update it.
  */
 export const DISTRIBUTORS = [
   { id: 'anthropic', name: 'Anthropic', agent: 'claude_code' },
   { id: 'openai', name: 'OpenAI', agent: 'codex' },
-  { id: 'kimi', name: 'Kimi', agent: null },
   { id: 'opencode', name: 'OpenCode', agent: 'opencode' },
 ] as const satisfies readonly {
   id: string;
   name: string;
-  agent: AgentId | null;
+  agent: AgentId;
 }[];
+
+/**
+ * The command that updates each known tool, typed in a terminal where it is seen. Only the ones
+ * checked against the tool's own help: OpenCode's is not, so it has no Update.
+ */
+export const UPDATE_COMMAND: Partial<Record<AgentId, string>> = {
+  claude_code: 'claude update',
+  codex: 'codex update',
+};
+
+/** Where each known tool is set up, by view: only the views that cover it. */
+export const SET_UP_IN: Partial<
+  Record<AgentId, readonly ('profiles' | 'configuration' | 'credentials')[]>
+> = {
+  claude_code: ['profiles', 'configuration', 'credentials'],
+  codex: ['profiles', 'configuration', 'credentials'],
+  opencode: ['configuration'],
+};
+
+/**
+ * Tools suggested under Add: their name and the command that opens them, nothing else. The
+ * update command is the owner's to write: it depends on how the tool was installed.
+ */
+export const SUGGESTED = [
+  { name: 'Kimi CLI', maker: 'Moonshot AI', open: 'kimi' },
+  { name: 'Gemini CLI', maker: 'Google', open: 'gemini' },
+  { name: 'Aider', maker: 'Aider', open: 'aider' },
+] as const;
 
 /** The distributor of an agent, by name; the agent's own name when it has none here. */
 export function distributorOf(agent: AgentId): string {
@@ -47,6 +74,9 @@ export interface DistributorCard {
   /** Only an installed tool is drawn in the ok tone. */
   installed: boolean;
   tool: string;
+  agent: AgentId;
+  /** Typed in a new terminal by Update; null when the Console has none checked for the tool. */
+  update: string | null;
   models: ModelRow[];
   /** What cannot be known, or why there is no list. */
   notes: Phrase[];
@@ -162,16 +192,6 @@ export function distributorCards(
   configStale = false,
 ): DistributorCard[] {
   return DISTRIBUTORS.map((d): DistributorCard => {
-    if (d.agent === null)
-      return {
-        id: d.id,
-        name: d.name,
-        status: { text: msg('Not configured') },
-        installed: false,
-        tool: 'Kimi CLI',
-        models: [],
-        notes: [],
-      };
     const named =
       d.agent === 'codex' ? [] : namedModels(d.agent, items, profiles);
     const listing =
@@ -190,6 +210,8 @@ export function distributorCards(
       name: d.name,
       ...statusOf(launcher, d.agent),
       tool: AGENT_LABEL[d.agent],
+      agent: d.agent,
+      update: UPDATE_COMMAND[d.agent] ?? null,
       ...listing,
     };
   });

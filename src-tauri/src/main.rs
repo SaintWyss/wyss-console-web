@@ -25,6 +25,7 @@ mod host;
 mod native;
 // Launch configurations (ADR 0059): the owner's files, read by the desktop.
 #[cfg(target_os = "linux")]
+mod distributors;
 mod launch;
 // The project-centered workspace (M1, ADR 0052): presentation metadata over the owners.
 #[cfg(target_os = "linux")]
@@ -132,6 +133,7 @@ fn main() {
             .merge(host::commands::extension())
             .merge(native::extension())
             .merge(launch::extension())
+            .merge(distributors::extension())
             .merge(projects::commands::extension())
             .merge(credentials::commands::extension())
             .merge(arsenal::commands::extension());

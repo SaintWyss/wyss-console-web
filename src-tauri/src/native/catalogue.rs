@@ -76,6 +76,11 @@ fn executable(path: &Path) -> bool {
 /// The absolute path of the agent's executable: the first regular executable file of that
 /// name in `PATH`, then in the usual per-user folders. Links are resolved.
 pub fn discover(spec: &AgentSpec, path_var: Option<OsString>, home: &Path) -> Option<PathBuf> {
+    discover_name(spec.executable, path_var, home)
+}
+
+/// The same search by a bare executable name, for the tools the owner adds as distributors.
+pub fn discover_name(name: &str, path_var: Option<OsString>, home: &Path) -> Option<PathBuf> {
     let mut folders: Vec<PathBuf> = path_var
         .map(|path| std::env::split_paths(&path).collect())
         .unwrap_or_default();
@@ -83,7 +88,7 @@ pub fn discover(spec: &AgentSpec, path_var: Option<OsString>, home: &Path) -> Op
     folders
         .into_iter()
         .filter(|folder| folder.is_absolute())
-        .map(|folder| folder.join(spec.executable))
+        .map(|folder| folder.join(name))
         .find(|candidate| executable(candidate))
         .and_then(|candidate| candidate.canonicalize().ok())
 }

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { msg, t } from '../../i18n/index.svelte';
   import type { Item, Selection } from '../../contracts/arsenal';
   import type { Profile } from '../../contracts/native';
@@ -49,6 +50,7 @@
     choose,
     onopen,
     onprofiles,
+    select = null,
     client = arsenalClient,
     launches: loadLaunches = listLaunches,
   }: {
@@ -62,6 +64,8 @@
     onopen: (id: string) => void;
     /** Opens Profiles, where profiles are made and edited. */
     onprofiles?: () => void;
+    /** A launch to show when it appears: one just made elsewhere (a distributor's). */
+    select?: string | null;
     client?: ArsenalClient;
     launches?: typeof listLaunches;
   } = $props();
@@ -175,8 +179,11 @@
           .catch((): Roles => ({ custom: [], assigned: {}, damaged: true })),
         loadEstimateData(client),
       ]);
+      // An answer without a list is a failure, never an empty Workspace.
+      if (!Array.isArray(list?.launches))
+        throw new Error(t('Workspace could not be read.'));
       launches = list.launches;
-      system = list.system;
+      system = list.system ?? system;
       roles = r;
       data = read;
       phase = 'ready';
@@ -187,8 +194,14 @@
         e instanceof Error ? e.message : t('Workspace could not be read.');
     }
   }
+  // Read on the first visit, and again on each later one: a launch made elsewhere appears.
   $effect(() => {
-    if (visible && phase === 'idle') void load();
+    if (visible) untrack(() => phase !== 'loading' && void load());
+  });
+  $effect(() => {
+    const id = select;
+    const found = launches.find((l) => l.id === id);
+    if (found) untrack(() => selected !== found.id && pick(found));
   });
 
   function draftOf(launch: Launch | null): LaunchDraft {

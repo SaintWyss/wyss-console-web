@@ -3763,4 +3763,52 @@ export const ES: Readonly<Record<string, string>> = {
     'Los archivos de configuración reales de Claude Code y Codex, que un perfil pisa.',
   'The API keys each distributor needs, kept sealed.':
     'Las claves de API que necesita cada distribuidor, guardadas selladas.',
+  // Distributors: added by the owner
+  'The profiles of this agent: model, effort and permissions a session starts with.':
+    'Los perfiles de este agente: modelo, esfuerzo y permisos con que arranca una sesión.',
+  'This agent’s own configuration files: hooks, skills, MCP servers.':
+    'Los archivos de configuración propios de este agente: hooks, skills, servidores MCP.',
+  'The API key this agent uses.': 'La clave de API que usa este agente.',
+  'The added distributors did not load.':
+    'No se pudieron leer los distribuidores agregados.',
+  'It could not be deleted.': 'No se pudo borrar.',
+  'The launch could not be made.': 'No se pudo crear el lanzamiento.',
+  'Types “{command}” in a new terminal of the Console, where you see it run.':
+    'Escribe «{command}» en una terminal nueva de la Console, donde lo ves correr.',
+  'Added by you': 'Agregados por vos',
+  'Add a tool the Console does not know: by its name and the commands that open and update it.':
+    'Agregá una herramienta que la Console no conoce: con su nombre y los comandos que la abren y la actualizan.',
+  'A tool you add opens and updates in a terminal of the Console. Profiles, Arsenal and the context estimate are only for the tools the Console knows.':
+    'Una herramienta que agregás se abre y se actualiza en una terminal de la Console. Perfiles, Arsenal y la estimación de contexto son solo para las herramientas que la Console conoce.',
+  'Edit distributor': 'Editar distribuidor',
+  'Add distributor': 'Agregar distribuidor',
+  'Suggestions:': 'Sugerencias:',
+  'Fills in its name and the command that opens it. Its update command depends on how you installed it.':
+    'Completa su nombre y el comando que la abre. El de actualizar depende de cómo la instalaste.',
+  'How the card is called.': 'Cómo se llama la tarjeta.',
+  'Who makes it. Optional.': 'Quién la hace. Opcional.',
+  'Made by': 'Hecho por',
+  'Typed in a new terminal to open it. Its first word is the command looked for to say whether it is installed.':
+    'Se escribe en una terminal nueva para abrirla. Su primera palabra es el comando que se busca para saber si está instalada.',
+  'Command to open': 'Comando para abrir',
+  'Typed in a new terminal by Update. Optional: it depends on how you installed the tool.':
+    'Lo escribe Actualizar en una terminal nueva. Opcional: depende de cómo instalaste la herramienta.',
+  'Command to update': 'Comando para actualizar',
+  optional: 'opcional',
+  'Anything to remember about it. Optional.':
+    'Lo que quieras recordar de ella. Opcional.',
+  Note: 'Nota',
+  'Found at {path}.': 'Encontrada en {path}.',
+  '“{command}” was not found where the agents are looked for.':
+    '«{command}» no se encontró donde se buscan los agentes.',
+  'Types “{command}” in a new terminal of the Console.':
+    'Escribe «{command}» en una terminal nueva de la Console.',
+  'Makes a launch in Workspace that opens it, so it starts from + Launch like the others.':
+    'Crea en Workspace un lanzamiento que la abre, así arranca desde + Lanzar como los demás.',
+  'Make launch': 'Crear lanzamiento',
+  'Change its name or its commands.': 'Cambiar su nombre o sus comandos.',
+  Edit: 'Editar',
+  'Removes its card. The tool itself stays installed.':
+    'Saca su tarjeta. La herramienta sigue instalada.',
+  'Nothing added yet.': 'Todavía no agregaste ninguno.',
 };

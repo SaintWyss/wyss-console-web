@@ -52,17 +52,31 @@ function desktop() {
     catalogue: catalogues.listed as unknown,
     inventory: (() => inventory) as () => unknown,
     launcherFails: false,
+    /** Answers of its own for a command; `undefined` leaves it to the rest. */
+    extra: (() => undefined) as (
+      command: string,
+      request: Record<string, unknown>,
+    ) => unknown,
   };
   mockIPC((command, payload) => {
     calls.push(command);
     const request =
       (payload as { request?: Record<string, unknown> })?.request ?? {};
+    const own = answers.extra(command, request);
+    if (own !== undefined) return own;
     switch (command) {
       case 'authority_state':
         return request.after === null ? views.connected : never();
       case 'native_launcher':
         if (answers.launcherFails) throw { code: 'internal', reasons: [] };
         return launcher();
+      case 'distributor_list':
+        return {
+          folder: '~/d',
+          distributors: [],
+          refused: [],
+          home: '/home/me',
+        };
       case 'native_readiness':
         return { m9_native_status: 'ready' };
       case 'native_sessions':
@@ -175,18 +189,16 @@ it('opens from the rail, reads only while shown, and draws what the desktop answ
 
   expect(
     Array.from(view().querySelectorAll('.dist-card h3')).map(text),
-  ).toEqual(['Anthropic', 'OpenAI', 'Kimi', 'OpenCode']);
+  ).toEqual(['Anthropic', 'OpenAI', 'OpenCode']);
   expect(Array.from(view().querySelectorAll('.dist-tool')).map(text)).toEqual([
     'Claude Code',
     'Codex',
-    'Kimi CLI',
     'OpenCode',
   ]);
   expect(status('anthropic')).toBe('Installed · 2.1.303 (Claude Code)');
   expect(card('anthropic').querySelector('.dist-status.ok')).not.toBeNull();
   expect(status('openai')).toBe('Tool not installed');
   expect(card('openai').querySelector('.dist-status.ok')).toBeNull();
-  expect(status('kimi')).toBe('Not configured');
   expect(status('opencode')).toBe('Unknown');
   expect(text(view())).not.toMatch(/connected/i);
 
@@ -204,13 +216,95 @@ it('opens from the rail, reads only while shown, and draws what the desktop answ
     'model-a',
     'model-b',
   ]);
-  expect(rows('kimi')).toEqual([]);
   expect(text(view().querySelector('.dist-read'))).toMatch(/^Last read: \S+/);
   expect(text(view())).toContain('Only Codex reports new models.');
-  // No way to add a distributor, and no credential is shown.
+  // Each known tool: Update (when its command is checked) and where it is set up; then Add.
   expect(Array.from(view().querySelectorAll('button')).map(text)).toEqual([
     'Refresh models',
+    'Update',
+    'Profiles',
+    'Configuration',
+    'Credentials',
+    'Update',
+    'Profiles',
+    'Configuration',
+    'Credentials',
+    'Configuration',
+    '+ Add',
   ]);
+  expect(text(card('anthropic'))).toContain('claude update');
+});
+
+it('adds a tool by name and command, opens it from its file, and makes a launch of it', async () => {
+  const ipc = desktop();
+  const saved: unknown[] = [];
+  const kimi = {
+    id: 'kimi-cli',
+    name: 'Kimi CLI',
+    maker: 'Moonshot AI',
+    open: 'kimi',
+    update: null,
+    note: null,
+    executable: 'kimi',
+    found: null,
+  };
+  let list: unknown[] = [];
+  ipc.answers.extra = (command, request) => {
+    if (command === 'distributor_list')
+      return {
+        folder: '~/d',
+        distributors: list,
+        refused: [],
+        home: '/home/me',
+      };
+    if (command === 'distributor_save') {
+      saved.push(request);
+      list = [kimi];
+      return kimi;
+    }
+    if (command === 'distributor_get') return kimi;
+    if (command === 'distributor_make_launch') return 'kimi-cli';
+    return undefined;
+  };
+  component = mount(App, { target: document.body });
+  await flush();
+  tab('Distributors').click();
+  await flush();
+  const button = (label: string) =>
+    Array.from(view().querySelectorAll<HTMLButtonElement>('button')).find(
+      (b) => text(b) === label,
+    )!;
+  button('+ Add').click();
+  await flush();
+  button('Kimi CLI').click();
+  await flush();
+  view().querySelector<HTMLFormElement>('.dist-form')!.requestSubmit();
+  await flush();
+  expect(saved).toEqual([
+    {
+      id: null,
+      name: 'Kimi CLI',
+      maker: 'Moonshot AI',
+      open: 'kimi',
+      update: null,
+      note: null,
+    },
+  ]);
+  const added = view().querySelector('[data-id="added:kimi-cli"]')!;
+  expect(text(added)).toContain('Tool not installed');
+  expect(added.querySelector('.dist-status')!.getAttribute('title')).toContain(
+    'was not found',
+  );
+  // No Update without a command for it.
+  expect(Array.from(added.querySelectorAll('button')).map(text)).not.toContain(
+    'Update',
+  );
+  button('Make launch').click();
+  await flush();
+  // Workspace opens on the launch made.
+  expect(document.querySelector('.launch-editor')!.hasAttribute('hidden')).toBe(
+    false,
+  );
 });
 
 it('reads the three sources again on Refresh models and marks only what Codex newly lists', async () => {
@@ -269,7 +363,6 @@ it('says unknown, not missing, when the tools did not answer a refresh', async (
   expect(status('anthropic')).toBe('Unknown');
   expect(status('openai')).toBe('Unknown');
   expect(status('opencode')).toBe('Unknown');
-  expect(status('kimi')).toBe('Not configured');
 
   // It answers again: what it says is shown again.
   ipc.answers.launcherFails = false;

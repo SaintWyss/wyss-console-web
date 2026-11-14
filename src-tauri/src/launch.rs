@@ -4,9 +4,9 @@
 //! A launch either opens a terminal in a folder and types its commands there, as if the owner
 //! typed them, or starts a Native session with an agent and a profile named by its name, after
 //! running its `before` commands. To start, the window names a file by its stem, and every
-//! command comes from that file. The one place the window writes commands is a commands
-//! launch's distribution variants (`save_variants`), as the owner edits them in Workspace:
-//! one line each, no control character, never a session's `before`. The folder sits in the synchronized home, as
+//! command comes from that file. The window writes commands in two places, both one line each
+//! with no control character: a commands launch's distribution variants (`save_variants`, never
+//! a session's `before`), and the distributors the owner adds (`distributors.rs`). The folder sits in the synchronized home, as
 //! the shell's own start-up files do, so both computers get the same launches.
 use crate::arsenal::Arsenal;
 use crate::arsenal::store::Store;
@@ -268,24 +268,24 @@ commands = ["sudo dnf upgrade --refresh"]
 commands = ["sudo zypper refresh", "sudo zypper dup"]
 "#;
 
-fn text_ok(text: &str, most: usize) -> bool {
+pub(crate) fn text_ok(text: &str, most: usize) -> bool {
     !text.trim().is_empty() && text.chars().count() <= most && !text.chars().any(char::is_control)
 }
 
 /// A command is one line: no control character (a newline or an escape would type more than
 /// the file says).
-fn command_ok(command: &str) -> bool {
+pub(crate) fn command_ok(command: &str) -> bool {
     text_ok(command, MAX_COMMAND)
 }
 
-fn id_ok(id: &str) -> bool {
+pub(crate) fn id_ok(id: &str) -> bool {
     (1..=64).contains(&id.len())
         && id
             .bytes()
             .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || matches!(b, b'-' | b'_'))
 }
 
-fn display(path: &Path, home: &Path) -> String {
+pub(crate) fn display(path: &Path, home: &Path) -> String {
     match path.strip_prefix(home) {
         Ok(rest) => format!("~/{}", rest.display()),
         Err(_) => path.display().to_string(),
@@ -445,7 +445,7 @@ fn seed(folder: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
-fn read_one(path: &Path) -> Result<String, String> {
+pub(crate) fn read_one(path: &Path) -> Result<String, String> {
     let meta = fs::symlink_metadata(path).map_err(|_| "unreadable".to_owned())?;
     if !meta.is_file() {
         return Err("not a plain file".into());
@@ -750,7 +750,7 @@ pub fn slug(name: &str) -> String {
 }
 
 /// A TOML basic string: quoted, with the characters that must be escaped written escaped.
-fn toml_string(text: &str) -> String {
+pub(crate) fn toml_string(text: &str) -> String {
     let mut out = String::with_capacity(text.len() + 2);
     out.push('"');
     for c in text.chars() {
@@ -768,7 +768,7 @@ fn toml_string(text: &str) -> String {
 /// Writes `text` to `target` through a private temporary file and a rename, so a reader sees
 /// the old file or the new one, never a part of either. The temporary name does not end in
 /// `.toml`, so `list` never reads it.
-fn write_private(folder: &Path, target: &Path, text: &str) -> std::io::Result<()> {
+pub(crate) fn write_private(folder: &Path, target: &Path, text: &str) -> std::io::Result<()> {
     let name = target.file_name().unwrap_or_default().to_string_lossy();
     let temporary = folder.join(format!(".{name}.{}.tmp", std::process::id()));
     let result = write_then_rename(&temporary, target, text);

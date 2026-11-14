@@ -11,6 +11,8 @@ import {
 import { ConfigurationController } from '../src/lib/features/configuration/controller';
 import {
   distributorCards,
+  SET_UP_IN,
+  SUGGESTED,
   distributorOf,
 } from '../src/lib/features/distributors/present';
 import {
@@ -72,16 +74,10 @@ function refresh(models: ModelsState): string[] {
 it('says installed with the version, not installed, or unknown, as the launcher answered', () => {
   // The launcher of the harness: Claude Code installed, Codex not, OpenCode not named.
   const cards = distributorCards(launcher(), idle, null, []);
-  expect(cards.map((c) => c.name)).toEqual([
-    'Anthropic',
-    'OpenAI',
-    'Kimi',
-    'OpenCode',
-  ]);
+  expect(cards.map((c) => c.name)).toEqual(['Anthropic', 'OpenAI', 'OpenCode']);
   expect(cards.map((c) => c.tool)).toEqual([
     'Claude Code',
     'Codex',
-    'Kimi CLI',
     'OpenCode',
   ]);
   expect(card(cards, 'anthropic').status).toEqual({
@@ -111,21 +107,17 @@ it('says installed with the version, not installed, or unknown, as the launcher 
   expect(JSON.stringify([cards, unknown])).not.toMatch(/connected/i);
 });
 
-it('keeps Kimi not configured whatever is read', () => {
-  for (const cards of [
-    distributorCards(null, idle, null, []),
-    distributorCards(launcher(), ready(listed), items, profiles(), ['model-a']),
-  ]) {
-    const kimi = card(cards, 'kimi');
-    expect(kimi.status).toEqual({ text: 'Not configured' });
-    expect(kimi.installed).toBe(false);
-    expect(kimi.models).toEqual([]);
-    expect(kimi.notes).toEqual([]);
-  }
+it('knows three tools, each with where it is set up; Kimi is a suggestion under Add', () => {
+  const cards = distributorCards(null, idle, null, []);
+  expect(cards.map((c) => c.id)).toEqual(['anthropic', 'openai', 'opencode']);
   // Hermes has no card.
-  expect(distributorCards(null, idle, null, []).map((c) => c.id)).not.toContain(
-    'hermes',
-  );
+  expect(cards.map((c) => c.id)).not.toContain('hermes');
+  expect(card(cards, 'anthropic').update).toBe('claude update');
+  expect(card(cards, 'openai').update).toBe('codex update');
+  // OpenCode's update command is not checked: it has none.
+  expect(card(cards, 'opencode').update).toBeNull();
+  expect(SET_UP_IN.opencode).toEqual(['configuration']);
+  expect(SUGGESTED.map((s) => s.open)).toEqual(['kimi', 'gemini', 'aider']);
 });
 
 it('names the configured model and the owner’s profiles for the tools that list nothing', () => {
@@ -283,7 +275,6 @@ it('says each state in Spanish in the words the owner fixed', () => {
     'Instalado · 2.1.303 (Claude Code)',
   );
   expect(tPhrase(card(cards, 'openai').status)).toBe('No instalado');
-  expect(tPhrase(card(cards, 'kimi').status)).toBe('Sin configurar');
   expect(tPhrase(card(cards, 'opencode').status)).toBe('Desconocido');
   expect(t('new model')).toBe('nuevo');
   expect(t('Refresh models')).toBe('Actualizar modelos');
@@ -310,7 +301,6 @@ it('says a configured model is from an earlier read only on a card that shows on
   expect(card(stale, 'anthropic').notes).toContainEqual(note);
   expect(card(stale, 'opencode').notes).not.toContainEqual(note);
   expect(card(stale, 'openai').notes).not.toContainEqual(note);
-  expect(card(stale, 'kimi').notes).toEqual([]);
   const whole = distributorCards(
     launcher(),
     idle,
