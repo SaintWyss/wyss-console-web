@@ -5433,3 +5433,27 @@ li.native-row .native-note {
     gap: 2px;
   }
 }
+
+/* Configuration inside Arsenal: plain rows divided by a line, no agent column (Arsenal names it). */
+.configuration-feature.embedded .configuration-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  border-radius: 0;
+  background: transparent;
+  border-bottom: 1px solid var(--line);
+}
+.configuration-feature.embedded .configuration-row:hover,
+.configuration-feature.embedded .configuration-row[aria-pressed='true'] {
+  background: var(--surface-hover);
+}
+.configuration-feature.embedded .configuration-row .event-title {
+  grid-area: 1 / 1;
+}
+.configuration-feature.embedded .configuration-row .pill {
+  grid-area: 1 / 2;
+}
+.configuration-feature.embedded .configuration-row .event-meta {
+  grid-area: 2 / 1 / auto / -1;
+}
+.configuration-feature.embedded .events-list {
+  gap: 0;
+}

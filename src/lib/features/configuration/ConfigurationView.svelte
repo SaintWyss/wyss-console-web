@@ -100,6 +100,8 @@
         ) ?? null),
   );
   const lines = $derived(selected ? detailLines(selected.detail) : []);
+  /** Inside Arsenal a tab offers only the actions of its own kinds. */
+  const offers = (kind: ItemKind) => !kinds || kinds.includes(kind);
   const selectedChange = $derived(selected ? changeFor(selected) : null);
   const selectedAuthoring = $derived(selected ? authoringFor(selected) : null);
 
@@ -146,6 +148,7 @@
 
 <section
   class="configuration-feature"
+  class:embedded
   aria-label={t('Configuration')}
   hidden={!visible}
   inert={!visible}
@@ -345,29 +348,30 @@
         onclick={() => changesController.show('history')}>{t('History')}</button
       >
       {#if changes.panel === 'items'}
-        <button
-          type="button"
-          class="action chip"
-          aria-pressed={writing === 'hook'}
-          onclick={() => (writing = writing === 'hook' ? null : 'hook')}
-          >{t('Add a hook…')}</button
-        >
-        <button
-          type="button"
-          class="action chip"
-          aria-pressed={writing === 'mcp'}
-          onclick={() => (writing = writing === 'mcp' ? null : 'mcp')}
-          >{t('Add an MCP server…')}</button
-        >
-        <button
-          type="button"
-          class="action chip"
-          aria-pressed={writing === 'document'}
-          onclick={() => (writing = writing === 'document' ? null : 'document')}
-          >{t('New instruction file…')}</button
-        >
+        {#if offers('hook')}<button
+            type="button"
+            class="action chip"
+            aria-pressed={writing === 'hook'}
+            onclick={() => (writing = writing === 'hook' ? null : 'hook')}
+            >{t('Add a hook…')}</button
+          >{/if}
+        {#if offers('mcp_server')}<button
+            type="button"
+            class="action chip"
+            aria-pressed={writing === 'mcp'}
+            onclick={() => (writing = writing === 'mcp' ? null : 'mcp')}
+            >{t('Add an MCP server…')}</button
+          >{/if}
+        {#if offers('rule_file')}<button
+            type="button"
+            class="action chip"
+            aria-pressed={writing === 'document'}
+            onclick={() =>
+              (writing = writing === 'document' ? null : 'document')}
+            >{t('New instruction file…')}</button
+          >{/if}
       {/if}
-      {#if changes.panel === 'items'}
+      {#if changes.panel === 'items' && (offers('rule_file') || offers('skill'))}
         <button
           type="button"
           class="action chip"
@@ -392,7 +396,7 @@
           >
         {/if}
       {/if}
-      {#if allHooks && changes.panel === 'items'}
+      {#if allHooks && changes.panel === 'items' && offers('hook')}
         <button
           type="button"
           class="action chip"
@@ -892,9 +896,9 @@
                   aria-pressed={configuration.selected === item.id}
                   onclick={() => toggle(item)}
                 >
-                  <span class="configuration-provider"
-                    >{PROVIDER_LABEL[item.provider]}</span
-                  >
+                  {#if !embedded}<span class="configuration-provider"
+                      >{PROVIDER_LABEL[item.provider]}</span
+                    >{/if}
                   <span class="event-title">{item.name}</span>
                   <span
                     class="pill compact"
