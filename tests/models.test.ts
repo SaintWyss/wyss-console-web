@@ -20,7 +20,6 @@ import {
   provenance,
   selectedRows,
 } from '../src/lib/features/models/present';
-import ModelsHarness from './ModelsHarness.svelte';
 import catalogues from './fixtures/model-catalogue-v1.json';
 import pages from './fixtures/session-page-v4.json';
 import { tJoin, tPhrase, type Phrase } from '../src/lib/i18n/index.svelte';
@@ -39,8 +38,6 @@ const settle = async () => {
   for (let i = 0; i < 30; i++) await Promise.resolve();
   flushSync();
 };
-const text = (node: Element | null | undefined) =>
-  node?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
 const damaged = (value: unknown) => structuredClone(value) as any;
 
 describe('the catalogue contract', () => {
@@ -330,95 +327,5 @@ describe('the catalogue controller', () => {
       catalogue: null,
       failure: 'internal',
     });
-  });
-});
-
-describe('the models view', () => {
-  const listed = () => parseModelCatalogue(catalogues.listed);
-  it('shows the four facts apart, with provenance and the entitlement note', async () => {
-    const page = damaged(pages.loaded);
-    page.sessions[1].binding = 'bound_attached';
-    page.sessions[1].mode = 'inference';
-    component = mount(ModelsHarness, {
-      target: document.body,
-      props: {
-        client: { catalogue: async () => listed() },
-        configItems: [setting('model', 'opus', 'claude_code')],
-        profiles: profiles(),
-        sessions: parseSessionPage(page).sessions,
-      },
-    });
-    await settle();
-    const root = document.querySelector('.models-view')!;
-    expect(text(root.querySelector('[data-testid="provenance"]'))).toContain(
-      'Listed once by the managed Codex runtime',
-    );
-    expect(text(root)).toContain('does not mean your account can use it');
-    const headings = [...root.querySelectorAll('h3')].map((h) => text(h));
-    expect(headings).toEqual([
-      'Offered by the managed Codex runtime',
-      'Configured in the agents’ own files',
-      'Selected by a profile',
-      'Reported in use',
-    ]);
-    const offered = root.querySelectorAll(
-      'ul[aria-label="Models the runtime offers"] li',
-    );
-    expect(offered).toHaveLength(2);
-    expect(text(offered[0])).toContain('default of this runtime');
-    expect(text(offered[1])).toContain('marks it for replacement by model-a');
-    expect(
-      text(root.querySelector('ul[aria-label="Configured models"]')),
-    ).toContain('Claude Code · model: opus');
-    expect(
-      text(root.querySelector('ul[aria-label="Models selected by profiles"]')),
-    ).toContain('Mine');
-    // The attached session is shown as the Sessions view would say it: not reported.
-    expect(
-      text(
-        root.querySelector('ul[aria-label="Models reported by the runtime"]'),
-      ),
-    ).toContain('Model in use: not reported by the runtime');
-    // Nothing on this view changes anything: it only reads again.
-    const buttons = [...root.querySelectorAll('button')].map((b) => text(b));
-    expect(buttons).toEqual(['Read again']);
-  });
-  it('says there is no list for a runtime that is not running, and never shows an old one', async () => {
-    component = mount(ModelsHarness, {
-      target: document.body,
-      props: {
-        client: {
-          catalogue: async () => parseModelCatalogue(catalogues.not_ready),
-        },
-      },
-    });
-    await settle();
-    const root = document.querySelector('.models-view')!;
-    expect(text(root)).toContain('there is no list');
-    expect(
-      root.querySelector('ul[aria-label="Models the runtime offers"]'),
-    ).toBeNull();
-    expect(text(root)).toContain(
-      'Not read yet. The Configuration view reads these files.',
-    );
-    expect(text(root)).toContain('Managed sessions have not been read yet.');
-  });
-  it('says a failed read in words, with a way to try again', async () => {
-    component = mount(ModelsHarness, {
-      target: document.body,
-      props: {
-        client: {
-          catalogue: async () => {
-            throw new CatalogueCallError({ code: 'unavailable', retry: true });
-          },
-        },
-      },
-    });
-    await settle();
-    const root = document.querySelector('.models-view')!;
-    expect(text(root.querySelector('[role="alert"]'))).toBe(
-      'The list could not be read: the authority did not answer.',
-    );
-    expect(text(root.querySelector('button'))).toBe('Try again');
   });
 });

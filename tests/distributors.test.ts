@@ -10,7 +10,9 @@ import {
 } from '../src/lib/features/models/controller';
 import { ConfigurationController } from '../src/lib/features/configuration/controller';
 import {
+  chosenBy,
   distributorCards,
+  inUse,
   SET_UP_IN,
   SUGGESTED,
   distributorOf,
@@ -376,4 +378,52 @@ it('lets a configuration read be waited for, and reports a failed one as older',
   expect(controller.state().reply).toBe(reply);
   expect(controller.state().stale).toBe(true);
   controller.dispose();
+});
+
+it('says which profile asks for which model, and what runs now without claiming a model in use', () => {
+  const all = profiles();
+  const mine = all.find((p) => p.body.name === 'Mine')!;
+  // Mine names sonnet; the templates name neither a model nor an effort.
+  expect(chosenBy('claude_code', all).map((r) => [r.name, r.model])).toEqual([
+    ['Mine', 'sonnet'],
+  ]);
+  const session = (over: Record<string, unknown>) =>
+    ({
+      id: 's1',
+      agent_id: 'claude_code',
+      project: '/home/me/UTN',
+      profile: { id: mine.id, name: 'Mine', version: mine.current },
+      state: 'running',
+      ...over,
+    }) as never;
+  const said = (rows: ReturnType<typeof inUse>) =>
+    rows.map((r) => [r.line.text, r.line.values]);
+  // Started with the profile's current version: its model is named, as what it asks for.
+  expect(said(inUse('claude_code', [session({})], all, null))).toEqual([
+    [
+      'In {folder}: started with the profile {name}, which asks for {model}.',
+      { folder: 'UTN', name: 'Mine', model: 'sonnet' },
+    ],
+  ]);
+  // An older version of the profile: no model is claimed.
+  expect(
+    said(
+      inUse(
+        'claude_code',
+        [session({ profile: { id: mine.id, name: 'Mine', version: 1 } })],
+        all,
+        null,
+      ),
+    ),
+  ).toEqual([
+    [
+      'In {folder}: started with the profile {name}.',
+      { folder: 'UTN', name: 'Mine' },
+    ],
+  ]);
+  // Ended sessions and other tools are not running here.
+  expect(
+    inUse('claude_code', [session({ state: 'exited' })], all, null),
+  ).toEqual([]);
+  expect(inUse('codex', [session({})], all, null)).toEqual([]);
 });

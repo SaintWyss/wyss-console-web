@@ -74,7 +74,6 @@ it('offers six entries on the rail, and every other view under More', () => {
   // Personalization holds six views as tabs, in this order; any of them lights its entry.
   expect(PERSONALIZATION.map((tab) => tab.id)).toEqual([
     'distributors',
-    'models',
     'profiles',
     'arsenal',
     'configuration',

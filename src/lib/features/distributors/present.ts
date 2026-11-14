@@ -1,11 +1,18 @@
 import type { ConfigItem } from '../../contracts/configuration';
-import type { AgentId, Launcher, Profile } from '../../contracts/native';
+import type {
+  AgentId,
+  Launcher,
+  NativeSession,
+  Profile,
+} from '../../contracts/native';
+import type { SessionSummary } from '../../contracts/sessions';
 import { msg, type Phrase } from '../../i18n/msg';
 import type { ModelsState } from '../models/controller';
 import {
   catalogueFailure,
   completeness,
   configuredRows,
+  observedRows,
   provenance,
 } from '../models/present';
 import { AGENT_LABEL } from '../native/present';
@@ -215,4 +222,105 @@ export function distributorCards(
       ...listing,
     };
   });
+}
+
+// ---------------------------------------------------------------------------------------------
+// A card's Models section: what the Models view showed, for this tool only.
+
+/** A profile of this tool that names a model or an effort, itself or through one it extends. */
+export interface ChosenRow {
+  id: string;
+  name: string;
+  template: boolean;
+  model: string | null;
+  effort: string | null;
+  modelFrom: string | null;
+  effortFrom: string | null;
+}
+
+export function chosenBy(
+  agent: AgentId,
+  profiles: readonly Profile[],
+): ChosenRow[] {
+  const from = (p: Profile, field: 'model' | 'effort'): string | null => {
+    const source = p.from[field];
+    return p.body[field] === null &&
+      source !== undefined &&
+      source !== p.body.name
+      ? source
+      : null;
+  };
+  return profiles
+    .filter((p) => p.body.applies_to.includes(agent))
+    .map((p) => ({
+      id: p.id,
+      name: p.body.name,
+      template: p.template,
+      model: p.body.model,
+      effort: p.body.effort,
+      modelFrom: from(p, 'model'),
+      effortFrom: from(p, 'effort'),
+    }))
+    .filter(
+      (r) =>
+        r.model !== null ||
+        r.effort !== null ||
+        r.modelFrom !== null ||
+        r.effortFrom !== null,
+    );
+}
+
+/**
+ * What runs now with this tool. A session in a terminal reports no model: it is said by the
+ * profile it started with, and the profile's model only while that profile is the version it
+ * started with. A managed session (Codex) says what its runtime reported.
+ */
+export function inUse(
+  agent: AgentId,
+  native: readonly NativeSession[],
+  profiles: readonly Profile[],
+  managed: readonly SessionSummary[] | null,
+): { key: string; line: Phrase }[] {
+  const rows: { key: string; line: Phrase }[] = native
+    .filter((s) => s.agent_id === agent && s.state === 'running')
+    .map((s): { key: string; line: Phrase } => {
+      const where = s.project.split('/').filter(Boolean).pop() ?? s.project;
+      if (!s.profile)
+        return {
+          key: s.id,
+          line: {
+            text: msg(
+              'In {folder}: started with no profile, as the agent is set up.',
+            ),
+            values: { folder: where },
+          },
+        };
+      const p = profiles.find((x) => x.id === s.profile!.id);
+      const model = p && p.current === s.profile.version ? p.body.model : null;
+      return {
+        key: s.id,
+        line: model
+          ? {
+              text: msg(
+                'In {folder}: started with the profile {name}, which asks for {model}.',
+              ),
+              values: { folder: where, name: s.profile.name, model },
+            }
+          : {
+              text: msg('In {folder}: started with the profile {name}.'),
+              values: { folder: where, name: s.profile.name },
+            },
+      };
+    });
+  if (agent === 'codex')
+    rows.push(
+      ...observedRows(managed).map((r) => ({
+        key: `managed:${r.id}`,
+        line: {
+          text: msg('{session} (managed): {line}'),
+          values: { session: r.label, line: r.line },
+        },
+      })),
+    );
+  return rows;
 }

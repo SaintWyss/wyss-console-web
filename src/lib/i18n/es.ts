@@ -3811,4 +3811,25 @@ export const ES: Readonly<Record<string, string>> = {
   'Removes its card. The tool itself stays installed.':
     'Saca su tarjeta. La herramienta sigue instalada.',
   'Nothing added yet.': 'Todavía no agregaste ninguno.',
+  'What this tool offers, which profile asks for which model, and what is running with it now.':
+    'Qué ofrece esta herramienta, qué perfil pide qué modelo y qué está corriendo con ella ahora.',
+  'Models in detail': 'Modelos en detalle',
+  'Offered, with the efforts each accepts':
+    'Ofrecidos, con los esfuerzos que acepta cada uno',
+  'Asked for by a profile': 'Pedidos por un perfil',
+  'No profile of this tool names a model or an effort.':
+    'Ningún perfil de esta herramienta nombra un modelo o un esfuerzo.',
+  'Opens this profile in Profiles.': 'Abre este perfil en Perfiles.',
+  'Running now': 'Corriendo ahora',
+  'Nothing of this tool is running now.':
+    'Ahora no corre nada de esta herramienta.',
+  'In {folder}: started with no profile, as the agent is set up.':
+    'En {folder}: arrancó sin perfil, como está configurado el agente.',
+  'In {folder}: started with the profile {name}, which asks for {model}.':
+    'En {folder}: arrancó con el perfil {name}, que pide {model}.',
+  'In {folder}: started with the profile {name}.':
+    'En {folder}: arrancó con el perfil {name}.',
+  '{session} (managed): {line}': '{session} (administrada): {line}',
+  'Which agents are installed and their version, how to update them, the models each offers, which profile asks for which, and what runs now.':
+    'Qué agentes hay instalados y su versión, cómo actualizarlos, los modelos que ofrece cada uno, qué perfil pide cuál y qué corre ahora.',
 };

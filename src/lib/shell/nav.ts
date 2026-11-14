@@ -92,12 +92,6 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: 'M4 6h16M4 12h16M4 18h16M8 4v4M15 10v4M10 16v4',
   },
   {
-    id: 'models',
-    label: msg('Models'),
-    subtitle: msg('What is offered, set, selected and in use'),
-    icon: 'M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3zM12 12l8-4.5M12 12v9M12 12L4 7.5',
-  },
-  {
     id: 'profiles',
     label: msg('Profiles'),
     subtitle: msg('What a session starts with'),
@@ -161,7 +155,7 @@ export function navItems(
 ): readonly NavItem[] {
   let items: NavItem[] = [...NAV_ITEMS];
   if (providers) {
-    const at = items.findIndex((item) => item.id === 'models') + 1;
+    const at = items.findIndex((item) => item.id === 'credentials') + 1;
     items = [...items.slice(0, at), PROVIDERS_NAV_ITEM, ...items.slice(at)];
   }
   if (runtimes) {
@@ -250,13 +244,8 @@ export const PERSONALIZATION: readonly PersonalizationTab[] = [
   {
     id: 'distributors',
     label: msg('Distributors'),
-    hint: msg('Which agents are installed, their version and their models.'),
-  },
-  {
-    id: 'models',
-    label: msg('Models'),
     hint: msg(
-      'What each distributor offers, which model is set and which one a session is using.',
+      'Which agents are installed and their version, how to update them, the models each offers, which profile asks for which, and what runs now.',
     ),
   },
   {

@@ -29,7 +29,6 @@
   import { desktopProjects } from './lib/desktop/projects-client';
   import RuntimesView from './lib/features/f8/RuntimesView.svelte';
   import { ModelsController } from './lib/features/models/controller';
-  import ModelsView from './lib/features/models/ModelsView.svelte';
   import { NativeController } from './lib/features/native/controller';
   import ProfilesView from './lib/features/native/ProfilesView.svelte';
   import WorkspaceView from './lib/features/native/WorkspaceView.svelte';
@@ -226,23 +225,21 @@
   // Sessions view and the profiles, and the runtime's list: it asks for nothing of its own.
   $effect(() => {
     configurationController.setVisible(
-      activeView === 'configuration' ||
-        activeView === 'models' ||
-        activeView === 'distributors',
+      activeView === 'configuration' || activeView === 'distributors',
     );
   });
   $effect(() => {
     arsenalController.setVisible(activeView === 'arsenal');
   });
   $effect(() => {
-    if (activeView === 'models') sessionsController.setVisible(true);
-    else sessionsController.setVisible(activeView === 'sessions');
+    // Distributors says what runs now: the managed sessions are read while it is shown.
+    sessionsController.setVisible(
+      activeView === 'sessions' || activeView === 'distributors',
+    );
   });
   $effect(() => {
     modelsController.setVisible(
-      activeView === 'models' ||
-        activeView === 'profiles' ||
-        activeView === 'distributors',
+      activeView === 'profiles' || activeView === 'distributors',
     );
   });
   $effect(() => {
@@ -255,7 +252,6 @@
       activeView === 'workspace' ||
         activeView === 'launches' ||
         activeView === 'profiles' ||
-        activeView === 'models' ||
         activeView === 'distributors' ||
         activeView === 'projects',
     );
@@ -347,6 +343,8 @@
   });
   function go(view: ShownView) {
     navigated = true;
+    // Models is part of Distributors now: a link or a saved page that names it lands there.
+    if (view === 'models') view = 'distributors';
     if (view === 'console') consoleOpened = true;
     activeView = view;
   }
@@ -548,18 +546,15 @@
           onrefresh={refreshDistributors}
           onrun={(title, cwd, input) => void runInConsole(title, cwd, input)}
           ongo={go}
+          managed={sessions.page?.sessions ?? null}
+          onprofile={(id) => {
+            nativeController.edit(id);
+            go('profiles');
+          }}
           onlaunch={(id) => {
             launchToOpen = id;
             go('launches');
           }}
-        />
-        <ModelsView
-          visible={activeView === 'models'}
-          {models}
-          controller={modelsController}
-          configItems={configuration.reply?.inventory.items ?? null}
-          profiles={native.profiles}
-          sessions={sessions.page?.sessions ?? null}
         />
         <ProfilesView
           visible={activeView === 'profiles'}

@@ -219,7 +219,11 @@ it('opens from the rail, reads only while shown, and draws what the desktop answ
   expect(text(view().querySelector('.dist-read'))).toMatch(/^Last read: \S+/);
   expect(text(view())).toContain('Only Codex reports new models.');
   // Each known tool: Update (when its command is checked) and where it is set up; then Add.
-  expect(Array.from(view().querySelectorAll('button')).map(text)).toEqual([
+  expect(
+    Array.from(view().querySelectorAll('button'))
+      .filter((b) => !b.closest('.dist-more'))
+      .map(text),
+  ).toEqual([
     'Refresh models',
     'Update',
     'Profiles',
@@ -397,30 +401,22 @@ it('waits for a Codex read already in flight before it compares, so its answer i
   await flush();
   expect(rows('openai')).toEqual(['model-a', 'model-b']);
 
-  // The Models view starts a read of the list, and it does not answer yet.
+  // Refresh models starts a read of the list, and it does not answer yet.
   let answer!: (value: unknown) => void;
   ipc.answers.catalogue = () =>
     new Promise((resolve) => {
       answer = resolve;
     });
-  tab('Models').click();
-  await flush();
-  Array.from(
-    document.querySelectorAll<HTMLButtonElement>('.models-view button'),
-  )
-    .find((b) => text(b) === 'Read again')!
-    .click();
+  refreshButton().click();
   await flush();
   const reads = ipc.count('managed_model_catalogue');
 
-  // Refresh models while it is in flight: no second read, and nothing is compared yet.
-  tab('Distributors').click();
-  await flush();
+  // While it is in flight: no second read, and nothing is compared yet.
+  expect(refreshButton().disabled).toBe(true);
+  expect(refreshButton().getAttribute('aria-busy')).toBe('true');
   refreshButton().click();
   await flush();
   expect(ipc.count('managed_model_catalogue')).toBe(reads);
-  expect(refreshButton().disabled).toBe(true);
-  expect(refreshButton().getAttribute('aria-busy')).toBe('true');
   expect(rows('openai')).toEqual(['model-a', 'model-b']);
 
   // It answers with a model not seen before: that answer is what is compared.
@@ -478,4 +474,29 @@ it('waits for the configuration read, and says when the configured model shown i
   await refresh();
   expect(rows('anthropic')[0]).toBe('Configured model: sonnet');
   expect(text(view())).not.toContain(note);
+});
+
+it('shows each card’s models in detail, and a profile there opens Profiles', async () => {
+  desktop();
+  component = mount(App, { target: document.body });
+  await flush();
+  tab('Distributors').click();
+  await flush();
+  const codex = card('openai').querySelector('.dist-more')!;
+  expect(text(codex)).toContain('Offered, with the efforts each accepts');
+  expect(text(codex)).toContain('model-a');
+  expect(text(card('anthropic').querySelector('.dist-more'))).toContain(
+    'Nothing of this tool is running now.',
+  );
+  const mine = Array.from(
+    card('anthropic').querySelectorAll<HTMLButtonElement>('.dist-more button'),
+  ).find((b) => text(b) === 'Mine')!;
+  expect(mine.title).toContain('Opens this profile');
+  mine.click();
+  await flush();
+  expect(
+    document
+      .querySelector('.personal-tab[aria-current="page"]')
+      ?.textContent?.trim(),
+  ).toBe('Profiles');
 });

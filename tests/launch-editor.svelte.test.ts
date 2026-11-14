@@ -565,11 +565,11 @@ it('hovering each field and each group says what it is', async () => {
       (f) => f.querySelector('span')?.textContent === label,
     )!;
   expect(field('Mode').title).toContain('Managed');
-  expect(field('Model').title).toContain('without asking');
+  expect(field('Profile').title).toContain('without asking');
   expect(field('Role').title).toContain('does not change what the agent does');
   expect(field('Folder').title).toContain('Where the agent works');
   expect(
-    field('Model').querySelector<HTMLSelectElement>('select')!.title,
+    field('Profile').querySelector<HTMLSelectElement>('select')!.title,
   ).toContain('Default');
   const toggles = [
     ...document.querySelectorAll<HTMLButtonElement>('.le-gtoggle'),

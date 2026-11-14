@@ -86,7 +86,7 @@
     distributor: msg(
       'Which agent the launch starts: Claude Code (Anthropic) or Codex (OpenAI). Changing it starts the profile, preset and environment over.',
     ),
-    model: msg(
+    profile: msg(
       'The profile the agent starts with: its model, how much it reasons and what it may do without asking. Default uses what the agent has configured.',
     ),
     mode: msg(
@@ -848,8 +848,8 @@
                 {/each}
               </select>
             </label>
-            <label class="le-field" title={t(HINT.model)}
-              ><span>{t('Model')}</span>
+            <label class="le-field" title={t(HINT.profile)}
+              ><span>{t('Profile')}</span>
               <select
                 class="le-input"
                 title={(() => {
