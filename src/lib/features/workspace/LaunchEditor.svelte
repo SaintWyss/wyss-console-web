@@ -72,6 +72,8 @@
     { id: 'researcher', name: msg('Researcher') },
     { id: 'reviewer', name: msg('Reviewer') },
   ];
+  /** The Model list's first entry: it opens Profiles and is never a launch's profile. */
+  const EDIT_PROFILES = '__edit_profiles__';
   /** What each part of a launch is, shown on hover. */
   const HINT = {
     role: msg(
@@ -848,8 +850,25 @@
                       );
                 })()}
                 value={d.profile ?? ''}
-                onchange={(e) => (d.profile = e.currentTarget.value || null)}
+                onchange={(e) => {
+                  const select = e.currentTarget;
+                  if (select.value === EDIT_PROFILES) {
+                    // An action, not a value: the choice stays as it was, and Profiles opens.
+                    select.value = d.profile ?? '';
+                    onprofiles?.();
+                    return;
+                  }
+                  d.profile = select.value || null;
+                }}
               >
+                {#if onprofiles}
+                  <option
+                    value={EDIT_PROFILES}
+                    title={t(
+                      'Profiles: see what each one sets, edit them or make a new one.',
+                    )}>{t('Edit profiles…')}</option
+                  >
+                {/if}
                 <option value="">{t('Default (no profile)')}</option>
                 {#each agentProfiles as p (p.id)}
                   <option value={p.body.name} title={profileHint(p)}
@@ -859,16 +878,6 @@
                   >
                 {/each}
               </select>
-              {#if onprofiles}
-                <button
-                  type="button"
-                  class="le-link"
-                  title={t(
-                    'Profiles: see what each one sets, edit them or make a new one.',
-                  )}
-                  onclick={onprofiles}>{t('Edit profiles…')}</button
-                >
-              {/if}
             </label>
             <label class="le-field" title={t(HINT.mode)}
               ><span>{t('Mode')}</span>

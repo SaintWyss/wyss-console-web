@@ -6,6 +6,7 @@ import Sidebar from '../src/lib/shell/Sidebar.svelte';
 import {
   NAV_ITEMS,
   RAIL_ITEMS,
+  PERSONALIZATION,
   moreItems,
   navItems,
   railOf,
@@ -31,12 +32,11 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-it('offers seven entries on the rail, and every other view under More', () => {
+it('offers six entries on the rail, and every other view under More', () => {
   expect(RAIL_ITEMS.map((r) => r.label)).toEqual([
     'Console',
     'Workspace',
-    'Arsenal',
-    'Distributors',
+    'Personalization',
     'Activity',
     'Settings',
     'More',
@@ -54,16 +54,14 @@ it('offers seven entries on the rail, and every other view under More', () => {
     'remote',
     'approvals',
     'events',
-    'configuration',
-    'models',
     'providers',
-    'profiles',
-    'credentials',
     'settings',
   ]);
   for (const item of all)
     expect(
-      more.includes(item.id) || RAIL_ITEMS.some((r) => r.view === item.id),
+      more.includes(item.id) ||
+        RAIL_ITEMS.some((r) => r.view === item.id) ||
+        PERSONALIZATION.some((tab) => tab.id === item.id),
       item.id,
     ).toBe(true);
   // Without the optional views, More has no entry for them.
@@ -73,8 +71,20 @@ it('offers seven entries on the rail, and every other view under More', () => {
   expect(railOf('sessions')).toBe('more');
   // Providers is a view of its own under More; the rail's Distributors opens its own view.
   expect(railOf('providers')).toBe('more');
-  expect(railOf('distributors')).toBe('distributors');
-  expect(RAIL_ITEMS.find((r) => r.id === 'distributors')?.view).toBe(
+  // Personalization holds six views as tabs, in this order; any of them lights its entry.
+  expect(PERSONALIZATION.map((tab) => tab.id)).toEqual([
+    'distributors',
+    'models',
+    'profiles',
+    'arsenal',
+    'configuration',
+    'credentials',
+  ]);
+  for (const tab of PERSONALIZATION) {
+    expect(railOf(tab.id)).toBe('personalization');
+    expect(tab.hint.length).toBeGreaterThan(20);
+  }
+  expect(RAIL_ITEMS.find((r) => r.id === 'personalization')?.view).toBe(
     'distributors',
   );
   expect(railOf('activity')).toBe('activity');
@@ -98,7 +108,9 @@ it('names every rail icon for screen readers and marks only the open view', asyn
     RAIL_ITEMS.map((r) => r.label),
   );
   const current = [...document.querySelectorAll('[aria-current="page"]')];
-  expect(current.map((b) => b.textContent?.trim())).toEqual(['Arsenal']);
+  expect(current.map((b) => b.textContent?.trim())).toEqual([
+    'Personalization',
+  ]);
   // What waits for a decision is counted on Activity, and on Approvals under More.
   expect(
     [...document.querySelectorAll('.nav-tag.waiting')].map((t) =>

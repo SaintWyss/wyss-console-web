@@ -175,12 +175,11 @@ export function navItems(
   return runtimes || projects || providers ? items : NAV_ITEMS;
 }
 
-/** The rail: seven entries. Each opens a view of its own; Activity shows two. */
+/** The rail: six entries. Each opens a view of its own; Activity shows two, Personalization six as tabs. */
 export type RailId =
   | 'console'
   | 'workspace'
-  | 'arsenal'
-  | 'distributors'
+  | 'personalization'
   | 'activity'
   | 'settings'
   | 'more';
@@ -207,15 +206,10 @@ export const RAIL_ITEMS: readonly RailItem[] = [
     view: 'launches',
   },
   {
-    id: 'arsenal',
-    label: msg('Arsenal'),
-    icon: 'M4 5h16v14H4zM8 9h8M8 13h8M8 17h5',
-    view: 'arsenal',
-  },
-  {
-    id: 'distributors',
-    label: msg('Distributors'),
-    icon: 'M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3zM12 12l8-4.5M12 12v9M12 12L4 7.5',
+    id: 'personalization',
+    label: msg('Personalization'),
+    icon: 'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M14 4v4M8 10v4M16 16v4',
+    // The tab last visited opens; Distributors the first time.
     view: 'distributors',
   },
   {
@@ -241,8 +235,62 @@ export const RAIL_ITEMS: readonly RailItem[] = [
 /** What the window shows: a view of its own, or Activity (Approvals over Events). */
 export type ShownView = ViewId | 'activity';
 
+/**
+ * Personalization: how the agents start, in one place. Each tab is a view of its own, by its own
+ * id (so a saved landing page or a link to Profiles still opens it), listed one under another.
+ */
+export interface PersonalizationTab {
+  id: ViewId;
+  label: string;
+  /** What the tab is for, shown on hover. */
+  hint: string;
+}
+export const PERSONALIZATION: readonly PersonalizationTab[] = [
+  {
+    id: 'distributors',
+    label: msg('Distributors'),
+    hint: msg('Which agents are installed, their version and their models.'),
+  },
+  {
+    id: 'models',
+    label: msg('Models'),
+    hint: msg(
+      'What each distributor offers, which model is set and which one a session is using.',
+    ),
+  },
+  {
+    id: 'profiles',
+    label: msg('Profiles'),
+    hint: msg(
+      'What a session starts with: model, effort, permissions and hooks. Made and edited here.',
+    ),
+  },
+  {
+    id: 'arsenal',
+    label: msg('Arsenal'),
+    hint: msg(
+      'Skills, agents, MCP servers and presets: what a session can load.',
+    ),
+  },
+  {
+    id: 'configuration',
+    label: msg('Configuration'),
+    hint: msg(
+      'The real configuration files of Claude Code and Codex, which a profile writes over.',
+    ),
+  },
+  {
+    id: 'credentials',
+    label: msg('Credentials'),
+    hint: msg('The API keys each distributor needs, kept sealed.'),
+  },
+];
+export const inPersonalization = (shown: ShownView) =>
+  PERSONALIZATION.some((tab) => tab.id === shown);
+
 /** The rail entry that is lit for what is shown. A view only reachable from More lights More. */
 export function railOf(shown: ShownView): RailId {
+  if (inPersonalization(shown)) return 'personalization';
   return RAIL_ITEMS.find((r) => r.view === shown)?.id ?? 'more';
 }
 
@@ -251,6 +299,10 @@ export function railOf(shown: ShownView): RailId {
  * Workspace of agents in terminals is there too, by that name: the rail's Workspace is the
  * launch editor. */
 export function moreItems(items: readonly NavItem[]): readonly NavItem[] {
-  const own = new Set<ViewId>(['console', 'launches', 'arsenal']);
+  const own = new Set<ViewId>([
+    'console',
+    'launches',
+    ...PERSONALIZATION.map((tab) => tab.id),
+  ]);
   return items.filter((item) => !own.has(item.id));
 }

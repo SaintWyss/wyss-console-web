@@ -84,8 +84,16 @@ const nav = (label: string) =>
   Array.from(
     document.querySelectorAll<HTMLButtonElement>('.sidebar .nav-item'),
   ).find((b) => b.textContent?.includes(label))!;
+const tab = (label: string) =>
+  Array.from(
+    document.querySelectorAll<HTMLButtonElement>(
+      '.personal-tabs .personal-tab',
+    ),
+  ).find((b) => b.textContent?.trim() === label)!;
 const view = () =>
-  document.querySelector<HTMLElement>('.configuration-feature')!;
+  document.querySelector<HTMLElement>(
+    '.configuration-feature:not(.arsenal-feature)',
+  )!;
 
 beforeEach(() => {
   vi.stubGlobal(
@@ -117,11 +125,11 @@ it('is a view of its own that reads configuration only while it is shown', async
   const ipc = desktop();
   component = mount(App, { target: document.body });
   await flush();
-  expect(nav('Configuration').disabled).toBe(false);
+  expect(tab('Configuration').disabled).toBe(false);
   expect(view().hidden).toBe(true);
   expect(ipc.count('configuration_inventory')).toBe(0);
 
-  nav('Configuration').click();
+  tab('Configuration').click();
   await flush();
   expect(view().hidden).toBe(false);
   // Its own heading names it: no title is drawn over it.
@@ -144,7 +152,7 @@ it('does not take the desktop’s answer on faith', async () => {
   }));
   component = mount(App, { target: document.body });
   await flush();
-  nav('Configuration').click();
+  tab('Configuration').click();
   await flush();
   expect(text(view())).toContain('The configuration could not be read');
   expect(view().querySelector('.configuration-row')).toBeNull();
@@ -154,7 +162,7 @@ it('opens Arsenal on its own library, not on the provider inventory', async () =
   const ipc = desktop();
   component = mount(App, { target: document.body });
   await flush();
-  nav('Arsenal').click();
+  tab('Arsenal').click();
   await flush();
   const arsenal = document.querySelector<HTMLElement>('.arsenal-feature')!;
   expect(arsenal.hidden).toBe(false);

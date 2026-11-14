@@ -97,6 +97,12 @@ const rail = (label: string) =>
   Array.from(
     document.querySelectorAll<HTMLButtonElement>('.rail-list .nav-item'),
   ).find((b) => b.getAttribute('title') === label)!;
+const tab = (label: string) =>
+  Array.from(
+    document.querySelectorAll<HTMLButtonElement>(
+      '.personal-tabs .personal-tab',
+    ),
+  ).find((b) => b.textContent?.trim() === label)!;
 const view = () =>
   document.querySelector<HTMLElement>('.distributors-feature')!;
 const card = (id: string) =>
@@ -152,10 +158,10 @@ it('opens from the rail, reads only while shown, and draws what the desktop answ
   expect(ipc.count('configuration_inventory')).toBe(0);
   expect(ipc.count('managed_model_catalogue')).toBe(0);
 
-  rail('Distributors').click();
+  tab('Distributors').click();
   await flush();
   expect(view().hidden).toBe(false);
-  expect(rail('Distributors').getAttribute('aria-current')).toBe('page');
+  expect(rail('Personalization').getAttribute('aria-current')).toBe('page');
   // Providers is a view of its own, under More: the rail no longer opens it.
   expect(
     document.querySelector<HTMLElement>('.providers-feature')!.hidden,
@@ -211,7 +217,7 @@ it('reads the three sources again on Refresh models and marks only what Codex ne
   const ipc = desktop();
   component = mount(App, { target: document.body });
   await flush();
-  rail('Distributors').click();
+  tab('Distributors').click();
   await flush();
 
   const before = ipc.count('native_launcher');
@@ -254,7 +260,7 @@ it('says unknown, not missing, when the tools did not answer a refresh', async (
   const ipc = desktop();
   component = mount(App, { target: document.body });
   await flush();
-  rail('Distributors').click();
+  tab('Distributors').click();
   await flush();
   expect(status('anthropic')).toBe('Installed · 2.1.303 (Claude Code)');
 
@@ -276,10 +282,6 @@ const refreshButton = () =>
   Array.from(view().querySelectorAll('button')).find(
     (b) => text(b) === 'Refresh models',
   )!;
-const more = (label: string) =>
-  Array.from(
-    document.querySelectorAll<HTMLButtonElement>('.rail-menu .nav-item'),
-  ).find((b) => text(b) === label)!;
 /** The fixture inventory with Claude Code's `model` set to `model`. */
 const inventoryWith = (model: string) => {
   const copy = structuredClone(inventory);
@@ -298,7 +300,7 @@ it('waits for a Codex read already in flight before it compares, so its answer i
   const ipc = desktop();
   component = mount(App, { target: document.body });
   await flush();
-  rail('Distributors').click();
+  tab('Distributors').click();
   await flush();
   expect(rows('openai')).toEqual(['model-a', 'model-b']);
 
@@ -308,7 +310,7 @@ it('waits for a Codex read already in flight before it compares, so its answer i
     new Promise((resolve) => {
       answer = resolve;
     });
-  more('Models').click();
+  tab('Models').click();
   await flush();
   Array.from(
     document.querySelectorAll<HTMLButtonElement>('.models-view button'),
@@ -319,7 +321,7 @@ it('waits for a Codex read already in flight before it compares, so its answer i
   const reads = ipc.count('managed_model_catalogue');
 
   // Refresh models while it is in flight: no second read, and nothing is compared yet.
-  rail('Distributors').click();
+  tab('Distributors').click();
   await flush();
   refreshButton().click();
   await flush();
@@ -344,7 +346,7 @@ it('waits for the configuration read, and says when the configured model shown i
   const ipc = desktop();
   component = mount(App, { target: document.body });
   await flush();
-  rail('Distributors').click();
+  tab('Distributors').click();
   await flush();
   expect(rows('anthropic')[0]).toBe('Configured model: opus');
   const note = 'Configured models are from an earlier read.';

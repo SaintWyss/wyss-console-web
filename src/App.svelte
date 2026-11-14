@@ -65,7 +65,13 @@
     pendingAuthority,
     type AuthorityObservation,
   } from './lib/shell/authority';
-  import { navItems, type ShownView } from './lib/shell/nav';
+  import {
+    inPersonalization,
+    navItems,
+    PERSONALIZATION,
+    type ShownView,
+    type ViewId,
+  } from './lib/shell/nav';
   import {
     idleRuntime,
     summarizeRuntime,
@@ -183,14 +189,7 @@
   const activity = $derived(activeView === 'activity');
   // The name of the view, alone, over Activity and over the views that draw no heading of
   // their own: there it is the only place that says which view is open. No subtitle.
-  const TITLED: readonly ShownView[] = [
-    'workspace',
-    'agents',
-    'projects',
-    'models',
-    'profiles',
-    'credentials',
-  ];
+  const TITLED: readonly ShownView[] = ['workspace', 'agents', 'projects'];
   const title = $derived(
     activity
       ? msg('Activity')
@@ -339,6 +338,11 @@
     };
   });
 
+  // The Personalization tab last visited: the rail opens it again.
+  let personalTab = $state<ViewId>('distributors');
+  $effect(() => {
+    if (inPersonalization(activeView)) personalTab = activeView as ViewId;
+  });
   function go(view: ShownView) {
     navigated = true;
     if (view === 'console') consoleOpened = true;
@@ -448,6 +452,7 @@
   <Sidebar
     active={activeView}
     onselect={go}
+    personal={personalTab}
     waiting={approvals.pending?.length ?? 0}
     {items}
   />
@@ -517,14 +522,61 @@
         nativeProfiles={native.profiles}
       />
     {/if}
-    <DistributorsView
-      visible={activeView === 'distributors'}
-      {native}
-      {models}
-      configItems={configuration.reply?.inventory.items ?? null}
-      configStale={configuration.stale}
-      onrefresh={refreshDistributors}
-    />
+    <!-- Personalization: how the agents start. Its tabs are views of their own, one under another. -->
+    <div class="personal" hidden={!inPersonalization(activeView)}>
+      <nav class="personal-tabs" aria-label={t('Personalization')}>
+        {#each PERSONALIZATION as tab (tab.id)}
+          <button
+            type="button"
+            class="personal-tab"
+            aria-current={activeView === tab.id ? 'page' : undefined}
+            title={t(tab.hint)}
+            onclick={() => go(tab.id)}>{t(tab.label)}</button
+          >
+        {/each}
+      </nav>
+      <div class="personal-body">
+        <DistributorsView
+          visible={activeView === 'distributors'}
+          {native}
+          {models}
+          configItems={configuration.reply?.inventory.items ?? null}
+          configStale={configuration.stale}
+          onrefresh={refreshDistributors}
+        />
+        <ModelsView
+          visible={activeView === 'models'}
+          {models}
+          controller={modelsController}
+          configItems={configuration.reply?.inventory.items ?? null}
+          profiles={native.profiles}
+          sessions={sessions.page?.sessions ?? null}
+        />
+        <ProfilesView
+          visible={activeView === 'profiles'}
+          {native}
+          controller={nativeController}
+          catalogue={models.catalogue}
+        />
+        <ArsenalView
+          visible={activeView === 'arsenal'}
+          {arsenal}
+          controller={arsenalController}
+        />
+        <ConfigurationView
+          visible={activeView === 'configuration'}
+          {configuration}
+          controller={configurationController}
+          {changes}
+          {changesController}
+        />
+        <CredentialsView
+          visible={activeView === 'credentials'}
+          {credentials}
+          controller={credentialsController}
+        />
+      </div>
+    </div>
     <ProvidersView
       visible={activeView === 'providers'}
       view={m3}
@@ -554,37 +606,6 @@
       onsession={showSession}
       onagent={showAgent}
       onapprovals={() => go('approvals')}
-    />
-    <ConfigurationView
-      visible={activeView === 'configuration'}
-      {configuration}
-      controller={configurationController}
-      {changes}
-      {changesController}
-    />
-    <ArsenalView
-      visible={activeView === 'arsenal'}
-      {arsenal}
-      controller={arsenalController}
-    />
-    <ModelsView
-      visible={activeView === 'models'}
-      {models}
-      controller={modelsController}
-      configItems={configuration.reply?.inventory.items ?? null}
-      profiles={native.profiles}
-      sessions={sessions.page?.sessions ?? null}
-    />
-    <ProfilesView
-      visible={activeView === 'profiles'}
-      {native}
-      controller={nativeController}
-      catalogue={models.catalogue}
-    />
-    <CredentialsView
-      visible={activeView === 'credentials'}
-      {credentials}
-      controller={credentialsController}
     />
     <SettingsView
       visible={activeView === 'settings'}

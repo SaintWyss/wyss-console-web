@@ -3750,4 +3750,17 @@ export const ES: Readonly<Record<string, string>> = {
   'Profiles: see what each one sets, edit them or make a new one.':
     'Perfiles: ver qué fija cada uno, editarlos o crear uno nuevo.',
   'Edit profiles…': 'Editar perfiles…',
+  Personalization: 'Personalización',
+  'Which agents are installed, their version and their models.':
+    'Qué agentes hay instalados, su versión y sus modelos.',
+  'What each distributor offers, which model is set and which one a session is using.':
+    'Qué ofrece cada distribuidor, qué modelo está configurado y cuál usa cada sesión.',
+  'What a session starts with: model, effort, permissions and hooks. Made and edited here.':
+    'Con qué arranca una sesión: modelo, esfuerzo, permisos y hooks. Acá se crean y se editan.',
+  'Skills, agents, MCP servers and presets: what a session can load.':
+    'Skills, agentes, servidores MCP y presets: lo que una sesión puede cargar.',
+  'The real configuration files of Claude Code and Codex, which a profile writes over.':
+    'Los archivos de configuración reales de Claude Code y Codex, que un perfil pisa.',
+  'The API keys each distributor needs, kept sealed.':
+    'Las claves de API que necesita cada distribuidor, guardadas selladas.',
 };

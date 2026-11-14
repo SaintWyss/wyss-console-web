@@ -617,6 +617,16 @@ it('a profile is listed by its name, with its model only when it sets one, and P
   expect(options).toContain('Full access (bypass)');
   expect(options).toContain('Rápido · haiku');
   expect(options.join(' ')).not.toContain('default model');
-  button('Edit profiles…').click();
+  // The first entry opens Profiles and leaves the choice and the draft as they were.
+  const select = [
+    ...document.querySelectorAll<HTMLSelectElement>('.le-field select'),
+  ].find((x) => x.textContent?.includes('Edit profiles…'))!;
+  expect(select.options[0].textContent?.trim()).toBe('Edit profiles…');
+  const before = select.value;
+  select.value = select.options[0].value;
+  select.dispatchEvent(new Event('change', { bubbles: true }));
+  flushSync();
   expect(onprofiles).toHaveBeenCalledOnce();
+  expect(select.value).toBe(before);
+  expect(button('Save').disabled).toBe(true);
 });

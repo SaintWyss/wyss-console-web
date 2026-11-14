@@ -17,6 +17,7 @@
     onselect,
     waiting = 0,
     items = NAV_ITEMS,
+    personal,
   }: {
     active: ShownView;
     onselect: (id: ShownView) => void;
@@ -24,6 +25,8 @@
     waiting?: number;
     /** Every view this window offers (Runtimes and Projects only when they exist). */
     items?: readonly NavItem[];
+    /** The Personalization tab last visited: what its rail entry opens. */
+    personal?: ViewId;
   } = $props();
 
   let moreOpen = $state(false);
@@ -43,7 +46,9 @@
       return;
     }
     moreOpen = false;
-    onselect(item.view);
+    onselect(
+      item.id === 'personalization' ? (personal ?? item.view) : item.view,
+    );
   }
   function pick(id: ViewId) {
     moreOpen = false;

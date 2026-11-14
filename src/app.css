@@ -4981,15 +4981,74 @@ li.native-row .native-note {
 .le-field select:disabled {
   pointer-events: none;
 }
-.le-link {
-  align-self: flex-start;
-  padding: 0;
-  color: var(--accent);
-  font-size: var(--text-xs);
-  background: none;
-  border: 0;
+
+/* Personalization: its tabs one under another, the open one beside them. The body is a
+   bounded column, as .content is for every other view: each view scrolls inside it. */
+.personal {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 0;
+  margin: -14px -16px -16px -14px;
+}
+.personal[hidden] {
+  display: none;
+}
+.personal-tabs {
+  flex: 0 0 188px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 8px;
+  background: var(--chrome);
+  border-right: 1px solid var(--line);
+  overflow-y: auto;
+}
+.personal-tab {
+  min-height: 34px;
+  padding: 6px 10px;
+  text-align: left;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
-.le-link:hover {
-  text-decoration: underline;
+.personal-tab:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+.personal-tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.personal-tab[aria-current='page'] {
+  color: var(--text);
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+.personal-body {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 14px 16px 16px 14px;
+  overflow: hidden;
+}
+@media (max-width: 760px) {
+  .personal {
+    flex-direction: column;
+  }
+  .personal-tabs {
+    flex: 0 0 auto;
+    flex-direction: row;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .personal-tab {
+    white-space: nowrap;
+  }
 }

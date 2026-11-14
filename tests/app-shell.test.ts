@@ -186,8 +186,7 @@ it('renders the shell with brand, every view enabled and Console selected', asyn
   expect(rail.map((b) => b.textContent?.trim())).toEqual([
     'Console',
     'Workspace',
-    'Arsenal',
-    'Distributors',
+    'Personalization',
     'Activity',
     'Settings',
     'More',
@@ -208,11 +207,7 @@ it('renders the shell with brand, every view enabled and Console selected', asyn
     'Remote PCs',
     'Approvals',
     'Events',
-    'Configuration',
-    'Models',
     'Providers',
-    'Profiles',
-    'Credentials',
     'Settings',
   ]);
   // No item is a placeholder.
@@ -228,12 +223,12 @@ it('renders the shell with brand, every view enabled and Console selected', asyn
   expect(pill('authority')?.textContent).toContain('Connecting');
   expect(pill('agent')?.textContent).toContain('Unknown');
 
-  // The rail's Distributors opens its own view; Providers is still a view, under More.
+  // The rail's Personalization opens Distributors first; Providers is still a view, under More.
   const shown = (name: string) =>
     !document.querySelector<HTMLElement>(`.${name}-feature`)!.hidden;
-  rail[3].click();
+  rail[2].click();
   await flush();
-  expect(rail[3].getAttribute('aria-current')).toBe('page');
+  expect(rail[2].getAttribute('aria-current')).toBe('page');
   expect(shown('distributors')).toBe(true);
   expect(shown('providers')).toBe(false);
   more.find((b) => b.textContent?.trim() === 'Providers')!.click();
