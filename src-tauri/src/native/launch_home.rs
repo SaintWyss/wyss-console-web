@@ -104,7 +104,7 @@ fn name_ok(name: &str) -> bool {
         && !name.chars().any(char::is_control)
 }
 
-fn key_ok(key: &str) -> bool {
+pub(super) fn key_ok(key: &str) -> bool {
     key.len() == 16
         && key
             .bytes()
@@ -256,7 +256,7 @@ fn read_json(path: &Path) -> io::Result<Value> {
 
 /// Replaces `link` with a link to `target`, or removes it when `target` is `None`. Only ever
 /// removes a link or a file of the launch home, never a folder.
-fn place(link: &Path, target: Option<&Path>) -> io::Result<()> {
+pub(super) fn place(link: &Path, target: Option<&Path>) -> io::Result<()> {
     match fs::symlink_metadata(link) {
         Ok(meta) if meta.is_dir() => return Err(io::Error::other("unexpected folder")),
         Ok(_) => {

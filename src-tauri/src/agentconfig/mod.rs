@@ -92,7 +92,7 @@ pub mod service;
 mod service_tests;
 #[cfg(test)]
 mod tests;
-mod tomlspan;
+pub(crate) mod tomlspan;
 #[cfg(test)]
 mod tomlspan_tests;
 pub mod vault;
