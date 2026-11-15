@@ -281,27 +281,35 @@ pub fn arsenal_exclusion(agent: AgentId, version: Option<&str>) -> Option<Arsena
     if agent == AgentId::ClaudeCode && version == ARSENAL_TEST_VERSION {
         return Some(ARSENAL_TEST);
     }
-    records
+    let exact = records
         .iter()
         .find(|record| record.qualified_version == version)
-        .copied()
+        .copied();
+    // The owner decided (2026-11-15) that Claude Code is not qualified build by build: any
+    // reported build applies. Codex keeps its exact records.
+    match agent {
+        AgentId::ClaudeCode => exact.or(Some(CLAUDE_ANY_BUILD)),
+        _ => exact,
+    }
 }
+
+/// Claude Code without a record for its exact build, applied by the owner's decision.
+const CLAUDE_ANY_BUILD: ArsenalEvidence = ArsenalEvidence {
+    qualified_version: "any Claude Code build (not checked build by build)",
+    checked_on: "2026-11-15",
+    operation: "--settings overlay holding only skillOverrides=off for installed user and project skills",
+    source: "owner decision 2026-11-15 (docs/plans/roles-texto-propio.md, step 1); last focused run: ARSENAL-Q323-QUALIFICATION-2026-11-12.md",
+    limitation: "this build was not checked; plugin and built-in skills are not switched off; provider use of each skill is not observed",
+};
 
 pub fn permits_arsenal_exclusion(agent: AgentId, version: Option<&str>) -> bool {
     arsenal_exclusion(agent, version).is_some()
 }
 
-/// Claude Code builds whose launch home (`CLAUDE_CONFIG_DIR` + `CLAUDE_CODE_OAUTH_TOKEN`) was
-/// checked: a home linking everything reproduces the owner's inventory, a minimal one loads only
-/// what it keeps, and the interactive start asks for nothing the owner's own does not.
-const ARSENAL_HOME_CLAUDE: &[&str] = &["2.1.323 (Claude Code)"];
-
+/// Any reported Claude Code build may start in a launch home (owner decision 2026-11-15); the
+/// last build whose home was checked by hand is 2.1.323. Codex homes are gated by their own spec.
 pub fn permits_arsenal_home(agent: AgentId, version: Option<&str>) -> bool {
-    #[cfg(test)]
-    if agent == AgentId::ClaudeCode && version == Some(ARSENAL_TEST_VERSION) {
-        return true;
-    }
-    agent == AgentId::ClaudeCode && version.is_some_and(|v| ARSENAL_HOME_CLAUDE.contains(&v))
+    agent == AgentId::ClaudeCode && version.is_some_and(|v| !v.trim().is_empty())
 }
 
 #[cfg(test)]
@@ -309,74 +317,64 @@ mod tests {
     use super::*;
 
     #[test]
-    fn arsenal_exclusion_needs_its_own_record_for_the_exact_claude_build() {
-        // Profile syntax evidence does not qualify skill exclusion; only the exact qualified line does.
+    fn claude_applies_on_any_reported_build_and_codex_keeps_its_exact_records() {
+        // Owner decision 2026-11-15: Claude Code is not qualified build by build.
         for version in [
-            None,
-            Some("2.1.309 (Claude Code)"),
-            Some("2.1.312 (Claude Code)"),
-            Some("2.1.315 (Claude Code)"),
-            Some("2.1.314"),
-        ] {
-            assert!(!permits_arsenal_exclusion(AgentId::ClaudeCode, version));
-        }
-        assert!(permits_arsenal_exclusion(
-            AgentId::ClaudeCode,
-            Some("2.1.314 (Claude Code)")
-        ));
-        assert!(permits_arsenal_exclusion(
-            AgentId::ClaudeCode,
-            Some("2.1.323 (Claude Code)")
-        ));
-        // 2.1.321 and 2.1.322 were installed in between and never qualified.
-        assert!(!permits_arsenal_exclusion(
-            AgentId::ClaudeCode,
-            Some("2.1.322 (Claude Code)")
-        ));
-        // Profile syntax no longer depends on the build; Arsenal exclusion still does (above).
-        assert!(permits_profile_overrides(
-            AgentId::ClaudeCode,
-            Some("2.1.314 (Claude Code)")
-        ));
-        assert!(permits_arsenal_exclusion(
-            AgentId::ClaudeCode,
-            Some(ARSENAL_TEST_VERSION)
-        ));
-        assert!(!permits_arsenal_exclusion(
-            AgentId::Codex,
-            Some(ARSENAL_TEST_VERSION)
-        ));
-        assert!(permits_arsenal_exclusion(
-            AgentId::ClaudeCode,
-            Some("2.1.316 (Claude Code)")
-        ));
-        assert!(!permits_arsenal_exclusion(
-            AgentId::ClaudeCode,
-            Some("2.1.315 (Claude Code)")
-        ));
-        assert!(permits_arsenal_exclusion(
-            AgentId::ClaudeCode,
-            Some("2.1.319 (Claude Code)")
-        ));
-        for neighbour in [
-            "2.1.317 (Claude Code)",
-            "2.1.318 (Claude Code)",
-            "2.1.320 (Claude Code)",
-            "2.1.319",
+            "2.1.309 (Claude Code)",
+            "2.1.322 (Claude Code)",
+            "2.1.325 (Claude Code)",
+            "9.9.9 (Claude Code)",
         ] {
             assert!(
-                !permits_arsenal_exclusion(AgentId::ClaudeCode, Some(neighbour)),
-                "{neighbour}"
+                permits_arsenal_exclusion(AgentId::ClaudeCode, Some(version)),
+                "{version}"
             );
+            assert!(
+                permits_arsenal_home(AgentId::ClaudeCode, Some(version)),
+                "{version}"
+            );
+            let evidence = arsenal_exclusion(AgentId::ClaudeCode, Some(version)).unwrap();
+            assert!(evidence.limitation.contains("not checked"), "{version}");
         }
+        // A checked build keeps its own record.
+        let checked =
+            arsenal_exclusion(AgentId::ClaudeCode, Some("2.1.323 (Claude Code)")).unwrap();
+        assert_eq!(checked.qualified_version, "2.1.323 (Claude Code)");
+        // An unknown version is still refused.
+        assert!(!permits_arsenal_exclusion(AgentId::ClaudeCode, None));
+        assert!(!permits_arsenal_home(AgentId::ClaudeCode, None));
+        assert!(!permits_arsenal_home(AgentId::ClaudeCode, Some("  ")));
+        // Codex: only the exact qualified builds; it never uses the Claude home.
+        assert!(permits_arsenal_exclusion(
+            AgentId::Codex,
+            Some("codex-cli 0.169.0")
+        ));
         assert!(permits_arsenal_exclusion(
             AgentId::Codex,
             Some("codex-cli 0.159.0")
         ));
-        for other in ["codex-cli 0.158.0", "codex-cli 0.160.0", "0.159.0"] {
-            assert!(!permits_arsenal_exclusion(AgentId::Codex, Some(other)));
+        for other in [
+            "codex-cli 0.158.0",
+            "codex-cli 0.160.0",
+            "codex-cli 0.170.0",
+            "0.159.0",
+        ] {
+            assert!(
+                !permits_arsenal_exclusion(AgentId::Codex, Some(other)),
+                "{other}"
+            );
         }
         assert!(!permits_arsenal_exclusion(AgentId::Codex, None));
+        assert!(!permits_arsenal_home(
+            AgentId::Codex,
+            Some("codex-cli 0.169.0")
+        ));
+        assert!(!permits_arsenal_exclusion(AgentId::Opencode, Some("1.0.0")));
+        // Profile syntax still does not depend on the build.
+        assert!(permits_profile_overrides(
+            AgentId::ClaudeCode,
+            Some("2.1.314 (Claude Code)")
+        ));
     }
 
     #[test]

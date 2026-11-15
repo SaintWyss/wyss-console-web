@@ -2023,26 +2023,27 @@ fn arsenal_start(
 }
 
 #[test]
-fn an_arsenal_exclusion_is_refused_on_a_build_without_its_own_evidence() {
+fn an_arsenal_exclusion_on_claude_is_not_refused_for_its_build() {
     let world = World::new();
     let launch = arsenal_launch(&["design"]);
     let preview = world
         .service
         .preview(AgentId::ClaudeCode, None, Some(&launch))
         .unwrap();
-    // 2.1.309 has profile syntax evidence, which does not qualify skill exclusion.
-    let error = arsenal_start(
+    // Without the preview's token the start is refused before any version is considered.
+    let error =
+        arsenal_start(&world, Some(launch.clone()), None, "2.1.309 (Claude Code)").unwrap_err();
+    assert_eq!(error.code, "profile_preview_required");
+    assert!(world.service.sessions(&world.terminal, false).is_empty());
+    // Owner decision 2026-11-15: a Claude build without its own record starts all the same.
+    arsenal_start(
         &world,
-        Some(launch.clone()),
+        Some(launch),
         preview.plan_token.clone(),
         "2.1.309 (Claude Code)",
     )
-    .unwrap_err();
-    assert_eq!(error.code, "arsenal_unqualified");
-    // Without the preview's token the start is refused before any version is considered.
-    let error = arsenal_start(&world, Some(launch), None, "2.1.309 (Claude Code)").unwrap_err();
-    assert_eq!(error.code, "profile_preview_required");
-    assert!(world.service.sessions(&world.terminal, false).is_empty());
+    .expect("an unlisted Claude build is not refused");
+    assert_eq!(world.service.sessions(&world.terminal, false).len(), 1);
 }
 
 #[test]
