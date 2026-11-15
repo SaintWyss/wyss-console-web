@@ -5864,3 +5864,14 @@ li.native-row .native-note {
   flex-direction: column;
   gap: 4px;
 }
+
+/* Distributors' row buttons: smaller than the app's default control. */
+.dist-actions .action {
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: var(--text-sm);
+}
+.dist-actions {
+  display: flex;
+  gap: 6px;
+}

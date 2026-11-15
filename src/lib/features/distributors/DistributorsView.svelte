@@ -293,6 +293,26 @@
                 note: d.note,
               })}>{t('Edit')}</button
           >
+          {#if confirmDelete === d.id}
+            <button
+              type="button"
+              class="action danger"
+              disabled={working}
+              onclick={() => void remove(d.id)}>{t('Confirm delete')}</button
+            >
+            <button
+              type="button"
+              class="action"
+              onclick={() => (confirmDelete = null)}>{t('Cancel')}</button
+            >
+          {:else}
+            <button
+              type="button"
+              class="action"
+              title={t('Removes its card. The tool itself stays installed.')}
+              onclick={() => (confirmDelete = d.id)}>{t('Delete')}</button
+            >
+          {/if}
         </div>
       </article>
     {/each}
@@ -420,24 +440,6 @@
                 )}
                 onclick={() => void makeLaunch(id)}>{t('Make launch')}</button
               >
-              {#if confirmDelete === id}
-                <button
-                  type="button"
-                  class="action danger"
-                  disabled={working}
-                  onclick={() => void remove(id).then(close)}
-                  >{t('Delete')}</button
-                >
-              {:else}
-                <button
-                  type="button"
-                  class="action"
-                  title={t(
-                    'Removes its card. The tool itself stays installed.',
-                  )}
-                  onclick={() => (confirmDelete = id)}>{t('Delete')}</button
-                >
-              {/if}
             {/if}
             <span class="dist-spacer"></span>
             <button type="button" class="action" onclick={close}

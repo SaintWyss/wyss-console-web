@@ -3681,6 +3681,7 @@ export const ES: Readonly<Record<string, string>> = {
   'Added by you': 'Agregados por vos',
   'Other tools': 'Otras herramientas',
   'Add a tool': 'Agregar herramienta',
+  'Confirm delete': 'Confirmar borrado',
   'Add a tool the Console does not know: by its name and the commands that open and update it.':
     'Agregá una herramienta que la Console no conoce: con su nombre y los comandos que la abren y la actualizan.',
   'Edit distributor': 'Editar distribuidor',
