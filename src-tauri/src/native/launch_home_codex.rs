@@ -227,6 +227,58 @@ fn sign_in_link(link: &Path, target: Option<&Path>, apply: bool) -> io::Result<(
     }
 }
 
+/// Refuses a home path that could lead somewhere else: a `..` part anywhere, or a part that
+/// exists and is a link. Parts that do not exist yet are made by `private_dir` as plain folders.
+// A `.` part is not refused: `Path::components` drops it from an absolute path, which names the
+// same folder without it, so it never reaches the loop (the `CurDir` arm is only a guard).
+// TOCTOU: the check and the writes that follow go by path, not by an open folder, so a part
+// swapped for a link in between is not seen. Every part from the state folder down is a 0700
+// folder of the user, so only a process already running as the user can do that.
+fn plain_path(dir: &Path) -> io::Result<()> {
+    use std::path::Component;
+    let mut walked = PathBuf::new();
+    // Past the first part that does not exist nothing is on disk to look at, but the rest of the
+    // path is still walked: a later `..` is refused all the same.
+    let mut missing = false;
+    for part in dir.components() {
+        match part {
+            Component::RootDir | Component::Prefix(_) => walked.push(part),
+            Component::Normal(_) if missing => {}
+            Component::Normal(name) => {
+                walked.push(name);
+                match fs::symlink_metadata(&walked) {
+                    Ok(meta) if meta.file_type().is_symlink() => {
+                        return Err(fail("codex_home_path_link"));
+                    }
+                    Ok(_) => {}
+                    Err(e) if e.kind() == io::ErrorKind::NotFound => missing = true,
+                    Err(e) => return Err(e),
+                }
+            }
+            Component::ParentDir | Component::CurDir => return Err(fail("codex_home_path")),
+        }
+    }
+    Ok(())
+}
+
+/// Whether the owner's `auth.lock` is there. One that is there must be a regular file of the
+/// user that nobody else can open: anything else is refused, and it is never changed or replaced.
+fn owner_lock(path: &Path) -> io::Result<bool> {
+    use std::os::unix::fs::{MetadataExt, PermissionsExt};
+    match fs::symlink_metadata(path) {
+        Ok(meta)
+            if meta.is_file()
+                && meta.uid() == nix::unistd::geteuid().as_raw()
+                && meta.permissions().mode() & 0o077 == 0 =>
+        {
+            Ok(true)
+        }
+        Ok(_) => Err(fail("codex_home_owner_lock_unexpected")),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(false),
+        Err(e) => Err(e),
+    }
+}
+
 /// Builds (or brings up to date) the Codex launch home at `dir` and returns it. Safe to run again
 /// for the next launch of the same preset: the same inputs leave the same home, and what Codex
 /// keeps there (its `[hooks.state…]` trust, anything it wrote beside these entries) stays.
@@ -243,7 +295,9 @@ fn sign_in_link(link: &Path, target: Option<&Path>, apply: bool) -> io::Result<(
 /// - `sessions`: a link to the owner's, when the owner has one.
 ///
 /// Errors, all before anything is written: an invalid `spec`; a `dir` or owner folder that is not
-/// absolute; no owner folder; an owner or home `config.toml` / `hooks.json` that is a link,
+/// absolute; a home path with `..` or with a link in it; no owner folder, or one that is a link;
+/// an owner `auth.json` that is not a regular file, `auth.lock` that is not a private regular
+/// file of the user, or `sessions` that is not a folder; an owner or home `config.toml` / `hooks.json` that is a link,
 /// unreadable or malformed; a home `auth.json` or `auth.lock` that is not the expected link. A
 /// folder where a link or a file goes is an error too, and is never removed.
 pub fn build(owner: &CodexOwner, dir: &Path, spec: &CodexHomeSpec) -> io::Result<PathBuf> {
@@ -254,6 +308,7 @@ pub fn build(owner: &CodexOwner, dir: &Path, spec: &CodexHomeSpec) -> io::Result
     if !fs::symlink_metadata(&owner.dir).is_ok_and(|meta| meta.is_dir()) {
         return Err(fail("codex_home_owner_missing"));
     }
+    plain_path(dir)?;
 
     // Everything is read and checked first, so a refusal leaves the home as it was.
     let owner_config = read_text(
@@ -274,14 +329,29 @@ pub fn build(owner: &CodexOwner, dir: &Path, spec: &CodexHomeSpec) -> io::Result
     };
     // The sign-in is only ever looked at from outside (`symlink_metadata`), never opened.
     let owner_auth = owner.dir.join(AUTH);
-    let owner_lock = owner.dir.join(AUTH_LOCK);
-    let signed_in = present(&owner_auth)?;
+    let owner_lock_path = owner.dir.join(AUTH_LOCK);
+    // The owner's must be a regular file: Codex resolves a link and would replace whatever file
+    // it points at, outside `~/.codex`.
+    let signed_in = match fs::symlink_metadata(&owner_auth) {
+        Ok(meta) if meta.is_file() => true,
+        Ok(_) => return Err(fail("codex_home_owner_sign_in_unexpected")),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => false,
+        Err(e) => return Err(e),
+    };
+    if signed_in {
+        owner_lock(&owner_lock_path)?;
+    }
     let auth = signed_in.then_some(owner_auth.as_path());
-    let lock = signed_in.then_some(owner_lock.as_path());
+    let lock = signed_in.then_some(owner_lock_path.as_path());
     sign_in_link(&dir.join(AUTH), auth, false)?;
     sign_in_link(&dir.join(AUTH_LOCK), lock, false)?;
     let owner_sessions = owner.dir.join(SESSIONS);
-    let sessions = present(&owner_sessions)?.then_some(owner_sessions);
+    let sessions = match fs::symlink_metadata(&owner_sessions) {
+        Ok(meta) if meta.is_dir() => Some(owner_sessions),
+        Ok(_) => return Err(fail("codex_home_owner_sessions_unexpected")),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => None,
+        Err(e) => return Err(e),
+    };
     let own_sessions = fs::symlink_metadata(dir.join(SESSIONS)).is_ok_and(|meta| meta.is_dir());
     if own_sessions && sessions.is_some() {
         return Err(fail("codex_home_sessions_folder"));
@@ -308,10 +378,13 @@ pub fn build(owner: &CodexOwner, dir: &Path, spec: &CodexHomeSpec) -> io::Result
             .create_new(true)
             .mode(0o600)
             .custom_flags(nix::libc::O_NOFOLLOW)
-            .open(&owner_lock)
+            .open(&owner_lock_path)
         {
             Ok(_) => {}
-            Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {}
+            Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {
+                // Checked again here: it may have appeared since the check above.
+                owner_lock(&owner_lock_path)?;
+            }
             Err(e) => return Err(e),
         }
     }
@@ -667,13 +740,13 @@ mod tests {
         let f = fx("lock-kept");
         let lock = f.owner.dir.join(AUTH_LOCK);
         fs::write(&lock, "held").unwrap();
-        fs::set_permissions(&lock, fs::Permissions::from_mode(0o640)).unwrap();
+        fs::set_permissions(&lock, fs::Permissions::from_mode(0o600)).unwrap();
         let ino = fs::metadata(&lock).unwrap().ino();
         f.ok();
         f.ok();
         assert_eq!(fs::metadata(&lock).unwrap().ino(), ino);
         assert_eq!(fs::read_to_string(&lock).unwrap(), "held");
-        assert_eq!(mode(&lock), 0o640);
+        assert_eq!(mode(&lock), 0o600);
     }
 
     // 7
@@ -912,5 +985,262 @@ mod tests {
                 "{name}"
             );
         }
+    }
+
+    // 12
+    #[test]
+    fn an_existing_ancestor_that_is_a_link_is_refused_and_nothing_is_written_through_it() {
+        let f = fx("ancestor-link");
+        let real = f.root.join("real-target");
+        fs::create_dir_all(&real).unwrap();
+        fs::create_dir_all(f.root.join("launch-homes")).unwrap();
+        symlink(&real, f.root.join("launch-homes/codex")).unwrap();
+        let home = f.root.join("launch-homes/codex/preset");
+        let r = build(&f.owner, &home, &CodexHomeSpec::default());
+        assert_eq!(code(r), "codex_home_path_link");
+        assert!(snapshot(&real).is_empty(), "nothing written at the target");
+        assert!(is_link(&f.root.join("launch-homes/codex")));
+        assert!(gone(&real.join("preset")));
+        assert!(gone(&f.owner.dir.join(AUTH_LOCK)), "owner lock not made");
+    }
+
+    // 13
+    #[test]
+    fn a_home_path_with_parent_dir_after_existing_parts_is_refused_and_nothing_is_created() {
+        let f = fx("dotdot");
+        fs::create_dir_all(f.root.join("homes")).unwrap();
+        let home = f.root.join("homes/../escaped/preset");
+        assert_eq!(
+            code(build(&f.owner, &home, &CodexHomeSpec::default())),
+            "codex_home_path"
+        );
+        assert!(gone(&f.root.join("escaped")));
+    }
+
+    // 13b
+    #[test]
+    fn a_home_path_with_parent_dir_after_a_missing_part_is_refused() {
+        let f = fx("dotdot-missing");
+        let home = f.root.join("missing/../escaped/preset");
+        assert_eq!(
+            code(build(&f.owner, &home, &CodexHomeSpec::default())),
+            "codex_home_path"
+        );
+        assert!(gone(&f.root.join("escaped")));
+    }
+
+    // 14
+    // `Path::components` drops a `.` in the middle or at the end of an absolute path, so a
+    // `CurDir` part never reaches `plain_path` there: the path is normalized, not refused. This
+    // pins what the code does today; the `CurDir` arm of `plain_path` is unreachable from `build`.
+    #[test]
+    fn a_dot_part_in_an_absolute_home_path_is_normalized_away_by_components() {
+        let f = fx("dot");
+        let home = f.root.join("homes/./preset");
+        assert!(
+            home.components()
+                .all(|c| !matches!(c, std::path::Component::CurDir))
+        );
+        assert_eq!(
+            build(&f.owner, &home, &CodexHomeSpec::default()).unwrap(),
+            home
+        );
+        assert!(f.root.join("homes/preset").is_dir());
+    }
+
+    // 15
+    #[test]
+    fn owner_auth_that_is_a_link_or_a_folder_is_refused_without_opening_it() {
+        for kind in ["link", "dir", "dangling"] {
+            let f = fx(&format!("auth-{kind}"));
+            let auth = f.owner.dir.join(AUTH);
+            fs::remove_file(&auth).unwrap();
+            let real = f.root.join("elsewhere-auth");
+            match kind {
+                "link" => {
+                    fs::write(&real, "FAKE-TOKEN-OTHER").unwrap();
+                    // Unreadable target: opening through the link would fail, not give this code.
+                    fs::set_permissions(&real, fs::Permissions::from_mode(0o000)).unwrap();
+                    symlink(&real, &auth).unwrap();
+                }
+                "dir" => fs::create_dir(&auth).unwrap(),
+                _ => symlink(f.root.join("nowhere"), &auth).unwrap(),
+            }
+            assert_eq!(
+                code(f.build(&CodexHomeSpec::default())),
+                "codex_home_owner_sign_in_unexpected",
+                "{kind}"
+            );
+            assert!(gone(&f.home), "{kind}: nothing written");
+            assert!(gone(&f.owner.dir.join(AUTH_LOCK)), "{kind}: no lock made");
+            if kind == "link" {
+                assert_eq!(fs::read_link(&auth).unwrap(), real);
+                fs::set_permissions(&real, fs::Permissions::from_mode(0o600)).unwrap();
+                assert_eq!(fs::read_to_string(&real).unwrap(), "FAKE-TOKEN-OTHER");
+            }
+        }
+    }
+
+    // 16
+    #[test]
+    fn owner_sessions_that_is_a_link_or_a_file_is_refused_and_nothing_is_written() {
+        for kind in ["link", "file"] {
+            let f = fx(&format!("sessions-{kind}"));
+            let sessions = f.owner.dir.join(SESSIONS);
+            fs::remove_dir(&sessions).unwrap();
+            if kind == "link" {
+                let real = f.root.join("other-sessions");
+                fs::create_dir_all(&real).unwrap();
+                symlink(&real, &sessions).unwrap();
+            } else {
+                fs::write(&sessions, "not a folder").unwrap();
+            }
+            assert_eq!(
+                code(f.build(&CodexHomeSpec::default())),
+                "codex_home_owner_sessions_unexpected",
+                "{kind}"
+            );
+            assert!(gone(&f.home), "{kind}: home not created");
+            assert!(gone(&f.owner.dir.join(AUTH_LOCK)), "{kind}: no lock made");
+        }
+    }
+
+    // 17
+    #[test]
+    fn owner_lock_with_group_or_other_access_is_refused_and_left_exactly_as_it_was() {
+        for lock_mode in [0o640, 0o644, 0o604, 0o660, 0o666] {
+            let f = fx(&format!("lock-mode-{lock_mode:o}"));
+            let lock = f.owner.dir.join(AUTH_LOCK);
+            fs::write(&lock, "held").unwrap();
+            fs::set_permissions(&lock, fs::Permissions::from_mode(lock_mode)).unwrap();
+            let before = fs::metadata(&lock).unwrap();
+            assert_eq!(
+                code(f.build(&CodexHomeSpec::default())),
+                "codex_home_owner_lock_unexpected",
+                "{lock_mode:o}"
+            );
+            let after = fs::metadata(&lock).unwrap();
+            assert_eq!(after.ino(), before.ino(), "{lock_mode:o}: same inode");
+            assert_eq!(after.len(), before.len());
+            assert_eq!(after.modified().unwrap(), before.modified().unwrap());
+            assert_eq!(mode(&lock), lock_mode, "mode not tightened");
+            assert_eq!(fs::read_to_string(&lock).unwrap(), "held");
+            assert!(gone(&f.home), "{lock_mode:o}: home not created");
+        }
+    }
+
+    // 18
+    #[test]
+    fn owner_lock_that_is_a_folder_or_a_link_is_refused_and_not_modified() {
+        // folder
+        let f = fx("lock-dir");
+        let lock = f.owner.dir.join(AUTH_LOCK);
+        fs::create_dir(&lock).unwrap();
+        fs::write(lock.join("keep"), "x").unwrap();
+        let ino = fs::metadata(&lock).unwrap().ino();
+        assert_eq!(
+            code(f.build(&CodexHomeSpec::default())),
+            "codex_home_owner_lock_unexpected"
+        );
+        assert_eq!(fs::metadata(&lock).unwrap().ino(), ino);
+        assert_eq!(fs::read_to_string(lock.join("keep")).unwrap(), "x");
+        assert!(gone(&f.home));
+
+        // link to a private file of the user: still a link, so refused
+        let f = fx("lock-link");
+        let lock = f.owner.dir.join(AUTH_LOCK);
+        let real = f.root.join("real.lock");
+        fs::write(&real, "held").unwrap();
+        fs::set_permissions(&real, fs::Permissions::from_mode(0o600)).unwrap();
+        let ino = fs::metadata(&real).unwrap().ino();
+        symlink(&real, &lock).unwrap();
+        assert_eq!(
+            code(f.build(&CodexHomeSpec::default())),
+            "codex_home_owner_lock_unexpected"
+        );
+        assert_eq!(fs::read_link(&lock).unwrap(), real);
+        assert_eq!(fs::metadata(&real).unwrap().ino(), ino);
+        assert_eq!(fs::read_to_string(&real).unwrap(), "held");
+        assert_eq!(mode(&real), 0o600);
+        assert!(gone(&f.home));
+
+        // dangling link: not created through, not replaced
+        let f = fx("lock-dangling");
+        let lock = f.owner.dir.join(AUTH_LOCK);
+        let missing = f.root.join("missing.lock");
+        symlink(&missing, &lock).unwrap();
+        assert_eq!(
+            code(f.build(&CodexHomeSpec::default())),
+            "codex_home_owner_lock_unexpected"
+        );
+        assert_eq!(fs::read_link(&lock).unwrap(), missing);
+        assert!(gone(&missing), "nothing created through the link");
+    }
+
+    // 19
+    #[test]
+    fn owner_lock_with_mode_0600_is_accepted_and_not_modified() {
+        let f = fx("lock-0600");
+        let lock = f.owner.dir.join(AUTH_LOCK);
+        fs::write(&lock, "held").unwrap();
+        fs::set_permissions(&lock, fs::Permissions::from_mode(0o600)).unwrap();
+        let before = fs::metadata(&lock).unwrap();
+        f.ok();
+        let after = fs::metadata(&lock).unwrap();
+        assert_eq!(after.ino(), before.ino());
+        assert_eq!(after.modified().unwrap(), before.modified().unwrap());
+        assert_eq!(mode(&lock), 0o600);
+        assert_eq!(fs::read_to_string(&lock).unwrap(), "held");
+        assert_eq!(fs::read_link(f.home.join(AUTH_LOCK)).unwrap(), lock);
+    }
+
+    /// `chmod 000` only blocks a user that is not root (and has no `CAP_DAC_OVERRIDE`).
+    fn mode_000_blocks_opening(path: &Path) -> bool {
+        fs::File::open(path).is_err()
+    }
+
+    // 20
+    #[test]
+    fn control_a_0o000_owner_auth_does_not_stop_the_build_because_it_is_never_opened() {
+        let f = fx("auth-0o000");
+        let auth = f.owner.dir.join(AUTH);
+        fs::set_permissions(&auth, fs::Permissions::from_mode(0o000)).unwrap();
+        if !mode_000_blocks_opening(&auth) {
+            fs::set_permissions(&auth, fs::Permissions::from_mode(0o600)).unwrap();
+            eprintln!("SKIPPED: chmod 000 does not block opening here (running as root?)");
+            return;
+        }
+        let built = f.build(&CodexHomeSpec::default());
+        let linked = fs::read_link(f.home.join(AUTH)).ok();
+        let again = f.build(&CodexHomeSpec::default());
+        // Restore before asserting so a failure leaves nothing unreadable behind.
+        fs::set_permissions(&auth, fs::Permissions::from_mode(0o600)).unwrap();
+        assert_eq!(built.unwrap(), f.home);
+        assert_eq!(linked.as_deref(), Some(auth.as_path()));
+        again.unwrap();
+        assert_eq!(fs::read_to_string(&auth).unwrap(), FAKE_AUTH);
+    }
+
+    // 21
+    #[test]
+    fn control_negative_opening_a_0o000_file_fails_with_permission_denied() {
+        let root =
+            std::env::temp_dir().join(format!("launch-home-codex-neg-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        let file = root.join("auth.json");
+        fs::write(&file, FAKE_AUTH).unwrap();
+        fs::set_permissions(&file, fs::Permissions::from_mode(0o000)).unwrap();
+        let opened = fs::File::open(&file);
+        let read = fs::read(&file);
+        fs::set_permissions(&file, fs::Permissions::from_mode(0o600)).unwrap();
+        if opened.is_ok() {
+            eprintln!("SKIPPED: chmod 000 does not block opening here (running as root?)");
+            return;
+        }
+        assert_eq!(opened.unwrap_err().kind(), io::ErrorKind::PermissionDenied);
+        assert_eq!(read.unwrap_err().kind(), io::ErrorKind::PermissionDenied);
+        // The metadata path the build uses still works on the same file.
+        assert!(fs::symlink_metadata(&file).is_ok());
     }
 }
