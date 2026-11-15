@@ -11,6 +11,7 @@ import {
 import { ConfigurationController } from '../src/lib/features/configuration/controller';
 import {
   distributorCards,
+  versionNumber,
   inUse,
   SET_UP_IN,
   SUGGESTED,
@@ -81,10 +82,14 @@ it('says installed with the version, not installed, or unknown, as the launcher 
     'Codex',
     'OpenCode',
   ]);
+  // Only the number: the tool's own name is already on the card.
   expect(card(cards, 'anthropic').status).toEqual({
-    text: 'Installed · {version}',
-    values: { version: '2.1.303 (Claude Code)' },
+    text: '{version}',
+    values: { version: '2.1.303' },
   });
+  expect(versionNumber('codex-cli 0.169.0')).toBe('0.169.0');
+  expect(versionNumber('1.2.3-beta.1 (x)')).toBe('1.2.3-beta.1');
+  expect(versionNumber('nightly')).toBe('nightly');
   expect(card(cards, 'anthropic').installed).toBe(true);
   expect(card(cards, 'openai').status).toEqual({ text: 'Tool not installed' });
   expect(card(cards, 'openai').installed).toBe(false);
@@ -96,7 +101,7 @@ it('says installed with the version, not installed, or unknown, as the launcher 
   unversioned.agents[0].version = null;
   expect(
     card(distributorCards(unversioned, idle, null, []), 'anthropic').status,
-  ).toEqual({ text: 'Installed · version not reported' });
+  ).toEqual({ text: 'Installed' });
 
   // The launcher did not answer: every tool is unknown, none is said to be missing.
   const unknown = distributorCards(null, idle, null, []);
@@ -271,9 +276,7 @@ it('reads storage that is missing or damaged as never read, and survives storage
 it('says each state in Spanish in the words the owner fixed', () => {
   setLanguage('es');
   const cards = distributorCards(launcher(), ready(listed), items);
-  expect(tPhrase(card(cards, 'anthropic').status)).toBe(
-    'Instalado · 2.1.303 (Claude Code)',
-  );
+  expect(tPhrase(card(cards, 'anthropic').status)).toBe('2.1.303');
   expect(tPhrase(card(cards, 'openai').status)).toBe('No instalado');
   expect(tPhrase(card(cards, 'opencode').status)).toBe('Desconocido');
   expect(t('new model')).toBe('nuevo');

@@ -92,6 +92,11 @@ const EARLIER_READ: Phrase = {
   text: msg('Configured models are from an earlier read.'),
 };
 
+/** The version number a tool reported (`2.1.325 (Claude Code)`, `codex-cli 0.169.0`); as it came when it has none. */
+export function versionNumber(raw: string): string {
+  return /\d+\.\d+(?:\.\d+)?(?:[-+][\w.]+)?/.exec(raw)?.[0] ?? raw.trim();
+}
+
 /** Installed or not as `native_launcher` answered; unknown when it did not, or did not name it. */
 function statusOf(
   launcher: Launcher | null,
@@ -103,11 +108,8 @@ function statusOf(
     return { status: { text: msg('Tool not installed') }, installed: false };
   return {
     status: entry.version
-      ? {
-          text: msg('Installed · {version}'),
-          values: { version: entry.version },
-        }
-      : { text: msg('Installed · version not reported') },
+      ? { text: '{version}', values: { version: versionNumber(entry.version) } }
+      : { text: msg('Installed') },
     installed: true,
   };
 }

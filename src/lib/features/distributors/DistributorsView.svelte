@@ -3,8 +3,7 @@
   import { t, tPhrase } from '../../i18n/index.svelte';
   import type { ModelsState } from '../models/controller';
   import type { NativeState } from '../native/controller';
-  import { distributorCards, inUse, SET_UP_IN, SUGGESTED } from './present';
-  import { ENTITLEMENT_NOTE, entryRow, NATIVE_NOTE } from '../models/present';
+  import { distributorCards, SUGGESTED } from './present';
   import type { SessionSummary } from '../../contracts/sessions';
   import {
     distributorsClient,
@@ -12,7 +11,6 @@
     type DistributorsClient,
     type SaveDistributorInput,
   } from '../../desktop/distributors-client';
-  import { msg } from '../../i18n/msg';
   import { listedIds, loadSeen, reconcile, saveSeen } from './seen';
 
   let {
@@ -23,9 +21,8 @@
     configStale,
     onrefresh,
     onrun = () => undefined,
-    ongo = () => undefined,
     onlaunch = () => undefined,
-    managed = null,
+
     client = distributorsClient,
   }: {
     visible: boolean;
@@ -50,17 +47,6 @@
     managed?: readonly SessionSummary[] | null;
     client?: DistributorsClient;
   } = $props();
-
-  const VIEW_LABEL = {
-    configuration: msg('Configuration'),
-    credentials: msg('Credentials'),
-  } as const;
-  const VIEW_HINT = {
-    configuration: msg(
-      'This agent’s own configuration files: hooks, skills, MCP servers.',
-    ),
-    credentials: msg('The API key this agent uses.'),
-  } as const;
 
   // Distributors the owner added, read from their files.
   let added = $state<AddedDistributor[]>([]);
@@ -169,7 +155,6 @@
   }
 
   let busy = $state(false);
-  let lastRead = $state<string | null>(null);
   /** Codex models not seen before the last refresh. Gone at the next one. */
   let fresh = $state<string[]>([]);
   /** False after a refresh in which `native_launcher` did not answer: nothing is said of the tools. */
@@ -181,7 +166,6 @@
     const result = reconcile(loadSeen(), listedIds(models));
     if (result.save) saveSeen(result.save);
     fresh = result.fresh;
-    lastRead = new Date().toLocaleTimeString();
   }
   // The first read of the Codex list, once it has an answer of either kind.
   $effect(() => {
@@ -209,12 +193,6 @@
     compare();
   }
 
-  /** What the Codex runtime offers, model by model, with its efforts. */
-  const offered = $derived(
-    models.catalogue?.state === 'listed'
-      ? models.catalogue.entries.map(entryRow)
-      : [],
-  );
   const cards = $derived(
     distributorCards(
       answered ? native.launcher : null,
@@ -232,88 +210,21 @@
   hidden={!visible}
   inert={!visible}
 >
-  <div class="dist-bar">
-    <p class="dist-read" role="status" aria-busy={busy}>
-      {busy
-        ? t('Reading…')
-        : lastRead
-          ? t('Last read: {time}', { time: lastRead })
-          : ''}
-    </p>
-  </div>
   {#if addedError}<p class="notice" data-tone="error" role="alert">
       {addedError}
     </p>{/if}
   {#if notice}<p class="notice" data-tone="ok" role="status">{notice}</p>{/if}
   <div class="dist-grid">
     {#each cards as card (card.id)}
-      {@const running = inUse(card.agent, native.sessions, managed)}
       <article class="dist-card" aria-label={card.name} data-id={card.id}>
         <div class="dist-head">
-          <h3>{card.name}</h3>
-          <span class="dist-status" class:ok={card.installed}
-            >{tPhrase(card.status)}</span
-          >
+          <h3>
+            {card.name} · {card.tool} ·
+            <span class="dist-status" class:ok={card.installed}
+              >{tPhrase(card.status)}</span
+            >
+          </h3>
         </div>
-        <p class="dist-tool">{card.tool}</p>
-        {#if card.models.length > 0}
-          <ul class="dist-models">
-            {#each card.models as model (model.key)}
-              <li>
-                <span class="dist-model"
-                  >{typeof model.label === 'string'
-                    ? model.label
-                    : tPhrase(model.label)}</span
-                >
-                {#if model.fresh}<span class="dist-new">{t('new model')}</span
-                  >{/if}
-              </li>
-            {/each}
-          </ul>
-        {/if}
-        {#each card.notes as note (note.text)}
-          <p class="dist-note">{tPhrase(note)}</p>
-        {/each}
-        <details class="dist-more">
-          <summary
-            title={t('What this tool offers and what is running with it now.')}
-            >{t('Models in detail')}</summary
-          >
-          {#if card.agent === 'codex' && offered.length > 0}
-            <h4 class="dist-sub">
-              {t('Offered, with the efforts each accepts')}
-            </h4>
-            <ul class="dist-offered">
-              {#each offered as row (row.id)}
-                <li>
-                  <span class="dist-model">{row.title}</span>
-                  {#if row.isDefault}<span class="dist-default"
-                      >{t('default of this runtime')}</span
-                    >{/if}
-                  {#if row.efforts}
-                    <span class="dist-cmd"
-                      >{row.efforts.map((e) => tPhrase(e)).join(' · ')}</span
-                    >
-                  {/if}
-                  {#if row.replacement}<span class="dist-note"
-                      >{tPhrase(row.replacement)}</span
-                    >{/if}
-                </li>
-              {/each}
-            </ul>
-            <p class="dist-note">{t(ENTITLEMENT_NOTE)}</p>
-          {/if}
-          <h4 class="dist-sub" title={t(NATIVE_NOTE)}>{t('Running now')}</h4>
-          {#if running.length === 0}
-            <p class="dist-note">{t('Nothing of this tool is running now.')}</p>
-          {:else}
-            <ul class="dist-offered">
-              {#each running as row (row.key)}
-                <li class="dist-note">{tPhrase(row.line)}</li>
-              {/each}
-            </ul>
-          {/if}
-        </details>
         <div class="dist-actions">
           {#if card.update}
             <button
@@ -325,27 +236,9 @@
                 { command: card.update },
               )}
               onclick={() => onrun(card.tool, home, `${card.update}\r`)}
-              >{t('Update tool')}</button
+              >{t('Update')}</button
             >
-            <code class="dist-cmd">{card.update}</code>
           {/if}
-          <span class="dist-spacer"></span>
-          {#each SET_UP_IN[card.agent] ?? [] as view (view)}
-            <button
-              type="button"
-              class="dist-link"
-              title={t(VIEW_HINT[view])}
-              onclick={() =>
-                ongo(
-                  view,
-                  card.agent === 'claude_code' ||
-                    card.agent === 'codex' ||
-                    card.agent === 'opencode'
-                    ? card.agent
-                    : undefined,
-                )}>{t(VIEW_LABEL[view])}</button
-            >
-          {/each}
         </div>
       </article>
     {/each}
@@ -360,7 +253,7 @@
         'Add a tool the Console does not know: by its name and the commands that open and update it.',
       )}
       disabled={form !== null}
-      onclick={() => (form = blank())}>+ {t('Add')}</button
+      onclick={() => (form = blank())}>{t('Add')}</button
     >
   </div>
   <p class="dist-note">
@@ -388,7 +281,7 @@
           {#each SUGGESTED as s (s.name)}
             <button
               type="button"
-              class="dist-link"
+              class="action"
               title={t(
                 'Fills in its name and the command that opens it. Its update command depends on how you installed it.',
               )}
@@ -506,8 +399,7 @@
                 'Types “{command}” in a new terminal of the Console, where you see it run.',
                 { command: d.update },
               )}
-              onclick={() => void run(d.id, 'update')}
-              >{t('Update tool')}</button
+              onclick={() => void run(d.id, 'update')}>{t('Update')}</button
             >
           {/if}
           <button
@@ -522,7 +414,7 @@
           <span class="dist-spacer"></span>
           <button
             type="button"
-            class="dist-link"
+            class="action"
             title={t('Change its name or its commands.')}
             onclick={() =>
               (form = {
@@ -543,13 +435,13 @@
             >
             <button
               type="button"
-              class="dist-link"
+              class="action"
               onclick={() => (confirmDelete = null)}>{t('Cancel')}</button
             >
           {:else}
             <button
               type="button"
-              class="dist-link"
+              class="action"
               title={t('Removes its card. The tool itself stays installed.')}
               onclick={() => (confirmDelete = d.id)}>{t('Delete')}</button
             >

@@ -35,6 +35,11 @@
       (item) => item.provider === store.tool && kinds.includes(item.kind),
     ).length;
   }
+  /** Choosing a page of the tree leaves the search: the page shows what it holds. */
+  function pick(section: GuideSection) {
+    store.query = '';
+    onpick(section);
+  }
   const lit = (section: GuideSection) =>
     current && store.section === section ? 'page' : undefined;
 
@@ -51,11 +56,11 @@
 </script>
 
 <div class="ars-tree-wrap">
-  {#if tree}
+  {#if tree && current}
     <input
       type="search"
       class="ars-search"
-      placeholder={t('Search skills and agents…')}
+      placeholder={t('Search')}
       aria-label={t('Search skills and agents')}
       value={store.query}
       oninput={(e) => search(e.currentTarget.value)}
@@ -74,7 +79,7 @@
             class="ars-tree-item"
             data-origin={row.origin}
             aria-current={lit(`origin:${row.origin}`)}
-            onclick={() => onpick(`origin:${row.origin}`)}
+            onclick={() => pick(`origin:${row.origin}`)}
           >
             <span class="ars-tree-name"
               ><span class="ars-dot" aria-hidden="true"></span>{originName(
@@ -92,7 +97,7 @@
           type="button"
           class="ars-tree-item"
           aria-current={lit('agents')}
-          onclick={() => onpick('agents')}
+          onclick={() => pick('agents')}
           >{t('Agents')}
           <span class="ars-tree-count">{loading ? '…' : tree.agents}</span
           ></button
@@ -105,7 +110,7 @@
           type="button"
           class="ars-tree-item"
           aria-current={lit(id)}
-          onclick={() => onpick(id)}
+          onclick={() => pick(id)}
           >{t(name)}
           <span class="ars-tree-count">{configCount(CONFIG_KINDS[id])}</span
           ></button

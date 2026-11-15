@@ -3774,7 +3774,6 @@ export const ES: Readonly<Record<string, string>> = {
   'Git repos': 'Repos git',
   'My skills': 'Mis skills',
   'GSD Core': 'GSD Core',
-  'Search skills and agents…': 'Buscar skills y agentes…',
   'Search skills and agents': 'Buscar skills y agentes',
   '{n} found for “{q}”': '{n} encontradas para “{q}”',
   Colours: 'Colores',

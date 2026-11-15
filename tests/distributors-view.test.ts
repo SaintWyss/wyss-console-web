@@ -17,7 +17,6 @@ vi.mock('../src/lib/features/terminal/renderer', () => ({
   createRenderer: fakes.factory,
 }));
 
-const KEY = 'wyss-console.distributors-seen';
 let component: ReturnType<typeof mount> | undefined;
 const info = {
   terminal_id: parseTerminalId('55555555-5555-4555-8555-555555555555'),
@@ -36,14 +35,6 @@ const flush = async () => {
 const never = () => new Promise(() => undefined);
 const text = (node: Element | null | undefined) =>
   node?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
-const catalogueWith = (...ids: string[]) => ({
-  ...catalogues.listed,
-  entries: [
-    ...catalogues.listed.entries,
-    ...ids.map((model_id) => ({ ...catalogues.listed.entries[0], model_id })),
-  ],
-});
-
 /** A desktop whose answers the test changes between refreshes. */
 function desktop() {
   const calls: string[] = [];
@@ -120,8 +111,6 @@ const view = () =>
 const card = (id: string) =>
   view().querySelector<HTMLElement>(`.dist-card[data-id="${id}"]`)!;
 const status = (id: string) => text(card(id).querySelector('.dist-status'));
-const rows = (id: string) =>
-  Array.from(card(id).querySelectorAll('.dist-models li')).map(text);
 // There is no refresh button: showing the view again reads everything again.
 const refresh = async () => {
   tab('Credentials').click();
@@ -184,77 +173,30 @@ it('opens from the rail, reads only while shown, and draws what the desktop answ
   expect(ipc.count('configuration_inventory')).toBe(1);
   expect(ipc.count('managed_model_catalogue')).toBe(1);
 
+  // One line each: maker · tool · version, nothing about models or the last read.
   expect(
     Array.from(view().querySelectorAll('.dist-card h3')).map(text),
-  ).toEqual(['Anthropic', 'OpenAI', 'OpenCode']);
-  expect(Array.from(view().querySelectorAll('.dist-tool')).map(text)).toEqual([
-    'Claude Code',
-    'Codex',
-    'OpenCode',
+  ).toEqual([
+    'Anthropic · Claude Code · 2.1.303',
+    'OpenAI · Codex · Tool not installed',
+    'OpenCode · OpenCode · Unknown',
   ]);
-  expect(status('anthropic')).toBe('Installed · 2.1.303 (Claude Code)');
+  expect(text(view())).not.toMatch(
+    /Last read|Configured model|Models in detail|claude update/,
+  );
+  expect(status('anthropic')).toBe('2.1.303');
   expect(card('anthropic').querySelector('.dist-status.ok')).not.toBeNull();
   expect(status('openai')).toBe('Tool not installed');
   expect(card('openai').querySelector('.dist-status.ok')).toBeNull();
   expect(status('opencode')).toBe('Unknown');
   expect(text(view())).not.toMatch(/connected/i);
 
-  expect(rows('anthropic')).toEqual(['Configured model: opus']);
-  expect(text(card('anthropic'))).toContain(
-    'This tool does not list its models to the Console.',
-  );
-  // The first read is kept and nothing in it is new.
-  expect(rows('openai')).toEqual(['model-a', 'model-b']);
-  expect(view().querySelector('.dist-new')).toBeNull();
-  expect(JSON.parse(localStorage.getItem(KEY)!)).toEqual([
-    'model-a',
-    'model-b',
+  // Each card has Update only: configuration and credentials are in the column.
+  expect(Array.from(view().querySelectorAll('button')).map(text)).toEqual([
+    'Update',
+    'Update',
+    'Add',
   ]);
-  expect(text(view().querySelector('.dist-read'))).toMatch(/^Last read: \S+/);
-  expect(text(view())).not.toContain('Refresh models');
-  // Each known tool: Update (when its command is checked) and where it is set up; then Add.
-  expect(
-    Array.from(view().querySelectorAll('button'))
-      .filter((b) => !b.closest('.dist-more'))
-      .map(text),
-  ).toEqual([
-    'Update tool',
-    'Configuration',
-    'Credentials',
-    'Update tool',
-    'Configuration',
-    'Credentials',
-    'Configuration',
-    '+ Add',
-  ]);
-  expect(text(card('anthropic'))).toContain('claude update');
-  // Configuration opens Arsenal's Global page on the tool of its own card.
-  Array.from(card('openai').querySelectorAll<HTMLButtonElement>('button'))
-    .find((b) => text(b) === 'Configuration')!
-    .click();
-  await flush();
-  expect(text(document.querySelector('.ars-tool[aria-selected="true"]'))).toBe(
-    'Codex',
-  );
-  expect(
-    text(document.querySelector('.ars-tree-item[aria-current="page"]')),
-  ).toMatch(/^Global/);
-  // OpenCode's opens its own, even when its configuration holds nothing yet.
-  tab('Distributors').click();
-  await flush();
-  Array.from(card('opencode').querySelectorAll<HTMLButtonElement>('button'))
-    .find((b) => text(b) === 'Configuration')!
-    .click();
-  await flush();
-  expect(text(document.querySelector('.ars-tool[aria-selected="true"]'))).toBe(
-    'OpenCode',
-  );
-  // OpenCode has no skills: the tree keeps only its configuration pages.
-  expect(
-    Array.from(document.querySelectorAll('.ars-tree-item')).map((b) =>
-      text(b).replace(/\s*[\d…]+$/, ''),
-    ),
-  ).toEqual(['Hooks', 'MCP', 'Global']);
 });
 
 it('adds a tool by name and command, opens it from its file, and makes a launch of it', async () => {
@@ -296,7 +238,7 @@ it('adds a tool by name and command, opens it from its file, and makes a launch 
     Array.from(view().querySelectorAll<HTMLButtonElement>('button')).find(
       (b) => text(b) === label,
     )!;
-  button('+ Add').click();
+  button('Add').click();
   await flush();
   button('Kimi CLI').click();
   await flush();
@@ -329,56 +271,13 @@ it('adds a tool by name and command, opens it from its file, and makes a launch 
   );
 });
 
-it('reads the three sources again each time the view is shown and marks only what Codex newly lists', async () => {
-  const ipc = desktop();
-  component = mount(App, { target: document.body });
-  await flush();
-  tab('Distributors').click();
-  await flush();
-
-  const before = ipc.count('native_launcher');
-  ipc.answers.catalogue = catalogueWith('model-c');
-  await refresh();
-  expect(ipc.count('native_launcher')).toBe(before + 1);
-  expect(ipc.count('configuration_inventory')).toBe(2);
-  expect(ipc.count('managed_model_catalogue')).toBe(2);
-  expect(rows('openai')).toEqual(['model-a', 'model-b', 'model-c new model']);
-  expect(view().querySelectorAll('.dist-new')).toHaveLength(1);
-  // Nothing of the other tools is ever marked.
-  expect(card('anthropic').querySelector('.dist-new')).toBeNull();
-
-  // The mark is gone at the next refresh.
-  await refresh();
-  expect(ipc.count('managed_model_catalogue')).toBe(3);
-  expect(rows('openai')).toEqual(['model-a', 'model-b', 'model-c']);
-  expect(view().querySelector('.dist-new')).toBeNull();
-
-  // A runtime that is not ready shows why, marks nothing and leaves what was seen.
-  const kept = localStorage.getItem(KEY);
-  ipc.answers.catalogue = catalogues.not_ready;
-  await refresh();
-  expect(rows('openai')).toEqual([]);
-  expect(text(card('openai'))).toContain(
-    'The managed Codex runtime is not running, so there is no list.',
-  );
-  expect(localStorage.getItem(KEY)).toBe(kept);
-  ipc.answers.catalogue = catalogueWith('model-c', 'model-d');
-  await refresh();
-  expect(rows('openai')).toEqual([
-    'model-a',
-    'model-b',
-    'model-c',
-    'model-d new model',
-  ]);
-});
-
 it('says unknown, not missing, when the tools did not answer a refresh', async () => {
   const ipc = desktop();
   component = mount(App, { target: document.body });
   await flush();
   tab('Distributors').click();
   await flush();
-  expect(status('anthropic')).toBe('Installed · 2.1.303 (Claude Code)');
+  expect(status('anthropic')).toBe('2.1.303');
 
   ipc.answers.launcherFails = true;
   await refresh();
@@ -389,118 +288,6 @@ it('says unknown, not missing, when the tools did not answer a refresh', async (
   // It answers again: what it says is shown again.
   ipc.answers.launcherFails = false;
   await refresh();
-  expect(status('anthropic')).toBe('Installed · 2.1.303 (Claude Code)');
+  expect(status('anthropic')).toBe('2.1.303');
   expect(status('openai')).toBe('Tool not installed');
-});
-
-const reading = () =>
-  view().querySelector('.dist-read')!.getAttribute('aria-busy') === 'true';
-/** The fixture inventory with Claude Code's `model` set to `model`. */
-const inventoryWith = (model: string) => {
-  const copy = structuredClone(inventory);
-  for (const item of copy.inventory.items)
-    if (
-      item.provider === 'claude_code' &&
-      item.kind === 'model_preference' &&
-      item.name === 'model' &&
-      item.detail?.kind === 'text'
-    )
-      (item.detail.value as { text: string }).text = model;
-  return copy;
-};
-
-it('waits for a Codex read already in flight before it compares, so its answer is the one marked', async () => {
-  const ipc = desktop();
-  component = mount(App, { target: document.body });
-  await flush();
-  tab('Distributors').click();
-  await flush();
-  expect(rows('openai')).toEqual(['model-a', 'model-b']);
-
-  // Showing the view again starts a read of the list, and it does not answer yet.
-  let answer!: (value: unknown) => void;
-  ipc.answers.catalogue = () =>
-    new Promise((resolve) => {
-      answer = resolve;
-    });
-  await refresh();
-  const reads = ipc.count('managed_model_catalogue');
-
-  // While it is in flight: showing the view again reads nothing more, and nothing is compared.
-  expect(reading()).toBe(true);
-  await refresh();
-  expect(ipc.count('managed_model_catalogue')).toBe(reads);
-  expect(rows('openai')).toEqual(['model-a', 'model-b']);
-
-  // It answers with a model not seen before: that answer is what is compared.
-  answer(catalogueWith('model-c'));
-  await flush();
-  expect(reading()).toBe(false);
-  expect(rows('openai')).toEqual(['model-a', 'model-b', 'model-c new model']);
-  expect(JSON.parse(localStorage.getItem(KEY)!)).toEqual([
-    'model-a',
-    'model-b',
-    'model-c',
-  ]);
-});
-
-it('waits for the configuration read, and says when the configured model shown is from an earlier one', async () => {
-  const ipc = desktop();
-  component = mount(App, { target: document.body });
-  await flush();
-  tab('Distributors').click();
-  await flush();
-  expect(rows('anthropic')[0]).toBe('Configured model: opus');
-  const note = 'Configured models are from an earlier read.';
-  expect(text(view())).not.toContain(note);
-
-  // The refresh is not over until the agents' files were read again.
-  let answer!: (value: unknown) => void;
-  ipc.answers.inventory = () =>
-    new Promise((resolve) => {
-      answer = resolve;
-    });
-  await refresh();
-  expect(reading()).toBe(true);
-  expect(rows('anthropic')[0]).toBe('Configured model: opus');
-  answer(inventoryWith('haiku'));
-  await flush();
-  expect(reading()).toBe(false);
-  expect(rows('anthropic')[0]).toBe('Configured model: haiku');
-  expect(text(view())).not.toContain(note);
-
-  // The read fails: what is shown is the earlier read, and the card says so.
-  ipc.answers.inventory = () => {
-    throw { code: 'internal' };
-  };
-  await refresh();
-  expect(rows('anthropic')[0]).toBe('Configured model: haiku');
-  expect(text(card('anthropic'))).toContain(note);
-  // A card that shows no configured model claims nothing about one.
-  expect(text(card('opencode'))).not.toContain(note);
-  expect(text(card('openai'))).not.toContain(note);
-
-  // It is read whole again: nothing is said to be older.
-  ipc.answers.inventory = () => inventoryWith('sonnet');
-  await refresh();
-  expect(rows('anthropic')[0]).toBe('Configured model: sonnet');
-  expect(text(view())).not.toContain(note);
-});
-
-it('shows each card’s models in detail', async () => {
-  desktop();
-  component = mount(App, { target: document.body });
-  await flush();
-  tab('Distributors').click();
-  await flush();
-  const codex = card('openai').querySelector('.dist-more')!;
-  expect(text(codex)).toContain('Offered, with the efforts each accepts');
-  expect(text(codex)).toContain('model-a');
-  expect(text(card('anthropic').querySelector('.dist-more'))).toContain(
-    'Nothing of this tool is running now.',
-  );
-  // No profile is offered there any more.
-  expect(text(card('anthropic').querySelector('.dist-more'))).not.toMatch(
-    /profile/i,
-  );
 });

@@ -64,6 +64,7 @@ const guideReply = {
     entry('noisy', 'mine', 'Talks a lot.'),
     entry('gsd-help', 'gsd:claude_code', 'Shows the GSD commands.'),
     entry('gsd-plan', 'gsd:claude_code', 'Plans a phase.'),
+    { ...entry('planner', 'agents', 'Plans work.'), kind: 'agent' },
   ],
   sets: [
     {
@@ -348,6 +349,22 @@ it('closes the card with a click outside it, and finds skills from the search bo
   );
   expect(rows).toEqual(['gsd-plan Plans a phase. GSD Core']);
   expect(text(library)).toContain('1 found for “phase”');
+  // Agents are found too.
+  box.value = 'planner';
+  box.dispatchEvent(new Event('input', { bubbles: true }));
+  await flush();
+  expect(
+    Array.from(library.querySelectorAll('.ars-row')).map((r) => text(r)),
+  ).toEqual(['planner Plans work. My skills']);
+  // Choosing a page of the tree leaves the search and shows that page whole.
+  kind('GSD Core').click();
+  await flush();
+  expect(box.value).toBe('');
+  expect(library.querySelectorAll('.ars-row')).toHaveLength(2);
+  // The box is Arsenal's own: another Personalization page does not show it.
+  tab('Distributors').click();
+  await flush();
+  expect(document.querySelector('.ars-search')).toBeNull();
 });
 
 it('opens an origin with each set, where to start and what the set is', async () => {

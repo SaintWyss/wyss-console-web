@@ -173,7 +173,22 @@
       ];
       return agents.filter((b) => b.entries.length > 0);
     }
-    if (searching) return ORIGINS.flatMap(find);
+    if (searching)
+      return [
+        ...ORIGINS.flatMap(find),
+        ...[
+          {
+            key: 'agents',
+            title: t('Agents'),
+            origin: 'mine' as Origin,
+            about: null,
+            help: null,
+            entries: entriesOf(store.guide, tool, 'agents').filter((e) =>
+              matches(e, store.query),
+            ),
+          },
+        ].filter((b) => b.entries.length > 0),
+      ];
     return origin === null ? [] : find(origin);
   });
   const listedCount = $derived(
