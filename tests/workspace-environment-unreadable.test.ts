@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { loadEstimateData } from '../src/lib/features/workspace/data';
+import {
+  estimateLaunch,
+  loadEstimateData,
+} from '../src/lib/features/workspace/data';
 
 const selection = (id: string, provider: string) => ({
   id,
@@ -58,5 +61,25 @@ describe('a launch environment file that cannot be read', () => {
     });
     expect(data.claudeUnreadable).toBe(true);
     expect(data.codexUnreadable).toBe(false);
+  });
+
+  it('any read error leaves the preset unknown, and it is not estimated', async () => {
+    const data = await loadEstimateData({
+      ...base,
+      environmentOptions: async () =>
+        ({ sizes: {}, rules: [], hooks: [], mcp: [], plugins: [] }) as never,
+      selections: async () => [selection('c1', 'claude_code')] as never,
+      environment: () => Promise.reject(new Error('host down')),
+    });
+    expect(data.claudeFailed?.has('c1')).toBe(true);
+    expect(data.claudeUnreadable).toBe(false);
+    const launch = {
+      id: 'l1',
+      name: 'L',
+      kind: 'session',
+      agent: 'claude_code',
+      preset: 'c1',
+    } as never;
+    expect(estimateLaunch(launch, data)).toBeNull();
   });
 });

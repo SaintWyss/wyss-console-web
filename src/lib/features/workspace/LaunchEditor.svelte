@@ -5,9 +5,11 @@
   import { permissionsFor, type Permission } from '../../contracts/native';
   import {
     arsenalClient,
+    ArsenalCallError,
     type ArsenalClient,
     type Roles,
   } from '../../desktop/arsenal-client';
+  import { failureMessage } from '../arsenal/messages';
   import {
     deleteLaunch,
     listLaunches,
@@ -269,7 +271,7 @@
     return agent === 'codex'
       ? data.codexUnreadable === true &&
           !data.codexEnvironments.has(selection.id)
-      : data.claudeUnreadable === true && !data.environments.has(selection.id);
+      : data.claudeFailed?.has(selection.id) === true;
   }
   function pick(launch: Launch | null) {
     selected = launch?.id ?? 'new';
@@ -663,9 +665,11 @@
       const exists = e instanceof LaunchError && e.code === 'exists';
       const what = exists
         ? t('A launch with that name exists.')
-        : e instanceof Error
-          ? e.message
-          : t('It could not be saved.');
+        : e instanceof ArsenalCallError
+          ? t(failureMessage(e))
+          : e instanceof Error
+            ? e.message
+            : t('It could not be saved.');
       error =
         done.length > 0
           ? t('{what} Saved so far: {done}. Nothing else changed.', {
@@ -898,7 +902,11 @@
       {/if}
       {#if !readOnly && (d.agent === 'codex' || d.agent === 'claude_code') && unreadableFor(d.selection, d.agent)}
         <p class="notice" data-tone="error" role="alert">
-          {t(ENVIRONMENT_UNREADABLE)}
+          {t(
+            d.agent === 'claude_code' && !data.claudeUnreadable
+              ? 'The launch environment could not be read.'
+              : ENVIRONMENT_UNREADABLE,
+          )}
         </p>
       {/if}
       {#if !readOnly && staleHooks}

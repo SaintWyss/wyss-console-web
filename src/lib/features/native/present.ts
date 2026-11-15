@@ -132,7 +132,7 @@ export const FAILURE_TEXT: Record<string, string> = {
     'The version of this agent could not be read, so the launch was not started with a folder of its own. Check that the agent runs from a terminal and try again.',
   ),
   arsenal_token_missing: msg(
-    'This launch starts Claude Code with a folder of its own, and that needs the sign-in token saved in Settings. None is saved, so nothing was started.',
+    'This launch starts Claude Code with a folder of its own, and that needs your long-lived sign-in token from the keyring. None could be read from it, so nothing was started. The launch environment panel in Arsenal says how to store it.',
   ),
   arsenal_environment_too_large: msg(
     'A file of launch environments would be too long with this change, so it was not saved. Leave fewer things out, or delete presets you no longer use.',

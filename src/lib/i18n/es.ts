@@ -940,8 +940,8 @@ export const ES: Readonly<Record<string, string>> = {
     'No se pudo preparar la carpeta de este lanzamiento, así que no se inició nada. Tu configuración no se tocó. Probá de nuevo; si sigue fallando, guardá el lanzamiento otra vez en Workspace.',
   'The version of this agent could not be read, so the launch was not started with a folder of its own. Check that the agent runs from a terminal and try again.':
     'No se pudo leer la versión de este agente, así que el lanzamiento no arrancó con carpeta propia. Fijate que el agente corra desde una terminal y probá de nuevo.',
-  'This launch starts Claude Code with a folder of its own, and that needs the sign-in token saved in Settings. None is saved, so nothing was started.':
-    'Este lanzamiento arranca Claude Code con carpeta propia, y para eso hace falta el token de acceso guardado en Configuración. No hay ninguno guardado, así que no se inició nada.',
+  'This launch starts Claude Code with a folder of its own, and that needs your long-lived sign-in token from the keyring. None could be read from it, so nothing was started. The launch environment panel in Arsenal says how to store it.':
+    'Este lanzamiento arranca Claude Code con carpeta propia, y para eso hace falta tu token de acceso de larga duración del llavero. No se pudo leer ninguno, así que no se inició nada. El panel de entorno de lanzamiento del Arsenal explica cómo guardarlo.',
   'A file of launch environments would be too long with this change, so it was not saved. Leave fewer things out, or delete presets you no longer use.':
     'Con este cambio, un archivo de entornos de lanzamiento quedaría demasiado largo, así que no se guardó. Dejá menos cosas afuera o borrá presets que ya no uses.',
   'Skill exclusion is not qualified for this exact Codex build, so nothing was started with it. Start without applying the selection, or use a qualified Codex build.':

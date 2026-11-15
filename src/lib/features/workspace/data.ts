@@ -25,6 +25,8 @@ export interface EstimateData {
   codexUnreadable?: boolean;
   /** Claude: the same for `environment.json`. */
   claudeUnreadable?: boolean;
+  /** Claude presets whose environment could not be read, for any reason: nothing is known. */
+  claudeFailed?: ReadonlySet<string>;
 }
 
 /** Skills and agents of a provider in the library: what a launch without a preset loads. */
@@ -95,6 +97,13 @@ export function estimateLaunch(
   const items = selection
     ? selection.items
     : allItemsOf(data.library, launch.agent);
+  // An environment that could not be read is not estimated from the defaults.
+  if (
+    launch.agent === 'claude_code' &&
+    selection &&
+    data.claudeFailed?.has(selection.id)
+  )
+    return null;
   const spec = selection ? (data.environments.get(selection.id) ?? null) : null;
   return estimateOf(launch.agent, items, spec, data);
 }
@@ -121,6 +130,7 @@ export async function loadEstimateData(client: {
   ]);
   const environments = new Map<string, HomeSpec>();
   let claudeUnreadable = false;
+  const claudeFailed = new Set<string>();
   await Promise.all(
     selections
       .filter((s) => s.provider === 'claude_code')
@@ -128,6 +138,7 @@ export async function loadEstimateData(client: {
         client.environment(s.id).then(
           (spec) => environments.set(s.id, spec),
           (error: unknown) => {
+            claudeFailed.add(s.id);
             if ((error as { code?: unknown }).code === 'environment_unreadable')
               claudeUnreadable = true;
           },
@@ -161,6 +172,7 @@ export async function loadEstimateData(client: {
     codexEnvironments,
     codexUnreadable,
     claudeUnreadable,
+    claudeFailed,
   };
 }
 

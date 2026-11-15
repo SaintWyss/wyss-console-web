@@ -248,6 +248,22 @@ fn check_start_capability(
     Ok(())
 }
 
+/// The build the host would launch now against the one the plan was shown for. A build that moved
+/// makes the plan stale; one that did not, but has no exclusion evidence, is unqualified.
+fn arsenal_build_check(
+    agent: AgentId,
+    current: Option<&str>,
+    expected: Option<&str>,
+) -> Result<(), &'static str> {
+    if current != expected {
+        return Err("arsenal_plan_stale");
+    }
+    if !capabilities::permits_arsenal_exclusion(agent, expected) {
+        return Err("arsenal_unqualified");
+    }
+    Ok(())
+}
+
 /// A start that carries an Arsenal exclusion: the host must know the field, the preview of exactly
 /// this profile and exclusion must be the one shown, the build must be the one previewed and have
 /// its own exclusion evidence, and a profile with effect still needs its own syntax evidence.
@@ -276,11 +292,7 @@ fn check_arsenal_start(
         return Err(HostError::new("profile_preview_stale"));
     }
     let (_, version) = current_evidence(link, agent)?;
-    if version.as_deref() != expected_cli_version
-        || !capabilities::permits_arsenal_exclusion(agent, expected_cli_version)
-    {
-        return Err(HostError::new("arsenal_unqualified"));
-    }
+    arsenal_build_check(agent, version.as_deref(), expected_cli_version).map_err(HostError::new)?;
     if let Some(profile_id) = profile_id {
         let profile_only = link.call(
             "native_preview",
@@ -939,9 +951,9 @@ pub fn extension() -> wyss_console::Extension {
 #[cfg(test)]
 mod capability_tests {
     use super::{
-        PreviewRequest, annotate_launcher, effectful_preview, launcher_view, preview_with_link,
-        profile_requires_effort_from_list, readiness_with_link, sessions_with_link,
-        start_with_link,
+        PreviewRequest, annotate_launcher, arsenal_build_check, effectful_preview, launcher_view,
+        preview_with_link, profile_requires_effort_from_list, readiness_with_link,
+        sessions_with_link, start_with_link,
     };
     use crate::{
         host::{
@@ -1117,6 +1129,47 @@ mod capability_tests {
             home: None,
             codex_home: None,
         }
+    }
+
+    #[test]
+    fn a_moved_build_makes_the_arsenal_plan_stale_and_only_an_unlisted_codex_is_unqualified() {
+        let claude = |v: &'static str| Some(v);
+        assert_eq!(
+            arsenal_build_check(
+                AgentId::ClaudeCode,
+                claude("2.1.326 (Claude Code)"),
+                claude("2.1.325 (Claude Code)")
+            ),
+            Err("arsenal_plan_stale")
+        );
+        assert_eq!(
+            arsenal_build_check(AgentId::ClaudeCode, None, claude("2.1.325 (Claude Code)")),
+            Err("arsenal_plan_stale")
+        );
+        assert_eq!(
+            arsenal_build_check(
+                AgentId::ClaudeCode,
+                claude("2.1.325 (Claude Code)"),
+                claude("2.1.325 (Claude Code)")
+            ),
+            Ok(())
+        );
+        assert_eq!(
+            arsenal_build_check(
+                AgentId::Codex,
+                Some("codex-cli 0.170.0"),
+                Some("codex-cli 0.170.0")
+            ),
+            Err("arsenal_unqualified")
+        );
+        assert_eq!(
+            arsenal_build_check(
+                AgentId::Codex,
+                Some("codex-cli 0.169.0"),
+                Some("codex-cli 0.169.0")
+            ),
+            Ok(())
+        );
     }
 
     #[test]
