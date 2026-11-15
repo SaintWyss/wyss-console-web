@@ -61,6 +61,12 @@
   $effect(() => {
     if (form && firstField) firstField.focus();
   });
+  /** What Open types for each tool the Console knows. */
+  const OPEN_COMMAND: Record<string, string> = {
+    claude_code: 'claude',
+    codex: 'codex',
+    opencode: 'opencode',
+  };
   function close() {
     form = null;
     confirmDelete = null;
@@ -240,6 +246,7 @@
   {#if notice}<p class="notice" data-tone="ok" role="status">{notice}</p>{/if}
   <div class="dist-grid">
     {#each cards as card (card.id)}
+      {@const command = OPEN_COMMAND[card.agent]}
       <article class="dist-card" aria-label={card.name} data-id={card.id}>
         <div class="dist-head">
           <h3>
@@ -250,19 +257,47 @@
           </h3>
         </div>
         <div class="dist-actions">
-          {#if card.update}
-            <button
-              type="button"
-              class="action"
-              disabled={!card.installed || !home}
-              title={t(
-                'Types “{command}” in a new terminal of the Console, where you see it run.',
-                { command: card.update },
-              )}
-              onclick={() => onrun(card.tool, home, `${card.update}\r`)}
-              >{t('Update tool')}</button
-            >
-          {/if}
+          <button
+            type="button"
+            class="action"
+            disabled={!card.installed || !home || !command}
+            title={command
+              ? t('Types “{command}” in a new terminal of the Console.', {
+                  command,
+                })
+              : ''}
+            onclick={() => command && onrun(card.tool, home, `${command}\r`)}
+            >{t('Open')}</button
+          >
+          <button
+            type="button"
+            class="action"
+            disabled={!card.update || !card.installed || !home}
+            title={card.update
+              ? t(
+                  'Types “{command}” in a new terminal of the Console, where you see it run.',
+                  { command: card.update },
+                )
+              : ''}
+            onclick={() =>
+              card.update && onrun(card.tool, home, `${card.update}\r`)}
+            >{t('Update tool')}</button
+          >
+          <!-- Locked: the Console is built around these tools (docs/DECISIONS.md). -->
+          <button
+            type="button"
+            class="action"
+            disabled
+            title={t('Comes with the Console: it cannot be edited or deleted.')}
+            >{t('Edit')}</button
+          >
+          <button
+            type="button"
+            class="action"
+            disabled
+            title={t('Comes with the Console: it cannot be edited or deleted.')}
+            >{t('Delete')}</button
+          >
         </div>
       </article>
     {/each}

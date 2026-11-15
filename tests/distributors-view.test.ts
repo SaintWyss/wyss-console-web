@@ -192,10 +192,17 @@ it('opens from the rail, reads only while shown, and draws what the desktop answ
   expect(text(view())).not.toMatch(/connected/i);
 
   // Each card has Update only: configuration and credentials are in the column.
-  expect(Array.from(view().querySelectorAll('button')).map(text)).toEqual([
-    'Update tool',
-    'Update tool',
-    'Add a tool',
+  // Every row the same buttons; the Console's own tools cannot be edited or deleted.
+  expect(
+    Array.from(card('anthropic').querySelectorAll('button')).map((b) => [
+      text(b),
+      b.disabled,
+    ]),
+  ).toEqual([
+    ['Open', false],
+    ['Update tool', false],
+    ['Edit', true],
+    ['Delete', true],
   ]);
 });
 
