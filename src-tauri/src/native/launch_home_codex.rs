@@ -262,14 +262,16 @@ fn plain_path(dir: &Path) -> io::Result<()> {
 }
 
 /// Whether the owner's `auth.lock` is there. One that is there must be a regular file of the
-/// user that nobody else can open: anything else is refused, and it is never changed or replaced.
+/// user that nobody else can write: anything else is refused, and it is never changed or replaced.
+/// Codex opens `<home>/auth.lock` without a mode (0.169.0, `storage.rs` `lock_for_write`), so the
+/// file it creates is 0644 under the usual umask: reading is fine, group/other writing is not.
 fn owner_lock(path: &Path) -> io::Result<bool> {
     use std::os::unix::fs::{MetadataExt, PermissionsExt};
     match fs::symlink_metadata(path) {
         Ok(meta)
             if meta.is_file()
                 && meta.uid() == nix::unistd::geteuid().as_raw()
-                && meta.permissions().mode() & 0o077 == 0 =>
+                && meta.permissions().mode() & 0o022 == 0 =>
         {
             Ok(true)
         }
@@ -1107,8 +1109,8 @@ mod tests {
 
     // 17
     #[test]
-    fn owner_lock_with_group_or_other_access_is_refused_and_left_exactly_as_it_was() {
-        for lock_mode in [0o640, 0o644, 0o604, 0o660, 0o666] {
+    fn owner_lock_that_group_or_other_can_write_is_refused_and_left_exactly_as_it_was() {
+        for lock_mode in [0o620, 0o602, 0o660, 0o606, 0o666] {
             let f = fx(&format!("lock-mode-{lock_mode:o}"));
             let lock = f.owner.dir.join(AUTH_LOCK);
             fs::write(&lock, "held").unwrap();
@@ -1179,19 +1181,22 @@ mod tests {
 
     // 19
     #[test]
-    fn owner_lock_with_mode_0600_is_accepted_and_not_modified() {
-        let f = fx("lock-0600");
-        let lock = f.owner.dir.join(AUTH_LOCK);
-        fs::write(&lock, "held").unwrap();
-        fs::set_permissions(&lock, fs::Permissions::from_mode(0o600)).unwrap();
-        let before = fs::metadata(&lock).unwrap();
-        f.ok();
-        let after = fs::metadata(&lock).unwrap();
-        assert_eq!(after.ino(), before.ino());
-        assert_eq!(after.modified().unwrap(), before.modified().unwrap());
-        assert_eq!(mode(&lock), 0o600);
-        assert_eq!(fs::read_to_string(&lock).unwrap(), "held");
-        assert_eq!(fs::read_link(f.home.join(AUTH_LOCK)).unwrap(), lock);
+    fn owner_lock_that_nobody_else_can_write_is_accepted_and_not_modified() {
+        // 0644 is what Codex 0.169.0 itself creates (no mode on open, usual umask).
+        for lock_mode in [0o600, 0o640, 0o644] {
+            let f = fx(&format!("lock-ok-{lock_mode:o}"));
+            let lock = f.owner.dir.join(AUTH_LOCK);
+            fs::write(&lock, "held").unwrap();
+            fs::set_permissions(&lock, fs::Permissions::from_mode(lock_mode)).unwrap();
+            let before = fs::metadata(&lock).unwrap();
+            f.ok();
+            let after = fs::metadata(&lock).unwrap();
+            assert_eq!(after.ino(), before.ino());
+            assert_eq!(after.modified().unwrap(), before.modified().unwrap());
+            assert_eq!(mode(&lock), lock_mode, "mode not changed");
+            assert_eq!(fs::read_to_string(&lock).unwrap(), "held");
+            assert_eq!(fs::read_link(f.home.join(AUTH_LOCK)).unwrap(), lock);
+        }
     }
 
     /// `chmod 000` only blocks a user that is not root (and has no `CAP_DAC_OVERRIDE`).
@@ -1242,5 +1247,49 @@ mod tests {
         assert_eq!(read.unwrap_err().kind(), io::ErrorKind::PermissionDenied);
         // The metadata path the build uses still works on the same file.
         assert!(fs::symlink_metadata(&file).is_ok());
+    }
+
+    /// Against the owner's real Codex, by hand: `cargo test real_codex_login -- --ignored`. Builds a
+    /// home from the real `~/.codex` in a scratch folder and asks Codex for its login status from
+    /// there; the real `auth.json` is only `stat`ed (size, mtime, inode), never opened here.
+    #[test]
+    #[ignore = "uses the real ~/.codex; run by hand"]
+    fn real_codex_login_status_through_the_home_and_auth_untouched() {
+        let real = PathBuf::from(std::env::var_os("HOME").unwrap()).join(".codex");
+        let auth = real.join("auth.json");
+        let stat = |p: &Path| {
+            let m = fs::metadata(p).unwrap();
+            (m.len(), m.mtime(), m.mtime_nsec(), m.ino())
+        };
+        let before = stat(&auth);
+        let scratch = std::env::temp_dir().join(format!("real-codex-home-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&scratch);
+        fs::create_dir_all(&scratch).unwrap();
+        let home = scratch.join("home");
+        build(
+            &CodexOwner::from_home(&PathBuf::from(std::env::var_os("HOME").unwrap())),
+            &home,
+            &CodexHomeSpec::default(),
+        )
+        .unwrap();
+        let run = |codex_home: Option<&Path>| {
+            let mut c = std::process::Command::new("codex");
+            c.args(["login", "status"]);
+            if let Some(h) = codex_home {
+                c.env("CODEX_HOME", h);
+            }
+            let out = c.output().unwrap();
+            (
+                out.status.code(),
+                String::from_utf8_lossy(&out.stdout).to_string(),
+            )
+        };
+        let through_home = run(Some(&home));
+        let plain = run(None);
+        eprintln!("through home: {through_home:?}\nplain: {plain:?}");
+        assert_eq!(through_home.0, Some(0), "login status through the home");
+        assert_eq!(plain.0, Some(0), "login status of the real home");
+        assert_eq!(stat(&auth), before, "auth.json untouched");
+        let _ = fs::remove_dir_all(&scratch);
     }
 }
