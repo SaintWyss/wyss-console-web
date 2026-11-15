@@ -236,7 +236,7 @@
                 { command: card.update },
               )}
               onclick={() => onrun(card.tool, home, `${card.update}\r`)}
-              >{t('Update')}</button
+              >{t('Update tool')}</button
             >
           {/if}
         </div>
@@ -245,7 +245,7 @@
   </div>
 
   <div class="dist-bar">
-    <h3 class="dist-section">{t('Added by you')}</h3>
+    <h3 class="dist-section">{t('Other tools')}</h3>
     <button
       type="button"
       class="action"
@@ -253,7 +253,7 @@
         'Add a tool the Console does not know: by its name and the commands that open and update it.',
       )}
       disabled={form !== null}
-      onclick={() => (form = blank())}>{t('Add')}</button
+      onclick={() => (form = blank())}>{t('Add a tool')}</button
     >
   </div>
   <p class="dist-note">
@@ -399,7 +399,8 @@
                 'Types “{command}” in a new terminal of the Console, where you see it run.',
                 { command: d.update },
               )}
-              onclick={() => void run(d.id, 'update')}>{t('Update')}</button
+              onclick={() => void run(d.id, 'update')}
+              >{t('Update tool')}</button
             >
           {/if}
           <button

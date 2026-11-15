@@ -193,9 +193,9 @@ it('opens from the rail, reads only while shown, and draws what the desktop answ
 
   // Each card has Update only: configuration and credentials are in the column.
   expect(Array.from(view().querySelectorAll('button')).map(text)).toEqual([
-    'Update',
-    'Update',
-    'Add',
+    'Update tool',
+    'Update tool',
+    'Add a tool',
   ]);
 });
 
@@ -238,7 +238,7 @@ it('adds a tool by name and command, opens it from its file, and makes a launch 
     Array.from(view().querySelectorAll<HTMLButtonElement>('button')).find(
       (b) => text(b) === label,
     )!;
-  button('Add').click();
+  button('Add a tool').click();
   await flush();
   button('Kimi CLI').click();
   await flush();

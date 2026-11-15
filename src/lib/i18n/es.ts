@@ -3679,6 +3679,8 @@ export const ES: Readonly<Record<string, string>> = {
   'Types “{command}” in a new terminal of the Console, where you see it run.':
     'Escribe «{command}» en una terminal nueva de la Console, donde lo ves correr.',
   'Added by you': 'Agregados por vos',
+  'Other tools': 'Otras herramientas',
+  'Add a tool': 'Agregar herramienta',
   'Add a tool the Console does not know: by its name and the commands that open and update it.':
     'Agregá una herramienta que la Console no conoce: con su nombre y los comandos que la abren y la actualizan.',
   'Edit distributor': 'Editar distribuidor',
