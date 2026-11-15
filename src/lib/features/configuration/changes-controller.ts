@@ -110,7 +110,13 @@ export interface ChangesState {
   /** The folder name of the selected project, if any. Never a path. */
   project: string | null;
   /** What the last record operation came to. */
-  notice: 'exported' | 'imported' | 'not_done' | 'expired' | null;
+  notice:
+    | 'exported'
+    | 'imported'
+    | 'not_done'
+    | 'expired'
+    | 'launches_not_followed'
+    | null;
 }
 
 /**
@@ -279,6 +285,9 @@ export class ChangesController {
         this.plan = null;
         this.result = applied.outcome;
         this.lastChange = applied.change;
+        // The edit stands, but the presets that left the old hook out did not follow: said.
+        if (applied.launch_presets_not_followed)
+          this.notice = 'launches_not_followed';
         // Whatever it came to, what the file holds is read again, and the lists with it.
         this.history = null;
         this.records = null;

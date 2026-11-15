@@ -98,6 +98,10 @@ function fake(
     failRole: boolean;
     failEnvironment: boolean;
     codex: boolean;
+    codexEnvironment: () => Promise<{
+      instructions: boolean;
+      hooks_off: string[];
+    }>;
   }> = {},
 ): {
   client: ArsenalClient;
@@ -135,7 +139,9 @@ function fake(
       config_hooks: [{ event: 'Stop', matcher: '', command: 'notify.sh' }],
       instructions: true,
     }),
-    codexEnvironment: async () => ({ instructions: true, hooks_off: [] }),
+    codexEnvironment:
+      over.codexEnvironment ??
+      (async () => ({ instructions: true, hooks_off: [] })),
     writeCodexEnvironment: async (id: string, spec: unknown) => {
       note('writeCodexEnvironment', { id, spec });
     },
@@ -746,4 +752,51 @@ it('saves AGENTS.md left out of a Codex launch', async () => {
   expect(calls.writeCodexEnvironment).toEqual([
     { id: 'sel-cx', spec: { instructions: false, hooks_off: [] } },
   ]);
+});
+
+it('drops a hook the preset left out that hooks.json no longer has, says so, and can be saved', async () => {
+  const { calls } = await show([codexSession()], {
+    codex: true,
+    codexEnvironment: async () => ({
+      instructions: true,
+      hooks_off: ['k1', 'gone'],
+    }),
+  });
+  const warning = document.querySelector('[role="alert"]');
+  expect(warning?.textContent).toContain('no longer in hooks.json');
+  // The draft is not the saved one, so Save is open; control below shows it is closed otherwise.
+  expect(button('Save').disabled).toBe(false);
+  button('Save').click();
+  await settle();
+  expect(calls.writeCodexEnvironment).toEqual([
+    { id: 'sel-cx', spec: { instructions: true, hooks_off: ['k1'] } },
+  ]);
+});
+
+it('control: a preset whose keys all name a hook shows no warning', async () => {
+  await show([codexSession()], {
+    codex: true,
+    codexEnvironment: async () => ({ instructions: true, hooks_off: ['k1'] }),
+  });
+  expect(document.querySelector('[role="alert"]')).toBeNull();
+});
+
+it('does not draw the environment of a preset whose file cannot be read, says so, and writes none', async () => {
+  const { calls } = await show([codexSession()], {
+    codex: true,
+    codexEnvironment: async () => {
+      throw Object.assign(new Error('x'), { code: 'environment_unreadable' });
+    },
+  });
+  const warning = document.querySelector('[role="alert"]');
+  expect(warning?.textContent).toContain('environment-codex.json');
+  expect(
+    [...document.querySelectorAll('.le-group')].some((g) =>
+      g.querySelector('.le-gtoggle')?.textContent?.includes('Hooks'),
+    ),
+    'no hooks drawn as "everything on"',
+  ).toBe(false);
+  button('Save').click();
+  await settle();
+  expect(calls.writeCodexEnvironment).toBeUndefined();
 });

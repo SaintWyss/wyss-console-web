@@ -555,6 +555,9 @@ export const NOTICE_LABEL = {
   imported: msg('Imported. It is listed under Turned off.'),
   not_done: msg('Cancelled. Nothing was changed.'),
   expired: msg('The plan was dropped because it was too old.'),
+  launches_not_followed: msg(
+    'The hook was changed, but the launch presets that left it out could not be updated. Until you open each of them in Workspace, check its hooks and save, a launch with one of them may run the changed hook, or (Codex) may not start.',
+  ),
 } as const;
 
 const SETTINGS_SOURCES: readonly SourceKey[] = [

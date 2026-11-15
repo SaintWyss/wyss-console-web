@@ -316,3 +316,109 @@ describe('Arsenal in a terminal start', () => {
     );
   });
 });
+
+describe('a Codex preset that leaves a hook or AGENTS.md out', () => {
+  const codexSelection = { ...selection, provider: 'codex' as const };
+  const codexPlan = (over: Partial<TerminalPlan> = {}) =>
+    plan({
+      provider: 'codex',
+      provider_version: 'codex-cli 0.159.0',
+      codex_environment: { instructions: false, hooks_off: ['k1'] },
+      ...over,
+    });
+  function codexClient(next: TerminalPlan) {
+    return {
+      selections: vi.fn(async () => [codexSelection]),
+      terminalPlan: vi.fn(async () => next),
+      projectSelection: vi.fn(async () => 'sel-1'),
+    } as unknown as ArsenalClient;
+  }
+  function renderCodex(
+    next: TerminalPlan,
+    previewer = vi.fn(async () => preview(true)),
+  ) {
+    const choices: (ArsenalChoice | null)[] = [];
+    component = mount(ArsenalTerminalPanel, {
+      target: document.body,
+      props: {
+        agent: 'codex',
+        project: '/home/u/app',
+        profile: null,
+        previewer,
+        onchange: (choice: ArsenalChoice | null) => choices.push(choice),
+        client: codexClient(next),
+      },
+    });
+    flushSync();
+    return { choices, previewer, last: () => choices[choices.length - 1] };
+  }
+  const checkboxes = () =>
+    [
+      ...document.querySelectorAll<HTMLInputElement>('input[type=checkbox]'),
+    ].map(
+      (box) =>
+        box.parentElement?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+    );
+
+  it('control: the same plan without an environment offers Apply and, when it cannot apply, the start without applying', async () => {
+    const { last } = renderCodex(
+      codexPlan({ codex_environment: null, can_apply: true }),
+    );
+    await settle();
+    expect(checkboxes().some((c) => c.includes('Apply to this terminal'))).toBe(
+      true,
+    );
+    const choice = last();
+    expect(choice && !choice.pending && choice.apply).toBe(true);
+    document.body.innerHTML = '';
+    const unapplicable = renderCodex(
+      codexPlan({ codex_environment: undefined, can_apply: false }),
+    );
+    await settle();
+    expect(checkboxes().some((c) => c.includes('record the selection'))).toBe(
+      true,
+    );
+    expect(unapplicable.last()).toBeTruthy();
+  });
+
+  it('offers neither Apply nor the start without applying, and is not ready when it cannot be applied', async () => {
+    const { last, previewer } = renderCodex(codexPlan({ can_apply: false }));
+    await settle();
+    expect(checkboxes()).toEqual([]);
+    expect(text()).toContain('cannot be applied now, so it cannot start');
+    expect(text()).toContain('Skill exclusion is not qualified');
+    expect(text()).not.toContain('NOT APPLIED');
+    expect(previewer).not.toHaveBeenCalled();
+    const choice = last();
+    expect(choice && !choice.pending && choice.ready).toBe(false);
+    expect(choice && !choice.pending && choice.apply).toBe(false);
+  });
+
+  it('applies without asking when it can: no checkbox, a preview, and ready only when the preview can start', async () => {
+    const applicable = codexPlan({
+      can_apply: true,
+      enforcement: { state: 'available', reason: 'ok', evidence: null },
+    });
+    const ok = renderCodex(applicable);
+    await settle();
+    expect(checkboxes()).toEqual([]);
+    expect(ok.previewer).toHaveBeenCalledWith({
+      selection: 'sel-1',
+      config_hash: 'e'.repeat(64),
+      project: '/home/u/app',
+    });
+    let choice = ok.last();
+    expect(choice && !choice.pending && choice.apply).toBe(true);
+    expect(choice && !choice.pending && choice.ready).toBe(true);
+    // A refused preview: still not ready.
+    unmount(component!);
+    document.body.innerHTML = '';
+    const refused = renderCodex(
+      applicable,
+      vi.fn(async () => preview(false)),
+    );
+    await settle();
+    choice = refused.last();
+    expect(choice && !choice.pending && choice.ready).toBe(false);
+  });
+});

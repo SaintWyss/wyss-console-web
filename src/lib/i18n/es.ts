@@ -2320,6 +2320,20 @@ export const ES: Readonly<Record<string, string>> = {
   'Go to that tab': 'Ir a esa pestaña',
   'The preset “{name}” leaves a Codex hook or AGENTS.md out, and it cannot be applied now: {reason} Nothing was started.':
     'El preset “{name}” deja afuera un hook de Codex o el AGENTS.md, y ahora no se puede aplicar: {reason} No se inició nada.',
+  'The file of Codex launch environments (environment-codex.json) cannot be read, so what a preset leaves out is not known. Launches with a Codex preset do not start until the file is fixed or removed. It was not changed.':
+    'El archivo de entornos de lanzamiento de Codex (environment-codex.json) no se puede leer, así que no se sabe qué deja afuera cada preset. Los lanzamientos con un preset de Codex no arrancan hasta que el archivo se arregle o se borre. No se modificó.',
+  'The launch “{name}” leaves out a hook that is no longer in hooks.json: it was edited or removed. Nothing was started. Open the launch in Workspace, check its hooks and save.':
+    'El lanzamiento “{name}” deja afuera un hook que ya no está en hooks.json: se editó o se borró. No se inició nada. Abrí el lanzamiento en Workspace, revisá sus hooks y guardá.',
+  'A hook this preset leaves out is no longer in hooks.json: it was edited or removed. Nothing was started. Check the preset’s hooks and save it.':
+    'Un hook que este preset deja afuera ya no está en hooks.json: se editó o se borró. No se inició nada. Revisá los hooks del preset y guardalo.',
+  'A hook this preset left out is no longer in hooks.json: it was edited or removed. A launch with this preset does not start until you check the hooks and save.':
+    'Un hook que este preset dejaba afuera ya no está en hooks.json: se editó o se borró. Un lanzamiento con este preset no arranca hasta que revises los hooks y guardes.',
+  'This preset leaves a Codex hook or AGENTS.md out, so the terminal starts only with it applied: started without it, they would load again. It cannot be applied now, so it cannot start.':
+    'Este preset deja afuera un hook de Codex o el AGENTS.md, así que la terminal solo arranca con el preset aplicado: sin aplicarlo volverían a cargarse. Ahora no se puede aplicar, así que no puede arrancar.',
+  'The hook was changed, but the launch presets that left it out could not be updated. Until you open each of them in Workspace, check its hooks and save, a launch with one of them may run the changed hook, or (Codex) may not start.':
+    'El hook se cambió, pero no se pudieron actualizar los presets de lanzamiento que lo dejaban afuera. Hasta que abras cada uno en Workspace, revises sus hooks y guardes, un lanzamiento con uno de ellos puede correr el hook cambiado o (Codex) no arrancar.',
+  'The file of Codex launch environments would be too long with this change, so it was not saved. Leave fewer hooks out, or delete presets you no longer use.':
+    'El archivo de entornos de lanzamiento de Codex quedaría demasiado largo con este cambio, así que no se guardó. Dejá menos hooks afuera o borrá presets que ya no uses.',
   'A command before the start did not succeed ({result}); the agent started anyway.':
     'Un comando previo al inicio no tuvo éxito ({result}); el agente arrancó igual.',
   'Started with {selection} applied.': 'Iniciado con {selection} aplicado.',

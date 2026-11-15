@@ -72,7 +72,12 @@
     provider ? selections.filter((s) => s.provider === provider) : [],
   );
   const counts = $derived(plan ? planCounts(plan) : null);
-  const applying = $derived(!!plan && plan.can_apply && apply);
+  /**
+   * A preset that leaves a Codex hook or AGENTS.md out starts applied or not at all: recorded
+   * only, the terminal would load what the owner switched off.
+   */
+  const mustApply = $derived(!!plan?.codex_environment);
+  const applying = $derived(!!plan && plan.can_apply && (apply || mustApply));
 
   async function readSelections() {
     try {
@@ -191,7 +196,9 @@
       config_hash: plan.config_hash,
       project,
     };
-    const ready = applying ? preview?.can_start === true : recordOnly;
+    const ready = applying
+      ? preview?.can_start === true
+      : recordOnly && !mustApply;
     onchange({ pending: false, start, plan, apply: applying, preview, ready });
   });
 </script>
@@ -346,7 +353,7 @@
           </details>
         {/if}
 
-        {#if plan.can_apply}
+        {#if plan.can_apply && !mustApply}
           <label class="arsenal-check">
             <input type="checkbox" bind:checked={apply} />
             {t('Apply to this terminal (restart required to change it later)')}
@@ -365,6 +372,13 @@
               {preview.not_applicable.join(' ')}
             </p>
           {/if}
+        {:else if mustApply}
+          <p class="native-warning" role="alert">
+            {t(
+              'This preset leaves a Codex hook or AGENTS.md out, so the terminal starts only with it applied: started without it, they would load again. It cannot be applied now, so it cannot start.',
+            )}
+            {plan.enforcement.reason}
+          </p>
         {:else}
           <p class="native-warning" role="note">
             {t(

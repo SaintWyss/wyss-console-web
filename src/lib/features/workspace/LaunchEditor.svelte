@@ -29,6 +29,7 @@
     BYPASS_WARNING,
     PERMISSION_LABEL,
   } from '../native/present';
+  import { ENVIRONMENT_UNREADABLE } from '../terminal/launch';
   import { kTokens } from './estimate';
   import { BASIC_ROLES as BASIC } from './plan';
   import {
@@ -124,6 +125,9 @@
   const CODEX_HOME_NOTE = msg(
     'A launch that leaves a hook or AGENTS.md out runs in its own Codex folder, with your own Codex sign-in. Codex asks you to approve the hooks the first time in each new folder.',
   );
+  const STALE_HOOKS = msg(
+    'A hook this preset left out is no longer in hooks.json: it was edited or removed. A launch with this preset does not start until you check the hooks and save.',
+  );
   const CONFIG_HOOKS_NOTE = msg(
     'Declared in config.toml: these run in every launch and cannot be switched off here.',
   );
@@ -158,6 +162,8 @@
   let rolesOpen = $state(false);
   let newRole = $state('');
   let foldersOpen = $state(false);
+  /** The draft dropped a hook its preset left out that hooks.json no longer has. */
+  let staleHooks = $state(false);
 
   const allRoles = $derived([
     ...BASIC.map((r) => ({ id: r.id, name: t(r.name), basic: true })),
@@ -241,8 +247,10 @@
                 DEFAULT_SPEC),
             }
           : null,
+      // A preset whose environment could not be read gets none here: nothing is drawn as
+      // "everything on", and Save does not write over what is not known.
       codexSpec:
-        launch.agent === 'codex'
+        launch.agent === 'codex' && !unreadableFor(selection)
           ? {
               ...((selection && data.codexEnvironments.get(selection.id)) ??
                 DEFAULT_CODEX_SPEC),
@@ -250,10 +258,30 @@
           : null,
     };
   }
+  /** Whether the Codex environment of this preset is in a file that cannot be read. */
+  function unreadableFor(selection: Selection | null): boolean {
+    return (
+      selection !== null &&
+      data.codexUnreadable === true &&
+      !data.codexEnvironments.has(selection.id)
+    );
+  }
   function pick(launch: Launch | null) {
     selected = launch?.id ?? 'new';
-    draft = draftOf(launch);
-    baseline = JSON.stringify(draft);
+    const fresh = draftOf(launch);
+    // The baseline is what is saved. A hook the preset left out that `hooks.json` no longer has
+    // (edited or removed) is dropped from the draft only, so the draft differs and can be saved.
+    baseline = JSON.stringify(fresh);
+    staleHooks = false;
+    const listed = data.codexOptions?.hooks.map((h) => h.key);
+    if (fresh.codexSpec && listed) {
+      const kept = fresh.codexSpec.hooks_off.filter((k) => listed.includes(k));
+      if (kept.length !== fresh.codexSpec.hooks_off.length) {
+        fresh.codexSpec = { ...fresh.codexSpec, hooks_off: kept };
+        staleHooks = true;
+      }
+    }
+    draft = fresh;
     error = null;
     notice = null;
     confirming = false;
@@ -856,6 +884,16 @@
           {t(
             'This launch runs commands from its file. It opens from here; edit it in its file.',
           )}
+        </p>
+      {/if}
+      {#if !readOnly && d.agent === 'codex' && unreadableFor(d.selection)}
+        <p class="notice" data-tone="error" role="alert">
+          {t(ENVIRONMENT_UNREADABLE)}
+        </p>
+      {/if}
+      {#if !readOnly && staleHooks}
+        <p class="notice" data-tone="warn" role="alert">
+          {t(STALE_HOOKS)}
         </p>
       {/if}
       {#if roles.damaged}

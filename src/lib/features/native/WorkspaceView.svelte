@@ -271,6 +271,14 @@
       delegate && (agent === 'claude_code' || agent === 'codex'),
     );
     const choice = arsenalChoice;
+    // Never started without what it leaves out: the panel does not offer it, and this refuses it.
+    if (
+      choice &&
+      !choice.pending &&
+      choice.plan.codex_environment &&
+      !choice.apply
+    )
+      return;
     if (choice && !choice.pending) {
       // Applied: the preview that binds the exclusion. Recorded only: the permission's own preview.
       const reply = await controller.startWithArsenal(

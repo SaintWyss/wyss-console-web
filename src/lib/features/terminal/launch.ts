@@ -49,6 +49,11 @@ export interface LaunchDeps {
   openNative(reply: StartReply): void;
 }
 
+/** Said wherever a Codex preset's environment cannot be read. */
+export const ENVIRONMENT_UNREADABLE = msg(
+  'The file of Codex launch environments (environment-codex.json) cannot be read, so what a preset leaves out is not known. Launches with a Codex preset do not start until the file is fixed or removed. It was not changed.',
+);
+
 export interface LaunchNote {
   text: string;
   values?: Record<string, string | number>;
@@ -168,7 +173,22 @@ export async function openLaunch(
     selection = await deps.remembered(directory, agent);
   }
   // The selection is planned before anything runs, so a plan that fails stops the launch whole.
-  const plan = selection ? await deps.plan(selection, agent, directory) : null;
+  const plan = selection
+    ? await deps.plan(selection, agent, directory).catch((error: unknown) => {
+        // What the preset leaves out cannot be told: nothing starts, and the owner reads why.
+        const code = (error as { code?: unknown }).code;
+        if (code === 'environment_unreadable')
+          throw new LaunchRefusal(ENVIRONMENT_UNREADABLE);
+        if (code === 'environment_stale')
+          throw new LaunchRefusal(
+            msg(
+              'The launch “{name}” leaves out a hook that is no longer in hooks.json: it was edited or removed. Nothing was started. Open the launch in Workspace, check its hooks and save.',
+            ),
+            { name: launch.name },
+          );
+        throw error;
+      })
+    : null;
   const arsenal: ArsenalStart | null = plan
     ? {
         selection: plan.selection,

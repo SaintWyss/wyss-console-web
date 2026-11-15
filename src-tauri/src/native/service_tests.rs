@@ -2286,3 +2286,201 @@ fn a_codex_launch_home_is_built_for_a_changed_environment_only_and_a_failed_buil
     assert_eq!(error.code, "arsenal_home_failed");
     assert_eq!(world.service.sessions(&world.terminal, false).len(), before);
 }
+
+/// `PATH` with a fake `secret-tool` first, for one test, and put back after: the launch home of
+/// Claude reads its token from the key ring, and a test must never read the real one. Take it
+/// after a [`FakeOwnerEnv`], whose lock it relies on.
+struct FakeKeyRing {
+    saved: Option<std::ffi::OsString>,
+}
+
+impl FakeKeyRing {
+    const TOKEN: &'static str = "fake-keyring-token-0123456789-abcdef";
+
+    fn new(dir: &Path) -> Self {
+        fs::create_dir_all(dir).unwrap();
+        script(&dir.join("secret-tool"), &format!("echo '{}'", Self::TOKEN));
+        let saved = std::env::var_os("PATH");
+        let mut parts = vec![dir.to_path_buf()];
+        parts.extend(std::env::split_paths(&saved.clone().unwrap_or_default()));
+        // SAFETY: the lock of `FakeOwnerEnv` is held by the caller for the whole test.
+        unsafe { std::env::set_var("PATH", std::env::join_paths(parts).unwrap()) };
+        Self { saved }
+    }
+}
+
+impl Drop for FakeKeyRing {
+    fn drop(&mut self) {
+        // SAFETY: see `new`.
+        unsafe {
+            match &self.saved {
+                Some(path) => std::env::set_var("PATH", path),
+                None => std::env::remove_var("PATH"),
+            }
+        }
+    }
+}
+
+/// Replaces the world's shell with one that writes the words it was started with, one per line
+/// in brackets, to the returned file, and then runs the real recipe.
+fn log_shell_argv(world: &World) -> PathBuf {
+    let log = world.base.join("shell-argv.log");
+    script(
+        &world.bin.join("bash"),
+        &format!(
+            "for a in \"$@\"; do printf '[%s]\\n' \"$a\"; done > '{}'\n\
+             exec /usr/bin/bash --norc --noprofile \"$@\"",
+            log.display()
+        ),
+    );
+    log
+}
+
+/// A Claude launch with an environment of its own, an owner folder, and a fake key ring.
+fn claude_home_start(world: &World, home: Option<crate::native::launch_home::HomeSpec>) -> String {
+    let version = super::capabilities::ARSENAL_TEST_VERSION;
+    script(
+        &world.bin.join("claude"),
+        &format!(
+            "[ \"$1\" = \"--version\" ] && {{ echo '{version}'; exit 0; }}\n\
+             echo \"CFG=[$CLAUDE_CONFIG_DIR]\"; echo \"TOKENENV=[$CLAUDE_CODE_OAUTH_TOKEN]\"; echo CLAUDE-READY; exec cat"
+        ),
+    );
+    let launch = super::arsenal::ArsenalLaunch {
+        home,
+        ..arsenal_launch(&[])
+    };
+    let preview = world
+        .service
+        .preview(AgentId::ClaudeCode, None, Some(&launch))
+        .unwrap();
+    assert!(preview.can_start, "{:?}", preview.not_applicable);
+    let reply = arsenal_start(world, Some(launch), preview.plan_token, version).unwrap();
+    world.output_until(&reply.terminal.terminal_id, "CLAUDE-READY")
+}
+
+fn claude_home_world() -> (World, FakeOwnerEnv, FakeKeyRing) {
+    let world = World::new();
+    let owner_home = world.home.parent().unwrap().join("owner-home");
+    fs::create_dir_all(owner_home.join(".claude")).unwrap();
+    fs::write(owner_home.join(".claude/settings.json"), "{}").unwrap();
+    let env = FakeOwnerEnv::new(&owner_home);
+    let ring = FakeKeyRing::new(&world.base.join("fake-ring"));
+    (world, env, ring)
+}
+
+#[test]
+fn a_claude_launch_with_a_home_pins_its_config_dir_and_never_puts_the_token_in_argv() {
+    let (world, _env, _ring) = claude_home_world();
+    let log = log_shell_argv(&world);
+    let home = crate::native::launch_home::HomeSpec {
+        instructions: false,
+        ..Default::default()
+    };
+    let out = claude_home_start(&world, Some(home));
+    let dir = world
+        .base
+        .join("launch-homes")
+        .join(arsenal_launch(&[]).selection);
+    let argv = fs::read_to_string(&log).unwrap();
+    assert!(
+        argv.contains(&format!("[CLAUDE_CONFIG_DIR={}]", dir.display())),
+        "{argv}"
+    );
+    assert!(
+        argv.contains("[/usr/bin/env]") || argv.contains("exec /usr/bin/env"),
+        "{argv}"
+    );
+    assert!(!argv.contains("CODEX_HOME="), "{argv}");
+    // The token reaches the agent by environment only (control: the agent does see it).
+    assert!(
+        out.contains(&format!("TOKENENV=[{}]", FakeKeyRing::TOKEN)),
+        "{out:?}"
+    );
+    assert!(!argv.contains(FakeKeyRing::TOKEN), "token in argv: {argv}");
+    assert!(!argv.contains("CLAUDE_CODE_OAUTH_TOKEN"), "{argv}");
+    assert!(out.contains(&format!("CFG=[{}]", dir.display())), "{out:?}");
+}
+
+#[test]
+fn a_claude_launch_without_a_home_has_no_pin() {
+    let (world, _env, _ring) = claude_home_world();
+    let log = log_shell_argv(&world);
+    let out = claude_home_start(&world, None);
+    let argv = fs::read_to_string(&log).unwrap();
+    assert!(!argv.contains("CLAUDE_CONFIG_DIR="), "{argv}");
+    assert!(!argv.contains("/usr/bin/env"), "{argv}");
+    assert!(!argv.contains(FakeKeyRing::TOKEN), "{argv}");
+    assert!(out.contains("TOKENENV=[]"), "{out:?}");
+}
+
+#[test]
+fn a_codex_launch_pins_its_home_only_when_it_has_one() {
+    use super::launch_home_codex::CodexHomeSpec;
+    let world = World::new();
+    let version = "codex-cli 0.169.0";
+    script(
+        &world.bin.join("codex"),
+        &format!(
+            "[ \"$1\" = \"--version\" ] && {{ echo '{version}'; exit 0; }}\n\
+             echo \"CODEXHOME=[$CODEX_HOME]\"; echo CODEX-READY; exec cat"
+        ),
+    );
+    let owner_home = world.home.parent().unwrap().join("owner-home");
+    let owner = owner_home.join(".codex");
+    fs::create_dir_all(&owner).unwrap();
+    fs::write(owner.join("config.toml"), "model = \"x\"\n").unwrap();
+    fs::write(owner.join("AGENTS.md"), "kernel").unwrap();
+    fs::write(owner.join("auth.json"), "FAKE-TOKEN").unwrap();
+    let _env = FakeOwnerEnv::new(&owner_home);
+    let log = log_shell_argv(&world);
+    let run = |spec: CodexHomeSpec| {
+        let launch = super::arsenal::ArsenalLaunch {
+            codex_home: Some(spec),
+            ..arsenal_launch(&[])
+        };
+        let preview = world
+            .service
+            .preview(AgentId::Codex, None, Some(&launch))
+            .unwrap();
+        assert!(preview.can_start, "{:?}", preview.not_applicable);
+        let reply = world
+            .service
+            .start(
+                &world.terminal,
+                StartRequest {
+                    agent_id: AgentId::Codex,
+                    project: world.home.to_string_lossy().into_owned(),
+                    profile_id: None,
+                    size: SIZE,
+                    brief: None,
+                    plan_token: preview.plan_token,
+                    expected_cli_version: Some(version.to_owned()),
+                    arsenal: Some(launch.clone()),
+                    delegation: false,
+                },
+            )
+            .unwrap();
+        world.output_until(&reply.terminal.terminal_id, "CODEX-READY");
+        (launch, fs::read_to_string(&log).unwrap())
+    };
+    // No home (the default environment): no pin, no `env` between the shell and the agent.
+    let (_, argv) = run(CodexHomeSpec::default());
+    assert!(!argv.contains("CODEX_HOME="), "{argv}");
+    assert!(!argv.contains("/usr/bin/env"), "{argv}");
+    // A home: the pin is one argv word with the built home.
+    let (launch, argv) = run(CodexHomeSpec {
+        instructions: false,
+        hooks_off: Vec::new(),
+    });
+    let dir = world
+        .base
+        .join("launch-homes")
+        .join("codex")
+        .join(&launch.selection);
+    assert!(
+        argv.contains(&format!("[CODEX_HOME={}]", dir.display())),
+        "{argv}"
+    );
+    assert!(!argv.contains("CLAUDE_CONFIG_DIR="), "{argv}");
+}

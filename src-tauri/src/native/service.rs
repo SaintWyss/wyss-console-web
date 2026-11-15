@@ -939,6 +939,10 @@ impl NativeService {
         // The launch home: its own configuration folder, and the stored token instead of the
         // owner's sign-in, so this session never refreshes it.
         let mut home_env: Vec<(String, String)> = Vec::new();
+        // The folder variable of the launch home, set again in the `exec` that becomes the agent:
+        // a start-up file of the shell that exports the same name must not put the owner's own
+        // folder (and the hooks this launch left out) back.
+        let mut home_pin: Option<(&'static str, String)> = None;
         if let (Some(spec), Some(launch)) = (&plan.home, request.arsenal.as_ref()) {
             let token =
                 launch_home::token().ok_or_else(|| NativeError::new("arsenal_token_missing"))?;
@@ -954,10 +958,9 @@ impl NativeService {
                 words.push("--mcp-config".to_owned());
                 words.push(mcp.to_string_lossy().into_owned());
             }
-            home_env.push((
-                "CLAUDE_CONFIG_DIR".to_owned(),
-                built.dir.to_string_lossy().into_owned(),
-            ));
+            let built_dir = built.dir.to_string_lossy().into_owned();
+            home_env.push(("CLAUDE_CONFIG_DIR".to_owned(), built_dir.clone()));
+            home_pin = Some(("CLAUDE_CONFIG_DIR", built_dir));
             home_env.push(("CLAUDE_CODE_OAUTH_TOKEN".to_owned(), token.to_string()));
             if !spec.memory {
                 home_env.push(("CLAUDE_CODE_DISABLE_AUTO_MEMORY".to_owned(), "1".to_owned()));
@@ -982,10 +985,9 @@ impl NativeService {
                 spec,
             )
             .map_err(|_| NativeError::new("arsenal_home_failed"))?;
-            home_env.push((
-                "CODEX_HOME".to_owned(),
-                built.to_string_lossy().into_owned(),
-            ));
+            let built_dir = built.to_string_lossy().into_owned();
+            home_env.push(("CODEX_HOME".to_owned(), built_dir.clone()));
+            home_pin = Some(("CODEX_HOME", built_dir));
         }
         if let Some(brief) = &request.brief {
             if brief.len() > MAX_BRIEF || !brief.starts_with("# ") || brief.contains('\0') {
@@ -1016,7 +1018,7 @@ impl NativeService {
             }
         }
         let direct = agent.path.clone().map(PathBuf::from).unwrap_or_default();
-        let made = recipe::recipe_with_version_guard(
+        let made = recipe::recipe_pinned(
             &shell,
             &words,
             &direct,
@@ -1025,6 +1027,7 @@ impl NativeService {
             } else {
                 None
             },
+            home_pin.as_ref().map(|(name, dir)| (*name, dir.as_str())),
         );
         let now = store::now();
         let mut session = Session {

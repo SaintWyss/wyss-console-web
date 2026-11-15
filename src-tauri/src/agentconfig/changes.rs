@@ -238,8 +238,18 @@ pub enum HookFile {
     CodexHooks,
 }
 
-/// An applied edit of a hook: the file it is in, the hook replaced and the hook written.
-pub type HookEdit = (HookFile, Hook, Hook);
+/// An applied edit of a hook.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HookEdit {
+    /// The file the hook is in.
+    pub file: HookFile,
+    /// The hook replaced.
+    pub old: Hook,
+    /// The hook written.
+    pub new: Hook,
+    /// Whether another hook of the file still has the old event, matcher and command.
+    pub old_remains: bool,
+}
 
 /// The hooks of a settings file's `hooks`, in file order.
 pub fn hooks_of(bytes: &[u8]) -> Vec<Hook> {
@@ -268,9 +278,19 @@ pub fn hooks_of(bytes: &[u8]) -> Vec<Hook> {
 }
 
 /// The edit a write made, when it was one: one hook gone and one come, same event and matcher.
+/// Hooks are counted, not only looked up: of two identical hooks, editing one is one gone and
+/// one come, though a hook equal to the old one is still there.
 pub fn edited<'a>(before: &'a [Hook], after: &'a [Hook]) -> Option<(&'a Hook, &'a Hook)> {
-    let gone: Vec<_> = before.iter().filter(|h| !after.contains(h)).collect();
-    let came: Vec<_> = after.iter().filter(|h| !before.contains(h)).collect();
+    let mut came: Vec<&Hook> = after.iter().collect();
+    let mut gone: Vec<&Hook> = Vec::new();
+    for hook in before {
+        match came.iter().position(|other| *other == hook) {
+            Some(at) => {
+                came.remove(at);
+            }
+            None => gone.push(hook),
+        }
+    }
     let (&[old], &[new]) = (gone.as_slice(), came.as_slice()) else {
         return None;
     };
@@ -1449,7 +1469,12 @@ impl ChangeService {
                         SourceKey::CodexUserHooks => HookFile::CodexHooks,
                         _ => HookFile::ClaudeSettings,
                     };
-                    edited(&before, &after).map(|(a, b)| (file, a.clone(), b.clone()))
+                    edited(&before, &after).map(|(old, new)| HookEdit {
+                        file,
+                        old: old.clone(),
+                        new: new.clone(),
+                        old_remains: after.contains(old),
+                    })
                 })
             }
             _ => None,

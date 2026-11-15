@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  ENVIRONMENT_UNREADABLE,
   isFullAccess,
   LaunchRefusal,
   openLaunch,
@@ -428,4 +429,47 @@ it('full access is shown only for a session launch whose permission is bypass', 
       template: null,
     }),
   ).toBe(false);
+});
+
+describe('openLaunch when what a preset leaves out cannot be told', () => {
+  const refuse = async (code: string) => {
+    const { d } = deps(session(), undefined, { selection: 'sel-remembered' });
+    d.plan = vi.fn(async () => {
+      throw Object.assign(new Error(code), { code });
+    });
+    const refusal = await openLaunch('codex', d).catch(
+      (error: unknown) => error,
+    );
+    return { d, refusal };
+  };
+
+  it('an environment file that cannot be read refuses the launch and runs nothing before it', async () => {
+    const { d, refusal } = await refuse('environment_unreadable');
+    expect(refusal).toBeInstanceOf(LaunchRefusal);
+    expect((refusal as LaunchRefusal).template).toBe(ENVIRONMENT_UNREADABLE);
+    expect(d.plan).toHaveBeenCalled();
+    expect(d.runBefore).not.toHaveBeenCalled();
+    expect(d.preview).not.toHaveBeenCalled();
+    expect(d.start).not.toHaveBeenCalled();
+    expect(d.openNative).not.toHaveBeenCalled();
+  });
+
+  it('a hook the preset leaves out that hooks.json no longer has refuses it, with the launch name', async () => {
+    const { d, refusal } = await refuse('environment_stale');
+    expect(refusal).toBeInstanceOf(LaunchRefusal);
+    const { template, values } = refusal as LaunchRefusal;
+    expect(template).toContain('no longer in hooks.json');
+    expect(values).toEqual({ name: 'Codex' });
+    expect((refusal as Error).message).toContain('Codex');
+    expect(d.runBefore).not.toHaveBeenCalled();
+    expect(d.start).not.toHaveBeenCalled();
+  });
+
+  it('any other failure of the plan is not turned into a refusal', async () => {
+    const { d, refusal } = await refuse('internal');
+    expect(refusal).not.toBeInstanceOf(LaunchRefusal);
+    expect((refusal as { code?: string }).code).toBe('internal');
+    expect(d.runBefore).not.toHaveBeenCalled();
+    expect(d.start).not.toHaveBeenCalled();
+  });
 });

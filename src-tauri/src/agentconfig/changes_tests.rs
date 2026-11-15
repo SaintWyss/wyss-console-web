@@ -5618,8 +5618,14 @@ fn an_applied_edit_of_a_claude_hook_reports_the_hook_it_replaced() {
         .unwrap();
     let (applied, edit) = world.service.apply_reporting_hook_edit(&plan.id).unwrap();
     assert_eq!(applied.outcome, Outcome::Applied);
-    let (source, was, now) = edit.unwrap();
+    let super::changes::HookEdit {
+        file: source,
+        old: was,
+        new: now,
+        old_remains,
+    } = edit.unwrap();
     assert_eq!(source, super::changes::HookFile::ClaudeSettings);
+    assert!(!old_remains);
     assert_eq!(
         (was.2.as_str(), now.2.as_str()),
         (old.as_str(), "edited.sh")
@@ -5688,11 +5694,109 @@ fn an_applied_edit_of_a_codex_hook_reports_the_codex_hooks_file() {
         .unwrap();
     let (done, edit) = world.service.apply_reporting_hook_edit(&plan.id).unwrap();
     assert_eq!(done.outcome, Outcome::Applied);
-    let (file, was, now) = edit.unwrap();
+    let super::changes::HookEdit {
+        file,
+        old: was,
+        new: now,
+        ..
+    } = edit.unwrap();
     assert_eq!(file, super::changes::HookFile::CodexHooks);
     assert_ne!(file, super::changes::HookFile::ClaudeSettings);
     assert_eq!(
         (was.2.as_str(), now.2.as_str()),
         ("bash mark.sh", "bash mark2.sh")
     );
+}
+
+fn hook(event: &str, matcher: &str, command: &str) -> super::changes::Hook {
+    (event.to_owned(), matcher.to_owned(), command.to_owned())
+}
+
+#[test]
+fn edited_counts_hooks_so_one_of_two_identical_hooks_edited_is_an_edit() {
+    use super::changes::edited;
+    let (a, b) = (hook("Stop", "", "a.sh"), hook("Stop", "", "b.sh"));
+    // [a, a] -> [a, b]: one a gone, one b come, though an `a` is still there.
+    let before = [a.clone(), a.clone()];
+    let after = [a.clone(), b.clone()];
+    assert_eq!(edited(&before, &after), Some((&a, &b)));
+    // The old one remains (what the apply reports as `old_remains`).
+    assert!(after.contains(&a));
+    // The order of the file does not matter.
+    let after = [b.clone(), a.clone()];
+    assert_eq!(edited(&before, &after), Some((&a, &b)));
+    // [a] -> [b]: the old one does not remain.
+    let (before, after) = ([a.clone()], [b.clone()]);
+    assert_eq!(edited(&before, &after), Some((&a, &b)));
+    assert!(!after.contains(&a));
+    // Two changes at once: no single edit to report.
+    let c = hook("Stop", "", "c.sh");
+    assert_eq!(
+        edited(&[a.clone(), b.clone()], &[c.clone(), c.clone()]),
+        None
+    );
+    let d = hook("Stop", "", "d.sh");
+    assert_eq!(edited(&[a.clone(), b.clone()], &[c.clone(), d]), None);
+    // One hook added or removed is not an edit either, nor a change of event or matcher.
+    assert_eq!(
+        edited(std::slice::from_ref(&a), &[a.clone(), b.clone()]),
+        None
+    );
+    assert_eq!(
+        edited(&[a.clone(), b.clone()], std::slice::from_ref(&a)),
+        None
+    );
+    assert_eq!(
+        edited(std::slice::from_ref(&a), &[hook("Start", "", "a.sh")]),
+        None
+    );
+    assert_eq!(
+        edited(std::slice::from_ref(&a), &[hook("Stop", "m", "b.sh")]),
+        None
+    );
+    // Nothing changed.
+    assert_eq!(edited(&[a.clone(), a.clone()], &[a.clone(), a]), None);
+}
+
+#[test]
+fn editing_one_of_two_identical_codex_hooks_reports_that_the_old_one_remains() {
+    let world = World::new(SETTINGS);
+    world.codex("hooks = true\n");
+    world.codex_hooks(
+        r#"{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"dup.sh"}]},{"hooks":[{"type":"command","command":"dup.sh"}]}]}}"#,
+    );
+    let items: Vec<_> = world
+        .inventory
+        .snapshot()
+        .inventory
+        .items
+        .iter()
+        .filter(|i| {
+            i.provider == super::model::ProviderId::Codex
+                && i.kind == ItemKind::Hook
+                && format!("{:?}", i.detail).contains("dup.sh")
+        })
+        .map(|i| i.id.clone())
+        .collect();
+    assert!(!items.is_empty(), "the hooks are listed");
+    let plan = world
+        .service
+        .plan_authored(Authoring::EditHook {
+            item: items[0].clone(),
+            command: "other.sh".into(),
+            expected: "dup.sh".into(),
+        })
+        .unwrap();
+    let (done, edit) = world.service.apply_reporting_hook_edit(&plan.id).unwrap();
+    assert_eq!(done.outcome, Outcome::Applied);
+    let edit = edit.expect("one hook gone and one come is an edit");
+    assert_eq!(edit.file, super::changes::HookFile::CodexHooks);
+    assert_eq!(
+        (edit.old.2.as_str(), edit.new.2.as_str()),
+        ("dup.sh", "other.sh")
+    );
+    assert!(edit.old_remains, "the other copy of dup.sh is still there");
+    let text = world.codex_hooks_file();
+    assert_eq!(text.matches("dup.sh").count(), 1, "{text}");
+    assert_eq!(text.matches("other.sh").count(), 1, "{text}");
 }

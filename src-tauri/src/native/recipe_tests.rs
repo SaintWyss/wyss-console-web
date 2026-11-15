@@ -1,7 +1,7 @@
 //! OQ-07: for each shell family, the arguments arrive as the words they were, and the agent is
 //! the process that runs. A fake agent prints what it received; each recipe is run for real
 //! through the shells installed here.
-use super::recipe::{Family, family, recipe, recipe_with_version_guard};
+use super::recipe::{Family, family, recipe, recipe_pinned, recipe_with_version_guard};
 use std::{
     fs,
     os::unix::fs::PermissionsExt,
@@ -352,4 +352,179 @@ fn the_version_guard_runs_for_each_supported_shell_family() {
     }
     assert!(tried >= 2, "at least two shell families must be installed");
     fs::remove_dir_all(root).unwrap();
+}
+
+fn words(parts: &[&str]) -> Vec<String> {
+    parts.iter().map(|p| (*p).to_owned()).collect()
+}
+
+#[test]
+fn a_pinned_recipe_puts_the_variable_in_argv_and_ends_in_exec_env() {
+    let w = words(&["claude", "--model", "x"]);
+    let direct = Path::new("/bin/claude");
+    for shell in [
+        "/usr/bin/bash",
+        "/usr/bin/zsh",
+        "/usr/bin/sh",
+        "/usr/bin/fish",
+    ] {
+        let shell = Path::new(shell);
+        let made = recipe_pinned(
+            shell,
+            &w,
+            direct,
+            Some("1.0"),
+            Some(("CODEX_HOME", "/launch/home")),
+        );
+        assert!(made.through_shell, "{shell:?}");
+        // Order of the words after the script label: command, version, pin, the rest.
+        let n = made.args.len();
+        assert_eq!(
+            &made.args[n - 5..],
+            ["claude", "1.0", "CODEX_HOME=/launch/home", "--model", "x"],
+            "{shell:?}"
+        );
+        let script = &made.args[2];
+        assert!(script.contains("exec /usr/bin/env"), "{shell:?}: {script}");
+        // The variable is one argv word, never text inside the script.
+        assert!(!script.contains("/launch/home"), "{shell:?}");
+    }
+}
+
+#[test]
+fn an_unpinned_recipe_is_the_same_text_as_the_version_guard() {
+    for shell in [
+        "/usr/bin/bash",
+        "/usr/bin/zsh",
+        "/usr/bin/sh",
+        "/usr/bin/fish",
+    ] {
+        let shell = Path::new(shell);
+        let w = words(&["claude", "--model", "x"]);
+        let direct = Path::new("/bin/claude");
+        assert_eq!(
+            recipe_pinned(shell, &w, direct, Some("1.0"), None),
+            recipe_with_version_guard(shell, &w, direct, Some("1.0")),
+            "{shell:?}"
+        );
+        // The script does not exec env when nothing is pinned.
+        let made = recipe_pinned(shell, &w, direct, Some("1.0"), None);
+        assert!(!made.args[2].contains("/usr/bin/env"), "{shell:?}");
+        // And without a version either: the plain recipe.
+        assert_eq!(
+            recipe_pinned(shell, &w, direct, None, None),
+            recipe(shell, &w, direct),
+            "{shell:?}"
+        );
+    }
+}
+
+#[test]
+fn without_a_version_the_pinned_words_start_with_env_and_the_variable() {
+    let w = words(&["codex", "--flag"]);
+    let direct = Path::new("/bin/codex");
+    let shell = Path::new("/usr/bin/bash");
+    let made = recipe_pinned(shell, &w, direct, None, Some(("CODEX_HOME", "/h")));
+    let plain = recipe(
+        shell,
+        &words(&["/usr/bin/env", "CODEX_HOME=/h", "codex", "--flag"]),
+        direct,
+    );
+    assert_eq!(made, plain);
+    assert_eq!(
+        &made.args[made.args.len() - 4..],
+        ["/usr/bin/env", "CODEX_HOME=/h", "codex", "--flag"]
+    );
+}
+
+#[test]
+fn a_shell_without_a_recipe_ignores_the_pin() {
+    let w = words(&["claude", "--model", "x"]);
+    let direct = Path::new("/home/u/.local/bin/claude");
+    let nu = Path::new("/usr/bin/nu");
+    let plain = recipe(nu, &w, direct);
+    assert_eq!(
+        recipe_pinned(nu, &w, direct, Some("1.0"), Some(("CODEX_HOME", "/h"))),
+        plain
+    );
+    assert_eq!(
+        recipe_pinned(nu, &w, direct, None, Some(("CODEX_HOME", "/h"))),
+        plain
+    );
+    assert!(!plain.through_shell);
+}
+
+/// What a fake agent prints as `CODEX_HOME` after a start-up file exported the owner's, with or
+/// without a pin. `None` when the shell is not installed (said on stderr, the test skips it).
+fn codex_home_seen(shell_name: &str, pin: Option<&str>, versioned: bool) -> Option<String> {
+    let shell = PathBuf::from("/usr/bin").join(shell_name);
+    if !shell.exists() {
+        eprintln!("skipped: {shell_name} is not installed");
+        return None;
+    }
+    let root = fs::canonicalize(std::env::temp_dir())
+        .unwrap()
+        .join(format!("wyss-pin-{}", uuid::Uuid::new_v4().simple()));
+    let (home, bin, config) = (root.join("home"), root.join("bin"), root.join("config"));
+    for dir in [&home, &bin, &config.join("fish")] {
+        fs::create_dir_all(dir).unwrap();
+    }
+    let agent = bin.join("fake-agent");
+    fs::write(
+        &agent,
+        "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo 1.0; exit 0; fi\nprintf 'CODEX_HOME=[%s]\\n' \"$CODEX_HOME\"\n",
+    )
+    .unwrap();
+    fs::set_permissions(&agent, fs::Permissions::from_mode(0o755)).unwrap();
+    // The owner's start-up file exports the owner's folder, as a real one could.
+    let export = "export CODEX_HOME=/owner\n";
+    fs::write(home.join(".bashrc"), export).unwrap();
+    fs::write(home.join(".zshrc"), export).unwrap();
+    fs::write(home.join(".env"), export).unwrap();
+    fs::write(
+        config.join("fish/config.fish"),
+        "set -gx CODEX_HOME /owner\n",
+    )
+    .unwrap();
+    let made = recipe_pinned(
+        &shell,
+        &words(&["fake-agent"]),
+        &agent,
+        versioned.then_some("1.0"),
+        pin.map(|dir| ("CODEX_HOME", dir)),
+    );
+    let output = Command::new(&made.program)
+        .args(&made.args)
+        .env("HOME", &home)
+        .env("ENV", home.join(".env"))
+        .env("XDG_CONFIG_HOME", &config)
+        .env("PATH", format!("{}:/usr/bin:/bin", bin.display()))
+        .env("WYSS_NATIVE_VERSION_GUARD", root.join("verified"))
+        .env_remove("CODEX_HOME")
+        .stdin(Stdio::null())
+        .output()
+        .unwrap();
+    let out = String::from_utf8_lossy(&output.stdout).into_owned();
+    assert!(output.status.success(), "{shell_name}: {output:?}");
+    fs::remove_dir_all(root).unwrap();
+    Some(out)
+}
+
+#[test]
+fn a_startup_file_that_exports_the_owners_folder_does_not_beat_the_pin() {
+    let mut tried = 0;
+    for shell in ["bash", "zsh", "fish"] {
+        for versioned in [true, false] {
+            let Some(pinned) = codex_home_seen(shell, Some("/launch/home"), versioned) else {
+                continue;
+            };
+            assert_eq!(pinned, "CODEX_HOME=[/launch/home]\n", "{shell} {versioned}");
+            // Negative control: the same start-up file without the pin wins, so the pin is
+            // what made the difference.
+            let owner = codex_home_seen(shell, None, versioned).unwrap();
+            assert_eq!(owner, "CODEX_HOME=[/owner]\n", "{shell} {versioned}");
+        }
+        tried += 1;
+    }
+    assert!(tried >= 1, "no shell family installed to try");
 }

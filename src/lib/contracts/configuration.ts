@@ -352,6 +352,11 @@ export interface Applied {
   change: string;
   outcome: Outcome;
   revision: number;
+  /**
+   * A hook was edited, but the launch presets that left the old one out could not be brought up
+   * to date. Sent only when true.
+   */
+  launch_presets_not_followed?: boolean;
 }
 
 /** One change in the history: closed words and hashes, never content. */
@@ -773,11 +778,24 @@ export function parsePlan(value: unknown): Plan {
 }
 
 export function parseApplied(value: unknown): Applied {
-  const a = record(value, ['change', 'outcome', 'revision'], 'applied');
+  const flagged =
+    typeof value === 'object' &&
+    value !== null &&
+    'launch_presets_not_followed' in value;
+  const a = record(
+    value,
+    flagged
+      ? ['change', 'outcome', 'revision', 'launch_presets_not_followed']
+      : ['change', 'outcome', 'revision'],
+    'applied',
+  );
+  if (flagged && a.launch_presets_not_followed !== true)
+    throw invalid('applied');
   return {
     change: ident(a.change, 'applied'),
     outcome: member(a.outcome, OUTCOMES, 'applied'),
     revision: count(a.revision, 'applied'),
+    ...(flagged ? { launch_presets_not_followed: true } : {}),
   };
 }
 

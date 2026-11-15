@@ -67,39 +67,81 @@ pub fn recipe(shell: &Path, words: &[String], direct: &Path) -> Recipe {
     }
 }
 
+/// Where the pinned variable is set from: an absolute path, so a start-up file that changes
+/// `PATH`, or defines a function or an alias named `env`, does not choose what runs.
+const ENV: &str = "/usr/bin/env";
+
+const POSIX_GUARD: &str = "resolved=$(command -v \"$1\") || { printf '%s\\n' 'Wyss: provider command could not be resolved; no agent was started.' >&2; exit 127; }; actual=$(\"$resolved\" --version 2>/dev/null) || { printf '%s\\n' 'Wyss: provider version could not be checked; no agent was started.' >&2; exit 125; }; if [ \"$actual\" != \"$2\" ]; then printf '%s\\n' 'Wyss: provider build changed after preview; no profile was applied and no agent was started.' >&2; exit 125; fi; if [ -z \"${WYSS_NATIVE_VERSION_GUARD:-}\" ] || ! printf 'ok\\n' > \"$WYSS_NATIVE_VERSION_GUARD\"; then printf '%s\\n' 'Wyss: provider start could not be verified; no agent was started.' >&2; exit 125; fi; unset WYSS_NATIVE_VERSION_GUARD; ";
+const POSIX_EXEC: &str = "shift 2; exec \"$resolved\" \"$@\"";
+const POSIX_EXEC_PINNED: &str = "pin=$3; shift 3; exec /usr/bin/env \"$pin\" \"$resolved\" \"$@\"";
+const FISH_GUARD: &str = "set -l resolved (command -s -- \"$argv[1]\"); if test -z \"$resolved\"; printf '%s\\n' 'Wyss: provider command could not be resolved; no agent was started.' >&2; exit 127; end; set -l actual (\"$resolved\" --version 2>/dev/null); if test (count $actual) -ne 1; printf '%s\\n' 'Wyss: provider version could not be checked; no agent was started.' >&2; exit 125; end; if test \"$actual\" != \"$argv[2]\"; printf '%s\\n' 'Wyss: provider build changed after preview; no profile was applied and no agent was started.' >&2; exit 125; end; if not set -q WYSS_NATIVE_VERSION_GUARD; or test -z \"$WYSS_NATIVE_VERSION_GUARD\"; printf '%s\\n' 'Wyss: provider start could not be verified; no agent was started.' >&2; exit 125; end; printf 'ok\\n' > \"$WYSS_NATIVE_VERSION_GUARD\"; or begin; printf '%s\\n' 'Wyss: provider start could not be verified; no agent was started.' >&2; exit 125; end; set -e WYSS_NATIVE_VERSION_GUARD; ";
+const FISH_EXEC: &str = "set -e argv[1]; set -e argv[1]; exec \"$resolved\" $argv";
+const FISH_EXEC_PINNED: &str = "set -l pin $argv[3]; set -e argv[1]; set -e argv[1]; set -e argv[1]; exec /usr/bin/env $pin \"$resolved\" $argv";
+
 /// A profile's provider flags are checked against the build that the window discovered. A
 /// shell may change PATH in its startup files, so a profile launch checks the shell-resolved
 /// binary with its supported `--version` interface and execs that same resolved path. Values
 /// remain argv words; none of the provider or profile data becomes shell command text.
+#[cfg(test)]
 pub fn recipe_with_version_guard(
     shell: &Path,
     words: &[String],
     direct: &Path,
     expected_version: Option<&str>,
 ) -> Recipe {
-    let Some(expected_version) = expected_version else {
-        return recipe(shell, words, direct);
-    };
+    recipe_pinned(shell, words, direct, expected_version, None)
+}
+
+/// [`recipe_with_version_guard`], with one variable the agent must start with whatever the
+/// shell's start-up files say: the configuration folder of a launch home (`CODEX_HOME`,
+/// `CLAUDE_CONFIG_DIR`). A start-up file that exports the same name would otherwise replace it,
+/// and the agent would run with the owner's own folder: with the hooks the launch left out.
+///
+/// The variable is set after the start-up files ran, in the very `exec` that becomes the agent
+/// (`exec /usr/bin/env NAME=value agent …`). `NAME=value` travels as one argv word and is never
+/// shell text. Started directly (a shell without a recipe) there is no start-up file between:
+/// the caller's process environment is the agent's, so `pin` adds nothing there.
+///
+/// `pin` is never a secret: argv is readable by other processes of the user.
+pub fn recipe_pinned(
+    shell: &Path,
+    words: &[String],
+    direct: &Path,
+    expected_version: Option<&str>,
+    pin: Option<(&str, &str)>,
+) -> Recipe {
+    let pin = pin.map(|(name, value)| format!("{name}={value}"));
     let Some(family) = family(shell) else {
         // The service checks the known absolute path immediately before this direct launch.
         return recipe(shell, words, direct);
     };
-    let mut args = match family {
-        Family::Posix | Family::Bash | Family::Zsh => vec![
-            "-i".to_owned(),
-            "-c".to_owned(),
-            "resolved=$(command -v \"$1\") || { printf '%s\\n' 'Wyss: provider command could not be resolved; no agent was started.' >&2; exit 127; }; actual=$(\"$resolved\" --version 2>/dev/null) || { printf '%s\\n' 'Wyss: provider version could not be checked; no agent was started.' >&2; exit 125; }; if [ \"$actual\" != \"$2\" ]; then printf '%s\\n' 'Wyss: provider build changed after preview; no profile was applied and no agent was started.' >&2; exit 125; fi; if [ -z \"${WYSS_NATIVE_VERSION_GUARD:-}\" ] || ! printf 'ok\\n' > \"$WYSS_NATIVE_VERSION_GUARD\"; then printf '%s\\n' 'Wyss: provider start could not be verified; no agent was started.' >&2; exit 125; fi; unset WYSS_NATIVE_VERSION_GUARD; shift 2; exec \"$resolved\" \"$@\"".to_owned(),
-            "wyss-checked-launch".to_owned(),
-        ],
-        Family::Fish => vec![
-            "-i".to_owned(),
-            "-c".to_owned(),
-            "set -l resolved (command -s -- \"$argv[1]\"); if test -z \"$resolved\"; printf '%s\\n' 'Wyss: provider command could not be resolved; no agent was started.' >&2; exit 127; end; set -l actual (\"$resolved\" --version 2>/dev/null); if test (count $actual) -ne 1; printf '%s\\n' 'Wyss: provider version could not be checked; no agent was started.' >&2; exit 125; end; if test \"$actual\" != \"$argv[2]\"; printf '%s\\n' 'Wyss: provider build changed after preview; no profile was applied and no agent was started.' >&2; exit 125; end; if not set -q WYSS_NATIVE_VERSION_GUARD; or test -z \"$WYSS_NATIVE_VERSION_GUARD\"; printf '%s\\n' 'Wyss: provider start could not be verified; no agent was started.' >&2; exit 125; end; printf 'ok\\n' > \"$WYSS_NATIVE_VERSION_GUARD\"; or begin; printf '%s\\n' 'Wyss: provider start could not be verified; no agent was started.' >&2; exit 125; end; set -e WYSS_NATIVE_VERSION_GUARD; set -e argv[1]; set -e argv[1]; exec \"$resolved\" $argv".to_owned(),
-            "--".to_owned(),
-        ],
+    let Some(expected_version) = expected_version else {
+        let Some(pin) = pin else {
+            return recipe(shell, words, direct);
+        };
+        let mut pinned = vec![ENV.to_owned(), pin];
+        pinned.extend(words.iter().cloned());
+        return recipe(shell, &pinned, direct);
     };
+    let (guard, exec, label) = match (family, pin.is_some()) {
+        (Family::Posix | Family::Bash | Family::Zsh, false) => {
+            (POSIX_GUARD, POSIX_EXEC, "wyss-checked-launch")
+        }
+        (Family::Posix | Family::Bash | Family::Zsh, true) => {
+            (POSIX_GUARD, POSIX_EXEC_PINNED, "wyss-checked-launch")
+        }
+        (Family::Fish, false) => (FISH_GUARD, FISH_EXEC, "--"),
+        (Family::Fish, true) => (FISH_GUARD, FISH_EXEC_PINNED, "--"),
+    };
+    let mut args = vec![
+        "-i".to_owned(),
+        "-c".to_owned(),
+        format!("{guard}{exec}"),
+        label.to_owned(),
+    ];
     args.push(words[0].clone());
     args.push(expected_version.to_owned());
+    args.extend(pin);
     args.extend(words.iter().skip(1).cloned());
     Recipe {
         program: shell.to_owned(),

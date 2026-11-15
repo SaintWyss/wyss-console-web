@@ -108,6 +108,12 @@ export const FAILURE_TEXT: Record<string, string> = {
     'The Arsenal library or the installed skills could not be read, so nothing was started with the selection.',
   ),
   arsenal_selection_unknown: msg('That Arsenal selection no longer exists.'),
+  arsenal_environment_unreadable: msg(
+    'The file of Codex launch environments (environment-codex.json) cannot be read, so what a preset leaves out is not known. Launches with a Codex preset do not start until the file is fixed or removed. It was not changed.',
+  ),
+  arsenal_environment_stale: msg(
+    'A hook this preset leaves out is no longer in hooks.json: it was edited or removed. Nothing was started. Check the preset’s hooks and save it.',
+  ),
   arsenal_project_refused: msg(
     'Arsenal does not read this project folder, so its selection cannot be applied here.',
   ),

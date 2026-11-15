@@ -13,6 +13,7 @@
     type HomeSpec,
   } from './environment';
   import { arsenalClient } from '../../desktop/arsenal-client';
+  import { ENVIRONMENT_UNREADABLE } from '../terminal/launch';
 
   const environmentClient = {
     get: (selection: string) => arsenalClient.environment(selection),
@@ -51,32 +52,52 @@
   let failure = $state<string | null>(null);
   let saving = $state(false);
 
+  /** The hooks.json of the owner no longer has a hook this preset left out. */
+  let stale = $state(false);
+
+  // One load at a time counts: the answer for a preset or a tool the panel no longer shows is
+  // dropped, so it is never drawn (or saved) under another one.
+  let loadSeq = 0;
   $effect(() => {
     const id = selection;
+    const who = provider;
+    const seq = ++loadSeq;
     failure = null;
     options = null;
     codexOptions = null;
-    if (provider === 'codex') {
+    stale = false;
+    const failed = (error: unknown) => {
+      if (seq !== loadSeq) return;
+      failure =
+        (error as { code?: unknown }).code === 'environment_unreadable'
+          ? ENVIRONMENT_UNREADABLE
+          : 'The launch environment could not be read.';
+    };
+    if (who === 'codex') {
       void Promise.all([codexClient.options(), codexClient.get(id)])
         .then(([o, s]) => {
+          if (seq !== loadSeq) return;
+          // A hook left out that is no longer listed (edited or removed) is dropped from the
+          // draft only: the panel is then unsaved, and saving records what is shown.
+          const kept = s.hooks_off.filter((k) =>
+            o.hooks.some((h) => h.key === k),
+          );
+          stale = kept.length !== s.hooks_off.length;
           codexOptions = o;
           codexSaved = s;
-          codexSpec = s;
+          codexSpec = stale ? { ...s, hooks_off: kept } : s;
         })
-        .catch(() => {
-          failure = 'The launch environment could not be read.';
-        });
+        .catch(failed);
       return;
     }
     void Promise.all([client.options(), client.get(id)])
       .then(([o, s]) => {
+        if (seq !== loadSeq) return;
         options = o;
         saved = s;
         spec = s;
       })
-      .catch(() => {
-        failure = 'The launch environment could not be read.';
-      });
+      .catch(failed);
   });
 
   const dirty = $derived(
@@ -89,18 +110,30 @@
   );
 
   async function save() {
+    // What is saved is frozen here: the preset, the tool and a copy of the choices. A choice
+    // made while it is being written is not marked as saved, and an answer that arrives after
+    // the panel moved to another preset marks nothing.
+    const id = selection;
+    const who = provider;
+    const seq = loadSeq;
+    const codexCopy = $state.snapshot(codexSpec) as CodexHomeSpec;
+    const copy = $state.snapshot(spec) as HomeSpec;
     saving = true;
     failure = null;
     try {
-      if (provider === 'codex') {
-        await codexClient.write(selection, codexSpec);
-        codexSaved = codexSpec;
+      if (who === 'codex') {
+        await codexClient.write(id, codexCopy);
+        if (seq === loadSeq) {
+          codexSaved = codexCopy;
+          stale = false;
+        }
       } else {
-        await client.write(selection, spec);
-        saved = spec;
+        await client.write(id, copy);
+        if (seq === loadSeq) saved = copy;
       }
     } catch {
-      failure = 'The launch environment could not be saved.';
+      if (seq === loadSeq)
+        failure = 'The launch environment could not be saved.';
     } finally {
       saving = false;
     }
@@ -116,6 +149,13 @@
     {#if codexOptions === null}
       {#if !failure}<p class="muted">{t('Loading…')}</p>{/if}
     {:else}
+      {#if stale}
+        <p class="error" role="alert">
+          {t(
+            'A hook this preset left out is no longer in hooks.json: it was edited or removed. A launch with this preset does not start until you check the hooks and save.',
+          )}
+        </p>
+      {/if}
       <p class="help">
         {t(
           'What this preset loads besides its skills. Anything unticked is not loaded in that terminal.',

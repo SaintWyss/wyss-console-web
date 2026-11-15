@@ -214,7 +214,8 @@ pub fn config_text(owner: &str, home: &str) -> io::Result<String> {
 /// The `hooks.json` of a launch home, from the bytes of the owner's: the same bytes when nothing
 /// is left out; otherwise the owner's without the hooks in `hooks_off`
 /// ([`launch_home::hook_key`] over event, matcher and command), without the groups and events
-/// that end up empty, and with every other key as it was. Bytes that are not JSON are an error.
+/// that end up empty, and with every other key as it was. Bytes that are not JSON are an error,
+/// and so is a key in `hooks_off` that names no hook of the file (`codex_home_hook_unknown`).
 pub fn hooks_file(owner: &[u8], spec: &CodexHomeSpec) -> io::Result<Vec<u8>> {
     let value: Value =
         serde_json::from_slice(owner).map_err(|_| fail("codex_home_owner_hooks_malformed"))?;
@@ -225,6 +226,16 @@ pub fn hooks_file(owner: &[u8], spec: &CodexHomeSpec) -> io::Result<Vec<u8>> {
         hooks_off: spec.hooks_off.clone(),
         ..launch_home::HomeSpec::default()
     };
+    // Every key must name a hook of the file: one that names none is a hook that was edited or
+    // removed since the preset left it out, and the launch cannot say it is still out.
+    let listed = launch_home::hook_options(&value);
+    if spec
+        .hooks_off
+        .iter()
+        .any(|key| !listed.iter().any(|hook| &hook.key == key))
+    {
+        return Err(fail("codex_home_hook_unknown"));
+    }
     serde_json::to_vec_pretty(&launch_home::settings(&value, &filter)).map_err(io::Error::other)
 }
 
@@ -678,8 +689,7 @@ mod tests {
         let f = fx("hooks-off");
         let gate = launch_home::hook_key("PreToolUse", "Bash", "gate.py");
         let bye = launch_home::hook_key("Stop", "", "bye.sh");
-        let unknown = "0000000000000000".to_owned();
-        f.build(&off(&[gate, bye, unknown])).unwrap();
+        f.build(&off(&[gate, bye])).unwrap();
         let v: Value = serde_json::from_slice(&fs::read(f.home.join(HOOKS)).unwrap()).unwrap();
         assert_eq!(v["other"], true, "unknown key of the file kept");
         assert!(v["hooks"].get("Stop").is_none(), "event left empty goes");
@@ -690,6 +700,34 @@ mod tests {
         assert_eq!(hooks.len(), 1);
         assert_eq!(hooks[0]["command"], "rtk");
         assert_eq!(hooks[0]["timeout"], 5, "unknown key of the hook kept");
+    }
+
+    #[test]
+    fn a_key_that_names_no_hook_is_refused_by_hooks_file_and_build_and_leaves_the_home_intact() {
+        let unknown = "0000000000000000".to_owned();
+        let gate = launch_home::hook_key("PreToolUse", "Bash", "gate.py");
+        // `hooks_file`: the unknown key alone, and next to a key that does name a hook.
+        for keys in [vec![unknown.clone()], vec![gate.clone(), unknown.clone()]] {
+            let error = hooks_file(OWNER_HOOKS.as_bytes(), &off(&keys)).unwrap_err();
+            assert_eq!(error.to_string(), "codex_home_hook_unknown");
+        }
+        // Control: the same file with only the key it has is fine.
+        assert!(hooks_file(OWNER_HOOKS.as_bytes(), &off(std::slice::from_ref(&gate))).is_ok());
+
+        // `build` over a home that was built before: the refusal leaves every entry as it was.
+        let f = fx("hook-unknown");
+        f.build(&off(std::slice::from_ref(&gate))).unwrap();
+        let before = snapshot(&f.home);
+        let error = f.build(&off(&[gate.clone(), unknown.clone()])).unwrap_err();
+        assert_eq!(error.to_string(), "codex_home_hook_unknown");
+        assert_eq!(snapshot(&f.home), before);
+        // And over no home at all: nothing is created.
+        let fresh = fx("hook-unknown-fresh");
+        assert_eq!(
+            code(fresh.build(&off(&[unknown]))),
+            "codex_home_hook_unknown"
+        );
+        assert!(gone(&fresh.home));
     }
 
     #[test]

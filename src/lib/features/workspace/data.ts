@@ -21,6 +21,8 @@ export interface EstimateData {
   codexOptions: CodexEnvironmentOptions | null;
   /** Codex environment by selection id; a preset not listed keeps the owner's own. */
   codexEnvironments: ReadonlyMap<string, CodexHomeSpec>;
+  /** Codex: the environments file is there and cannot be read; what presets leave out is unknown. */
+  codexUnreadable?: boolean;
 }
 
 /** Skills and agents of a provider in the library: what a launch without a preset loads. */
@@ -127,6 +129,7 @@ export async function loadEstimateData(client: {
       ),
   );
   const codexEnvironments = new Map<string, CodexHomeSpec>();
+  let codexUnreadable = false;
   if (readCodex)
     await Promise.all(
       selections
@@ -134,7 +137,12 @@ export async function loadEstimateData(client: {
         .map((s) =>
           readCodex(s.id).then(
             (spec) => codexEnvironments.set(s.id, spec),
-            () => undefined,
+            (error: unknown) => {
+              if (
+                (error as { code?: unknown }).code === 'environment_unreadable'
+              )
+                codexUnreadable = true;
+            },
           ),
         ),
     );
@@ -145,6 +153,7 @@ export async function loadEstimateData(client: {
     environments,
     codexOptions,
     codexEnvironments,
+    codexUnreadable,
   };
 }
 

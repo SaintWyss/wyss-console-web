@@ -892,7 +892,10 @@ fn arsenal_codex_environment(
     selection: String,
 ) -> Result<crate::native::launch_home_codex::CodexHomeSpec, ArsenalError> {
     let directory = super::environment::directory().ok_or(ArsenalError::from(Error::Storage))?;
-    Ok(super::environment::codex::get(&directory, &selection).unwrap_or_default())
+    // A file that is there and cannot be used is said, never shown as "nothing left out".
+    super::environment::codex::get(&directory, &selection)
+        .map(Option::unwrap_or_default)
+        .map_err(|_| ArsenalError::code(super::environment::UNREADABLE))
 }
 
 /// What a Codex preset's launch environment can choose from, read from the owner's Codex folder
@@ -916,8 +919,15 @@ fn arsenal_codex_environment_write(
     environment: crate::native::launch_home_codex::CodexHomeSpec,
 ) -> Result<(), ArsenalError> {
     let directory = super::environment::directory().ok_or(ArsenalError::from(Error::Storage))?;
-    super::environment::codex::set(&directory, &selection, &environment)
-        .map_err(|_| ArsenalError::from(Error::Invalid))
+    super::environment::codex::set(&directory, &selection, &environment).map_err(|error| {
+        if super::environment::is_unreadable(&error) {
+            ArsenalError::code(super::environment::UNREADABLE)
+        } else if error.to_string() == super::environment::TOO_LARGE {
+            ArsenalError::code(super::environment::TOO_LARGE)
+        } else {
+            ArsenalError::from(Error::Invalid)
+        }
+    })
 }
 
 /// The roles of Workspace and the role of each launch. Local to this computer.
@@ -1296,10 +1306,33 @@ fn plan_now(
     }
     // Codex: the same, from its own file. The hash the window previewed covers the environment,
     // so one changed since the preview makes the start stale instead of starting another one.
-    if provider == "codex"
-        && let Some(spec) = super::environment::directory()
-            .and_then(|dir| super::environment::codex::get(&dir, &plan.selection))
-    {
+    // A choice that cannot be read, or that names a hook `hooks.json` no longer has (edited or
+    // removed outside the Arsenal), is an error: planned as "nothing left out", the terminal
+    // would start with the hooks the owner switched off.
+    let codex_spec = if provider == "codex" {
+        let directory =
+            super::environment::directory().ok_or(ArsenalError::from(Error::Storage))?;
+        super::environment::codex::get(&directory, &plan.selection)
+            .map_err(|_| ArsenalError::code(super::environment::UNREADABLE))?
+    } else {
+        None
+    };
+    if let Some(spec) = codex_spec {
+        if !spec.hooks_off.is_empty() {
+            let home = std::env::var_os("HOME")
+                .map(std::path::PathBuf::from)
+                .ok_or(ArsenalError::from(Error::Storage))?;
+            let listed = crate::native::launch_home_codex::options(
+                &crate::native::launch_home_codex::CodexOwner::from_process(&home),
+            );
+            if spec
+                .hooks_off
+                .iter()
+                .any(|key| !listed.hooks.iter().any(|hook| &hook.key == key))
+            {
+                return Err(ArsenalError::code("environment_stale"));
+            }
+        }
         let material = serde_json::to_vec(&(&plan.config_hash, "codex_home", &spec))
             .map_err(|_| ArsenalError::from(Error::Storage))?;
         plan.config_hash = format!("{:x}", sha2::Sha256::digest(material));
@@ -1322,6 +1355,8 @@ pub(crate) fn launch_for(
     let (plan, installed) = plan_now(&store, link, selected, request).map_err(|error| {
         HostError::new(match error.code {
             "not_found" => "arsenal_selection_unknown",
+            "environment_unreadable" => "arsenal_environment_unreadable",
+            "environment_stale" => "arsenal_environment_stale",
             "project_unknown" | "project_refused" => "arsenal_project_refused",
             _ => "arsenal_unavailable",
         })
@@ -2121,7 +2156,14 @@ mod tests {
             "{launch:?}"
         );
 
-        // A chosen one: the plan carries it and the hash moves.
+        // A chosen one: the plan carries it and the hash moves. The hook it leaves out is one
+        // the owner's `hooks.json` has: a key that names no hook there stops the plan.
+        std::fs::create_dir_all(root.join("home/.codex")).unwrap();
+        std::fs::write(
+            root.join("home/.codex/hooks.json"),
+            r#"{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"bye.sh"}]}]}}"#,
+        )
+        .unwrap();
         let spec = CodexHomeSpec {
             instructions: false,
             hooks_off: vec![crate::native::launch_home::hook_key("Stop", "", "bye.sh")],
@@ -2162,6 +2204,110 @@ mod tests {
         assert_eq!(stale.unwrap_err().code, "arsenal_plan_stale");
         // A Claude-only environment file is not read for Codex.
         assert!(super::super::environment::get(&directory, &selection.id).is_none());
+
+        stop.store(true, std::sync::atomic::Ordering::Release);
+        thread.join().unwrap();
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn a_codex_environment_that_cannot_be_read_or_names_no_hook_stops_the_plan_and_the_launch() {
+        use crate::native::launch_home_codex::CodexHomeSpec;
+        let root = std::fs::canonicalize(std::env::temp_dir())
+            .unwrap()
+            .join(format!(
+                "arsenal-codex-stale-{}",
+                uuid::Uuid::new_v4().simple()
+            ));
+        std::fs::create_dir_all(root.join("home/.codex")).unwrap();
+        let _env = crate::native::service_tests::FakeOwnerEnv::new(&root.join("home"));
+        let (link, stop, thread) = codex_host(&root);
+        let mut store = Store::open(Connection::open_in_memory().unwrap()).unwrap();
+        let selection = store
+            .save_selection(&store::SelectionInput {
+                id: None,
+                name: "Codex fixture".into(),
+                provider: "codex".into(),
+                items: vec![],
+                composites: vec![],
+            })
+            .unwrap();
+        let store = Arc::new(Mutex::new(store));
+        let request = TerminalRequest {
+            selection: selection.id.clone(),
+            agent_id: AgentId::Codex,
+            project: None,
+        };
+        let directory = super::super::environment::directory().unwrap();
+        assert!(
+            directory.starts_with(root.join("home")),
+            "never the real one"
+        );
+        std::fs::create_dir_all(&directory).unwrap();
+        let hooks = root.join("home/.codex/hooks.json");
+        std::fs::write(
+            &hooks,
+            r#"{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"bye.sh"}]}]}}"#,
+        )
+        .unwrap();
+        let code = |plan: Result<_, ArsenalError>| -> &'static str {
+            match plan {
+                Ok((_, _)) => "ok",
+                Err(error) => error.code,
+            }
+        };
+        let launch_code = |hash: &str| {
+            launch_for(Some(store.clone()), &link, None, &request, hash)
+                .err()
+                .map(|e| e.code)
+        };
+        let file = directory.join("environment-codex.json");
+
+        // A file that cannot be read: the plan, the launch and the editor's read all say so.
+        std::fs::write(&file, "{not json").unwrap();
+        assert_eq!(
+            code(plan_now(&store, &link, None, &request)),
+            "environment_unreadable"
+        );
+        assert_eq!(
+            launch_code(&"0".repeat(64)),
+            Some("arsenal_environment_unreadable".to_owned())
+        );
+        assert_eq!(
+            arsenal_codex_environment(selection.id.clone())
+                .err()
+                .map(|e| e.code),
+            Some("environment_unreadable")
+        );
+        assert_eq!(
+            std::fs::read(&file).unwrap(),
+            b"{not json",
+            "left as it was"
+        );
+
+        // A key that names no hook of hooks.json (one that was edited or removed since).
+        let gone = crate::native::launch_home::hook_key("Stop", "", "removed.sh");
+        let spec = CodexHomeSpec {
+            instructions: true,
+            hooks_off: vec![gone],
+        };
+        std::fs::remove_file(&file).unwrap();
+        super::super::environment::codex::set(&directory, &selection.id, &spec).unwrap();
+        assert_eq!(
+            code(plan_now(&store, &link, None, &request)),
+            "environment_stale"
+        );
+        assert_eq!(
+            launch_code(&"0".repeat(64)),
+            Some("arsenal_environment_stale".to_owned())
+        );
+        // Control: the same preset with a key hooks.json does have plans fine.
+        let present = CodexHomeSpec {
+            instructions: true,
+            hooks_off: vec![crate::native::launch_home::hook_key("Stop", "", "bye.sh")],
+        };
+        super::super::environment::codex::set(&directory, &selection.id, &present).unwrap();
+        assert_eq!(code(plan_now(&store, &link, None, &request)), "ok");
 
         stop.store(true, std::sync::atomic::Ordering::Release);
         thread.join().unwrap();

@@ -231,41 +231,59 @@ async fn configuration_plan(
     .await
 }
 
+/// How an apply ended, and whether the launch presets followed an edited hook.
+#[derive(Debug, Serialize)]
+pub struct ApplyReply {
+    #[serde(flatten)]
+    applied: Applied,
+    /// The hook was edited, but the presets that left the old one out could not be brought up to
+    /// date. The edit stands; the window says so. A Codex launch whose preset still names the
+    /// old hook does not start (its key names no hook any more) until the preset is saved again.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    launch_presets_not_followed: bool,
+}
+
 #[tauri::command]
 async fn configuration_apply(
     app: AppHandle,
     configuration: tauri::State<'_, Configuration>,
     request: PlanId,
-) -> Result<Applied, ConfigurationError> {
+) -> Result<ApplyReply, ConfigurationError> {
     let changes = configuration.changes(&app)?;
     blocking(move || {
         let (applied, edit) = changes.apply_reporting_hook_edit(checked(&request.plan)?)?;
-        if let Some((source, old, new)) = edit {
-            follow_edited_hook(source, &old, &new);
-        }
-        Ok(applied)
+        let followed = edit.as_ref().is_none_or(follow_edited_hook);
+        Ok(ApplyReply {
+            applied,
+            launch_presets_not_followed: !followed,
+        })
     })
     .await
 }
 
 /// An applied edit of a hook of the user's own Claude Code settings or of Codex's `hooks.json`:
 /// the launches of that provider that left the old one out keep the new one out. Only that
-/// provider's file follows: the same key in the other one names another hook.
-fn follow_edited_hook(
-    file: crate::agentconfig::changes::HookFile,
-    old: &crate::agentconfig::changes::Hook,
-    new: &crate::agentconfig::changes::Hook,
-) {
+/// provider's file follows: the same key in the other one names another hook. `false` when the
+/// presets could not be read or written: the caller tells the owner, never drops it.
+fn follow_edited_hook(edit: &crate::agentconfig::changes::HookEdit) -> bool {
     use crate::agentconfig::changes::HookFile;
     use crate::arsenal::environment;
-    let key = crate::native::launch_home::hook_key;
-    let (old, new) = (key(&old.0, &old.1, &old.2), key(&new.0, &new.1, &new.2));
-    if let Some(dir) = environment::directory() {
-        let _ = match file {
-            HookFile::CodexHooks => environment::codex::rename_hook_key(&dir, &old, &new),
-            HookFile::ClaudeSettings => environment::rename_hook_key(&dir, &old, &new),
-        };
+    let key = |hook: &crate::agentconfig::changes::Hook| {
+        crate::native::launch_home::hook_key(&hook.0, &hook.1, &hook.2)
+    };
+    let (old, new) = (key(&edit.old), key(&edit.new));
+    let Some(dir) = environment::directory() else {
+        return false;
+    };
+    match edit.file {
+        HookFile::CodexHooks => {
+            environment::codex::rename_hook_key(&dir, &old, &new, edit.old_remains)
+        }
+        HookFile::ClaudeSettings => {
+            environment::rename_hook_key(&dir, &old, &new, edit.old_remains)
+        }
     }
+    .is_ok()
 }
 
 #[tauri::command]
@@ -1296,5 +1314,94 @@ mod tests {
                 ),
             }
         }
+    }
+
+    fn reply(not_followed: bool) -> serde_json::Value {
+        serde_json::to_value(ApplyReply {
+            applied: Applied {
+                change: "c-1".to_owned(),
+                // The type is not public: it is named by inference.
+                outcome: serde_json::from_value(serde_json::json!("applied")).unwrap(),
+                revision: 3,
+            },
+            launch_presets_not_followed: not_followed,
+        })
+        .unwrap()
+    }
+
+    #[test]
+    fn the_apply_reply_says_launch_presets_not_followed_only_when_they_were_not() {
+        let followed = reply(false);
+        assert_eq!(
+            followed,
+            serde_json::json!({"change": "c-1", "outcome": "applied", "revision": 3})
+        );
+        assert!(followed.get("launch_presets_not_followed").is_none());
+        let not = reply(true);
+        assert_eq!(not["launch_presets_not_followed"], true);
+        // The rest of the reply is flat, as the window's parser expects.
+        assert_eq!(not["change"], "c-1");
+        assert_eq!(not["revision"], 3);
+    }
+
+    #[test]
+    fn a_failed_rename_of_the_presets_is_reported_and_a_good_one_or_none_is_not() {
+        use crate::agentconfig::changes::{HookEdit, HookFile};
+        use crate::arsenal::environment;
+        let root = fs::canonicalize(std::env::temp_dir())
+            .unwrap()
+            .join(format!("wyss-follow-{}", uuid::Uuid::new_v4().simple()));
+        fs::create_dir_all(root.join("home")).unwrap();
+        let _env = crate::native::service_tests::FakeOwnerEnv::new(&root.join("home"));
+        let dir = environment::directory().unwrap();
+        assert!(dir.starts_with(root.join("home")), "never the real one");
+        fs::create_dir_all(&dir).unwrap();
+        let hook = |command: &str| ("Stop".to_owned(), String::new(), command.to_owned());
+        let edit = |file, old_remains| HookEdit {
+            file,
+            old: hook("old.sh"),
+            new: hook("new.sh"),
+            old_remains,
+        };
+        let key = |command: &str| crate::native::launch_home::hook_key("Stop", "", command);
+
+        // No presets at all: nothing to follow, and nothing failed.
+        assert!(follow_edited_hook(&edit(HookFile::CodexHooks, false)));
+        assert!(follow_edited_hook(&edit(HookFile::ClaudeSettings, false)));
+
+        // A preset that left the old hook out follows it.
+        let spec = crate::native::launch_home_codex::CodexHomeSpec {
+            instructions: true,
+            hooks_off: vec![key("old.sh")],
+        };
+        environment::codex::set(&dir, "p1", &spec).unwrap();
+        assert!(follow_edited_hook(&edit(HookFile::CodexHooks, false)));
+        assert_eq!(
+            environment::codex::get(&dir, "p1")
+                .unwrap()
+                .unwrap()
+                .hooks_off,
+            vec![key("new.sh")]
+        );
+        // The old one remains: both keys are left out.
+        environment::codex::set(&dir, "p1", &spec).unwrap();
+        assert!(follow_edited_hook(&edit(HookFile::CodexHooks, true)));
+        assert_eq!(
+            environment::codex::get(&dir, "p1")
+                .unwrap()
+                .unwrap()
+                .hooks_off,
+            vec![key("old.sh"), key("new.sh")]
+        );
+
+        // A Codex file that cannot be read: not followed, and the file is left alone.
+        let file = dir.join("environment-codex.json");
+        fs::write(&file, "{broken").unwrap();
+        assert!(!follow_edited_hook(&edit(HookFile::CodexHooks, false)));
+        assert_eq!(fs::read(&file).unwrap(), b"{broken");
+        // Claude's file keeps loading damaged as empty: nothing to follow, nothing failed.
+        fs::write(dir.join("environment.json"), "{broken").unwrap();
+        assert!(follow_edited_hook(&edit(HookFile::ClaudeSettings, false)));
+        let _ = fs::remove_dir_all(root);
     }
 }
