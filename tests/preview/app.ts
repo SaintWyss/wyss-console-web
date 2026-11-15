@@ -414,6 +414,27 @@ mockIPC((command, payload) => {
         custom: [],
         assigned: { 'wyss-frontend': 'worker', estudiar: 'researcher' },
       };
+    case 'arsenal_codex_environment_options':
+      return {
+        hooks: [
+          {
+            key: 'c1',
+            event: 'SessionStart',
+            matcher: '',
+            command: 'orient.sh',
+          },
+          {
+            key: 'c2',
+            event: 'PreToolUse',
+            matcher: 'Bash',
+            command: 'gate.py',
+          },
+        ],
+        config_hooks: [{ event: 'Stop', matcher: '', command: 'notify.sh' }],
+        instructions: true,
+      };
+    case 'arsenal_codex_environment':
+      return { instructions: true, hooks_off: [] };
     case 'arsenal_environment_options':
       return {
         hooks: [

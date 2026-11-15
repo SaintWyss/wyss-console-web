@@ -223,6 +223,8 @@ pub struct LaunchPlan {
     pub not_applicable: Vec<String>,
     /// The launch home an Arsenal preset asked for (Claude Code), built by the host at start.
     pub home: Option<super::launch_home::HomeSpec>,
+    /// The launch home an Arsenal preset asked for (Codex), built by the host at start.
+    pub codex_home: Option<super::launch_home_codex::CodexHomeSpec>,
 }
 
 pub fn plan(profile: &Resolved, agent: AgentId, applies: bool) -> LaunchPlan {

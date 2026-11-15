@@ -7,8 +7,20 @@
 //! the same lock. In the owner's folder the only thing ever written is an empty `auth.lock`, and
 //! only when there is none.
 //!
-//! Not wired yet: the host starts using it in H4.3.
-#![allow(dead_code)]
+//! The host builds one only for a launch whose preset changes something
+//! ([`CodexHomeSpec::is_default`] is false); every other Codex launch runs with the owner's own
+//! folder and no `CODEX_HOME`, as before.
+//!
+//! A launch that leaves one hook out must differ from the owner's Codex in that hook only, so the
+//! home also links what Codex reads from its folder besides the files above ([`LINKED`]): rules,
+//! skills, plugins, memories, agents, prompts and the folder of hook scripts. What Codex writes
+//! for itself is not linked, so two Codex processes never share it through two paths and the home
+//! starts its own: the SQLite files and logs, `cache`, `packages`, `shell_snapshots`,
+//! `models_cache.json` and `version.json`.
+//!
+//! Hooks Codex reads from `config.toml` itself (`[[hooks.<event>]]`) are not filtered:
+//! `hooks_off` only names hooks of `hooks.json`. [`options`] lists them apart, so the window
+//! shows them as always running and never offers to leave one out.
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -29,6 +41,10 @@ const INSTRUCTIONS: &str = "AGENTS.md";
 const AUTH: &str = "auth.json";
 const AUTH_LOCK: &str = "auth.lock";
 const SESSIONS: &str = "sessions";
+/// Entries of the owner's folder a launch home links as they are, when the owner has them.
+pub const LINKED: [&str; 7] = [
+    "rules", "skills", "plugins", "memories", "agents", "prompts", "hooks",
+];
 const MAX_FILE: u64 = 4 * 1024 * 1024;
 
 /// What a preset changes in a Codex launch environment.
@@ -86,6 +102,16 @@ impl CodexOwner {
         Self {
             dir: home.join(".codex"),
         }
+    }
+
+    /// The folder the owner's own Codex uses when this process starts it: an absolute
+    /// `CODEX_HOME` of this process, or `.codex` under `home`. The same rule the Arsenal uses to
+    /// find the `hooks.json` it edits.
+    pub fn from_process(home: &Path) -> Self {
+        std::env::var_os("CODEX_HOME")
+            .map(PathBuf::from)
+            .filter(|dir| dir.is_absolute())
+            .map_or_else(|| Self::from_home(home), |dir| Self { dir })
     }
 }
 
@@ -295,13 +321,17 @@ fn owner_lock(path: &Path) -> io::Result<bool> {
 ///   owner's `auth.lock` is created empty (0600) if it is missing, so every home takes the same
 ///   lock. The sign-in itself is never opened.
 /// - `sessions`: a link to the owner's, when the owner has one.
+/// - each of [`LINKED`]: a link to the owner's, when the owner has one. A folder of that name
+///   Codex made in the home while the owner had none is the home's own and stays.
 ///
 /// Errors, all before anything is written: an invalid `spec`; a `dir` or owner folder that is not
 /// absolute; a home path with `..` or with a link in it; no owner folder, or one that is a link;
 /// an owner `auth.json` that is not a regular file, `auth.lock` that is not a private regular
 /// file of the user, or `sessions` that is not a folder; an owner or home `config.toml` / `hooks.json` that is a link,
 /// unreadable or malformed; a home `auth.json` or `auth.lock` that is not the expected link. A
-/// folder where a link or a file goes is an error too, and is never removed.
+/// folder where a link or a file goes is an error too, and is never removed: that includes a
+/// folder of the home's own under a [`LINKED`] name once the owner has one of that name
+/// (`codex_home_own_folder`).
 pub fn build(owner: &CodexOwner, dir: &Path, spec: &CodexHomeSpec) -> io::Result<PathBuf> {
     spec.validate().map_err(io::Error::other)?;
     if !dir.is_absolute() || !owner.dir.is_absolute() {
@@ -363,6 +393,17 @@ pub fn build(owner: &CodexOwner, dir: &Path, spec: &CodexHomeSpec) -> io::Result
             return Err(fail("codex_home_unexpected_folder"));
         }
     }
+    // (name, the owner's entry if there is one, whether the home has a folder of its own there)
+    let mut linked = Vec::with_capacity(LINKED.len());
+    for name in LINKED {
+        let source = owner.dir.join(name);
+        let target = present(&source)?.then_some(source);
+        let own = fs::symlink_metadata(dir.join(name)).is_ok_and(|meta| meta.is_dir());
+        if own && target.is_some() {
+            return Err(fail("codex_home_own_folder"));
+        }
+        linked.push((name, target, own));
+    }
 
     store::private_dir(dir)?;
     store::write_atomic(&dir.join(CONFIG), config.as_bytes())?;
@@ -396,7 +437,105 @@ pub fn build(owner: &CodexOwner, dir: &Path, spec: &CodexHomeSpec) -> io::Result
     if !own_sessions {
         place(&dir.join(SESSIONS), sessions.as_deref())?;
     }
+    for (name, target, own) in linked {
+        if !own {
+            place(&dir.join(name), target.as_deref())?;
+        }
+    }
     Ok(dir.to_path_buf())
+}
+
+/// A hook Codex reads from `config.toml` itself. It runs in every launch: a preset cannot leave
+/// it out.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ConfigHook {
+    pub event: String,
+    pub matcher: String,
+    pub command: String,
+}
+
+/// What a Codex preset can choose from, read from the owner's folder now. Commands are shown so
+/// the owner can tell hooks apart; they are the owner's own settings, never a secret store.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+pub struct CodexOptions {
+    /// The hooks of `hooks.json`: each can be left out of a launch by its `key`. Two hooks with
+    /// the same event, matcher and command have one key and are listed once.
+    pub hooks: Vec<launch_home::HookOption>,
+    /// The hooks `config.toml` declares: shown, never offered to leave out.
+    pub config_hooks: Vec<ConfigHook>,
+    /// Whether the owner has an `AGENTS.md` a preset can leave out.
+    pub instructions: bool,
+}
+
+/// The hooks a parsed `config.toml` declares under `hooks`, whatever is under `hooks.state`
+/// (Codex's record of trust, not hooks) aside. An event whose entries have no readable command is
+/// still listed, with an empty one: it is never hidden.
+fn config_hooks(config: &toml::Table) -> Vec<ConfigHook> {
+    let mut out = Vec::new();
+    let Some(toml::Value::Table(hooks)) = config.get("hooks") else {
+        return out;
+    };
+    for (event, groups) in hooks {
+        let toml::Value::Array(groups) = groups else {
+            continue;
+        };
+        if event == "state" {
+            continue;
+        }
+        let before = out.len();
+        for group in groups {
+            let text = |table: &toml::Value, key: &str| {
+                table
+                    .get(key)
+                    .and_then(toml::Value::as_str)
+                    .unwrap_or("")
+                    .to_owned()
+            };
+            let matcher = text(group, "matcher");
+            for hook in group
+                .get("hooks")
+                .and_then(toml::Value::as_array)
+                .into_iter()
+                .flatten()
+            {
+                out.push(ConfigHook {
+                    event: event.clone(),
+                    matcher: matcher.clone(),
+                    command: text(hook, "command"),
+                });
+            }
+        }
+        if out.len() == before {
+            out.push(ConfigHook {
+                event: event.clone(),
+                matcher: String::new(),
+                command: String::new(),
+            });
+        }
+    }
+    out
+}
+
+/// What the environment chooser of a Codex preset lists. Never fails: a file that is missing,
+/// unreadable or malformed lists nothing (a launch with a home then fails at [`build`], aloud).
+pub fn options(owner: &CodexOwner) -> CodexOptions {
+    let mut hooks = store::read_bounded(&owner.dir.join(HOOKS), MAX_FILE)
+        .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
+        .map(|value| launch_home::hook_options(&value))
+        .unwrap_or_default();
+    let mut seen = BTreeSet::new();
+    hooks.retain(|hook| seen.insert(hook.key.clone()));
+    let config_hooks = read_text(&owner.dir.join(CONFIG), "unreadable")
+        .ok()
+        .flatten()
+        .and_then(|text| toml::from_str::<toml::Table>(&text).ok())
+        .map(|config| config_hooks(&config))
+        .unwrap_or_default();
+    CodexOptions {
+        hooks,
+        config_hooks,
+        instructions: fs::symlink_metadata(owner.dir.join(INSTRUCTIONS)).is_ok(),
+    }
 }
 
 #[cfg(test)]
@@ -1247,6 +1386,215 @@ mod tests {
         assert_eq!(read.unwrap_err().kind(), io::ErrorKind::PermissionDenied);
         // The metadata path the build uses still works on the same file.
         assert!(fs::symlink_metadata(&file).is_ok());
+    }
+
+    const UNLINKED: [&str; 8] = [
+        "state_5.sqlite",
+        "state_5.sqlite-wal",
+        "logs_2.sqlite",
+        "cache",
+        "packages",
+        "shell_snapshots",
+        "models_cache.json",
+        "version.json",
+    ];
+
+    /// Gives the fake owner every linked entry and everything Codex writes for itself.
+    fn fill_owner(f: &Fx) {
+        for name in LINKED {
+            if name == "hooks" {
+                fs::create_dir_all(f.owner.dir.join(name)).unwrap();
+                fs::write(f.owner.dir.join(name).join("gate.py"), "x").unwrap();
+            } else {
+                fs::create_dir_all(f.owner.dir.join(name)).unwrap();
+            }
+        }
+        for name in UNLINKED {
+            let path = f.owner.dir.join(name);
+            if matches!(name, "cache" | "packages" | "shell_snapshots") {
+                fs::create_dir_all(&path).unwrap();
+            } else {
+                fs::write(&path, "x").unwrap();
+            }
+        }
+    }
+
+    #[test]
+    fn every_linked_entry_the_owner_has_is_linked_and_what_codex_writes_for_itself_is_not() {
+        let f = fx("linked");
+        fill_owner(&f);
+        let home = f.ok();
+        for name in LINKED {
+            let meta = fs::symlink_metadata(home.join(name)).unwrap();
+            assert!(meta.file_type().is_symlink(), "{name}");
+            assert_eq!(
+                fs::read_link(home.join(name)).unwrap(),
+                f.owner.dir.join(name)
+            );
+        }
+        for name in UNLINKED {
+            assert!(fs::symlink_metadata(home.join(name)).is_err(), "{name}");
+        }
+        // The gate script is reached through the link of `hooks`.
+        assert_eq!(fs::read_to_string(home.join("hooks/gate.py")).unwrap(), "x");
+        // Control: with an owner that has none of them, none is linked.
+        let bare = fx("linked-bare");
+        let home = bare.ok();
+        for name in LINKED {
+            assert!(fs::symlink_metadata(home.join(name)).is_err(), "{name}");
+        }
+    }
+
+    #[test]
+    fn a_folder_of_the_homes_own_under_a_linked_name_refuses_the_build_and_leaves_the_home_intact()
+    {
+        let f = fx("own-folder");
+        f.ok();
+        fs::create_dir_all(f.home.join("rules")).unwrap();
+        fs::write(f.home.join("rules/mine.md"), "mine").unwrap();
+        fs::create_dir_all(f.owner.dir.join("rules")).unwrap();
+        let before = snapshot(&f.home);
+        assert_eq!(
+            code(f.build(&CodexHomeSpec::default())),
+            "codex_home_own_folder"
+        );
+        assert_eq!(snapshot(&f.home), before);
+        assert!(f.home.join("rules").is_dir());
+        assert!(
+            !fs::symlink_metadata(f.home.join("rules"))
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+    }
+
+    #[test]
+    fn the_homes_own_folder_stays_when_the_owner_has_no_such_entry() {
+        let f = fx("own-folder-stays");
+        f.ok();
+        fs::create_dir_all(f.home.join("rules")).unwrap();
+        fs::write(f.home.join("rules/mine.md"), "mine").unwrap();
+        // The owner has no `rules`: the build succeeds twice and the folder is untouched.
+        f.ok();
+        f.ok();
+        assert_eq!(
+            fs::read_to_string(f.home.join("rules/mine.md")).unwrap(),
+            "mine"
+        );
+        assert!(
+            !fs::symlink_metadata(f.home.join("rules"))
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+    }
+
+    #[test]
+    fn the_options_use_the_hook_keys_of_claude_and_list_a_repeated_hook_once() {
+        let f = fx("options");
+        fs::write(
+            f.owner.dir.join(HOOKS),
+            r#"{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"gate.py"},{"type":"command","command":"gate.py"}]},{"matcher":"Bash","hooks":[{"type":"command","command":"gate.py"}]}],"Stop":[{"hooks":[{"type":"command","command":"bye.sh"}]}]}}"#,
+        )
+        .unwrap();
+        let options = options(&f.owner);
+        let keys: Vec<(&str, &str, &str, &str)> = options
+            .hooks
+            .iter()
+            .map(|h| {
+                (
+                    h.key.as_str(),
+                    h.event.as_str(),
+                    h.matcher.as_str(),
+                    h.command.as_str(),
+                )
+            })
+            .collect();
+        let gate = launch_home::hook_key("PreToolUse", "Bash", "gate.py");
+        let bye = launch_home::hook_key("Stop", "", "bye.sh");
+        assert_eq!(
+            keys,
+            vec![
+                (gate.as_str(), "PreToolUse", "Bash", "gate.py"),
+                (bye.as_str(), "Stop", "", "bye.sh"),
+            ]
+        );
+        assert!(options.instructions);
+        // Every listed key is one a spec accepts.
+        let spec = CodexHomeSpec {
+            instructions: true,
+            hooks_off: options.hooks.iter().map(|h| h.key.clone()).collect(),
+        };
+        assert_eq!(spec.validate(), Ok(()));
+        fs::remove_file(f.owner.dir.join(INSTRUCTIONS)).unwrap();
+        assert!(!super::options(&f.owner).instructions);
+    }
+
+    #[test]
+    fn the_hooks_config_toml_declares_are_listed_apart_and_never_the_trust_state() {
+        let f = fx("config-hooks");
+        fs::write(
+            f.owner.dir.join(CONFIG),
+            "[[hooks.PreToolUse]]
+matcher = \"Bash\"
+[[hooks.PreToolUse.hooks]]
+type = \"command\"
+command = \"cfg.sh\"
+\n[[hooks.Stop]]
+\n[hooks.state.\"a:b\"]
+trusted_hash = \"OWNER\"
+",
+        )
+        .unwrap();
+        let options = options(&f.owner);
+        assert_eq!(
+            options.config_hooks,
+            vec![
+                ConfigHook {
+                    event: "PreToolUse".into(),
+                    matcher: "Bash".into(),
+                    command: "cfg.sh".into()
+                },
+                // An event with no readable command is still listed, never hidden.
+                ConfigHook {
+                    event: "Stop".into(),
+                    matcher: String::new(),
+                    command: String::new()
+                },
+            ]
+        );
+        assert!(options.config_hooks.iter().all(|h| h.event != "state"));
+        // They are not in the list of hooks a preset can leave out.
+        assert!(options.hooks.iter().all(|h| h.command != "cfg.sh"));
+        // `state` as an array is no hook either.
+        fs::write(
+            f.owner.dir.join(CONFIG),
+            "[[hooks.state]]\ntrusted_hash = \"x\"\n",
+        )
+        .unwrap();
+        assert!(super::options(&f.owner).config_hooks.is_empty());
+    }
+
+    #[test]
+    fn broken_owner_files_list_nothing() {
+        let f = fx("options-broken");
+        fs::write(f.owner.dir.join(HOOKS), "{not json").unwrap();
+        fs::write(f.owner.dir.join(CONFIG), "= not toml [").unwrap();
+        let options = options(&f.owner);
+        assert!(options.hooks.is_empty());
+        assert!(options.config_hooks.is_empty());
+        // And with no files at all.
+        fs::remove_file(f.owner.dir.join(HOOKS)).unwrap();
+        fs::remove_file(f.owner.dir.join(CONFIG)).unwrap();
+        let options = super::options(&f.owner);
+        assert!(options.hooks.is_empty() && options.config_hooks.is_empty());
+        // Control: the fixture's own files do list their hooks.
+        let ok = fx("options-ok");
+        assert_eq!(options_len(&ok), 3);
+    }
+
+    fn options_len(f: &Fx) -> usize {
+        options(&f.owner).hooks.len()
     }
 
     /// Against the owner's real Codex, by hand: `cargo test real_codex_login -- --ignored`. Builds a

@@ -1,8 +1,11 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { CustomCategory } from '../features/arsenal/presets';
 import {
+  parseCodexOptions,
+  parseCodexSpec,
   parseOptions as parseEnvironmentOptions,
   parseSpec as parseEnvironment,
+  type CodexHomeSpec,
   type HomeSpec,
 } from '../features/arsenal/environment';
 import type { Section } from '../features/arsenal/groups';
@@ -172,6 +175,18 @@ export const arsenalClient = {
     answer('arsenal_environment_options', parseEnvironmentOptions),
   writeEnvironment: (selection: string, environment: HomeSpec) =>
     call('arsenal_environment_write', { selection, environment }).then(
+      () => undefined,
+    ),
+  /** The launch environment a Codex preset chose (H4): instructions and hooks left out. */
+  codexEnvironment: (selection: string) =>
+    answer<CodexHomeSpec>('arsenal_codex_environment', parseCodexSpec, {
+      selection,
+    }),
+  /** What a Codex launch environment can choose from, read from the owner's ~/.codex now. */
+  codexEnvironmentOptions: () =>
+    answer('arsenal_codex_environment_options', parseCodexOptions),
+  writeCodexEnvironment: (selection: string, environment: CodexHomeSpec) =>
+    call('arsenal_codex_environment_write', { selection, environment }).then(
       () => undefined,
     ),
   /** Workspace roles: the owner's own and each launch's role, kept on this computer. */

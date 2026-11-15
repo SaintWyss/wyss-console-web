@@ -30,6 +30,32 @@ export interface EnvironmentOptions {
   sizes: Record<string, number>;
 }
 
+/** What a Codex preset changes in the terminal's launch environment (H4). */
+export interface CodexHomeSpec {
+  /** The owner's `~/.codex/AGENTS.md`. */
+  instructions: boolean;
+  /** Hooks of `~/.codex/hooks.json` left out, by key. */
+  hooks_off: string[];
+}
+
+/** A hook `config.toml` declares: it runs in every launch and is only shown. */
+export interface ConfigHook {
+  event: string;
+  matcher: string;
+  command: string;
+}
+
+export interface CodexEnvironmentOptions {
+  hooks: HookOption[];
+  config_hooks: ConfigHook[];
+  instructions: boolean;
+}
+
+export const DEFAULT_CODEX_SPEC: CodexHomeSpec = {
+  instructions: true,
+  hooks_off: [],
+};
+
 export const DEFAULT_SPEC: HomeSpec = {
   instructions: true,
   rules_off: [],
@@ -92,6 +118,51 @@ export function parseOptions(value: unknown): EnvironmentOptions {
   };
 }
 
+function hookFields(item: unknown, keys: readonly string[]) {
+  const h = record(item, 'hook');
+  for (const key of keys) if (typeof h[key] !== 'string') throw new Error(key);
+  return h;
+}
+
+export function parseCodexSpec(value: unknown): CodexHomeSpec {
+  const v = record(value, 'environment');
+  return {
+    instructions: flag(v.instructions, 'instructions'),
+    hooks_off: strings(v.hooks_off, 'hooks_off'),
+  };
+}
+
+export function parseCodexOptions(value: unknown): CodexEnvironmentOptions {
+  const v = record(value, 'options');
+  if (!Array.isArray(v.hooks)) throw new Error('hooks');
+  if (!Array.isArray(v.config_hooks)) throw new Error('config_hooks');
+  return {
+    hooks: v.hooks.map(
+      (item) =>
+        hookFields(item, [
+          'key',
+          'event',
+          'matcher',
+          'command',
+        ]) as unknown as HookOption,
+    ),
+    config_hooks: v.config_hooks.map(
+      (item) =>
+        hookFields(item, [
+          'event',
+          'matcher',
+          'command',
+        ]) as unknown as ConfigHook,
+    ),
+    instructions: flag(v.instructions, 'instructions'),
+  };
+}
+
+/** Whether the Codex spec changes nothing, i.e. the terminal uses the owner's own folder. */
+export function isCodexDefault(spec: CodexHomeSpec): boolean {
+  return spec.instructions && spec.hooks_off.length === 0;
+}
+
 /** A desktop older than the estimate sends no sizes: every size reads as 0. */
 function sizesOf(value: unknown): Record<string, number> {
   if (typeof value !== 'object' || value === null || Array.isArray(value))
@@ -126,7 +197,7 @@ export function toggle(list: string[], value: string, on: boolean): string[] {
 }
 
 /** A short name for a hook: the script it runs, without its interpreter and folders. */
-export function hookLabel(hook: HookOption): string {
+export function hookLabel(hook: HookOption | ConfigHook): string {
   const words = hook.command.split(/\s+/).filter((w) => w !== '');
   const script =
     words.find((w) => /\.(py|sh|js|ts|mjs)"?$/.test(w)) ?? words[0] ?? '';

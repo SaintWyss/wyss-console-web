@@ -240,13 +240,22 @@ const ARSENAL_CLAUDE: &[ArsenalEvidence] = &[
 /// Codex builds whose per-session skill switch passed a focused qualification: the session runs with
 /// `--no-daemon` (its own embedded server, not the shared one) and one
 /// `-c skills.config=[{path = <SKILL.md>, enabled = false}, …]`.
-const ARSENAL_CODEX: &[ArsenalEvidence] = &[ArsenalEvidence {
-    qualified_version: "codex-cli 0.159.0",
-    checked_on: "2026-10-31",
-    operation: "--no-daemon and -c skills.config=[{path=<SKILL.md>, enabled=false}] for installed user, home and project skills",
-    source: "docs/research/arsenal-am1a/ARSENAL-CODEX-0159-QUALIFICATION-2026-10-31.md (prompt-input probes and two concurrent interactive sessions)",
-    limitation: "plugin and system skills are not switched off; a folder path is ignored by Codex, so only SKILL.md paths are used; the session does not join the shared Codex server; provider use of each skill is not observed",
-}];
+const ARSENAL_CODEX: &[ArsenalEvidence] = &[
+    ArsenalEvidence {
+        qualified_version: "codex-cli 0.169.0",
+        checked_on: "2026-11-15",
+        operation: "--no-daemon and -c skills.config=[{path=<SKILL.md>, enabled=false}] for installed user, home and project skills, also from a launch CODEX_HOME",
+        source: "docs/research/arsenal-am1a/ARSENAL-CODEX-0169-QUALIFICATION-2026-11-15.md (prompt-input probes, real configuration and launch home)",
+        limitation: "plugin and system skills are not switched off; a folder path is ignored by Codex, so only SKILL.md paths are used; concurrent interactive sessions and the shared-server separation were not observed again on this build; provider use of each skill is not observed",
+    },
+    ArsenalEvidence {
+        qualified_version: "codex-cli 0.159.0",
+        checked_on: "2026-10-31",
+        operation: "--no-daemon and -c skills.config=[{path=<SKILL.md>, enabled=false}] for installed user, home and project skills",
+        source: "docs/research/arsenal-am1a/ARSENAL-CODEX-0159-QUALIFICATION-2026-10-31.md (prompt-input probes and two concurrent interactive sessions)",
+        limitation: "plugin and system skills are not switched off; a folder path is ignored by Codex, so only SKILL.md paths are used; the session does not join the shared Codex server; provider use of each skill is not observed",
+    },
+];
 
 /// A build that exists only in tests, so the enabled path is exercised without qualifying a real one.
 #[cfg(test)]

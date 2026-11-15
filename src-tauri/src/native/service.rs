@@ -7,7 +7,7 @@ use super::{
     capabilities,
     catalogue::{self, AGENTS, AgentId},
     extended_registry::{ExtendedRegistry, RecoveryRead},
-    launch_home,
+    launch_home, launch_home_codex,
     profile::{self, LaunchPlan, Word},
     profiles::ProfileStore,
     recipe::{self, family},
@@ -962,6 +962,30 @@ impl NativeService {
             if !spec.memory {
                 home_env.push(("CLAUDE_CODE_DISABLE_AUTO_MEMORY".to_owned(), "1".to_owned()));
             }
+        }
+        // Codex: its own folder too, with the real `HOME` and no token. The sign-in is the owner's
+        // own, through the home's link to it. A home that cannot be built stops the start: the
+        // session never runs with the hooks the preset left out.
+        if let (Some(spec), Some(launch)) = (&plan.codex_home, request.arsenal.as_ref()) {
+            let owner_home = std::env::var_os("HOME")
+                .map(PathBuf::from)
+                .ok_or_else(|| NativeError::new("store_unavailable"))?;
+            let home_dir = self
+                .inner
+                .base
+                .join("launch-homes")
+                .join("codex")
+                .join(&launch.selection);
+            let built = launch_home_codex::build(
+                &launch_home_codex::CodexOwner::from_process(&owner_home),
+                &home_dir,
+                spec,
+            )
+            .map_err(|_| NativeError::new("arsenal_home_failed"))?;
+            home_env.push((
+                "CODEX_HOME".to_owned(),
+                built.to_string_lossy().into_owned(),
+            ));
         }
         if let Some(brief) = &request.brief {
             if brief.len() > MAX_BRIEF || !brief.starts_with("# ") || brief.contains('\0') {

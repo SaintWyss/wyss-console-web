@@ -596,6 +596,10 @@ mod tests {
             "allow-arsenal-environment",
             "allow-arsenal-environment-options",
             "allow-arsenal-environment-write",
+            // Codex: the same three over its own file (H4.3).
+            "allow-arsenal-codex-environment",
+            "allow-arsenal-codex-environment-options",
+            "allow-arsenal-codex-environment-write",
             // Workspace roles (redesign stage 2): roles.json beside environment.json.
             "allow-arsenal-roles",
             "allow-arsenal-role-write",

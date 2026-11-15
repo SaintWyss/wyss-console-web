@@ -756,6 +756,54 @@ describe('Arsenal contracts', () => {
     expect(reply.composites[0].members).toBe(1);
   });
 
+  it('reads the Codex environment of a terminal plan and fails the whole plan on a malformed one', () => {
+    const base = {
+      selection: 'sel-1',
+      selection_name: 'Codex',
+      provider: 'codex',
+      provider_version: 'codex-cli 0.169.0',
+      project: 'app',
+      status: 'ready',
+      can_apply: true,
+      enforcement: { state: 'unqualified', reason: 'x', evidence: null },
+      items: [],
+      kept: [],
+      excluded: [],
+      inherited_off: [],
+      excluded_files: [],
+      untouched: [],
+      composites: [],
+      conflicts: [],
+      warnings: [],
+      overlay: null,
+      config_hash: 'e'.repeat(64),
+    };
+    // Absent or null: the owner's own configuration.
+    expect(parseTerminalPlan(base).codex_environment).toBeNull();
+    expect(
+      parseTerminalPlan({ ...base, codex_environment: null }).codex_environment,
+    ).toBeNull();
+    expect(
+      parseTerminalPlan({
+        ...base,
+        codex_environment: { instructions: false, hooks_off: ['k'] },
+      }).codex_environment,
+    ).toEqual({ instructions: false, hooks_off: ['k'] });
+    for (const bad of [
+      'yes',
+      [],
+      { instructions: 'no', hooks_off: [] },
+      { instructions: true },
+      { instructions: true, hooks_off: [1] },
+      { instructions: true, hooks_off: 'k' },
+    ]) {
+      expect(
+        () => parseTerminalPlan({ ...base, codex_environment: bad }),
+        JSON.stringify(bad),
+      ).toThrow(ArsenalShapeError);
+    }
+  });
+
   it('reads a terminal plan and a binding, and refuses a plan that claims more than it can', () => {
     const plan = {
       selection: 'sel-1',

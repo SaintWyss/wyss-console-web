@@ -229,6 +229,18 @@ fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 /// A hook as (event, matcher, command).
 pub type Hook = (String, String, String);
 
+/// The file an edited hook is in: the launches of that provider follow the edit.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HookFile {
+    /// The user's own Claude Code settings.
+    ClaudeSettings,
+    /// Codex's `hooks.json`.
+    CodexHooks,
+}
+
+/// An applied edit of a hook: the file it is in, the hook replaced and the hook written.
+pub type HookEdit = (HookFile, Hook, Hook);
+
 /// The hooks of a settings file's `hooks`, in file order.
 pub fn hooks_of(bytes: &[u8]) -> Vec<Hook> {
     let Ok(value) = serde_json::from_slice::<serde_json::Value>(bytes) else {
@@ -1401,33 +1413,45 @@ impl ChangeService {
             .map(|(applied, _)| applied)
     }
 
-    /// `apply`, and when the plan was an edit of a Claude Code hook that was applied, the hook
-    /// it replaced and the one it wrote, read from the file through the bounded reader before
-    /// and after this write (under the same serial lock, so no other apply comes between).
+    /// `apply`, and when the plan was an edit of a hook of the user's own Claude Code settings or
+    /// of Codex's `hooks.json` that was applied, the file it was in, the hook it replaced and the
+    /// one it wrote, read from that file through the bounded reader before and after this write
+    /// (under the same serial lock, so no other apply comes between).
     pub fn apply_reporting_hook_edit(
         &self,
         plan: &str,
-    ) -> Result<(Applied, Option<(Hook, Hook)>), ChangeFailure> {
+    ) -> Result<(Applied, Option<HookEdit>), ChangeFailure> {
         // One apply at a time, and never while the project changes underneath it: the write
         // that was confirmed for a project finishes in that project, or does not start.
         let _serial = lock(&self.serial);
-        let is_claude_edit = lock(&self.plans).iter().any(|p| {
-            p.id == plan
-                && p.drafted.operation == Operation::EditHook
-                && p.source == SourceKey::ClaudeUserSettings
+        let edit_of = lock(&self.plans)
+            .iter()
+            .find(|p| {
+                p.id == plan
+                    && p.drafted.operation == Operation::EditHook
+                    && matches!(
+                        p.source,
+                        SourceKey::ClaudeUserSettings | SourceKey::CodexUserHooks
+                    )
+            })
+            .map(|p| p.source);
+        let before = edit_of.and_then(|source| {
+            self.read_target(source)
+                .ok()
+                .map(|(_, bytes)| (source, bytes))
         });
-        let before = is_claude_edit
-            .then(|| self.read_target(SourceKey::ClaudeUserSettings).ok())
-            .flatten();
         let applied = self.apply_serial(plan)?;
         let edit = match (before, applied.outcome) {
-            (Some((_, before)), Outcome::Applied) => self
-                .read_target(SourceKey::ClaudeUserSettings)
-                .ok()
-                .and_then(|(_, after)| {
+            (Some((source, before)), Outcome::Applied) => {
+                self.read_target(source).ok().and_then(|(_, after)| {
                     let (before, after) = (hooks_of(&before), hooks_of(&after));
-                    edited(&before, &after).map(|(a, b)| (a.clone(), b.clone()))
-                }),
+                    let file = match source {
+                        SourceKey::CodexUserHooks => HookFile::CodexHooks,
+                        _ => HookFile::ClaudeSettings,
+                    };
+                    edited(&before, &after).map(|(a, b)| (file, a.clone(), b.clone()))
+                })
+            }
             _ => None,
         };
         Ok((applied, edit))

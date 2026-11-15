@@ -118,6 +118,9 @@ pub struct TerminalPlan {
     pub config_hash: String,
     /// The launch environment the preset chose (Claude Code), when it changes the owner's own.
     pub environment: Option<crate::native::launch_home::HomeSpec>,
+    /// The launch environment the preset chose (Codex), when it changes the owner's own.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub codex_environment: Option<crate::native::launch_home_codex::CodexHomeSpec>,
 }
 
 fn version_text(version: Option<&str>) -> &str {
@@ -356,6 +359,7 @@ pub fn plan(input: Input<'_>) -> TerminalPlan {
         overlay,
         config_hash,
         environment: None,
+        codex_environment: None,
     }
 }
 

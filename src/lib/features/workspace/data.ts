@@ -2,6 +2,8 @@ import type { Item, LibraryItem, Selection } from '../../contracts/arsenal';
 import type { Launch } from '../../desktop/launch-client';
 import {
   DEFAULT_SPEC,
+  type CodexEnvironmentOptions,
+  type CodexHomeSpec,
   type EnvironmentOptions,
   type HomeSpec,
 } from '../arsenal/environment';
@@ -15,6 +17,10 @@ export interface EstimateData {
   options: EnvironmentOptions | null;
   /** Environment by selection id; a preset not listed keeps the owner's own (default). */
   environments: ReadonlyMap<string, HomeSpec>;
+  /** Codex: the hooks and instructions a launch can leave out; `null` when not read. */
+  codexOptions: CodexEnvironmentOptions | null;
+  /** Codex environment by selection id; a preset not listed keeps the owner's own. */
+  codexEnvironments: ReadonlyMap<string, CodexHomeSpec>;
 }
 
 /** Skills and agents of a provider in the library: what a launch without a preset loads. */
@@ -95,11 +101,19 @@ export async function loadEstimateData(client: {
   selections: () => Promise<Selection[]>;
   environmentOptions: () => Promise<EnvironmentOptions>;
   environment: (selection: string) => Promise<HomeSpec>;
+  /** Absent in a client that knows nothing of Codex environments: nothing is read then. */
+  codexEnvironmentOptions?: () => Promise<CodexEnvironmentOptions>;
+  codexEnvironment?: (selection: string) => Promise<CodexHomeSpec>;
 }): Promise<EstimateData> {
-  const [library, selections, options] = await Promise.all([
+  const readCodexOptions = client.codexEnvironmentOptions;
+  const readCodex = client.codexEnvironment;
+  const [library, selections, options, codexOptions] = await Promise.all([
     client.capabilities().catch(() => []),
     client.selections().catch(() => []),
     client.environmentOptions().catch(() => null),
+    readCodexOptions
+      ? readCodexOptions().catch(() => null)
+      : Promise.resolve(null),
   ]);
   const environments = new Map<string, HomeSpec>();
   await Promise.all(
@@ -112,7 +126,26 @@ export async function loadEstimateData(client: {
         ),
       ),
   );
-  return { library, selections, options, environments };
+  const codexEnvironments = new Map<string, CodexHomeSpec>();
+  if (readCodex)
+    await Promise.all(
+      selections
+        .filter((s) => s.provider === 'codex')
+        .map((s) =>
+          readCodex(s.id).then(
+            (spec) => codexEnvironments.set(s.id, spec),
+            () => undefined,
+          ),
+        ),
+    );
+  return {
+    library,
+    selections,
+    options,
+    environments,
+    codexOptions,
+    codexEnvironments,
+  };
 }
 
 /** Nothing read yet: no estimate. */
@@ -121,4 +154,6 @@ export const NO_DATA: EstimateData = {
   selections: [],
   options: null,
   environments: new Map(),
+  codexOptions: null,
+  codexEnvironments: new Map(),
 };

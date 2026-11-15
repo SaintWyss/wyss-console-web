@@ -12,7 +12,10 @@ import {
   estimate,
   kTokens,
 } from '../src/lib/features/workspace/estimate';
-import { DEFAULT_SPEC } from '../src/lib/features/arsenal/environment';
+import {
+  DEFAULT_CODEX_SPEC,
+  DEFAULT_SPEC,
+} from '../src/lib/features/arsenal/environment';
 import type { Selection } from '../src/lib/contracts/arsenal';
 import type { Launch } from '../src/lib/desktop/launch-client';
 
@@ -253,4 +256,91 @@ it('estimates the context by group from what is loaded, and leaves MCP unmeasure
     skills: [{ name: 'ñ', description: '😀'.repeat(18) }],
   });
   expect(wide.skills).toBe(Math.ceil((2 + 72 + 24) / 4));
+});
+
+const codexOff = { instructions: false, hooks_off: ['0123456789abcdef'] };
+const codexDraft = (over: Partial<LaunchDraft> = {}) =>
+  draft({
+    agent: 'codex',
+    spec: null,
+    codexSpec: { ...DEFAULT_CODEX_SPEC },
+    selection: selection({ provider: 'codex' }),
+    ...over,
+  });
+
+it('writes the Codex environment when it changed, to the preset that results', () => {
+  // The preset exists and only the environment changed: the preset is written in place.
+  const changed = savePlan(codexDraft({ codexSpec: codexOff }), ctx());
+  expect(changed.environment).toBe(true);
+  expect(changed.preset.do).toBe('write');
+  expect(savePlan(codexDraft(), ctx()).preset).toEqual({ do: 'keep' });
+  // Unchanged, or equal to what is saved: nothing is written.
+  expect(savePlan(codexDraft(), ctx()).environment).toBe(false);
+  expect(
+    savePlan(
+      codexDraft({ codexSpec: codexOff }),
+      ctx({ savedCodexSpec: codexOff }),
+    ).environment,
+  ).toBe(false);
+  // Back to the default over a saved change: written, so the desktop removes the entry.
+  expect(
+    savePlan(codexDraft(), ctx({ savedCodexSpec: codexOff })).environment,
+  ).toBe(true);
+});
+
+it('creates a preset for a Codex launch without one and writes its environment', () => {
+  const none = codexDraft({
+    selection: null,
+    items: [{ capability: 'a', revision: null }],
+    codexSpec: codexOff,
+  });
+  const plan = savePlan(none, ctx({ launches: [], selections: [] }));
+  expect(plan.preset.do).toBe('create');
+  expect(plan.environment).toBe(true);
+  // A new preset with the default environment needs no entry.
+  expect(
+    savePlan(
+      codexDraft({ selection: null, items: none.items }),
+      ctx({ launches: [], selections: [] }),
+    ).environment,
+  ).toBe(false);
+});
+
+it('copies the Codex environment with a shared preset that is copied', () => {
+  const plan = savePlan(
+    codexDraft({
+      items: [{ capability: 'b', revision: null }],
+      codexSpec: codexOff,
+    }),
+    ctx({
+      launches: [
+        launch('estudiar', 'Estudio', 'codex'),
+        launch('otro', 'Estudio', 'codex'),
+      ],
+    }),
+  );
+  expect(plan.preset.do).toBe('copy');
+  expect(plan.environment).toBe(true);
+  // A copy that keeps the default environment writes none.
+  expect(
+    savePlan(
+      codexDraft({ items: [{ capability: 'b', revision: null }] }),
+      ctx({
+        launches: [
+          launch('estudiar', 'Estudio', 'codex'),
+          launch('otro', 'Estudio', 'codex'),
+        ],
+      }),
+    ).environment,
+  ).toBe(false);
+});
+
+it('never writes a Codex environment for Claude Code, nor a Claude one for Codex', () => {
+  expect(savePlan(draft({ codexSpec: codexOff }), ctx()).environment).toBe(
+    false,
+  );
+  expect(
+    savePlan(codexDraft({ spec: { ...DEFAULT_SPEC, memory: false } }), ctx())
+      .environment,
+  ).toBe(false);
 });

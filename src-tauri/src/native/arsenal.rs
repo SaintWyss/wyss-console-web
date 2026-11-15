@@ -1,7 +1,8 @@
 //! What an Arsenal selection adds to a Native launch: installed skills this session must not
 //! expose, through the same per-session `--settings` overlay a profile writes, and, for Claude Code,
 //! the launch environment the preset chose (its own configuration folder: instructions, hooks, MCP
-//! servers and plugins left out). It never adds a skill, a hook or an MCP server the owner does not
+//! servers and plugins left out) or, for Codex, the launch environment of its own (`CODEX_HOME`:
+//! instructions and hooks of `hooks.json` left out). It never adds a skill, a hook or an MCP server the owner does not
 //! already have, and never switches every hook off. The window's desktop compiles it from the Arsenal library and the installed skills;
 //! the host checks its shape again here and binds it to the preview's `plan_token`.
 use super::catalogue::AgentId;
@@ -31,6 +32,15 @@ pub struct ArsenalLaunch {
     /// when the preset keeps the owner's own, so an older host still accepts every such launch.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub home: Option<super::launch_home::HomeSpec>,
+    /// The launch environment a Codex preset chose (instructions, hooks left out). Written only
+    /// when it changes something: an older host refuses a key it does not know, and the launches
+    /// folder is synced with one.
+    #[serde(default, skip_serializing_if = "codex_home_absent")]
+    pub codex_home: Option<super::launch_home_codex::CodexHomeSpec>,
+}
+
+fn codex_home_absent(spec: &Option<super::launch_home_codex::CodexHomeSpec>) -> bool {
+    spec.as_ref().is_none_or(|spec| spec.is_default())
 }
 
 /// Longest `SKILL.md` path one launch may name.
@@ -131,6 +141,9 @@ impl ArsenalLaunch {
         if let Some(home) = &self.home {
             home.validate().map_err(|_| "arsenal_invalid")?;
         }
+        if let Some(home) = &self.codex_home {
+            home.validate().map_err(|_| "arsenal_invalid")?;
+        }
         Ok(())
     }
 }
@@ -145,16 +158,27 @@ pub fn apply(plan: &mut LaunchPlan, agent: AgentId, launch: &ArsenalLaunch) {
         return;
     }
     let home = launch.home.as_ref().filter(|home| !home.is_default());
+    let codex_home = launch.codex_home.as_ref().filter(|home| !home.is_default());
     match agent {
-        AgentId::ClaudeCode if launch.skill_files_off.is_empty() => {}
+        AgentId::ClaudeCode if launch.skill_files_off.is_empty() && codex_home.is_none() => {}
         AgentId::Codex if home.is_some() => {
             plan.not_applicable.push(
-                "Choosing instructions, hooks, MCP or plugins per terminal is not available for Codex yet."
+                "This launch environment was chosen for Claude Code. Codex takes its own: instructions and hooks."
                     .to_owned(),
             );
             return;
         }
-        AgentId::Codex => return apply_codex(plan, launch),
+        AgentId::Codex => {
+            apply_codex(plan, launch);
+            // Only on a plan that applies: a refused one names no home.
+            if plan.not_applicable.is_empty()
+                && let Some(spec) = codex_home
+            {
+                plan.applied.push(codex_home_summary(spec));
+                plan.codex_home = Some(spec.clone());
+            }
+            return;
+        }
         AgentId::ClaudeCode => {
             plan.not_applicable
                 .push("The Arsenal selection is not well formed.".to_owned());
@@ -249,6 +273,21 @@ fn home_summary(home: &super::launch_home::HomeSpec) -> String {
     )
 }
 
+/// What a Codex launch home changes, in one line the owner reads before starting.
+fn codex_home_summary(home: &super::launch_home_codex::CodexHomeSpec) -> String {
+    let mut parts = Vec::new();
+    if !home.instructions {
+        parts.push("without AGENTS.md".to_owned());
+    }
+    if !home.hooks_off.is_empty() {
+        parts.push(format!("{} hook(s) left out", home.hooks_off.len()));
+    }
+    format!(
+        "Own Codex folder, signed in with your own Codex sign-in: {}. Codex asks to trust the hooks the first time in each new folder.",
+        parts.join(", ")
+    )
+}
+
 /// Codex: the session runs without the shared background server, so the switch reaches only this
 /// process, and with one `-c skills.config=[…]` naming each skill's `SKILL.md` with
 /// `enabled = false`. Every file must exist now: Codex ignores a path it does not know silently.
@@ -301,6 +340,7 @@ mod tests {
             skills_off: off.iter().map(|s| (*s).to_owned()).collect(),
             skill_files_off: Vec::new(),
             home: None,
+            codex_home: None,
         }
     }
 
@@ -528,5 +568,138 @@ mod tests {
         let too_many: Vec<String> = (0..=MAX_SKILLS_OFF).map(|i| format!("s{i}")).collect();
         let refs: Vec<&str> = too_many.iter().map(String::as_str).collect();
         assert!(launch(&refs).validate().is_err());
+    }
+
+    fn codex_spec(
+        instructions: bool,
+        keys: &[&str],
+    ) -> crate::native::launch_home_codex::CodexHomeSpec {
+        crate::native::launch_home_codex::CodexHomeSpec {
+            instructions,
+            hooks_off: keys.iter().map(|k| (*k).to_owned()).collect(),
+        }
+    }
+
+    #[test]
+    fn a_default_or_absent_codex_home_is_not_serialized() {
+        let key = crate::native::launch_home::hook_key("Stop", "", "bye.sh");
+        let absent = serde_json::to_string(&launch(&["a"])).unwrap();
+        assert!(!absent.contains("codex_home"), "{absent}");
+        let default = ArsenalLaunch {
+            codex_home: Some(codex_spec(true, &[])),
+            ..launch(&["a"])
+        };
+        let text = serde_json::to_string(&default).unwrap();
+        assert!(!text.contains("codex_home"), "{text}");
+        // A launch that changes something does carry it (control: the check can fail).
+        let chosen = ArsenalLaunch {
+            codex_home: Some(codex_spec(true, &[key.as_str()])),
+            ..launch(&["a"])
+        };
+        assert!(
+            serde_json::to_string(&chosen)
+                .unwrap()
+                .contains("codex_home")
+        );
+        let back: ArsenalLaunch =
+            serde_json::from_str(&serde_json::to_string(&chosen).unwrap()).unwrap();
+        assert_eq!(back, chosen);
+    }
+
+    #[test]
+    fn an_invalid_codex_home_fails_validate() {
+        for bad in [
+            codex_spec(true, &["not-a-key"]),
+            codex_spec(true, &["0123456789abcdef", "0123456789abcdef"]),
+        ] {
+            let launch = ArsenalLaunch {
+                codex_home: Some(bad),
+                ..launch(&[])
+            };
+            assert_eq!(launch.validate(), Err("arsenal_invalid"));
+        }
+        let good = ArsenalLaunch {
+            codex_home: Some(codex_spec(false, &["0123456789abcdef"])),
+            ..launch(&[])
+        };
+        assert_eq!(good.validate(), Ok(()));
+    }
+
+    #[test]
+    fn a_non_default_codex_home_is_refused_for_claude_and_a_default_one_is_not() {
+        let chosen = ArsenalLaunch {
+            codex_home: Some(codex_spec(false, &[])),
+            ..launch(&[])
+        };
+        let mut plan = LaunchPlan::default();
+        apply(&mut plan, AgentId::ClaudeCode, &chosen);
+        assert_eq!(plan.not_applicable.len(), 1);
+        assert!(plan.codex_home.is_none());
+        assert!(plan.applied.is_empty());
+        assert!(plan.overlay.is_none());
+        let default = ArsenalLaunch {
+            codex_home: Some(codex_spec(true, &[])),
+            ..launch(&[])
+        };
+        let mut plain = LaunchPlan::default();
+        apply(&mut plain, AgentId::ClaudeCode, &default);
+        assert!(plain.not_applicable.is_empty());
+        assert!(plain.codex_home.is_none());
+    }
+
+    #[test]
+    fn a_non_default_codex_home_reaches_the_codex_plan_and_a_refused_plan_names_none() {
+        let k1 = crate::native::launch_home::hook_key("Stop", "", "a.sh");
+        let k2 = crate::native::launch_home::hook_key("Stop", "", "b.sh");
+        let spec = codex_spec(false, &[k1.as_str(), k2.as_str()]);
+        let chosen = ArsenalLaunch {
+            codex_home: Some(spec.clone()),
+            ..launch(&[])
+        };
+        let mut plan = LaunchPlan::default();
+        apply(&mut plan, AgentId::Codex, &chosen);
+        assert!(plan.not_applicable.is_empty(), "{:?}", plan.not_applicable);
+        assert_eq!(plan.codex_home, Some(spec));
+        assert!(plan.home.is_none());
+        assert!(
+            plan.applied
+                .iter()
+                .any(|line| line.contains("2 hook(s) left out")
+                    && line.contains("without AGENTS.md")),
+            "{:?}",
+            plan.applied
+        );
+        // A default Codex environment adds no home and no line.
+        let default = ArsenalLaunch {
+            codex_home: Some(codex_spec(true, &[])),
+            ..launch(&[])
+        };
+        let mut plain = LaunchPlan::default();
+        apply(&mut plain, AgentId::Codex, &default);
+        assert!(plain.codex_home.is_none());
+        assert!(!plain.applied.iter().any(|l| l.contains("Own Codex folder")));
+        // Refused: skills named without their files. The plan names no home, and no line.
+        let refused = ArsenalLaunch {
+            codex_home: Some(codex_spec(false, &[])),
+            ..launch(&["a"])
+        };
+        let mut plan = LaunchPlan::default();
+        apply(&mut plan, AgentId::Codex, &refused);
+        assert_eq!(plan.not_applicable.len(), 1);
+        assert!(plan.codex_home.is_none());
+        assert!(plan.applied.is_empty());
+        // A Claude environment is still refused for Codex.
+        let claude = ArsenalLaunch {
+            home: Some(crate::native::launch_home::HomeSpec {
+                instructions: false,
+                ..Default::default()
+            }),
+            codex_home: Some(codex_spec(false, &[])),
+            ..launch(&[])
+        };
+        let mut plan = LaunchPlan::default();
+        apply(&mut plan, AgentId::Codex, &claude);
+        assert_eq!(plan.not_applicable.len(), 1);
+        assert!(plan.codex_home.is_none());
     }
 }

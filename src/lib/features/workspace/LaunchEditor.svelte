@@ -17,7 +17,12 @@
     type SystemInfo,
   } from '../../desktop/launch-client';
   import DistroVariants from './DistroVariants.svelte';
-  import { DEFAULT_SPEC, hookLabel, toggle } from '../arsenal/environment';
+  import {
+    DEFAULT_CODEX_SPEC,
+    DEFAULT_SPEC,
+    hookLabel,
+    toggle,
+  } from '../arsenal/environment';
   import { distributorOf } from '../distributors/present';
   import {
     AS_CONFIGURED,
@@ -111,7 +116,17 @@
     hooks: msg(
       'Scripts that run on their own at fixed moments (before a command, when a turn ends…). They take no context.',
     ),
+    codexInstructions: msg(
+      'AGENTS.md of your Codex folder: what you told Codex to always follow. Switched off, this launch starts without it.',
+    ),
   };
+  /** Said under the hooks of a Codex launch: what leaving one out does, and what Codex asks. */
+  const CODEX_HOME_NOTE = msg(
+    'A launch that leaves a hook or AGENTS.md out runs in its own Codex folder, with your own Codex sign-in. Codex asks you to approve the hooks the first time in each new folder.',
+  );
+  const CONFIG_HOOKS_NOTE = msg(
+    'Declared in config.toml: these run in every launch and cannot be switched off here.',
+  );
   /** What each permission does, shown on hover over the chosen one. */
   const PERMISSION_HINT: Record<Permission, string> = {
     ask: msg('The agent asks before every change.'),
@@ -203,6 +218,7 @@
         items: allItemsOf(data.library, agent),
         composites: [],
         spec: { ...DEFAULT_SPEC },
+        codexSpec: null,
       };
     }
     const selection = selectionOf(launch, data.selections);
@@ -223,6 +239,13 @@
           ? {
               ...((selection && data.environments.get(selection.id)) ??
                 DEFAULT_SPEC),
+            }
+          : null,
+      codexSpec:
+        launch.agent === 'codex'
+          ? {
+              ...((selection && data.codexEnvironments.get(selection.id)) ??
+                DEFAULT_CODEX_SPEC),
             }
           : null,
     };
@@ -305,6 +328,7 @@
     draft.items = allItemsOf(data.library, agent);
     draft.composites = [];
     draft.spec = agent === 'claude_code' ? { ...DEFAULT_SPEC } : null;
+    draft.codexSpec = agent === 'codex' ? { ...DEFAULT_CODEX_SPEC } : null;
   }
   function setItem(id: string, on: boolean) {
     if (!draft) return;
@@ -329,6 +353,12 @@
     rows: Row[];
     tokens: number | null;
     note?: string;
+    /** Shown on hover instead of the group's usual hint. */
+    hint?: string;
+    /** Said inside the open group, above its rows. */
+    notice?: string;
+    /** Things of this kind that always load: shown ticked and fixed, never counted or switched. */
+    fixed?: { label: string; title: string; note: string }[];
   }
   const groupsOf = $derived.by((): Group[] => {
     if (!draft) return [];
@@ -372,6 +402,24 @@
             set: (v: boolean) =>
               (spec.rules_off = toggle(spec.rules_off, rule, !v)),
           })),
+        ],
+      });
+    }
+    const codex = data.codexOptions;
+    if (d.agent === 'codex' && d.codexSpec && codex?.instructions) {
+      const spec = d.codexSpec;
+      out.push({
+        id: 'instructions',
+        label: msg('Instructions'),
+        tokens: null,
+        hint: GROUP_HINT.codexInstructions,
+        rows: [
+          {
+            key: 'AGENTS.md',
+            label: 'AGENTS.md',
+            on: spec.instructions,
+            set: (v: boolean) => (spec.instructions = v),
+          },
         ],
       });
     }
@@ -434,6 +482,28 @@
         })),
       });
     }
+    if (d.agent === 'codex' && d.codexSpec && codex) {
+      const spec = d.codexSpec;
+      out.push({
+        id: 'hooks',
+        label: msg('Hooks'),
+        tokens: 0,
+        notice: CODEX_HOME_NOTE,
+        rows: codex.hooks.map((hook) => ({
+          key: hook.key,
+          label: hookLabel(hook),
+          on: !spec.hooks_off.includes(hook.key),
+          set: (v: boolean) =>
+            (spec.hooks_off = toggle(spec.hooks_off, hook.key, !v)),
+        })),
+        // Hooks `config.toml` declares: no launch leaves one out, so they are not rows.
+        fixed: codex.config_hooks.map((hook) => ({
+          label: hookLabel(hook),
+          title: hook.command,
+          note: CONFIG_HOOKS_NOTE,
+        })),
+      });
+    }
     return out;
   });
   function setAll(group: Group, v: boolean) {
@@ -478,6 +548,9 @@
       savedSpec: d.selection
         ? (data.environments.get(d.selection.id) ?? null)
         : null,
+      savedCodexSpec: d.selection
+        ? (data.codexEnvironments.get(d.selection.id) ?? null)
+        : null,
       allItems: allItemsOf(data.library, d.agent),
     });
     try {
@@ -499,7 +572,10 @@
             : t('preset “{name}”', { name: p.name }),
         );
       } else if (p.do === 'none') target = null;
-      if (plan.environment && target && d.spec) {
+      if (plan.environment && target && d.agent === 'codex' && d.codexSpec) {
+        await client.writeCodexEnvironment(target.id, d.codexSpec);
+        done.push(t('environment'));
+      } else if (plan.environment && target && d.spec) {
         await client.writeEnvironment(target.id, d.spec);
         done.push(t('environment'));
       }
@@ -936,7 +1012,7 @@
           {#if d.agent === 'codex'}
             <p class="le-meta le-pad">
               {t(
-                'For Codex a launch chooses skills and agents; the rest is Claude Code only.',
+                'For Codex a launch chooses skills, agents, AGENTS.md and the hooks of hooks.json. MCP servers and account skills are Claude Code only.',
               )}
             </p>
           {/if}
@@ -955,8 +1031,8 @@
                 <button
                   type="button"
                   class="le-gtoggle"
-                  title={GROUP_HINT[group.id]
-                    ? t(GROUP_HINT[group.id])
+                  title={(group.hint ?? GROUP_HINT[group.id])
+                    ? t(group.hint ?? GROUP_HINT[group.id])
                     : undefined}
                   aria-expanded={open === group.id}
                   onclick={() => (open = open === group.id ? null : group.id)}
@@ -984,6 +1060,9 @@
               </div>
               {#if open === group.id}
                 <div class="le-rows">
+                  {#if group.notice}
+                    <p class="le-meta">{t(group.notice)}</p>
+                  {/if}
                   {#each group.rows as row (row.key)}
                     <label class="le-row" class:off={!row.on}>
                       <input
@@ -995,8 +1074,17 @@
                       <span title={row.label}>{row.label}</span>
                     </label>
                   {/each}
-                  {#if group.rows.length === 0}
+                  {#if group.rows.length === 0 && !group.fixed?.length}
                     <p class="le-meta">{t('Nothing of this kind.')}</p>
+                  {/if}
+                  {#if group.fixed?.length}
+                    <p class="le-meta">{t(group.fixed[0].note)}</p>
+                    {#each group.fixed as fixed, i (i)}
+                      <label class="le-row">
+                        <input type="checkbox" checked disabled />
+                        <span title={fixed.title}>{fixed.label}</span>
+                      </label>
+                    {/each}
                   {/if}
                 </div>
               {/if}

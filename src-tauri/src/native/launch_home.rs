@@ -523,8 +523,9 @@ fn front_matter_bytes(file: &Path) -> u64 {
         .sum()
 }
 
-pub fn options(owner: &Owner) -> Options {
-    let settings = read_json(&owner.dir.join("settings.json")).unwrap_or(Value::Null);
+/// The hooks of a settings value's `hooks`, in file order, each with its [`hook_key`]. Codex's
+/// `hooks.json` has the same shape.
+pub(super) fn hook_options(settings: &Value) -> Vec<HookOption> {
     let mut hooks = Vec::new();
     if let Some(events) = settings.get("hooks").and_then(Value::as_object) {
         for (event, groups) in events {
@@ -547,6 +548,12 @@ pub fn options(owner: &Owner) -> Options {
             }
         }
     }
+    hooks
+}
+
+pub fn options(owner: &Owner) -> Options {
+    let settings = read_json(&owner.dir.join("settings.json")).unwrap_or(Value::Null);
+    let hooks = hook_options(&settings);
     let plugins: Vec<String> = settings
         .get("enabledPlugins")
         .and_then(Value::as_object)

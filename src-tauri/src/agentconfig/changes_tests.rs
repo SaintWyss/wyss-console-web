@@ -5618,7 +5618,8 @@ fn an_applied_edit_of_a_claude_hook_reports_the_hook_it_replaced() {
         .unwrap();
     let (applied, edit) = world.service.apply_reporting_hook_edit(&plan.id).unwrap();
     assert_eq!(applied.outcome, Outcome::Applied);
-    let (was, now) = edit.unwrap();
+    let (source, was, now) = edit.unwrap();
+    assert_eq!(source, super::changes::HookFile::ClaudeSettings);
     assert_eq!(
         (was.2.as_str(), now.2.as_str()),
         (old.as_str(), "edited.sh")
@@ -5648,4 +5649,50 @@ fn an_applied_edit_of_a_claude_hook_reports_the_hook_it_replaced() {
     );
     assert_eq!(both.len(), 2);
     assert!(super::changes::edited(&both, &both).is_none());
+}
+
+#[test]
+fn an_applied_edit_of_a_codex_hook_reports_the_codex_hooks_file() {
+    let world = World::new(SETTINGS);
+    world.codex("hooks = true\n");
+    world.codex_hooks(CODEX_HOOKS);
+    let plan = world
+        .service
+        .plan_authored(Authoring::AddCodexHook(spec(
+            "SessionStart",
+            Some("startup"),
+            "bash mark.sh",
+        )))
+        .unwrap();
+    assert_eq!(applied(&world, &plan), Outcome::Applied);
+    let mark = world
+        .inventory
+        .snapshot()
+        .inventory
+        .items
+        .iter()
+        .find(|i| {
+            i.provider == super::model::ProviderId::Codex
+                && i.kind == ItemKind::Hook
+                && format!("{:?}", i.detail).contains("mark.sh")
+        })
+        .map(|i| i.id.clone())
+        .unwrap();
+    let plan = world
+        .service
+        .plan_authored(Authoring::EditHook {
+            item: mark,
+            command: "bash mark2.sh".into(),
+            expected: "bash mark.sh".into(),
+        })
+        .unwrap();
+    let (done, edit) = world.service.apply_reporting_hook_edit(&plan.id).unwrap();
+    assert_eq!(done.outcome, Outcome::Applied);
+    let (file, was, now) = edit.unwrap();
+    assert_eq!(file, super::changes::HookFile::CodexHooks);
+    assert_ne!(file, super::changes::HookFile::ClaudeSettings);
+    assert_eq!(
+        (was.2.as_str(), now.2.as_str()),
+        ("bash mark.sh", "bash mark2.sh")
+    );
 }

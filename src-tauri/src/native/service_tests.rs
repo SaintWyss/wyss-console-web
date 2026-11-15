@@ -1996,6 +1996,7 @@ fn arsenal_launch(off: &[&str]) -> super::arsenal::ArsenalLaunch {
         skills_off: off.iter().map(|s| (*s).to_owned()).collect(),
         skill_files_off: Vec::new(),
         home: None,
+        codex_home: None,
     }
 }
 
@@ -2158,4 +2159,130 @@ fn an_orchestrator_gets_the_delegation_tool_for_its_own_session_and_never_on_its
     let out = world.output_until(&plain.terminal.terminal_id, "SESSION=");
     assert!(!out.contains("mcp-config"), "{out:?}");
     assert!(!plain.session.session.delegation);
+}
+
+/// The process environment a launch home reads (`HOME`, `CODEX_HOME`, `XDG_DATA_HOME`) pointed at a fake owner for
+/// one test, and put back after. Never the real folders.
+pub(crate) struct FakeOwnerEnv {
+    saved: Vec<(&'static str, Option<std::ffi::OsString>)>,
+    _lock: std::sync::MutexGuard<'static, ()>,
+}
+
+impl FakeOwnerEnv {
+    pub(crate) fn new(home: &Path) -> Self {
+        static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        let lock = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let saved = ["HOME", "CODEX_HOME", "XDG_DATA_HOME"]
+            .into_iter()
+            .map(|name| (name, std::env::var_os(name)))
+            .collect();
+        // SAFETY: the lock above is the only writer of these names in the tests.
+        unsafe {
+            std::env::set_var("HOME", home);
+            std::env::remove_var("CODEX_HOME");
+            std::env::remove_var("XDG_DATA_HOME");
+        }
+        Self { saved, _lock: lock }
+    }
+}
+
+impl Drop for FakeOwnerEnv {
+    fn drop(&mut self) {
+        for (name, value) in &self.saved {
+            // SAFETY: see `new`.
+            unsafe {
+                match value {
+                    Some(value) => std::env::set_var(name, value),
+                    None => std::env::remove_var(name),
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn a_codex_launch_home_is_built_for_a_changed_environment_only_and_a_failed_build_stops_the_start()
+{
+    use super::launch_home_codex::CodexHomeSpec;
+    let world = World::new();
+    let version = "codex-cli 0.169.0";
+    script(
+        &world.bin.join("codex"),
+        &format!(
+            "[ \"$1\" = \"--version\" ] && {{ echo '{version}'; exit 0; }}\n\
+             echo \"CODEXHOME=[$CODEX_HOME]\"; echo CODEX-READY; exec cat"
+        ),
+    );
+    // A fake owner: never the real `~/.codex`.
+    let owner_home = world.home.parent().unwrap().join("owner-home");
+    let owner = owner_home.join(".codex");
+    fs::create_dir_all(owner.join("sessions")).unwrap();
+    fs::write(owner.join("config.toml"), "model = \"x\"\n").unwrap();
+    fs::write(owner.join("AGENTS.md"), "kernel").unwrap();
+    fs::write(owner.join("auth.json"), "FAKE-TOKEN").unwrap();
+    let key = super::launch_home::hook_key("Stop", "", "bye.sh");
+    fs::write(
+        owner.join("hooks.json"),
+        r#"{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"bye.sh"},{"type":"command","command":"keep.sh"}]}]}}"#,
+    )
+    .unwrap();
+    let _env = FakeOwnerEnv::new(&owner_home);
+    let codex_start = |launch: &super::arsenal::ArsenalLaunch| {
+        let preview = world
+            .service
+            .preview(AgentId::Codex, None, Some(launch))
+            .unwrap();
+        assert!(preview.can_start, "{:?}", preview.not_applicable);
+        world.service.start(
+            &world.terminal,
+            StartRequest {
+                agent_id: AgentId::Codex,
+                project: world.home.to_string_lossy().into_owned(),
+                profile_id: None,
+                size: SIZE,
+                brief: None,
+                plan_token: preview.plan_token,
+                expected_cli_version: Some(version.to_owned()),
+                arsenal: Some(launch.clone()),
+                delegation: false,
+            },
+        )
+    };
+    let with = |spec: CodexHomeSpec| super::arsenal::ArsenalLaunch {
+        codex_home: Some(spec),
+        ..arsenal_launch(&[])
+    };
+    let homes = world.base.join("launch-homes").join("codex");
+
+    // A default environment: the owner's own folder, no `CODEX_HOME`, nothing built.
+    let reply = codex_start(&with(CodexHomeSpec::default())).unwrap();
+    let out = world.output_until(&reply.terminal.terminal_id, "CODEX-READY");
+    assert!(out.contains("CODEXHOME=[]"), "{out:?}");
+    assert!(!homes.exists());
+
+    // A changed one: `CODEX_HOME` is the home of this selection, built without the hook.
+    let chosen = with(CodexHomeSpec {
+        instructions: false,
+        hooks_off: vec![key],
+    });
+    let reply = codex_start(&chosen).unwrap();
+    let out = world.output_until(&reply.terminal.terminal_id, "CODEX-READY");
+    let home = homes.join(&chosen.selection);
+    assert!(
+        out.contains(&format!("CODEXHOME=[{}]", home.display())),
+        "{out:?}"
+    );
+    let hooks = fs::read_to_string(home.join("hooks.json")).unwrap();
+    assert!(
+        !hooks.contains("bye.sh") && hooks.contains("keep.sh"),
+        "{hooks}"
+    );
+    assert!(!home.join("AGENTS.md").exists());
+    let before = world.service.sessions(&world.terminal, false).len();
+
+    // A home that cannot be built (no owner folder): the start fails and nothing runs.
+    fs::rename(&owner, owner_home.join(".codex-gone")).unwrap();
+    let error = codex_start(&chosen).unwrap_err();
+    assert_eq!(error.code, "arsenal_home_failed");
+    assert_eq!(world.service.sessions(&world.terminal, false).len(), before);
 }

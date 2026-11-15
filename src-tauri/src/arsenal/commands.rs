@@ -276,6 +276,9 @@ const COMMANDS: &[&str] = &[
     "arsenal_environment",
     "arsenal_environment_options",
     "arsenal_environment_write",
+    "arsenal_codex_environment",
+    "arsenal_codex_environment_options",
+    "arsenal_codex_environment_write",
     "arsenal_roles",
     "arsenal_role_write",
     "arsenal_terminal_plan",
@@ -314,6 +317,9 @@ pub fn extension() -> wyss_console::Extension {
             arsenal_environment,
             arsenal_environment_options,
             arsenal_environment_write,
+            arsenal_codex_environment,
+            arsenal_codex_environment_options,
+            arsenal_codex_environment_write,
             arsenal_roles,
             arsenal_role_write,
             arsenal_category_write,
@@ -879,6 +885,41 @@ fn arsenal_environment_write(
         .map_err(|_| ArsenalError::from(Error::Invalid))
 }
 
+/// The launch environment a Codex preset chose; the owner's own configuration when it chose
+/// nothing.
+#[tauri::command]
+fn arsenal_codex_environment(
+    selection: String,
+) -> Result<crate::native::launch_home_codex::CodexHomeSpec, ArsenalError> {
+    let directory = super::environment::directory().ok_or(ArsenalError::from(Error::Storage))?;
+    Ok(super::environment::codex::get(&directory, &selection).unwrap_or_default())
+}
+
+/// What a Codex preset's launch environment can choose from, read from the owner's Codex folder
+/// now: the hooks of `hooks.json`, and apart the hooks `config.toml` declares, which no launch
+/// leaves out.
+#[tauri::command]
+fn arsenal_codex_environment_options()
+-> Result<crate::native::launch_home_codex::CodexOptions, ArsenalError> {
+    let home = std::env::var_os("HOME")
+        .map(std::path::PathBuf::from)
+        .ok_or(ArsenalError::from(Error::Storage))?;
+    Ok(crate::native::launch_home_codex::options(
+        &crate::native::launch_home_codex::CodexOwner::from_process(&home),
+    ))
+}
+
+/// Records the launch environment of a Codex preset. Local to this computer.
+#[tauri::command]
+fn arsenal_codex_environment_write(
+    selection: String,
+    environment: crate::native::launch_home_codex::CodexHomeSpec,
+) -> Result<(), ArsenalError> {
+    let directory = super::environment::directory().ok_or(ArsenalError::from(Error::Storage))?;
+    super::environment::codex::set(&directory, &selection, &environment)
+        .map_err(|_| ArsenalError::from(Error::Invalid))
+}
+
 /// The roles of Workspace and the role of each launch. Local to this computer.
 #[tauri::command]
 fn arsenal_roles() -> Result<super::roles::Roles, ArsenalError> {
@@ -1253,6 +1294,17 @@ fn plan_now(
         plan.config_hash = format!("{:x}", sha2::Sha256::digest(material));
         plan.environment = Some(spec);
     }
+    // Codex: the same, from its own file. The hash the window previewed covers the environment,
+    // so one changed since the preview makes the start stale instead of starting another one.
+    if provider == "codex"
+        && let Some(spec) = super::environment::directory()
+            .and_then(|dir| super::environment::codex::get(&dir, &plan.selection))
+    {
+        let material = serde_json::to_vec(&(&plan.config_hash, "codex_home", &spec))
+            .map_err(|_| ArsenalError::from(Error::Storage))?;
+        plan.config_hash = format!("{:x}", sha2::Sha256::digest(material));
+        plan.codex_environment = Some(spec);
+    }
     Ok((plan, installed))
 }
 
@@ -1294,6 +1346,7 @@ pub(crate) fn launch_for(
         skills_off: plan.excluded,
         skill_files_off: plan.excluded_files,
         home: plan.environment,
+        codex_home: plan.codex_environment,
     })
 }
 
@@ -1960,6 +2013,159 @@ mod tests {
             ids_of(&one_identity, None),
             [full_ids[0].clone(), full_ids[2].clone()]
         );
+    }
+
+    /// A host that lists one fake Codex build and nothing else.
+    fn codex_host(
+        root: &Path,
+    ) -> (
+        HostLink,
+        Arc<std::sync::atomic::AtomicBool>,
+        std::thread::JoinHandle<()>,
+    ) {
+        use crate::host::protocol::{Answer, HostError, Request, read_frame, write_frame};
+        use std::os::unix::fs::PermissionsExt;
+        let cli = root.join("fixture-codex");
+        std::fs::write(
+            &cli,
+            "#!/bin/sh\n[ \"$1\" = \"--version\" ] || exit 81\nprintf '%s\\n' 'codex-cli 0.169.0'\n",
+        )
+        .unwrap();
+        std::fs::set_permissions(&cli, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let socket = root.join("host.sock");
+        let listener = std::os::unix::net::UnixListener::bind(&socket).unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let flag = stop.clone();
+        let cli = cli.to_string_lossy().into_owned();
+        let thread = std::thread::spawn(move || {
+            while !flag.load(std::sync::atomic::Ordering::Acquire) {
+                match listener.accept() {
+                    Ok((mut stream, _)) => {
+                        let Ok(request) = read_frame::<Request>(&mut stream) else {
+                            continue;
+                        };
+                        let answer = match request.op.as_str() {
+                            "hello" => Answer::Ok(serde_json::json!({"protocol": 1})),
+                            "native_launcher" => Answer::Ok(serde_json::json!({
+                                "agents": [{"agent_id": "codex", "path": cli}],
+                                "projects": [], "shell": null
+                            })),
+                            "native_launcher_extended" | "native_readiness" => {
+                                Answer::Err(HostError::new("unknown_op"))
+                            }
+                            _ => Answer::Ok(serde_json::Value::Null),
+                        };
+                        let _ = write_frame(&mut stream, &answer);
+                    }
+                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                        std::thread::sleep(std::time::Duration::from_millis(2));
+                    }
+                    Err(_) => break,
+                }
+            }
+        });
+        (HostLink::remote_for_test(socket), stop, thread)
+    }
+
+    #[test]
+    fn the_codex_environment_changes_the_config_hash_and_reaches_the_launch() {
+        use crate::native::launch_home_codex::CodexHomeSpec;
+        let root = std::fs::canonicalize(std::env::temp_dir())
+            .unwrap()
+            .join(format!(
+                "arsenal-codex-plan-{}",
+                uuid::Uuid::new_v4().simple()
+            ));
+        std::fs::create_dir_all(root.join("home")).unwrap();
+        let _env = crate::native::service_tests::FakeOwnerEnv::new(&root.join("home"));
+        let (link, stop, thread) = codex_host(&root);
+        let mut store = Store::open(Connection::open_in_memory().unwrap()).unwrap();
+        let selection = store
+            .save_selection(&store::SelectionInput {
+                id: None,
+                name: "Codex fixture".into(),
+                provider: "codex".into(),
+                items: vec![],
+                composites: vec![],
+            })
+            .unwrap();
+        let store = Arc::new(Mutex::new(store));
+        let request = TerminalRequest {
+            selection: selection.id.clone(),
+            agent_id: AgentId::Codex,
+            project: None,
+        };
+        let directory = super::super::environment::directory().unwrap();
+        assert!(
+            directory.starts_with(root.join("home")),
+            "never the real one"
+        );
+        std::fs::create_dir_all(&directory).unwrap();
+
+        // Nothing chosen: no environment, and the hash of a plan without one.
+        let (plain, _) = plan_now(&store, &link, None, &request).unwrap();
+        assert!(plain.codex_environment.is_none());
+        assert!(plain.environment.is_none());
+        let plain_json = serde_json::to_string(&plain).unwrap();
+        assert!(!plain_json.contains("codex_environment"), "{plain_json}");
+        let launch = launch_for(
+            Some(store.clone()),
+            &link,
+            None,
+            &request,
+            &plain.config_hash,
+        );
+        assert!(
+            launch.as_ref().is_ok_and(|l| l.codex_home.is_none()),
+            "{launch:?}"
+        );
+
+        // A chosen one: the plan carries it and the hash moves.
+        let spec = CodexHomeSpec {
+            instructions: false,
+            hooks_off: vec![crate::native::launch_home::hook_key("Stop", "", "bye.sh")],
+        };
+        super::super::environment::codex::set(&directory, &selection.id, &spec).unwrap();
+        let (chosen, _) = plan_now(&store, &link, None, &request).unwrap();
+        assert_eq!(chosen.codex_environment, Some(spec.clone()));
+        assert_ne!(chosen.config_hash, plain.config_hash);
+        // Another environment gives another hash.
+        let other = CodexHomeSpec {
+            instructions: true,
+            hooks_off: spec.hooks_off.clone(),
+        };
+        super::super::environment::codex::set(&directory, &selection.id, &other).unwrap();
+        let (changed, _) = plan_now(&store, &link, None, &request).unwrap();
+        assert_ne!(changed.config_hash, chosen.config_hash);
+        super::super::environment::codex::set(&directory, &selection.id, &spec).unwrap();
+
+        // The spec reaches the launch; a hash previewed before the change is stale.
+        let launch = launch_for(
+            Some(store.clone()),
+            &link,
+            None,
+            &request,
+            &chosen.config_hash,
+        )
+        .unwrap();
+        assert_eq!(launch.codex_home, Some(spec));
+        assert!(launch.home.is_none());
+        assert_eq!(launch.config_hash, chosen.config_hash);
+        let stale = launch_for(
+            Some(store.clone()),
+            &link,
+            None,
+            &request,
+            &plain.config_hash,
+        );
+        assert_eq!(stale.unwrap_err().code, "arsenal_plan_stale");
+        // A Claude-only environment file is not read for Codex.
+        assert!(super::super::environment::get(&directory, &selection.id).is_none());
+
+        stop.store(true, std::sync::atomic::Ordering::Release);
+        thread.join().unwrap();
+        let _ = std::fs::remove_dir_all(root);
     }
 }
 

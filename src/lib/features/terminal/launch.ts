@@ -177,6 +177,15 @@ export async function openLaunch(
       }
     : null;
   const apply = !!plan?.can_apply;
+  // A preset that leaves a Codex hook or AGENTS.md out starts with that applied or not at all:
+  // started without it, the hook the owner switched off would run.
+  if (plan?.codex_environment && !apply)
+    throw new LaunchRefusal(
+      msg(
+        'The preset “{name}” leaves a Codex hook or AGENTS.md out, and it cannot be applied now: {reason} Nothing was started.',
+      ),
+      { name: plan.selection_name, reason: plan.enforcement.reason },
+    );
   const notes: LaunchNote[] = (await deps.runBefore(launch.id))
     .filter((o) => o.result !== 'ok')
     .map((o) => ({

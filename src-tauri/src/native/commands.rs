@@ -1115,6 +1115,7 @@ mod capability_tests {
             skills_off: vec!["design".into()],
             skill_files_off: Vec::new(),
             home: None,
+            codex_home: None,
         }
     }
 

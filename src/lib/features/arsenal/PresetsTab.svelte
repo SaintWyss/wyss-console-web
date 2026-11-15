@@ -918,8 +918,8 @@
       </p>
     {/if}
 
-    {#if provider === 'claude_code' && draft.id !== null}
-      <EnvironmentPanel selection={draft.id} />
+    {#if (provider === 'claude_code' || provider === 'codex') && draft.id !== null}
+      <EnvironmentPanel selection={draft.id} {provider} />
     {/if}
 
     <div class="composition-actions">

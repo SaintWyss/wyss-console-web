@@ -47,6 +47,10 @@ function deps(
     selection = null as string | null,
     canApply = true,
     canStart = true,
+    codexEnvironment = null as {
+      instructions: boolean;
+      hooks_off: string[];
+    } | null,
     presetId = 'sel-preset' as string | null,
     selections = null as SelectionName[] | null,
   } = {},
@@ -67,6 +71,8 @@ function deps(
           selection_name: 'Work',
           config_hash: 'hash-1',
           can_apply: canApply,
+          enforcement: { reason: 'Codex 0.1 is not qualified.' },
+          codex_environment: codexEnvironment,
         }) as never,
     ),
     bind: vi.fn(async () => ({
@@ -319,6 +325,44 @@ describe('a session launch and the Arsenal selection its folder remembers', () =
     );
     expect(d.bind).toHaveBeenCalled();
     expect(opened.notes.map(shown).join(' ')).toContain('recorded');
+  });
+  it('does not start when the preset leaves a Codex hook out and cannot be applied, and says why', async () => {
+    const { d } = deps(session(), undefined, {
+      selection: 'sel-1',
+      canApply: false,
+      codexEnvironment: { instructions: true, hooks_off: ['0123456789abcdef'] },
+    });
+    const refusal = await openLaunch('codex', d).catch((e: unknown) => e);
+    expect(refusal).toBeInstanceOf(LaunchRefusal);
+    const { template, values } = refusal as LaunchRefusal;
+    const text = t(template, values);
+    expect(text).toContain('Work');
+    expect(text).toContain('Codex 0.1 is not qualified.');
+    expect(text).toContain('Nothing was started');
+    // Nothing ran and nothing started: not the before commands, not the agent, not a record.
+    expect(d.runBefore).not.toHaveBeenCalled();
+    expect(d.preview).not.toHaveBeenCalled();
+    expect(d.start).not.toHaveBeenCalled();
+    expect(d.bind).not.toHaveBeenCalled();
+  });
+  it('still records an unapplied preset that changes no Codex environment', async () => {
+    // Control: the same plan without a Codex environment starts as before.
+    const { d } = deps(session(), undefined, {
+      selection: 'sel-1',
+      canApply: false,
+      codexEnvironment: null,
+    });
+    await openLaunch('codex', d);
+    expect(d.start).toHaveBeenCalled();
+  });
+  it('starts a Codex environment preset when it can be applied', async () => {
+    const { d } = deps(session(), undefined, {
+      selection: 'sel-1',
+      canApply: true,
+      codexEnvironment: { instructions: false, hooks_off: [] },
+    });
+    await openLaunch('codex', d);
+    expect(d.start).toHaveBeenCalled();
   });
   it('does not start when the applied preview cannot start', async () => {
     const { d } = deps(session(), undefined, {

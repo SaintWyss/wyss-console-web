@@ -80,8 +80,24 @@ export const ES: Readonly<Record<string, string>> = {
   'Browse…': 'Examinar…',
   Saved: 'Guardadas',
   'Recently used': 'Usadas hace poco',
-  'For Codex a launch chooses skills and agents; the rest is Claude Code only.':
-    'En Codex un lanzamiento elige skills y agentes; lo demás es solo de Claude Code.',
+  'AGENTS.md of your Codex folder: what you told Codex to always follow. Switched off, this launch starts without it.':
+    'El AGENTS.md de tu carpeta de Codex: lo que le dijiste a Codex que siga siempre. Apagado, este lanzamiento arranca sin él.',
+  'A launch that leaves a hook or AGENTS.md out runs in its own Codex folder, with your own Codex sign-in. Codex asks you to approve the hooks the first time in each new folder.':
+    'Un lanzamiento que deja afuera un hook o el AGENTS.md corre en su propia carpeta de Codex, con tu propio inicio de sesión de Codex. Codex pedirá aprobar los hooks la primera vez en cada carpeta nueva.',
+  'Declared in config.toml: these run in every launch and cannot be switched off here.':
+    'Declarados en config.toml: corren en todos los lanzamientos y no se pueden apagar por lanzamiento.',
+  'What this preset loads besides its skills. Anything unticked is not loaded in that terminal.':
+    'Lo que carga este preset además de sus skills. Lo desmarcado no se carga en esa terminal.',
+  'No hooks in hooks.json.': 'No hay hooks en hooks.json.',
+  'Hooks of config.toml': 'Hooks de config.toml',
+  'This terminal gets its own Codex folder and signs in with your own Codex sign-in. Your own hooks.json and config.toml are not changed.':
+    'Esta terminal tiene su propia carpeta de Codex e inicia sesión con tu propio inicio de sesión de Codex. Tu hooks.json y tu config.toml no cambian.',
+  'This terminal uses your own Codex configuration as it is.':
+    'Esta terminal usa tu configuración de Codex tal como está.',
+  'Codex asks you to approve the hooks the first time in each new folder.':
+    'Codex pedirá aprobar los hooks la primera vez en cada carpeta nueva.',
+  'For Codex a launch chooses skills, agents, AGENTS.md and the hooks of hooks.json. MCP servers and account skills are Claude Code only.':
+    'En Codex un lanzamiento elige skills, agentes, el AGENTS.md y los hooks de hooks.json. Los servidores MCP y las skills de la cuenta son solo de Claude Code.',
   '{on} of {all}': '{on} de {all}',
   'Nothing of this kind.': 'No hay nada de este tipo.',
   // Console: toolbar and session bar
@@ -2302,6 +2318,8 @@ export const ES: Readonly<Record<string, string>> = {
   'Next and previous pane': 'Panel siguiente y anterior',
   'Next and previous tab': 'Pestaña siguiente y anterior',
   'Go to that tab': 'Ir a esa pestaña',
+  'The preset “{name}” leaves a Codex hook or AGENTS.md out, and it cannot be applied now: {reason} Nothing was started.':
+    'El preset “{name}” deja afuera un hook de Codex o el AGENTS.md, y ahora no se puede aplicar: {reason} No se inició nada.',
   'A command before the start did not succeed ({result}); the agent started anyway.':
     'Un comando previo al inicio no tuvo éxito ({result}); el agente arrancó igual.',
   'Started with {selection} applied.': 'Iniciado con {selection} aplicado.',

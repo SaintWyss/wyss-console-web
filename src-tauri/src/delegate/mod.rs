@@ -926,6 +926,7 @@ impl Manager {
             plan_skills(request, &id, agent, version.clone(), &workspace)?;
         let launch = ArsenalLaunch {
             home: None,
+            codex_home: None,
             selection: id.clone(),
             selection_name: request
                 .title

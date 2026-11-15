@@ -240,27 +240,31 @@ async fn configuration_apply(
     let changes = configuration.changes(&app)?;
     blocking(move || {
         let (applied, edit) = changes.apply_reporting_hook_edit(checked(&request.plan)?)?;
-        if let Some((old, new)) = edit {
-            follow_edited_hook(&old, &new);
+        if let Some((source, old, new)) = edit {
+            follow_edited_hook(source, &old, &new);
         }
         Ok(applied)
     })
     .await
 }
 
-/// An applied edit of a Claude Code hook: the launches that left the old one out keep the new
-/// one out.
+/// An applied edit of a hook of the user's own Claude Code settings or of Codex's `hooks.json`:
+/// the launches of that provider that left the old one out keep the new one out. Only that
+/// provider's file follows: the same key in the other one names another hook.
 fn follow_edited_hook(
+    file: crate::agentconfig::changes::HookFile,
     old: &crate::agentconfig::changes::Hook,
     new: &crate::agentconfig::changes::Hook,
 ) {
+    use crate::agentconfig::changes::HookFile;
+    use crate::arsenal::environment;
     let key = crate::native::launch_home::hook_key;
-    if let Some(dir) = crate::arsenal::environment::directory() {
-        let _ = crate::arsenal::environment::rename_hook_key(
-            &dir,
-            &key(&old.0, &old.1, &old.2),
-            &key(&new.0, &new.1, &new.2),
-        );
+    let (old, new) = (key(&old.0, &old.1, &old.2), key(&new.0, &new.1, &new.2));
+    if let Some(dir) = environment::directory() {
+        let _ = match file {
+            HookFile::CodexHooks => environment::codex::rename_hook_key(&dir, &old, &new),
+            HookFile::ClaudeSettings => environment::rename_hook_key(&dir, &old, &new),
+        };
     }
 }
 

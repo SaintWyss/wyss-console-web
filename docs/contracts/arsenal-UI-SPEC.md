@@ -228,7 +228,7 @@ Una corrección guardada con `group_id = models` sobre una regla se lee como `ru
 - **Probado el 2026-11-12 con Claude Code 2.1.323:** un hook `SessionStart` que llega por `--settings` corre, y con `--strict-mcp-config` y un `mcp.json` vacío la sesión arranca con 0 servidores MCP (sin el flag arranca con 18, contando plugins y conectores de claude.ai).
 - **Lo que agregues a mano al global** lo cargan todas las terminales. Arsenal lo muestra en el panel como "en el global (siempre activo)" y ofrece pasarlo al catálogo.
 - **Panel de composición:** lista los hooks activos. Si el preset deja afuera `r3-gate`, el panel muestra "Sin freno ante comandos destructivos" como dato, no como bloqueo.
-- **Codex:** fuera de esta ampliación. Sus hooks están apagados a propósito.
+- **Codex:** fuera de esta ampliación. Sus hooks se eligen por lanzamiento con el home de Codex ([`docs/plans/hooks-codex-h4.md`](../plans/hooks-codex-h4.md)).
 
 ### Comandos
 
@@ -265,7 +265,7 @@ Decisiones del dueño del 2026-11-13. Este contrato no las reabre. El Workspace 
 
 **Solo lectura:** un lanzamiento con `commands` o `before` se abre con Probar pero no se guarda ni se borra desde acá, porque `launch_save` reescribe el archivo entero.
 
-**Codex:** elige skills y agentes del preset. Lo demás (instrucciones, MCP, skills de la cuenta, hooks) es solo de Claude Code y no se dibuja. Todavía no hay estimación para Codex.
+**Codex:** elige skills y agentes del preset, el `AGENTS.md` de `~/.codex` y, de a uno, los hooks de `~/.codex/hooks.json` (grupos Instrucciones y Hooks, como en Claude Code). Los hooks que declara `config.toml` se listan marcados y fijos, con el texto "Declarados en config.toml: corren en todos los lanzamientos y no se pueden apagar por lanzamiento", y no cuentan en "{on} de {all}". El grupo Hooks avisa que un lanzamiento que deja algo afuera corre en su propia carpeta de Codex y que Codex pedirá aprobar los hooks la primera vez en cada carpeta nueva. MCP y skills de la cuenta son solo de Claude Code y no se dibujan. Todavía no hay estimación para Codex.
 
 | Elemento      | en                                                                    | es                                                                              |
 | ------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
@@ -377,7 +377,7 @@ Texto al 200 %: las filas crecen en alto y la primera oración pasa a dos línea
 | H1 | Home por lanzamiento en Claude Code: el host arma `launch-homes/<preset>` (links a agents/skills/plugins/output-styles/hooks, copia de `settings.json` y `.claude.json`, nunca `.credentials.json`) y lanza con `CLAUDE_CONFIG_DIR` + `CLAUDE_CODE_OAUTH_TOKEN` (credencial _Anthropic_ del llavero de la Console). Sin elección de entorno, el preset sigue lanzando como hoy. | tests de Rust del armado (allowlist, 0600, sin credencial, idempotente); calificación 2.1.323: un home "con todo" iguala el inventario del global (165 skills, 45 agentes, 10 plugins, 18 MCP, 6 hooks de inicio) y arranca interactivo sin pedir login. |
 | H2 | Entorno del preset (`environment.json` junto a la base, sin cambiar el esquema): instrucciones (CLAUDE.md + `rules/` por archivo), agentes, skills de la cuenta (`anthropic-skills:*`), hooks (clave = sha256 de evento+matcher+comando), MCP (`--strict-mcp-config` + `mcp.json` 0600 con los elegidos), plugins apagados, memoria. | tests de Rust: filtro de hooks, otras claves de `settings.json` intactas, MCP solo elegidos; calificación: home mínimo ≤ 14,5k tokens iniciales (medido 14.002 contra 68.063 del global, 2026-11-13, sin skills, agentes, MCP, hooks, plugins ni skills de la cuenta) y cada desmarcado ausente del inventario. |
 | H3 | Pantalla: hooks, MCP, plugins y reglas pasan de "Todavía no se elige" a elegibles; el panel de composición muestra "siempre carga" (repo, `cc-plugin-*`). | tests de vista; una terminal real con preset mínimo y otra con preset completo abiertas a la vez. |
-| H4 | Codex: `CODEX_HOME` por lanzamiento con el `HOME` real, skills copiadas, `[[skills.config]]` por skill no elegida, `[features]` apps/plugins/remote_plugin apagados (plugins de Codex: todo o nada), hooks con confianza registrada. | calificación codex 0.167.0 con los casos de la investigación; token de Codex sin renovar desde el home (pendiente de probar su escritura). |
+| H4 | Codex: `CODEX_HOME` por lanzamiento con el `HOME` real, solo cuando el preset deja afuera el `AGENTS.md` o un hook de `hooks.json` (`environment-codex.json`). El home enlaza `auth.json`, sesiones, `rules`, `skills`, `plugins`, `memories`, `agents`, `prompts` y `hooks` del dueño; la confianza de hooks la pide Codex la primera vez en cada home. Las skills se siguen apagando con `-c skills.config`. Detalle y estado en [`docs/plans/hooks-codex-h4.md`](../plans/hooks-codex-h4.md). | tests de Rust del armado; pendientes: calificación de codex 0.169.0 y E2E con hook marcador (H4.4). |
 
 Cierre: una revisión externa del conjunto, con foco en `launch_save` (escritura de archivos nombrados por la ventana), en la migración y, para H, en el paso del token del llavero a la terminal y la copia de `.claude.json`.
 

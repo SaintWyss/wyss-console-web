@@ -1,10 +1,14 @@
 <script lang="ts">
   import { t } from '../../i18n/index.svelte';
   import {
+    DEFAULT_CODEX_SPEC,
     DEFAULT_SPEC,
     hookLabel,
+    isCodexDefault,
     isDefault,
     toggle,
+    type CodexEnvironmentOptions,
+    type CodexHomeSpec,
     type EnvironmentOptions,
     type HomeSpec,
   } from './environment';
@@ -17,10 +21,29 @@
       arsenalClient.writeEnvironment(selection, spec),
   };
 
+  const codexEnvironmentClient = {
+    get: (selection: string) => arsenalClient.codexEnvironment(selection),
+    options: () => arsenalClient.codexEnvironmentOptions(),
+    write: (selection: string, spec: CodexHomeSpec) =>
+      arsenalClient.writeCodexEnvironment(selection, spec),
+  };
+
   let {
     selection,
+    provider = 'claude_code',
     client = environmentClient,
-  }: { selection: string; client?: typeof environmentClient } = $props();
+    codexClient = codexEnvironmentClient,
+  }: {
+    selection: string;
+    /** Whose preset this is: each tool has its own environment and its own file. */
+    provider?: 'claude_code' | 'codex';
+    client?: typeof environmentClient;
+    codexClient?: typeof codexEnvironmentClient;
+  } = $props();
+
+  let codexOptions = $state<CodexEnvironmentOptions | null>(null);
+  let codexSaved = $state<CodexHomeSpec>(DEFAULT_CODEX_SPEC);
+  let codexSpec = $state<CodexHomeSpec>(DEFAULT_CODEX_SPEC);
 
   let options = $state<EnvironmentOptions | null>(null);
   let saved = $state<HomeSpec>(DEFAULT_SPEC);
@@ -32,6 +55,19 @@
     const id = selection;
     failure = null;
     options = null;
+    codexOptions = null;
+    if (provider === 'codex') {
+      void Promise.all([codexClient.options(), codexClient.get(id)])
+        .then(([o, s]) => {
+          codexOptions = o;
+          codexSaved = s;
+          codexSpec = s;
+        })
+        .catch(() => {
+          failure = 'The launch environment could not be read.';
+        });
+      return;
+    }
     void Promise.all([client.options(), client.get(id)])
       .then(([o, s]) => {
         options = o;
@@ -43,15 +79,26 @@
       });
   });
 
-  const dirty = $derived(JSON.stringify(spec) !== JSON.stringify(saved));
-  const own = $derived(!isDefault(spec));
+  const dirty = $derived(
+    provider === 'codex'
+      ? JSON.stringify(codexSpec) !== JSON.stringify(codexSaved)
+      : JSON.stringify(spec) !== JSON.stringify(saved),
+  );
+  const own = $derived(
+    provider === 'codex' ? !isCodexDefault(codexSpec) : !isDefault(spec),
+  );
 
   async function save() {
     saving = true;
     failure = null;
     try {
-      await client.write(selection, spec);
-      saved = spec;
+      if (provider === 'codex') {
+        await codexClient.write(selection, codexSpec);
+        codexSaved = codexSpec;
+      } else {
+        await client.write(selection, spec);
+        saved = spec;
+      }
     } catch {
       failure = 'The launch environment could not be saved.';
     } finally {
@@ -65,7 +112,93 @@
   {#if failure}
     <p class="error" role="alert">{t(failure)}</p>
   {/if}
-  {#if options === null}
+  {#if provider === 'codex'}
+    {#if codexOptions === null}
+      {#if !failure}<p class="muted">{t('Loading…')}</p>{/if}
+    {:else}
+      <p class="help">
+        {t(
+          'What this preset loads besides its skills. Anything unticked is not loaded in that terminal.',
+        )}
+      </p>
+      {#if codexOptions.instructions}
+        <fieldset>
+          <legend>{t('Instructions')}</legend>
+          <label
+            ><input
+              type="checkbox"
+              checked={codexSpec.instructions}
+              onchange={(e) =>
+                (codexSpec = {
+                  ...codexSpec,
+                  instructions: e.currentTarget.checked,
+                })}
+            />
+            AGENTS.md</label
+          >
+        </fieldset>
+      {/if}
+      <fieldset>
+        <legend>{t('Hooks')}</legend>
+        {#each codexOptions.hooks as hook (hook.key)}
+          <label title={hook.command}
+            ><input
+              type="checkbox"
+              checked={!codexSpec.hooks_off.includes(hook.key)}
+              onchange={(e) =>
+                (codexSpec = {
+                  ...codexSpec,
+                  hooks_off: toggle(
+                    codexSpec.hooks_off,
+                    hook.key,
+                    !e.currentTarget.checked,
+                  ),
+                })}
+            />
+            {hookLabel(hook)}</label
+          >
+        {:else}
+          <p class="muted">{t('No hooks in hooks.json.')}</p>
+        {/each}
+      </fieldset>
+      {#if codexOptions.config_hooks.length > 0}
+        <fieldset>
+          <legend>{t('Hooks of config.toml')}</legend>
+          <p class="muted">
+            {t(
+              'Declared in config.toml: these run in every launch and cannot be switched off here.',
+            )}
+          </p>
+          {#each codexOptions.config_hooks as hook, i (i)}
+            <label title={hook.command}
+              ><input type="checkbox" checked disabled />
+              {hookLabel(hook)}</label
+            >
+          {/each}
+        </fieldset>
+      {/if}
+      <p class="starts">
+        {own
+          ? t(
+              'This terminal gets its own Codex folder and signs in with your own Codex sign-in. Your own hooks.json and config.toml are not changed.',
+            )
+          : t('This terminal uses your own Codex configuration as it is.')}
+      </p>
+      {#if own}
+        <p class="muted">
+          {t(
+            'Codex asks you to approve the hooks the first time in each new folder.',
+          )}
+        </p>
+      {/if}
+      <button
+        type="button"
+        class="action"
+        disabled={!dirty || saving}
+        onclick={save}>{saving ? t('Saving…') : t('Save environment')}</button
+      >
+    {/if}
+  {:else if options === null}
     {#if !failure}<p class="muted">{t('Loading…')}</p>{/if}
   {:else}
     <p class="help">

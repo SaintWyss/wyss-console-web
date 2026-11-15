@@ -291,6 +291,11 @@ export interface TerminalPlan {
   warnings: string[];
   overlay: string | null;
   config_hash: string;
+  /**
+   * Codex: what the preset leaves out of the launch (AGENTS.md, hooks of hooks.json). Present
+   * only when it changes the owner's own configuration.
+   */
+  codex_environment?: { instructions: boolean; hooks_off: string[] } | null;
 }
 
 /** What a terminal started with, read from the host's own record right after the start. */
@@ -802,6 +807,18 @@ export function parseTerminalPlan(value: unknown): TerminalPlan {
     warnings: strings(v.warnings, 'warnings'),
     overlay: nullable(v.overlay, (t) => text(t, 'overlay')),
     config_hash: text(v.config_hash, 'config_hash'),
+    // Absent from a plan that leaves nothing out. One that does not parse fails the whole plan:
+    // a launch never starts on a guess of what it was to leave out.
+    codex_environment:
+      v.codex_environment === undefined || v.codex_environment === null
+        ? null
+        : (() => {
+            const c = record(v.codex_environment, 'codex environment');
+            return {
+              instructions: flag(c.instructions, 'instructions'),
+              hooks_off: strings(c.hooks_off, 'hooks_off'),
+            };
+          })(),
   };
 }
 

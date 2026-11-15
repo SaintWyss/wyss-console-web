@@ -71,6 +71,19 @@ const sel: Selection = {
   created_at: 0,
   updated_at: 0,
 };
+const codexSession = (): Launch => ({
+  ...(session('cx', 'Codex Estudio') as Extract<Launch, { kind: 'session' }>),
+  agent: 'codex',
+});
+const codexSel: Selection = {
+  id: 'sel-cx',
+  name: 'Codex Estudio',
+  provider: 'codex',
+  items: [{ capability: 'c1', revision: null }],
+  composites: [],
+  created_at: 0,
+  updated_at: 0,
+};
 // Choices the editor does not draw (memory, plugins): they must be saved as they were.
 const env: HomeSpec = {
   ...DEFAULT_SPEC,
@@ -84,6 +97,7 @@ function fake(
     launches: Launch[];
     failRole: boolean;
     failEnvironment: boolean;
+    codex: boolean;
   }> = {},
 ): {
   client: ArsenalClient;
@@ -104,12 +118,27 @@ function fake(
       if (over.failRole) throw new Error('roles.json could not be written.');
       return roles;
     },
-    capabilities: async () => [
-      lib('s1', 'skill', 'frontend-design'),
-      lib('s2', 'skill', 'systematic-debugging'),
-      lib('a1', 'agent', 'gsd-executor'),
-    ],
-    selections: async () => [sel],
+    capabilities: async () =>
+      over.codex
+        ? [{ ...lib('c1', 'skill', 'codex-skill'), provider: 'codex' }]
+        : [
+            lib('s1', 'skill', 'frontend-design'),
+            lib('s2', 'skill', 'systematic-debugging'),
+            lib('a1', 'agent', 'gsd-executor'),
+          ],
+    selections: async () => (over.codex ? [codexSel] : [sel]),
+    codexEnvironmentOptions: async () => ({
+      hooks: [
+        { key: 'k1', event: 'SessionStart', matcher: '', command: 'orient.sh' },
+        { key: 'k2', event: 'PreToolUse', matcher: 'Bash', command: 'gate.py' },
+      ],
+      config_hooks: [{ event: 'Stop', matcher: '', command: 'notify.sh' }],
+      instructions: true,
+    }),
+    codexEnvironment: async () => ({ instructions: true, hooks_off: [] }),
+    writeCodexEnvironment: async (id: string, spec: unknown) => {
+      note('writeCodexEnvironment', { id, spec });
+    },
     environmentOptions: async () => ({
       hooks: [],
       mcp: ['context7'],
@@ -660,4 +689,61 @@ it('opens a saved launch on the permission its file names', async () => {
   ]);
   expect(fieldSelect('Permissions').value).toBe('edits');
   expect(button('Save').disabled).toBe(true);
+});
+
+it('keeps the hooks of config.toml out of the count and out of "mark all", and saves only the hooks of hooks.json', async () => {
+  const { calls } = await show([codexSession()], { codex: true });
+  const hooks = [...document.querySelectorAll('.le-group')].find((g) =>
+    g.querySelector('.le-gtoggle')?.textContent?.includes('Hooks'),
+  )!;
+  // Two hooks in hooks.json; the one config.toml declares is not counted.
+  expect(hooks.querySelector('.le-gtoggle .le-meta')?.textContent).toContain(
+    '2 of 2',
+  );
+  hooks.querySelector<HTMLButtonElement>('.le-gtoggle')!.click();
+  flushSync();
+  const rows = () => [
+    ...hooks.querySelectorAll<HTMLInputElement>('.le-row input'),
+  ];
+  // Two rows to switch plus the config.toml one, shown ticked and fixed.
+  expect(rows().map((r) => [r.checked, r.disabled])).toEqual([
+    [true, false],
+    [true, false],
+    [true, true],
+  ]);
+  // "Mark all" off switches the two rows and never the fixed one.
+  hooks.querySelector<HTMLInputElement>('.le-ghead input')!.click();
+  flushSync();
+  expect(hooks.querySelector('.le-gtoggle .le-meta')?.textContent).toContain(
+    '0 of 2',
+  );
+  expect(rows().map((r) => [r.checked, r.disabled])).toEqual([
+    [false, false],
+    [false, false],
+    [true, true],
+  ]);
+  button('Save').click();
+  await settle();
+  // The Codex environment is written to the preset, and never the Claude one.
+  expect(calls.writeCodexEnvironment).toEqual([
+    {
+      id: 'sel-cx',
+      spec: { instructions: true, hooks_off: ['k1', 'k2'] },
+    },
+  ]);
+  expect(calls.writeEnvironment).toBeUndefined();
+});
+
+it('saves AGENTS.md left out of a Codex launch', async () => {
+  const { calls } = await show([codexSession()], { codex: true });
+  const instructions = [...document.querySelectorAll('.le-group')].find((g) =>
+    g.querySelector('.le-gtoggle')?.textContent?.includes('Instructions'),
+  )!;
+  instructions.querySelector<HTMLInputElement>('.le-ghead input')!.click();
+  flushSync();
+  button('Save').click();
+  await settle();
+  expect(calls.writeCodexEnvironment).toEqual([
+    { id: 'sel-cx', spec: { instructions: false, hooks_off: [] } },
+  ]);
 });

@@ -2,7 +2,12 @@ import { msg } from '../../i18n/msg';
 import type { Item, Selection } from '../../contracts/arsenal';
 import type { Permission } from '../../contracts/native';
 import type { Launch } from '../../desktop/launch-client';
-import { isDefault, type HomeSpec } from '../arsenal/environment';
+import {
+  isCodexDefault,
+  isDefault,
+  type CodexHomeSpec,
+  type HomeSpec,
+} from '../arsenal/environment';
 
 export type Agent = 'claude_code' | 'codex';
 
@@ -31,6 +36,8 @@ export interface LaunchDraft {
   composites: string[];
   /** Claude Code only: the launch environment of the preset. */
   spec: HomeSpec | null;
+  /** Codex only: the launch environment of the preset (instructions, hooks left out). */
+  codexSpec?: CodexHomeSpec | null;
 }
 
 const FOLD: Record<string, string> = {
@@ -74,8 +81,10 @@ const sortedItems = (items: readonly Item[]) =>
       .map((i) => [i.capability, i.revision])
       .sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
   );
-const sameSpec = (a: HomeSpec | null, b: HomeSpec | null) =>
-  JSON.stringify(a) === JSON.stringify(b);
+const sameSpec = (
+  a: HomeSpec | CodexHomeSpec | null,
+  b: HomeSpec | CodexHomeSpec | null,
+) => JSON.stringify(a) === JSON.stringify(b);
 
 /**
  * Whether a preset is used by something other than this launch: another launch of the same
@@ -121,7 +130,7 @@ export type PresetStep =
 
 export interface SavePlan {
   preset: PresetStep;
-  /** Write the environment to the preset that results (Claude Code only). */
+  /** Write the environment to the preset that results (the draft's agent's own). */
   environment: boolean;
   /** Save the launch file; `replace` only over the file being edited. */
   launch: { id: string; replace: boolean };
@@ -138,6 +147,8 @@ export interface PlanContext {
   folderSelection: string | null;
   /** The environment the draft's preset has now. */
   savedSpec: HomeSpec | null;
+  /** Codex: the environment the draft's preset has now. */
+  savedCodexSpec?: CodexHomeSpec | null;
   /** Everything of this provider in the library: a launch without a preset loads all of it. */
   allItems: readonly Item[];
 }
@@ -151,11 +162,23 @@ export function savePlan(draft: LaunchDraft, ctx: PlanContext): SavePlan {
       JSON.stringify([...sel.composites].sort()) !==
         JSON.stringify([...draft.composites].sort())
     : sortedItems(draft.items) !== sortedItems(ctx.allItems);
+  // The environment of the draft's agent: Claude Code's or Codex's, never both.
+  const codexSpec = draft.agent === 'codex' ? (draft.codexSpec ?? null) : null;
+  const savedCodex = ctx.savedCodexSpec ?? null;
+  const specDefault =
+    draft.agent === 'claude_code'
+      ? draft.spec === null || isDefault(draft.spec)
+      : codexSpec === null || isCodexDefault(codexSpec);
+  const hasSpec =
+    draft.agent === 'claude_code' ? draft.spec !== null : codexSpec !== null;
   const specChanged =
-    draft.agent === 'claude_code' &&
-    draft.spec !== null &&
-    !sameSpec(draft.spec, ctx.savedSpec) &&
-    !(ctx.savedSpec === null && isDefault(draft.spec));
+    draft.agent === 'claude_code'
+      ? draft.spec !== null &&
+        !sameSpec(draft.spec, ctx.savedSpec) &&
+        !(ctx.savedSpec === null && isDefault(draft.spec))
+      : codexSpec !== null &&
+        !sameSpec(codexSpec, savedCodex) &&
+        !(savedCodex === null && isCodexDefault(codexSpec));
   const names = ctx.selections.map((s) => s.name);
   let preset: PresetStep;
   if (!sel) {
@@ -185,12 +208,10 @@ export function savePlan(draft: LaunchDraft, ctx: PlanContext): SavePlan {
   // A changed environment is written, a default one too (the desktop then removes the entry);
   // a new or copied preset gets one only when it is not the default.
   const environment =
-    draft.agent === 'claude_code' &&
-    draft.spec !== null &&
+    hasSpec &&
     preset.do !== 'none' &&
     (specChanged ||
-      ((preset.do === 'copy' || preset.do === 'create') &&
-        !isDefault(draft.spec)));
+      ((preset.do === 'copy' || preset.do === 'create') && !specDefault));
   const renamed = draft.id !== null && draft.id !== id ? draft.id : null;
   return {
     preset,
