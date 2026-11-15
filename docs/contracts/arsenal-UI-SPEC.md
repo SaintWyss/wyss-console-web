@@ -284,28 +284,29 @@ Decisión del dueño del 2026-11-14 ([plan](../plans/arsenal-skills-guia.md), pa
 
 ### Estructura
 
-- **Árbol al costado, por origen** (decisión del dueño del 2026-11-14, sobre el boceto `arsenal-boceto.html`, variante B). Debajo de Arsenal: un buscador, el rótulo Skills y una fila por origen con su punto de color y cantidad: **Mis skills** · **GSD Core** · **Plugins** (cada plugin, gstack y HyperFrames) · **Cuenta de Claude** / **Incluidas en Codex** · **Repos git**; separador; Agentes · Hooks · MCP · Global. Un origen vacío no se dibuja. Ya no hay página Guía ni rótulo Conjuntos. El mapa de `GuideSetKind` a origen es `ORIGIN_OF` en `guide.ts`.
-- **Colores por origen**: tokens `--origin-mine`, `--origin-gsd`, `--origin-plugin`, `--origin-bundled`, `--origin-repos` en los tres temas, contraste ≥ 5,4:1 contra `--bg` en cada uno (calculado). Punto en el árbol, barra izquierda de 3 px y etiqueta con el nombre del origen en cada fila, leyenda arriba de la lista cuando hay más de un origen. Nunca solo color.
-- **Buscador**: filtra por nombre o descripción en todos los orígenes de la herramienta; desde Hooks, MCP o Global vuelve a las skills.
-- **Herramienta arriba del panel:** Claude Code | Codex, y OpenCode solo si su configuración tiene algo. OpenCode muestra solo Global, Hooks y MCP.
-- **Datos del disco** (`arsenal_guide`), no de la biblioteca. El texto de una skill se lee con `arsenal_guide_body` por el id del último escaneo, nunca por una ruta. Un enlace se sigue solo si el destino queda dentro de `~/.claude`, `~/.agents`, `~/.codex` o `~/.local/share/wyss/gsd-core` (lista cerrada: el destino de un enlace nunca pasa a ser raíz). Una carpeta que está pero no se puede leer, o que pasa el tope de entradas, deja el aviso de listas incompletas. Entrar a Arsenal desde otra pantalla abre Mis skills. El recorrido de los archivos de una skill tiene tope (4096 entradas, 16 MB al comparar copias).
-- **Mías** = el destino resuelto no está en GSD Core, no es un checkout de Git, no está en la carpeta `synced` de la cuenta ni en un plugin. En Codex, `gstack-*` va al conjunto gstack y lo que contiene `hyperframes` al conjunto HyperFrames (decisión del dueño). Se agrupan por las categorías de `groups.ts`, plegadas, con su frase (`GROUP_HELP`).
-- **Lista en todo el ancho, ficha encima.** La lista agrupa por conjunto (o por categoría en Mis skills) con su encabezado, qué es y "Empezá por /x-help". La ficha se abre como diálogo modal (`role=dialog`, `aria-modal`), con borde superior del color del origen; se cierra con Esc, clic afuera o ✕ y el foco vuelve a la fila. Sin fondo translúcido: la app no dibuja transparencias. Un solo scroll, el de la lista, fino y visible solo al pasar el mouse.
-- **Global, Hooks y MCP** siguen siendo la vista de Configuración embebida: plan, aplicar y deshacer, sin caminos nuevos de escritura.
-- "Agregar" (importar a la biblioteca) sale de esta pestaña.
+Decisión del dueño del 2026-11-15 (boceto `arsenal-AB.html`, variante B). Reemplaza el árbol por origen con colores del 2026-11-14.
+
+- **Personalización** muestra ícono y texto (Distribuidores · Arsenal · Credenciales); mientras se ve Arsenal la columna se pliega a íconos y el nombre queda en el `title`.
+- **Arsenal = árbol plegable a la izquierda + lista a la derecha.** El árbol tiene las capas: herramienta (Anthropic · Claude Code / OpenAI · Codex / OpenCode) → tipo (Skills · Agentes · Hooks · MCP · Configuración) → en Skills, **Personales** (las del dueño, editables) y **Conjuntos** (cada conjunto: GSD Core, cada plugin, Cuenta de Claude, gstack, HyperFrames, Incluidas en Codex, Repos git) → categoría (`groups.ts`) → la entrada. Lo arma `mapOf` (`map.ts`, puro). Una rama vacía no se dibuja.
+- **Conectores de árbol**: una línea baja de cada padre y un codo redondeado entra en cada hijo; en el último hijo la línea se corta. Sin colores por origen ni etiquetas.
+- **Buscador arriba del árbol**: filtra por nombre o descripción en todas las entradas; los resultados reemplazan a la lista. El botón **«/»** pliega el árbol para que la lista use todo el ancho.
+- **Hooks, MCP y Configuración** abren la vista de Configuración embebida en un pop-up (Esc, ✕, clic afuera). "Configuración" es lo que antes se llamaba Global. Una página de configuración se lista solo si tiene algo (OpenCode siempre).
+- **Sin barras de scroll** en árbol, lista, ficha y columna de Personalización: se desplaza con rueda y teclado.
+- **Datos del disco** (`arsenal_guide`). El texto de una skill se lee con `arsenal_guide_body` por el id del último escaneo, nunca por una ruta. Un enlace se sigue solo si el destino queda dentro de `~/.claude`, `~/.agents`, `~/.codex` o `~/.local/share/wyss/gsd-core`.
+- **Traducción en pantalla**: un `SKILL.es.md` al lado del `SKILL.md` (mismo formato) se muestra cuando la consola está en español. Las herramientas leen solo `SKILL.md`. La ficha avisa "Texto traducido; la herramienta lee el original" con **Ver original**. No entra en la comparación de copias Claude/Codex.
 
 ### Ficha
 
-Una sección se dibuja solo si tiene contenido:
+Al tocar una entrada, la lista se reemplaza por su ficha en la misma columna; **Volver** (arriba a la derecha) o Esc devuelven la lista en la misma posición y con el foco en la fila. El encabezado (nombre + Volver) queda fijo al bajar. De menos a más:
 
-1. **Qué hace**, **Usala cuando**, **No la uses cuando**: la descripción entera, partida por `splitDescription` (`guide.ts`, con tests).
-2. **Cómo se usa**: el texto bajo `## Cómo se usa` / `## Usage` / `## How to use` / `## When to Use`.
-3. **Instrucciones**: plegado; el cuerpo del archivo en bloques (títulos, párrafos, listas, código), cada uno por interpolación de texto. Nunca `{@html}`.
-4. **Archivos (n)**: plegado, solo nombres.
-5. **Alcance**: la marca y dónde está (el enlace y su destino, si lo es).
-6. **Estado** (solo Mías con una entrada de Configuración que se pueda cambiar): Prendida / Apagada, con el plan, aplicar y deshacer de Configuración.
+1. **Encabezado**: nombre; debajo, en gris, de dónde es (Personales / el conjunto / Agentes) y el alcance.
+2. **Resumen** abierto: qué hace (párrafo de entrada), **Usala cuando**, **No la uses cuando** (`splitDescription`).
+3. **Estado** (solo Personales con entrada de Configuración que se pueda cambiar): Prendida / Apagada, con plan, aplicar y deshacer.
+4. **Instrucciones**: el cuerpo en bloques; sus títulos son el índice (`outline`): los dos niveles más altos cortan en partes plegables, el segundo dentro del primero; el título-nombre del archivo no se repite. Cada bloque de código se pliega como "Código (n líneas)". Nunca `{@html}`.
+5. **Ubicación** (plegada): alcance, "La copia de Codex es distinta", ruta y destino del enlace.
+6. **Archivos (n)** (plegado): solo nombres.
 
-Marcas de alcance, calculadas de las carpetas: **Claude** (solo en `~/.claude/skills`, plugins y cuenta de Claude), **Codex** (solo en `~/.agents/skills`, `~/.codex/skills` o plugins de Codex), **Ambas · global** (el mismo nombre en `~/.claude/skills` y en `~/.agents/skills`). "Ambas · por lanzamiento" no se muestra: no hay en el disco nada que la pruebe. Si las dos copias difieren, Alcance agrega "La copia de Codex es distinta" (decisión del dueño).
+Un único estilo de rótulo para todas las secciones; gris solo para metadatos.
 
 ### Contenido
 

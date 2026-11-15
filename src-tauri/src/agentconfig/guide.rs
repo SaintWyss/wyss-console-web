@@ -38,6 +38,8 @@ const MOST_ENTRIES: usize = 1024;
 /// Largest file taken into the digest that compares Claude's copy with Codex's.
 const DIGEST_FILE_BYTES: u64 = 1024 * 1024;
 const GSD_BASE: &str = ".local/share/wyss/gsd-core";
+/// A skill's translation for the screen, beside its `SKILL.md`.
+const TRANSLATION: &str = "SKILL.es.md";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct GuideEntry {
@@ -65,6 +67,9 @@ pub struct GuideEntry {
     pub unreadable: Option<&'static str>,
     /// The description is longer than is kept: what is shown is its beginning.
     pub description_cut: bool,
+    /// The description of a `SKILL.es.md` beside it: a translation shown on screen only. The
+    /// tools read `SKILL.md` alone, so it changes nothing they do.
+    pub description_es: Option<String>,
 }
 
 /// Where a group of entries comes from, for the Guide's "Sets".
@@ -101,6 +106,8 @@ pub struct GuideBody {
     pub more_files: usize,
     /// The folder holds more than the walk reads: `more_files` counts only what was walked.
     pub files_cut: bool,
+    /// The text of a `SKILL.es.md` beside it, without its front matter: shown on screen only.
+    pub text_es: Option<String>,
 }
 
 /// What a scan resolved for each entry, kept beside the reply so a later read names an entry by
@@ -376,6 +383,14 @@ impl Scan<'_> {
             }
             Err(reason) => ((String::new(), false), Some(*reason)),
         };
+        let description_es = match (&resolved, kind) {
+            (Ok(path), "skill") => self
+                .reader
+                .read(&path.join(TRANSLATION))
+                .map(|bytes| description_of(&bytes).0)
+                .filter(|d| !d.is_empty()),
+            _ => None,
+        };
         if let Ok(path) = &resolved {
             self.places.0.insert(
                 id.clone(),
@@ -410,6 +425,7 @@ impl Scan<'_> {
             codex_differs: false,
             unreadable,
             description_cut,
+            description_es,
         });
     }
 
@@ -726,6 +742,10 @@ fn tree_digest(reader: &Reader, root: &Path) -> Option<String> {
     files.sort();
     let mut hashed = 0_u64;
     for relative in files {
+        // The screen's translation is not the skill: it never makes two copies differ.
+        if relative == TRANSLATION {
+            continue;
+        }
         let path = root.join(&relative);
         let size = std::fs::metadata(&path).ok()?.len();
         if size > DIGEST_FILE_BYTES {
@@ -838,6 +858,22 @@ pub fn body(env: &Environment, places: &Places, id: &str) -> Option<GuideBody> {
         .text
         .as_str()
         .to_owned();
+    let text_es = if place.skill {
+        reader.read(&real.join(TRANSLATION)).and_then(|bytes| {
+            let head = &bytes[..bytes.len().min(BODY_BYTES)];
+            let text = std::str::from_utf8(head)
+                .or_else(|error| std::str::from_utf8(&head[..error.valid_up_to()]))
+                .ok()?;
+            Some(
+                redact::text(without_front_matter(text))
+                    .text
+                    .as_str()
+                    .to_owned(),
+            )
+        })
+    } else {
+        None
+    };
     let mut walk = Walk::new(MOST_FILES);
     if place.skill {
         let _ = walk.folder(&reader, &real, "", 0);
@@ -851,6 +887,7 @@ pub fn body(env: &Environment, places: &Places, id: &str) -> Option<GuideBody> {
         files,
         more_files,
         files_cut,
+        text_es,
     })
 }
 

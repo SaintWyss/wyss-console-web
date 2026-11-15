@@ -315,17 +315,61 @@ pub fn save(places: &Places, request: &SaveRequest) -> Result<Distributor, Strin
             if !fs::symlink_metadata(&target).is_ok_and(|m| m.is_file()) {
                 return Err("unknown distributor".into());
             }
+            let before = get(places, &id)?;
+            let launch = own_launch(places, &id, &before);
             write_private(&places.folder, &target, &text)
                 .map_err(|e| format!("the distributor could not be written: {e}"))?;
+            // Its launch, untouched since it was made, follows the new command.
+            if let Some(old) = launch {
+                let after = get(places, &id)?;
+                let new = places
+                    .launches
+                    .join(format!("{}.toml", crate::launch::slug(&after.name)));
+                if new == old || !new.exists() {
+                    write_private(&places.launches, &new, &launch_text(&id, &after))
+                        .map_err(|e| format!("its launch could not be written: {e}"))?;
+                    if new != old {
+                        let _ = fs::remove_file(&old);
+                    }
+                }
+            }
         }
     }
     get(places, &id)
 }
 
 pub fn delete(places: &Places, id: &str) -> Result<(), String> {
-    get(places, id)?;
+    let d = get(places, id)?;
+    let launch = own_launch(places, id, &d);
     fs::remove_file(places.folder.join(format!("{id}.toml")))
-        .map_err(|_| "the distributor could not be deleted".to_owned())
+        .map_err(|_| "the distributor could not be deleted".to_owned())?;
+    // Its launch goes with it, unless the owner changed it by hand.
+    if let Some(path) = launch {
+        let _ = fs::remove_file(path);
+    }
+    Ok(())
+}
+
+/// The launch file `make_launch` writes for a distributor, byte for byte.
+fn launch_text(id: &str, d: &Distributor) -> String {
+    format!(
+        "# Made from the distributor {id} (Wyss Console).\nname = {}\ndirectory = \"~\"\ncommands = [{}]\n",
+        toml_string(&d.name),
+        toml_string(&d.open),
+    )
+}
+
+/// The launch made from this distributor, while it is still exactly as it was made: one edited
+/// by hand is the owner's and is left alone.
+fn own_launch(places: &Places, id: &str, d: &Distributor) -> Option<PathBuf> {
+    let path = places
+        .launches
+        .join(format!("{}.toml", crate::launch::slug(&d.name)));
+    let meta = fs::symlink_metadata(&path).ok()?;
+    if !meta.is_file() {
+        return None;
+    }
+    (fs::read_to_string(&path).ok()? == launch_text(id, d)).then_some(path)
 }
 
 /// Makes a commands launch that opens this distributor, in the home folder, from its own file:
@@ -337,11 +381,7 @@ pub fn make_launch(places: &Places, id: &str) -> Result<String, String> {
         return Err("name needs at least one letter or digit".into());
     }
     let target = places.launches.join(format!("{launch_id}.toml"));
-    let text = format!(
-        "# Made from the distributor {id} (Wyss Console).\nname = {}\ndirectory = \"~\"\ncommands = [{}]\n",
-        toml_string(&d.name),
-        toml_string(&d.open),
-    );
+    let text = launch_text(id, &d);
     private_folder(&places.launches)?;
     write_new(&places.launches, &target, &text).map_err(|e| {
         if e.contains("exists") {

@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { t } from '../../i18n/index.svelte';
+  import { tick } from 'svelte';
+  import { currentLanguage, t } from '../../i18n/index.svelte';
   import type { GuideEntry } from '../../contracts/arsenal';
   import { firstSentence, matches } from './guide';
   import type { MapNode, MapTool } from './map';
@@ -73,6 +74,28 @@
       : [],
   );
 
+  let listEl = $state<HTMLDivElement | null>(null);
+  /** Where the list was and which row opened the card: both come back when it closes. */
+  let kept: { top: number; id: string } | null = null;
+  $effect(() => {
+    const id = openId;
+    if (!listEl) return;
+    if (id !== null) {
+      if (kept === null) kept = { top: listEl.scrollTop, id };
+      listEl.scrollTop = 0;
+      return;
+    }
+    if (kept === null) return;
+    const back = kept;
+    kept = null;
+    void tick().then(() => {
+      if (!listEl) return;
+      listEl.scrollTop = back.top;
+      listEl
+        .querySelector<HTMLElement>(`[data-entry="${CSS.escape(back.id)}"]`)
+        ?.focus({ preventScroll: true });
+    });
+  });
   /** The tree folded away, to give the list the width. */
   let folded = $state(false);
   type Leaf = Extract<MapNode, { kind: 'entry' }>;
@@ -111,7 +134,9 @@
   function describe(entry: GuideEntry): string {
     if (entry.unreadable) return t('Its text could not be read.');
     if (entry.description === '') return t('Its file has no description.');
-    return firstSentence(entry.description);
+    return firstSentence(
+      (currentLanguage() === 'es' && entry.description_es) || entry.description,
+    );
   }
 </script>
 
@@ -174,8 +199,10 @@
     {/if}
   </div>
 
-  <div class="ab-list">
-    {#if query.trim() !== ''}
+  <div class="ab-list" bind:this={listEl}>
+    {#if openId !== null}
+      <!-- The card says where it is: no list title over it. -->
+    {:else if query.trim() !== ''}
       <h2 class="ab-title">
         {t('{n} found for “{q}”', { n: found.length, q: query.trim() })}
       </h2>
@@ -184,7 +211,7 @@
         {shown.label}
         <span class="ars-count">{entries.length}</span>
       </h2>
-    {:else}
+    {:else if listed.length === 0}
       <p class="lib-muted">{t('Choose a category in the tree.')}</p>
     {/if}
     <ul class="ars-rows">
@@ -193,6 +220,7 @@
           <button
             type="button"
             class="ars-row"
+            data-entry={e.entry.id}
             aria-expanded={openId === e.entry.id}
             onclick={() =>
               openId === e.entry.id ? onclose() : onentry(e.entry)}

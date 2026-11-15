@@ -172,30 +172,3 @@ export function mapOf(
     })
     .filter((node) => node.kind === 'branch' && node.children.length > 0);
 }
-
-/** The columns shown for an open path: the roots, then the children of each open branch. */
-export function columnsOf(
-  roots: MapNode[],
-  path: readonly string[],
-): MapNode[][] {
-  const columns: MapNode[][] = [roots];
-  let level = roots;
-  for (const key of path) {
-    const open = level.find((n) => n.key === key);
-    if (!open || open.kind !== 'branch' || open.children.length === 0) break;
-    columns.push(open.children);
-    level = open.children;
-  }
-  return columns;
-}
-
-/** Opening a node at a depth: the same one closes it, another one replaces it and what follows. */
-export function toggle(
-  path: readonly string[],
-  depth: number,
-  key: string,
-): string[] {
-  return path[depth] === key
-    ? path.slice(0, depth)
-    : [...path.slice(0, depth), key];
-}

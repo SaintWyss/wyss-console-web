@@ -408,3 +408,47 @@ fn cuts_a_long_body_and_says_so() {
     assert!(read.text.len() <= BODY_BYTES);
     fs::remove_dir_all(&home).unwrap();
 }
+
+#[test]
+fn a_translation_beside_a_skill_is_shown_and_changes_nothing_else() {
+    let home = home();
+    let claude = home.join(".claude/skills/tr");
+    skill(
+        &claude,
+        "name: tr\ndescription: Does a thing.",
+        "# tr\n\nEnglish.",
+    );
+    skill(
+        &home.join(".agents/skills/tr"),
+        "name: tr\ndescription: Does a thing.",
+        "# tr\n\nEnglish.",
+    );
+    fs::write(
+        claude.join(TRANSLATION),
+        "---\nname: tr\ndescription: Hace algo.\n---\n# tr\n\nEspañol.",
+    )
+    .unwrap();
+    let (guide, places) = scan(&env(&home));
+    let entry = find(&guide, "claude_code", "tr");
+    assert_eq!(entry.description, "Does a thing.");
+    assert_eq!(entry.description_es.as_deref(), Some("Hace algo."));
+    // The translation is not part of the skill: the two copies are still the same.
+    assert!(!entry.codex_differs);
+    let read = body(&env(&home), &places, &entry.id).unwrap();
+    assert!(read.text.contains("English."));
+    assert!(read.text_es.as_deref().unwrap().contains("Español."));
+    // Codex's copy has none.
+    let codex = find(&guide, "codex", "tr");
+    assert_eq!(codex.description_es, None);
+    assert_eq!(body(&env(&home), &places, &codex.id).unwrap().text_es, None);
+    // A translation that is a link out of the roots is not read.
+    let outside = std::env::temp_dir().join(format!("tr-out-{}", uuid::Uuid::new_v4().simple()));
+    fs::write(&outside, "---\ndescription: Afuera.\n---\nAfuera.").unwrap();
+    let linked = home.join(".claude/skills/lk");
+    skill(&linked, "name: lk\ndescription: Link.", "Body.");
+    symlink(&outside, linked.join(TRANSLATION)).unwrap();
+    let (guide, places) = scan(&env(&home));
+    let entry = find(&guide, "claude_code", "lk");
+    assert_eq!(entry.description_es, None);
+    assert_eq!(body(&env(&home), &places, &entry.id).unwrap().text_es, None);
+}

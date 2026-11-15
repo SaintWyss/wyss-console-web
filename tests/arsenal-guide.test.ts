@@ -7,11 +7,9 @@ import {
   helpSkill,
   splitDescription,
   treeOf,
-  originsOf,
   matches,
-  ORIGINS,
   ORIGIN_OF,
-  usageSection,
+  outline,
 } from '../src/lib/features/arsenal/guide';
 import {
   parseGuide,
@@ -32,6 +30,7 @@ const entry = (over: Partial<GuideEntry>): GuideEntry => ({
   codex_differs: false,
   unreadable: null,
   description_cut: false,
+  description_es: null,
   ...over,
 });
 
@@ -100,19 +99,31 @@ describe('firstSentence', () => {
   });
 });
 
-describe('usageSection', () => {
-  it('reads the text under a usage heading until the next heading', () => {
-    const body =
-      '# T\n\nIntro\n\n## Cómo se usa\n\n`/x` y listo.\n\n## Otro\n\nNo.';
-    expect(usageSection(body)).toBe('`/x` y listo.');
-    expect(usageSection('## Usage\nRun it\n### Detail\nmore\n## End')).toBe(
-      'Run it\n### Detail\nmore',
+describe('outline', () => {
+  it('cuts the instructions by the two highest title levels', () => {
+    const o = outline(
+      blocks(
+        '# /tool\n\nIntro line.\n\n## Usage\n\nRun it.\n\n## Steps\n\n### Step 1\n\nOne.\n\n### Step 2\n\nTwo.',
+      ),
     );
-    expect(usageSection('## When to Use\nAlways')).toBe('Always');
+    expect(o.intro).toEqual([{ kind: 'paragraph', text: 'Intro line.' }]);
+    expect(o.parts.map((p) => p.title)).toEqual(['Usage', 'Steps']);
+    expect(o.parts[0].blocks).toEqual([{ kind: 'paragraph', text: 'Run it.' }]);
+    expect(o.parts[1].parts.map((p) => [p.title, p.blocks.length])).toEqual([
+      ['Step 1', 1],
+      ['Step 2', 1],
+    ]);
   });
-  it('is null without one, or when it is empty', () => {
-    expect(usageSection('# T\n## Steps\n1. a')).toBeNull();
-    expect(usageSection('## Usage\n\n## Next')).toBeNull();
+  it('cuts on a single section title too, and drops only the file name', () => {
+    const o = outline(blocks('# Name\n\nIntro.\n\n## Usage\n\nRun.'));
+    expect(o.intro).toEqual([{ kind: 'paragraph', text: 'Intro.' }]);
+    expect(o.parts.map((p) => p.title)).toEqual(['Usage']);
+  });
+  it('keeps a text with no titles, or one title, whole in the introduction', () => {
+    expect(outline(blocks('Just text.\n\n- a\n- b')).parts).toEqual([]);
+    const one = outline(blocks('# Name\n\nText.'));
+    expect(one.parts).toEqual([]);
+    expect(one.intro).toEqual([{ kind: 'paragraph', text: 'Text.' }]);
   });
 });
 
@@ -218,65 +229,6 @@ describe('parseGuide', () => {
 });
 
 describe('origins', () => {
-  it('gathers sets by where they come from, in tree order, empty ones out', () => {
-    const tree = {
-      mine: 2,
-      agents: 0,
-      sets: [
-        {
-          set: {
-            key: 'g',
-            tool: 'claude_code',
-            kind: 'gsd',
-            name: 'GSD Core',
-            version: '',
-            description: '',
-          },
-          count: 3,
-        },
-        {
-          set: {
-            key: 'p',
-            tool: 'claude_code',
-            kind: 'plugin',
-            name: 'caveman',
-            version: '',
-            description: '',
-          },
-          count: 4,
-        },
-        {
-          set: {
-            key: 'b',
-            tool: 'claude_code',
-            kind: 'bundle',
-            name: 'gstack',
-            version: '',
-            description: '',
-          },
-          count: 1,
-        },
-        {
-          set: {
-            key: 'a',
-            tool: 'claude_code',
-            kind: 'account',
-            name: 'Claude account',
-            version: '',
-            description: '',
-          },
-          count: 5,
-        },
-      ],
-    } as Parameters<typeof originsOf>[0];
-    expect(originsOf(tree).map((r) => [r.origin, r.count])).toEqual([
-      ['mine', 2],
-      ['gsd', 3],
-      ['plugin', 5],
-      ['bundled', 5],
-    ]);
-    expect(originsOf({ ...tree, mine: 0, sets: [] })).toEqual([]);
-  });
   it('maps every kind of set to an origin', () => {
     for (const kind of [
       'gsd',
@@ -286,7 +238,7 @@ describe('origins', () => {
       'system',
       'repos',
     ] as const)
-      expect(ORIGINS).toContain(ORIGIN_OF[kind]);
+      expect(['gsd', 'plugin', 'bundled', 'repos']).toContain(ORIGIN_OF[kind]);
   });
   it('matches a search on the name or the description, in any case', () => {
     const e = { name: 'gsd-plan', description: 'Plans a Phase.' } as Parameters<

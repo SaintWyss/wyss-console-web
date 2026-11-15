@@ -3783,6 +3783,14 @@ export const ES: Readonly<Record<string, string>> = {
   'Git repos': 'Repos git',
   'My skills': 'Mis skills',
   Personal: 'Personales',
+  'See translation': 'Ver traducción',
+  'See original': 'Ver original',
+  'Original text: what the tool reads.':
+    'Texto original: lo que lee la herramienta.',
+  'Translated text; the tool reads the original.':
+    'Texto traducido; la herramienta lee el original.',
+  Location: 'Ubicación',
+  'Code ({n} lines)': 'Código ({n} líneas)',
   'Hide the tree': 'Ocultar el árbol',
   'Show the tree': 'Mostrar el árbol',
   'Personal: you can edit it': 'Personal: la podés editar',

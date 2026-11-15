@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { msg, t } from '../../i18n/index.svelte';
+  import { currentLanguage, msg, t } from '../../i18n/index.svelte';
   import type {
     GuideEntry,
     GuideSet,
@@ -17,22 +17,13 @@
     ChangesController,
     ChangesState,
   } from '../configuration/changes-controller';
-  import { GROUP_HELP, GROUP_LABEL, type Group } from './groups';
   import {
     CONFIG_KINDS,
-    ORIGINS,
-    ORIGIN_OF,
     blocks,
-    byCategory,
-    entriesOf,
-    firstSentence,
-    helpSkill,
-    matches,
     splitDescription,
-    usageSection,
-    type Origin,
+    outline,
+    type Block as MdBlock,
   } from './guide';
-  import { ORIGIN_HELP, originName } from './origin';
   import ArsenalBrowser from './ArsenalBrowser.svelte';
   import { mapOf, type MapNode, type MapTool } from './map';
   import type { GuideStore, GuideTool } from './guide-store.svelte';
@@ -103,100 +94,11 @@
       ? CONFIG_KINDS[section]
       : null,
   );
-  const skillTool = $derived(store.tool === 'opencode' ? null : store.tool);
-  const origin = $derived(
-    section.startsWith('origin:')
-      ? (section.slice('origin:'.length) as Origin)
-      : null,
-  );
-  const searching = $derived(store.query.trim() !== '');
 
-  /** A block of the list: a heading (a set, a category or an origin) and its rows. */
-  interface Block {
-    key: string;
-    title: string;
-    origin: Origin;
-    about: string | null;
-    help: string | null;
-    entries: GuideEntry[];
-  }
-  const setsOf = (o: Origin) =>
-    (store.guide?.sets ?? []).filter(
-      (s) => s.tool === skillTool && ORIGIN_OF[s.kind] === o,
-    );
   function setTitle(set: GuideSet): string {
     const named = SET_NAME[set.kind];
     return named ? t(named) : set.name;
   }
-  const listBlocks = $derived.by((): Block[] => {
-    if (skillTool === null || store.guide === null) return [];
-    const tool = skillTool;
-    const find = (o: Origin): Block[] => {
-      if (o === 'mine') {
-        const mine = entriesOf(store.guide, tool, 'mine').filter((e) =>
-          matches(e, store.query),
-        );
-        return byCategory(mine).map((c) => ({
-          key: `mine:${c.group}`,
-          title: t(GROUP_LABEL[c.group as Group]),
-          origin: 'mine',
-          about: t(GROUP_HELP[c.group as Group]),
-          help: null,
-          entries: c.entries,
-        }));
-      }
-      return setsOf(o)
-        .map((set) => {
-          const all = entriesOf(store.guide, tool, set.key);
-          return {
-            key: set.key,
-            title: setTitle(set) + (set.version ? ` ${set.version}` : ''),
-            origin: o,
-            about: set.description || t(SET_ABOUT[set.kind]),
-            help: helpSkill(all),
-            entries: all.filter((e) => matches(e, store.query)),
-          };
-        })
-        .filter((b) => b.entries.length > 0)
-        .sort((a, b) => a.title.localeCompare(b.title));
-    };
-    if (section === 'agents') {
-      const agents: Block[] = [
-        {
-          key: 'agents',
-          title: t('Agents'),
-          origin: 'mine',
-          about: null,
-          help: null,
-          entries: entriesOf(store.guide, tool, 'agents').filter((e) =>
-            matches(e, store.query),
-          ),
-        },
-      ];
-      return agents.filter((b) => b.entries.length > 0);
-    }
-    if (searching)
-      return [
-        ...ORIGINS.flatMap(find),
-        ...[
-          {
-            key: 'agents',
-            title: t('Agents'),
-            origin: 'mine' as Origin,
-            about: null,
-            help: null,
-            entries: entriesOf(store.guide, tool, 'agents').filter((e) =>
-              matches(e, store.query),
-            ),
-          },
-        ].filter((b) => b.entries.length > 0),
-      ];
-    return origin === null ? [] : find(origin);
-  });
-  const listedCount = $derived(
-    listBlocks.reduce((n, b) => n + b.entries.length, 0),
-  );
-  const shownOrigins = $derived([...new Set(listBlocks.map((b) => b.origin))]);
   const open = $derived(
     store.openId === null
       ? null
@@ -207,16 +109,6 @@
     account: msg('Claude account'),
     system: msg('Included with Codex'),
     repos: msg('Git repos'),
-  };
-  const SET_ABOUT: Record<GuideSetKind, string> = {
-    gsd: msg(
-      'A method for planning, building and checking work in phases. Its skills and agents are linked in from its own install.',
-    ),
-    plugin: msg('A plugin installed for this tool.'),
-    account: msg('Skills that come with your Claude account.'),
-    bundle: msg('Skills one tool installed in a batch.'),
-    system: msg('Skills Codex installs and replaces itself.'),
-    repos: msg('Skills that are a Git repository of their own.'),
   };
   const UNREADABLE: Record<string, string> = {
     outside_roots: msg('its link leads out of the agents’ folders'),
@@ -237,9 +129,37 @@
     ),
   } as const;
 
-  const split = $derived(open ? splitDescription(open.description) : null);
-  const usage = $derived(store.body ? usageSection(store.body.text) : null);
-  const body = $derived(store.body ? blocks(store.body.text) : []);
+  /** Where the open entry lives, said in words: Personal › category, or its set. */
+  const cardPlace = $derived.by(() => {
+    if (!open) return '';
+    if (open.set === 'mine') return t('Personal');
+    if (open.set === 'agents') return t('Agents');
+    const set = store.guide?.sets.find((x) => x.key === open.set);
+    return set ? setTitle(set) : '';
+  });
+  // In Spanish, a `SKILL.es.md` beside the skill is what is shown; the file the tools read is not touched.
+  const spanish = $derived(currentLanguage() === 'es');
+  const cardMeta = $derived(
+    [cardPlace, open?.scope ? t(SCOPE_LABEL[open.scope]) : '']
+      .filter(Boolean)
+      .join(' · '),
+  );
+  const split = $derived(
+    open
+      ? splitDescription((spanish && open.description_es) || open.description)
+      : null,
+  );
+  /** The translation is shown unless the owner asked for the original. */
+  let showOriginal = $state(false);
+  const translated = $derived(
+    spanish && (store.body?.text_es ?? null) !== null,
+  );
+  const bodyText = $derived(
+    store.body
+      ? (translated && !showOriginal && store.body.text_es) || store.body.text
+      : null,
+  );
+  const index = $derived(outline(bodyText ? blocks(bodyText) : []));
   /** The Configuration entry that switches this skill on and off, when there is one. */
   const switchItem = $derived.by((): ConfigItem | null => {
     if (!open || open.kind !== 'skill' || open.set !== 'mine') return null;
@@ -257,11 +177,6 @@
   });
   const switchChange = $derived(switchItem ? changeFor(switchItem) : null);
 
-  function row(entry: GuideEntry): string {
-    if (entry.unreadable) return t('Its text could not be read.');
-    if (entry.description === '') return t('Its file has no description.');
-    return firstSentence(entry.description);
-  }
   /** The card a change was drafted from: its plan is shown there only. */
   let changedFor = $state<string | null>(null);
   /** The last change each card applied: its Undo names that change and no other. */
@@ -287,16 +202,12 @@
   }
   function choose(entry: GuideEntry) {
     leave();
-    opener = document.activeElement as HTMLElement | null;
     void store.open(entry.id);
   }
-  /** The row that opened the card: the focus goes back to it when the card closes. */
-  let opener: HTMLElement | null = null;
   function back() {
     leave();
     store.close();
-    opener?.focus({ preventScroll: true });
-    opener = null;
+    // The list puts the focus back on the row, by its id, once it is drawn again.
   }
   let cardTitle = $state<HTMLHeadingElement | null>(null);
   $effect(() => {
@@ -336,14 +247,12 @@
       },
     ];
   });
-  /** A configuration page chosen in the map, shown over it; null when none is. */
-  let configOpen = $state(false);
+  /** A configuration page is open over the Arsenal when the section is one: a link to it opens it too. */
+  const configOpen = $derived(configKinds !== null);
   function openConfig(tool: MapTool, section: 'hooks' | 'mcp' | 'global') {
     store.choose({ tool, section });
-    configOpen = true;
   }
   function closeConfig() {
-    configOpen = false;
     store.choose({ section: 'origin:mine' });
   }
 </script>
@@ -362,21 +271,16 @@
 >
   {#snippet cardBody()}
     {#if open}
-      <div
-        class="ars-card ars-inline"
-        role="region"
-        aria-labelledby="ars-card-title"
-        tabindex="-1"
-      >
-        <button type="button" class="action ars-back-top" onclick={back}
-          >{t('Back')}</button
-        >
-        <h2 id="ars-card-title" tabindex="-1" bind:this={cardTitle}>
-          {open.name}
-          {#if open.scope}<span class="ars-scope"
-              >{t(SCOPE_LABEL[open.scope])}</span
-            >{/if}
-        </h2>
+      <article class="ars-card ars-inline" aria-labelledby="ars-card-title">
+        <header class="ars-card-head">
+          <h2 id="ars-card-title" tabindex="-1" bind:this={cardTitle}>
+            {open.name}
+          </h2>
+          <button type="button" class="action ars-back-top" onclick={back}
+            >{t('Back')}</button
+          >
+        </header>
+        <p class="ars-meta">{cardMeta}</p>
 
         {#if open.unreadable}
           <p class="notice" data-tone="warn">
@@ -385,37 +289,30 @@
             })}
           </p>
         {:else if split}
-          <section>
-            <h3>{t('What it does')}</h3>
-            <p>{split.what || t('Its file has no description.')}</p>
-          </section>
+          <p class="ars-lead">
+            {split.what || t('Its file has no description.')}
+          </p>
           {#if open.description_cut}
-            <p class="lib-muted">
+            <p class="ars-note">
               {t('The description is longer: only its beginning is shown.')}
             </p>
           {/if}
           {#if split.when}
-            <section>
+            <section class="ars-sec">
               <h3>{t('Use it when')}</h3>
               <p>{split.when}</p>
             </section>
           {/if}
           {#if split.whenNot}
-            <section>
+            <section class="ars-sec">
               <h3>{t('Do not use it when')}</h3>
               <p>{split.whenNot}</p>
-            </section>
-          {/if}
-          {#if usage}
-            <section>
-              <h3>{t('How it is used')}</h3>
-              <pre class="lib-pre">{usage}</pre>
             </section>
           {/if}
         {/if}
 
         {#if switchItem && switchChange}
-          <section>
+          <section class="ars-sec">
             <h3>{t('State')}</h3>
             <p class="ars-state">
               <span
@@ -456,9 +353,46 @@
           </section>
         {/if}
 
+        {#snippet blockList(list: MdBlock[])}
+          {#each list as b, i (i)}
+            {#if b.kind === 'heading'}
+              <p class="ars-md-h" data-level={b.level}>{b.text}</p>
+            {:else if b.kind === 'paragraph'}
+              <p>{b.text}</p>
+            {:else if b.kind === 'list'}
+              <ul>
+                {#each b.items as item, j (j)}<li>{item}</li>{/each}
+              </ul>
+            {:else}
+              <details class="ars-code">
+                <summary
+                  >{t('Code ({n} lines)', {
+                    n: b.text.split('\n').length,
+                  })}</summary
+                >
+                <pre class="lib-pre">{b.text}</pre>
+              </details>
+            {/if}
+          {/each}
+        {/snippet}
         {#if !open.unreadable}
-          <details class="ars-fold">
-            <summary>{t('Instructions')}</summary>
+          <section class="ars-sec ars-instr">
+            <h3>{t('Instructions')}</h3>
+            {#if translated}
+              <p class="ars-note">
+                {showOriginal
+                  ? t('Original text: what the tool reads.')
+                  : t('Translated text; the tool reads the original.')}
+                <button
+                  type="button"
+                  class="action quiet"
+                  onclick={() => (showOriginal = !showOriginal)}
+                  >{showOriginal
+                    ? t('See translation')
+                    : t('See original')}</button
+                >
+              </p>
+            {/if}
             {#if store.bodyLoading}
               <p class="lib-muted" role="status">{t('Reading…')}</p>
             {:else if store.bodyFailed}
@@ -467,18 +401,22 @@
               </p>
             {:else if store.body}
               <div class="ars-md">
-                {#each body as b, i (i)}
-                  {#if b.kind === 'heading'}
-                    <p class="ars-md-h" data-level={b.level}>{b.text}</p>
-                  {:else if b.kind === 'paragraph'}
-                    <p>{b.text}</p>
-                  {:else if b.kind === 'list'}
-                    <ul>
-                      {#each b.items as item, j (j)}<li>{item}</li>{/each}
-                    </ul>
-                  {:else}
-                    <pre class="lib-pre">{b.text}</pre>
-                  {/if}
+                {@render blockList(index.intro)}
+                {#each index.parts as part, i (i)}
+                  <details class="ars-part">
+                    <summary>{part.title}</summary>
+                    <div class="ars-md">
+                      {@render blockList(part.blocks)}
+                      {#each part.parts as inner, j (j)}
+                        <details class="ars-part ars-part-inner">
+                          <summary>{inner.title}</summary>
+                          <div class="ars-md">
+                            {@render blockList(inner.blocks)}
+                          </div>
+                        </details>
+                      {/each}
+                    </div>
+                  </details>
                 {/each}
                 {#if store.body.cut}
                   <p class="lib-muted">
@@ -487,50 +425,52 @@
                 {/if}
               </div>
             {/if}
-          </details>
-          {#if store.body && open.kind === 'skill'}
-            <details class="ars-fold">
-              <summary
-                >{t('Files ({n})', {
-                  n: store.body.files.length + store.body.more_files,
-                })}</summary
-              >
-              <ul class="lib-files">
-                {#each store.body.files as f (f)}
-                  <li class="mono">{f}</li>
-                {/each}
-                {#if store.body.more_files > 0}
-                  <li class="lib-muted">
-                    {t('and {n} more', { n: store.body.more_files })}
-                  </li>
-                {/if}
-                {#if store.body.files_cut}
-                  <li class="lib-muted">
-                    {t('The folder holds more files than are counted here.')}
-                  </li>
-                {/if}
-              </ul>
-            </details>
-          {/if}
+          </section>
         {/if}
-
-        <section>
-          <h3>{t('Scope')}</h3>
-          {#if open.scope}
-            <p>
-              <strong>{t(SCOPE_LABEL[open.scope])}</strong>:
-              {t(SCOPE_HELP[open.scope])}
-            </p>
+        <div class="ars-folds">
+          <details class="ars-sec ars-fold">
+            <summary><h3>{t('Location')}</h3></summary>
+            {#if open.scope}
+              <p class="ars-note">{t(SCOPE_HELP[open.scope])}</p>
+            {/if}
+            {#if open.codex_differs}
+              <p class="ars-note">{t('Codex’s copy is different.')}</p>
+            {/if}
+            <p class="mono ars-where">{open.origin}</p>
+            {#if open.linked_to}
+              <p class="mono ars-where">→ {open.linked_to}</p>
+            {/if}
+          </details>
+          {#if !open.unreadable}
+            {#if store.body && open.kind === 'skill'}
+              <details class="ars-sec ars-fold">
+                <summary
+                  ><h3>
+                    {t('Files ({n})', {
+                      n: store.body.files.length + store.body.more_files,
+                    })}
+                  </h3></summary
+                >
+                <ul class="lib-files">
+                  {#each store.body.files as f (f)}
+                    <li class="mono">{f}</li>
+                  {/each}
+                  {#if store.body.more_files > 0}
+                    <li class="lib-muted">
+                      {t('and {n} more', { n: store.body.more_files })}
+                    </li>
+                  {/if}
+                  {#if store.body.files_cut}
+                    <li class="lib-muted">
+                      {t('The folder holds more files than are counted here.')}
+                    </li>
+                  {/if}
+                </ul>
+              </details>
+            {/if}
           {/if}
-          {#if open.codex_differs}
-            <p>{t('Codex’s copy is different.')}</p>
-          {/if}
-          <p class="mono ars-where">{open.origin}</p>
-          {#if open.linked_to}
-            <p class="mono ars-where">→ {open.linked_to}</p>
-          {/if}
-        </section>
-      </div>
+        </div>
+      </article>
     {/if}
   {/snippet}
   {#if store.guide !== null && !store.failed}
@@ -543,88 +483,20 @@
       onclose={back}
       card={cardBody}
     />
+  {:else if store.failed}
+    <p class="notice" data-tone="error" role="alert">
+      {t('The skills on disk could not be read.')}
+      <button type="button" class="action" onclick={() => void store.load()}
+        >{t('Try again')}</button
+      >
+    </p>
   {:else}
-    <div class="ars-list">
-      {#if store.failed}
-        <p class="notice" data-tone="error" role="alert">
-          {t('The skills on disk could not be read.')}
-          <button type="button" class="action" onclick={() => void store.load()}
-            >{t('Try again')}</button
-          >
-        </p>
-      {:else if store.guide === null}
-        <p class="lib-muted" role="status">{t('Reading…')}</p>
-      {:else}
-        {#if store.guide.truncated}
-          <p class="notice" data-tone="warn">
-            {t('A folder holds more than is read: the lists are incomplete.')}
-          </p>
-        {/if}
-        {#if searching}
-          <p class="lib-muted" role="status">
-            {t('{n} found for “{q}”', {
-              n: listedCount,
-              q: store.query.trim(),
-            })}
-            <button
-              type="button"
-              class="action quiet"
-              onclick={() => (store.query = '')}>{t('Clear')}</button
-            >
-          </p>
-        {/if}
-        {#if shownOrigins.length > 1}
-          <ul class="ars-legend" aria-label={t('Colours')}>
-            {#each shownOrigins as o (o)}
-              <li data-origin={o}>
-                <span class="ars-dot" aria-hidden="true"></span>{t(
-                  ORIGIN_HELP[o],
-                )}
-              </li>
-            {/each}
-          </ul>
-        {/if}
-        {#if listBlocks.length === 0}
-          <p class="lib-muted">{t('Nothing here.')}</p>
-        {/if}
-        {#each listBlocks as b (b.key)}
-          <section class="ars-block" data-origin={b.origin}>
-            <header class="ars-block-head">
-              <h2>
-                <span class="ars-dot" aria-hidden="true"></span>{b.title}
-                <span class="ars-count">{b.entries.length}</span>
-              </h2>
-              {#if b.about}<p>{b.about}</p>{/if}
-              {#if b.help}
-                <p>
-                  <strong>{t('Start with /{name}', { name: b.help })}</strong>
-                </p>
-              {/if}
-            </header>
-            <ul class="ars-rows">
-              {#each b.entries as entry (entry.id)}
-                <li>
-                  <button
-                    type="button"
-                    class="ars-row"
-                    data-origin={b.origin}
-                    aria-haspopup="dialog"
-                    onclick={() => choose(entry)}
-                  >
-                    <span class="lib-name" title={entry.name}>{entry.name}</span
-                    >
-                    <span class="lib-desc">{row(entry)}</span>
-                    <span class="ars-tag"
-                      >{originName(b.origin, store.tool)}</span
-                    >
-                  </button>
-                </li>
-              {/each}
-            </ul>
-          </section>
-        {/each}
-      {/if}
-    </div>
+    <p class="lib-muted" role="status">{t('Reading…')}</p>
+  {/if}
+  {#if store.guide?.truncated}
+    <p class="notice" data-tone="warn">
+      {t('A folder holds more than is read: the lists are incomplete.')}
+    </p>
   {/if}
   {#if configOpen && configKinds !== null}
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->

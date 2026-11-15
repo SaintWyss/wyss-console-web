@@ -20,13 +20,6 @@ import { GROUPS, groupFor } from './groups';
  * account, or what Codex includes) and Git checkouts.
  */
 export type Origin = 'mine' | 'gsd' | 'plugin' | 'bundled' | 'repos';
-export const ORIGINS: readonly Origin[] = [
-  'mine',
-  'gsd',
-  'plugin',
-  'bundled',
-  'repos',
-];
 export const ORIGIN_OF: Record<GuideSetKind, Exclude<Origin, 'mine'>> = {
   gsd: 'gsd',
   plugin: 'plugin',
@@ -107,20 +100,6 @@ export function firstSentence(text: string): string {
   const trimmed = text.trim();
   const stop = trimmed.search(/[.!?。](?:\s|$)|\n/);
   return stop < 0 ? trimmed : trimmed.slice(0, stop + 1).trim();
-}
-
-const USAGE =
-  /^(#{2,3})\s+(?:Cómo se usa|Como se usa|Usage|How to use|When to use)\s*$/im;
-
-/** The text under a "## Usage" heading of a skill's instructions, or `null` when it has none. */
-export function usageSection(body: string): string | null {
-  const found = USAGE.exec(body);
-  if (found === null) return null;
-  const level = found[1].length;
-  const rest = body.slice(found.index + found[0].length);
-  const next = new RegExp(`^#{1,${level}}\\s`, 'm').exec(rest);
-  const text = (next === null ? rest : rest.slice(0, next.index)).trim();
-  return text === '' ? null : text;
 }
 
 export type Block =
@@ -240,26 +219,6 @@ export function treeOf(guide: Guide | null, tool: ArsenalProvider): Tree {
   return { mine: count('mine'), sets, agents: count('agents') };
 }
 
-export interface OriginRow {
-  origin: Origin;
-  count: number;
-  /** The sets it gathers, in tree order; empty for the owner's own. */
-  sets: TreeSet[];
-}
-
-/** The tree by origin for one tool: only origins that hold something, in `ORIGINS` order. */
-export function originsOf(tree: Tree): OriginRow[] {
-  return ORIGINS.map((origin) => {
-    if (origin === 'mine') return { origin, count: tree.mine, sets: [] };
-    const sets = tree.sets.filter((row) => ORIGIN_OF[row.set.kind] === origin);
-    return {
-      origin,
-      count: sets.reduce((n, row) => n + row.count, 0),
-      sets,
-    };
-  }).filter((row) => row.count > 0);
-}
-
 /** Whether an entry matches what was typed in the search box: its name or its description. */
 export function matches(entry: GuideEntry, query: string): boolean {
   const q = query.trim().toLowerCase();
@@ -306,3 +265,67 @@ export const CONFIG_KINDS: Record<
   hooks: ['hook'],
   mcp: ['mcp_server'],
 };
+
+export interface Part {
+  title: string;
+  blocks: Block[];
+  parts: Part[];
+}
+export interface Outline {
+  /** What comes before the first title that splits the text. */
+  intro: Block[];
+  parts: Part[];
+}
+
+/**
+ * Instructions as their own index: the two highest title levels cut the text into folding parts,
+ * the second inside the first. The file's own name (a first title, used once, at the highest
+ * level) does not cut and is not shown again.
+ */
+export function outline(all: readonly Block[]): Outline {
+  const heads = all.filter(
+    (b): b is Extract<Block, { kind: 'heading' }> => b.kind === 'heading',
+  );
+  const counts = new Map<number, number>();
+  for (const h of heads) counts.set(h.level, (counts.get(h.level) ?? 0) + 1);
+  // The file's own name: a first title, at the highest level, used once. It does not cut.
+  const name =
+    heads.length > 0 &&
+    counts.get(heads[0].level) === 1 &&
+    heads.every((h) => h.level >= heads[0].level)
+      ? heads[0]
+      : null;
+  const levels = [...counts.keys()]
+    .filter((level) => !(name && level === name.level))
+    .sort((a, b) => a - b);
+  const top = levels[0];
+  const sub = levels[1];
+  const out: Outline = { intro: [], parts: [] };
+  if (top === undefined) {
+    out.intro = all.filter(
+      (b) => b.kind !== 'heading' || (counts.get(b.level) ?? 0) >= 2,
+    );
+    return out;
+  }
+  let part: Part | null = null;
+  let inner: Part | null = null;
+  for (const b of all) {
+    if (b.kind === 'heading' && b.level === top) {
+      part = { title: b.text, blocks: [], parts: [] };
+      inner = null;
+      out.parts.push(part);
+      continue;
+    }
+    if (b.kind === 'heading' && b.level === sub && part) {
+      inner = { title: b.text, blocks: [], parts: [] };
+      part.parts.push(inner);
+      continue;
+    }
+    // The file's name is not shown again: the card has its own.
+    if (b === name) continue;
+    const into = inner ?? part;
+    if (into) into.blocks.push(b);
+    else out.intro.push(b);
+  }
+  return out;
+}

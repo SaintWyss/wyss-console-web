@@ -152,3 +152,48 @@ fn nothing_is_written_through_a_link_and_new_files_are_bounded() {
             .all(|e| e.file_name().to_string_lossy().ends_with(".toml"))
     );
 }
+
+#[test]
+fn its_launch_follows_an_edit_and_goes_with_a_delete_unless_changed_by_hand() {
+    let places = places();
+    save(
+        &places,
+        &request(json!({"name": "Kimi CLI", "open": "kimi"})),
+    )
+    .unwrap();
+    let id = make_launch(&places, "kimi-cli").unwrap();
+    let file = places.launches.join(format!("{id}.toml"));
+    // An edit of the command reaches the launch made from it.
+    save(
+        &places,
+        &request(json!({"id": "kimi-cli", "name": "Kimi CLI", "open": "kimi --yolo"})),
+    )
+    .unwrap();
+    assert!(
+        fs::read_to_string(&file)
+            .unwrap()
+            .contains("commands = [\"kimi --yolo\"]")
+    );
+    // A delete takes the launch too.
+    delete(&places, "kimi-cli").unwrap();
+    assert!(!file.exists());
+
+    // A launch the owner changed by hand is theirs: it is left as it is.
+    save(
+        &places,
+        &request(json!({"name": "Kimi CLI", "open": "kimi"})),
+    )
+    .unwrap();
+    make_launch(&places, "kimi-cli").unwrap();
+    let mut text = fs::read_to_string(&file).unwrap();
+    text.push_str("# mine\n");
+    fs::write(&file, &text).unwrap();
+    save(
+        &places,
+        &request(json!({"id": "kimi-cli", "name": "Kimi CLI", "open": "kimi --x"})),
+    )
+    .unwrap();
+    assert_eq!(fs::read_to_string(&file).unwrap(), text);
+    delete(&places, "kimi-cli").unwrap();
+    assert_eq!(fs::read_to_string(&file).unwrap(), text);
+}

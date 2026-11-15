@@ -935,6 +935,8 @@ export interface GuideEntry {
   unreadable: string | null;
   /** The description is longer than is kept: what is shown is its beginning. */
   description_cut: boolean;
+  /** A `SKILL.es.md` beside it: its description, for the screen in Spanish. */
+  description_es: string | null;
 }
 export type GuideSetKind =
   'gsd' | 'repos' | 'plugin' | 'account' | 'bundle' | 'system';
@@ -959,6 +961,8 @@ export interface GuideBody {
   more_files: number;
   /** The folder holds more than is walked: the count is a floor. */
   files_cut: boolean;
+  /** A `SKILL.es.md` beside it: its text, for the screen in Spanish. */
+  text_es: string | null;
 }
 
 const GUIDE_SET_KINDS: readonly GuideSetKind[] = [
@@ -986,6 +990,9 @@ function parseGuideEntry(value: unknown): GuideEntry {
     codex_differs: flag(v.codex_differs, 'codex_differs'),
     unreadable: nullable(v.unreadable, (x) => text(x, 'unreadable')),
     description_cut: flag(v.description_cut, 'description_cut'),
+    description_es: nullable(v.description_es ?? null, (x) =>
+      text(x, 'description_es'),
+    ),
   };
 }
 
@@ -1019,5 +1026,6 @@ export function parseGuideBody(value: unknown): GuideBody {
     files: list(v.files, 'files', (x) => text(x, 'file')),
     more_files: integer(v.more_files, 'more_files'),
     files_cut: flag(v.files_cut, 'files_cut'),
+    text_es: nullable(v.text_es ?? null, (x) => text(x, 'text_es')),
   };
 }
