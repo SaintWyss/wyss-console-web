@@ -31,8 +31,8 @@ toca y es independiente. No tocar otras pantallas (EnvironmentPanel del Arsenal 
   ausente = vacío; presente e ilegible, enlace, no regular, > 1 MiB, otro esquema, id inválido o
   entrada inválida = error `role_unreadable`; nunca se sobrescribe un archivo ilegible; escritura
   temp + rename (`store::write_atomic`); > 1 MiB al escribir = `role_too_large`, no se escribe.
-- Comandos Tauri nuevos en `src-tauri/src/arsenal/commands.rs`: `arsenal_role` (get, devuelve
-  `{project:"load"}` si no hay) y `arsenal_role_write`. Agregarlos a `COMMANDS` (hay un test que
+- Comandos Tauri nuevos en `src-tauri/src/arsenal/commands.rs`: `arsenal_launch_instructions` (get, devuelve
+  `{project:"load"}` si no hay) y `arsenal_launch_instructions_write`. Agregarlos a `COMMANDS` (hay un test que
   lo exige) y al cliente `src/lib/desktop/arsenal-client.ts` con su parser estricto.
 
 ## Arranque
@@ -112,12 +112,12 @@ seguirlo; si no encaja, BLOQUEO.
 ## Tests (en el mismo cambio; cada uno debe fallar sin el cambio)
 
 - Rust: almacén estricto (ilegible/enlace/enorme/esquema/clave desconocida → error, bytes
-  intactos; ausente → vacío; `role` vacío → inválido); hash cambia con modo, rol y bytes del global;
+  intactos; ausente → vacío; `role` vacío → inválido); hash cambia con modo y texto del rol (no con los bytes del global);
   home Claude `role` produce `CLAUDE.md` = `@global.md\n@ROL.md\n` y `ROL.md`, y vuelve al enlace
   con `load`; home Codex `role` = global + rol; global del dueño intacto; overlay lleva
   `claudeMdExcludes` con la ruta canónica del proyecto y se combina con `skillOverrides`; Codex
   lleva `-c project_doc_max_bytes=0` solo con `exclude|role`; host sin la capacidad → `host_outdated`.
-- Vitest: el editor muestra el cuadro solo con `role`; guardar escribe `arsenal_role_write`;
+- Vitest: el editor muestra el cuadro solo con `role`; guardar escribe `arsenal_launch_instructions_write`;
   archivo ilegible = aviso y sin guardar encima (patrón de `claudeFailed`/`unreadableFor`).
 
 ## Cadena de verificación (correr y pegar la salida real)
