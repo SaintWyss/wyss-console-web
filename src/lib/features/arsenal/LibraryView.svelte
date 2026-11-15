@@ -25,10 +25,11 @@
     type Block as MdBlock,
   } from './guide';
   import ArsenalBrowser from './ArsenalBrowser.svelte';
-  import { field, hookCommand } from './hook';
+  import { field, hookCommand, scriptName } from './hook';
   import { eventOf, matcherOf } from './map';
   import {
     HOOK_EVENTS,
+    NOT_WRITABLE_LABEL,
     SOURCE_LABEL,
     authoringFor,
   } from '../configuration/present';
@@ -278,6 +279,10 @@
   let adding = $state<string | null>(null);
   let addMatcher = $state('');
   let addEvent = $state('PreToolUse');
+  let itemTitle = $state<HTMLHeadingElement | null>(null);
+  $effect(() => {
+    if (openItem && itemTitle) itemTitle.focus({ preventScroll: true });
+  });
   function closeItem() {
     leave();
     openItemId = null;
@@ -292,7 +297,10 @@
 
 <svelte:window
   onkeydown={(e) => {
-    if (visible && open && e.key === 'Escape') back();
+    if (visible && e.key === 'Escape') {
+      if (openItem) closeItem();
+      else if (open) back();
+    }
   }}
 />
 
@@ -382,8 +390,8 @@
       {@const off = changeFor(item)}
       <article class="ars-card ars-inline" aria-labelledby="ars-card-title">
         <header class="ars-card-head">
-          <h2 id="ars-card-title" tabindex="-1">
-            {matcherOf(item.name) || t('Every tool')}
+          <h2 id="ars-card-title" tabindex="-1" bind:this={itemTitle}>
+            {scriptName(hookCommand(item)) || matcherOf(item.name)}
           </h2>
           <button type="button" class="action ars-back-top" onclick={closeItem}
             >{t('Back')}</button
@@ -392,6 +400,7 @@
         <p class="ars-meta">
           {t(HOOK_EVENT_NAME[eventOf(item.name)] ?? eventOf(item.name))} ·
           {eventOf(item.name)} ·
+          {matcherOf(item.name) || t('Every tool')} ·
           {item.persisted === 'present_enabled'
             ? t('Switched on')
             : t('Switched off')}
@@ -444,7 +453,10 @@
             {/if}
           </p>
           {#if !authoring && !off}
-            <p class="ars-note">{t('This hook cannot be changed here.')}</p>
+            <p class="ars-note">
+              {t('This hook cannot be changed here.')}
+              {t(NOT_WRITABLE_LABEL[item.not_writable])}
+            </p>
           {/if}
           {#if changedFor === item.id}
             <ChangePlan {changes} {changesController} />
@@ -681,6 +693,9 @@
       configShown={configOpen}
       configView={configPanel}
       onlist={() => {
+        // A plan left unconfirmed in the list just left is dropped.
+        leave();
+        adding = null;
         if (configOpen) store.choose({ section: 'origin:mine' });
       }}
     />

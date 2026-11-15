@@ -462,14 +462,14 @@ it('lists Claude Code’s hooks by event, opens one as a card with Edit and Dele
   await flush();
   item('Before a tool runs').click();
   await flush();
-  const hook = row('Bash');
+  const hook = row('guard.sh');
   expect(text(hook)).toContain('guard.sh --token [redacted]');
   hook.click();
   await flush();
   const card = library().querySelector<HTMLElement>('.ars-card')!;
-  expect(text(card.querySelector('h2'))).toBe('Bash');
+  expect(text(card.querySelector('h2'))).toBe('guard.sh');
   expect(text(card.querySelector('.ars-meta'))).toBe(
-    'Before a tool runs · PreToolUse · Switched on',
+    'Before a tool runs · PreToolUse · Bash · Switched on',
   );
   const buttons = Array.from(card.querySelectorAll('button')).map((b) =>
     text(b),

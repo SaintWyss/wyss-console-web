@@ -3,7 +3,7 @@
   import { currentLanguage, t } from '../../i18n/index.svelte';
   import type { GuideEntry } from '../../contracts/arsenal';
   import { firstSentence, matches } from './guide';
-  import { hookCommand } from './hook';
+  import { hookCommand, scriptName } from './hook';
   import type { MapNode, MapTool } from './map';
 
   /**
@@ -255,7 +255,9 @@
               data-entry={it.item.id}
               onclick={() => onitem(it.item)}
             >
-              <span class="lib-name" title={it.item.name}>{it.label}</span>
+              <span class="lib-name" title={it.item.name}
+                >{scriptName(hookCommand(it.item)) || it.label}</span
+              >
               <span class="lib-desc">{hookCommand(it.item)}</span>
             </button>
           </li>

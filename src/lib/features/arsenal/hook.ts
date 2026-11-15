@@ -17,3 +17,16 @@ export function field(item: ConfigItem, key: string): string {
 export function hookCommand(item: ConfigItem): string {
   return field(item, 'command');
 }
+
+/** The script a hook command runs, by its file name: the word that names it in a list. */
+export function scriptName(command: string): string {
+  const words = command.split(/\s+/).map((w) => w.replace(/^["']|["']$/g, ''));
+  const script = words.find((w) => /\.(py|sh|js|mjs|ts|rb)$/.test(w));
+  const pick =
+    script ??
+    words.find(
+      (w) => w !== '' && !/^(bash|sh|python3?|node|\/usr\/bin\/\S+)$/.test(w),
+    ) ??
+    '';
+  return pick.split('/').pop() ?? '';
+}
