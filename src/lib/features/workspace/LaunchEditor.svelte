@@ -240,8 +240,10 @@
         ? selection.items.map((i) => ({ ...i }))
         : allItemsOf(data.library, launch.agent),
       composites: selection ? [...selection.composites] : [],
+      // Claude, the same: a file that cannot be read draws nothing and saves nothing.
       spec:
-        launch.agent === 'claude_code'
+        launch.agent === 'claude_code' &&
+        !unreadableFor(selection, 'claude_code')
           ? {
               ...((selection && data.environments.get(selection.id)) ??
                 DEFAULT_SPEC),
@@ -250,7 +252,7 @@
       // A preset whose environment could not be read gets none here: nothing is drawn as
       // "everything on", and Save does not write over what is not known.
       codexSpec:
-        launch.agent === 'codex' && !unreadableFor(selection)
+        launch.agent === 'codex' && !unreadableFor(selection, 'codex')
           ? {
               ...((selection && data.codexEnvironments.get(selection.id)) ??
                 DEFAULT_CODEX_SPEC),
@@ -258,13 +260,16 @@
           : null,
     };
   }
-  /** Whether the Codex environment of this preset is in a file that cannot be read. */
-  function unreadableFor(selection: Selection | null): boolean {
-    return (
-      selection !== null &&
-      data.codexUnreadable === true &&
-      !data.codexEnvironments.has(selection.id)
-    );
+  /** Whether the environment of this preset is in a file that cannot be read. */
+  function unreadableFor(
+    selection: Selection | null,
+    agent: 'claude_code' | 'codex',
+  ): boolean {
+    if (selection === null) return false;
+    return agent === 'codex'
+      ? data.codexUnreadable === true &&
+          !data.codexEnvironments.has(selection.id)
+      : data.claudeUnreadable === true && !data.environments.has(selection.id);
   }
   function pick(launch: Launch | null) {
     selected = launch?.id ?? 'new';
@@ -321,7 +326,10 @@
   );
 
   const est = $derived(
-    draft && !readOnly
+    // No estimate from defaults when the Claude environment could not be read.
+    draft &&
+      !readOnly &&
+      !(draft.agent === 'claude_code' && draft.spec === null)
       ? estimateOf(draft.agent, draft.items, draft.spec, data)
       : null,
   );
@@ -886,7 +894,7 @@
           )}
         </p>
       {/if}
-      {#if !readOnly && d.agent === 'codex' && unreadableFor(d.selection)}
+      {#if !readOnly && (d.agent === 'codex' || d.agent === 'claude_code') && unreadableFor(d.selection, d.agent)}
         <p class="notice" data-tone="error" role="alert">
           {t(ENVIRONMENT_UNREADABLE)}
         </p>

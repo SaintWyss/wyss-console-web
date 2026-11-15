@@ -27,7 +27,7 @@ const CODE_TEXT: Record<string, string> = {
   too_large: msg('This file is too large to show here.'),
   binary_file: msg('This file is not text, so it cannot be shown here.'),
   environment_unreadable: msg(
-    'The file of Codex launch environments (environment-codex.json) cannot be read, so what a preset leaves out is not known. Launches with a Codex preset do not start until the file is fixed or removed. It was not changed.',
+    'A file of launch environments (environment.json for Claude, environment-codex.json for Codex) cannot be read, so what a preset leaves out is not known. Launches with a preset of that tool do not start until the file is fixed or removed. It was not changed.',
   ),
   environment_stale: msg(
     'A hook this preset leaves out is no longer in hooks.json: it was edited or removed. Nothing was started. Check the preset’s hooks and save it.',

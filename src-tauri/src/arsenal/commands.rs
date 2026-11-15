@@ -1300,8 +1300,9 @@ fn plan_now(
         }),
     });
     let mut plan = plan;
-    // Claude: read strictly, like Codex below. A choice that cannot be read, or that names a hook
-    // the owner's settings no longer have, is an error, never "nothing left out".
+    // Claude: read strictly, like Codex below. A choice that cannot be read is an error, never
+    // "nothing left out". A left-out hook the settings no longer have is not checked: a hook
+    // switched off or kept aside in the Arsenal leaves settings.json and must not block presets.
     let claude_spec = if provider == "claude_code" {
         let directory =
             super::environment::directory().ok_or(ArsenalError::from(Error::Storage))?;
@@ -1311,21 +1312,6 @@ fn plan_now(
         None
     };
     if let Some(spec) = claude_spec {
-        if !spec.hooks_off.is_empty() {
-            let home = std::env::var_os("HOME")
-                .map(std::path::PathBuf::from)
-                .ok_or(ArsenalError::from(Error::Storage))?;
-            let listed = crate::native::launch_home::options(
-                &crate::native::launch_home::Owner::from_home(&home),
-            );
-            if spec
-                .hooks_off
-                .iter()
-                .any(|key| !listed.hooks.iter().any(|hook| &hook.key == key))
-            {
-                return Err(ArsenalError::code("environment_stale"));
-            }
-        }
         let material = serde_json::to_vec(&(&plan.config_hash, &spec))
             .map_err(|_| ArsenalError::from(Error::Storage))?;
         plan.config_hash = format!("{:x}", sha2::Sha256::digest(material));
@@ -2361,7 +2347,7 @@ mod tests {
     }
 
     #[test]
-    fn a_claude_environment_that_cannot_be_read_or_names_no_hook_stops_the_plan_and_the_launch() {
+    fn a_claude_environment_that_cannot_be_read_stops_the_plan_and_the_launch() {
         use crate::native::launch_home::HomeSpec;
         let root = std::fs::canonicalize(std::env::temp_dir())
             .unwrap()
@@ -2444,28 +2430,14 @@ mod tests {
             "left as it was"
         );
 
-        // A key that names no hook of settings.json (one that was edited or removed since).
+        // A left-out hook settings.json no longer has (kept aside, say) does not block.
         std::fs::remove_file(&file).unwrap();
-        let gone = HomeSpec {
+        let present = HomeSpec {
             hooks_off: vec![crate::native::launch_home::hook_key(
                 "Stop",
                 "",
                 "removed.sh",
             )],
-            ..HomeSpec::default()
-        };
-        super::super::environment::set(&directory, &selection.id, &gone).unwrap();
-        assert_eq!(
-            code(plan_now(&store, &link, None, &request)),
-            "environment_stale"
-        );
-        assert_eq!(
-            launch_code(&"0".repeat(64)),
-            Some("arsenal_environment_stale".to_owned())
-        );
-        // Control: a key settings.json does have plans fine.
-        let present = HomeSpec {
-            hooks_off: vec![crate::native::launch_home::hook_key("Stop", "", "bye.sh")],
             ..HomeSpec::default()
         };
         super::super::environment::set(&directory, &selection.id, &present).unwrap();

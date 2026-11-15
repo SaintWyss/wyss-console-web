@@ -56,7 +56,7 @@ export interface LaunchDeps {
 
 /** Said wherever a Codex preset's environment cannot be read. */
 export const ENVIRONMENT_UNREADABLE = msg(
-  'The file of Codex launch environments (environment-codex.json) cannot be read, so what a preset leaves out is not known. Launches with a Codex preset do not start until the file is fixed or removed. It was not changed.',
+  'A file of launch environments (environment.json for Claude, environment-codex.json for Codex) cannot be read, so what a preset leaves out is not known. Launches with a preset of that tool do not start until the file is fixed or removed. It was not changed.',
 );
 
 export interface LaunchNote {

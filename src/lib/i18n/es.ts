@@ -2320,8 +2320,8 @@ export const ES: Readonly<Record<string, string>> = {
   'Go to that tab': 'Ir a esa pestaña',
   'The preset “{name}” leaves a Codex hook or AGENTS.md out, and it cannot be applied now: {reason} Nothing was started.':
     'El preset “{name}” deja afuera un hook de Codex o el AGENTS.md, y ahora no se puede aplicar: {reason} No se inició nada.',
-  'The file of Codex launch environments (environment-codex.json) cannot be read, so what a preset leaves out is not known. Launches with a Codex preset do not start until the file is fixed or removed. It was not changed.':
-    'El archivo de entornos de lanzamiento de Codex (environment-codex.json) no se puede leer, así que no se sabe qué deja afuera cada preset. Los lanzamientos con un preset de Codex no arrancan hasta que el archivo se arregle o se borre. No se modificó.',
+  'A file of launch environments (environment.json for Claude, environment-codex.json for Codex) cannot be read, so what a preset leaves out is not known. Launches with a preset of that tool do not start until the file is fixed or removed. It was not changed.':
+    'Un archivo de entornos de lanzamiento (environment.json de Claude o environment-codex.json de Codex) no se puede leer, así que no se sabe qué deja afuera cada preset. Los lanzamientos con un preset de esa herramienta no arrancan hasta que el archivo se arregle o se borre. No se modificó.',
   'The launch “{name}” leaves out a hook that is no longer in hooks.json: it was edited or removed. Nothing was started. Open the launch in Workspace, check its hooks and save.':
     'El lanzamiento “{name}” deja afuera un hook que ya no está en hooks.json: se editó o se borró. No se inició nada. Abrí el lanzamiento en Workspace, revisá sus hooks y guardá.',
   'A hook this preset leaves out is no longer in hooks.json: it was edited or removed. Nothing was started. Check the preset’s hooks and save it.':

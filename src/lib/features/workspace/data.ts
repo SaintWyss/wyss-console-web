@@ -23,6 +23,8 @@ export interface EstimateData {
   codexEnvironments: ReadonlyMap<string, CodexHomeSpec>;
   /** Codex: the environments file is there and cannot be read; what presets leave out is unknown. */
   codexUnreadable?: boolean;
+  /** Claude: the same for `environment.json`. */
+  claudeUnreadable?: boolean;
 }
 
 /** Skills and agents of a provider in the library: what a launch without a preset loads. */
@@ -118,13 +120,17 @@ export async function loadEstimateData(client: {
       : Promise.resolve(null),
   ]);
   const environments = new Map<string, HomeSpec>();
+  let claudeUnreadable = false;
   await Promise.all(
     selections
       .filter((s) => s.provider === 'claude_code')
       .map((s) =>
         client.environment(s.id).then(
           (spec) => environments.set(s.id, spec),
-          () => undefined,
+          (error: unknown) => {
+            if ((error as { code?: unknown }).code === 'environment_unreadable')
+              claudeUnreadable = true;
+          },
         ),
       ),
   );
@@ -154,6 +160,7 @@ export async function loadEstimateData(client: {
     codexOptions,
     codexEnvironments,
     codexUnreadable,
+    claudeUnreadable,
   };
 }
 
