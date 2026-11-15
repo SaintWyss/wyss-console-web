@@ -98,12 +98,20 @@ pub fn rename_hook_key(directory: &Path, old: &str, new: &str) -> io::Result<usi
     let mut state = load(directory);
     let mut changed = 0;
     for spec in state.presets.values_mut() {
-        if let Some(slot) = spec.hooks_off.iter_mut().find(|k| k.as_str() == old) {
-            *slot = new.to_owned();
+        if spec.hooks_off.iter().any(|k| k == old) {
+            // Already left out under the new key: the old one goes, never twice the same key.
+            if spec.hooks_off.iter().any(|k| k == new) {
+                spec.hooks_off.retain(|k| k != old);
+            } else if let Some(slot) = spec.hooks_off.iter_mut().find(|k| k.as_str() == old) {
+                *slot = new.to_owned();
+            }
             changed += 1;
         }
     }
     if changed > 0 {
+        if state.presets.values().any(|spec| spec.validate().is_err()) {
+            return Err(io::Error::other("invalid"));
+        }
         state.schema_version = VERSION;
         let bytes = serde_json::to_vec(&state).map_err(io::Error::other)?;
         store::write_atomic(&directory.join(FILE), &bytes)?;
@@ -176,6 +184,17 @@ mod tests {
         assert_eq!(
             get(&dir, "p1").unwrap().hooks_off,
             vec!["fedcba9876543210".to_owned()]
+        );
+        // Both keys already left out: one is kept, never twice the same key.
+        let both = HomeSpec {
+            hooks_off: vec!["1111111111111111".to_owned(), "2222222222222222".to_owned()],
+            ..HomeSpec::default()
+        };
+        set(&dir, "p2", &both).unwrap();
+        rename_hook_key(&dir, "1111111111111111", "2222222222222222").unwrap();
+        assert_eq!(
+            get(&dir, "p2").unwrap().hooks_off,
+            vec!["2222222222222222".to_owned()]
         );
         // A key no preset holds writes nothing.
         assert_eq!(

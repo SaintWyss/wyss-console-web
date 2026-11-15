@@ -226,6 +226,45 @@ fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 
 /// The sources a change may be made to: this user's Claude Code settings files and Codex's
 /// user configuration.
+/// A hook as (event, matcher, command).
+pub type Hook = (String, String, String);
+
+/// The hooks of a settings file's `hooks`, in file order.
+pub fn hooks_of(bytes: &[u8]) -> Vec<Hook> {
+    let Ok(value) = serde_json::from_slice::<serde_json::Value>(bytes) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    if let Some(events) = value.get("hooks").and_then(|h| h.as_object()) {
+        for (event, groups) in events {
+            for group in groups.as_array().into_iter().flatten() {
+                let matcher = group.get("matcher").and_then(|m| m.as_str()).unwrap_or("");
+                for hook in group
+                    .get("hooks")
+                    .and_then(|h| h.as_array())
+                    .into_iter()
+                    .flatten()
+                {
+                    if let Some(command) = hook.get("command").and_then(|c| c.as_str()) {
+                        out.push((event.clone(), matcher.to_owned(), command.to_owned()));
+                    }
+                }
+            }
+        }
+    }
+    out
+}
+
+/// The edit a write made, when it was one: one hook gone and one come, same event and matcher.
+pub fn edited<'a>(before: &'a [Hook], after: &'a [Hook]) -> Option<(&'a Hook, &'a Hook)> {
+    let gone: Vec<_> = before.iter().filter(|h| !after.contains(h)).collect();
+    let came: Vec<_> = after.iter().filter(|h| !before.contains(h)).collect();
+    let (&[old], &[new]) = (gone.as_slice(), came.as_slice()) else {
+        return None;
+    };
+    (old.0 == new.0 && old.1 == new.1).then_some((old, new))
+}
+
 fn writable(key: SourceKey) -> bool {
     matches!(
         key,
@@ -1358,10 +1397,40 @@ impl ChangeService {
     /// Carries a plan out. The page's call is the user's confirmation in the page; a risk
     /// above `normal` also needs the native dialog, which only the desktop can show.
     pub fn apply(&self, plan: &str) -> Result<Applied, ChangeFailure> {
+        self.apply_reporting_hook_edit(plan)
+            .map(|(applied, _)| applied)
+    }
+
+    /// `apply`, and when the plan was an edit of a Claude Code hook that was applied, the hook
+    /// it replaced and the one it wrote, read from the file through the bounded reader before
+    /// and after this write (under the same serial lock, so no other apply comes between).
+    pub fn apply_reporting_hook_edit(
+        &self,
+        plan: &str,
+    ) -> Result<(Applied, Option<(Hook, Hook)>), ChangeFailure> {
         // One apply at a time, and never while the project changes underneath it: the write
         // that was confirmed for a project finishes in that project, or does not start.
         let _serial = lock(&self.serial);
-        self.apply_serial(plan)
+        let is_claude_edit = lock(&self.plans).iter().any(|p| {
+            p.id == plan
+                && p.drafted.operation == Operation::EditHook
+                && p.source == SourceKey::ClaudeUserSettings
+        });
+        let before = is_claude_edit
+            .then(|| self.read_target(SourceKey::ClaudeUserSettings).ok())
+            .flatten();
+        let applied = self.apply_serial(plan)?;
+        let edit = match (before, applied.outcome) {
+            (Some((_, before)), Outcome::Applied) => self
+                .read_target(SourceKey::ClaudeUserSettings)
+                .ok()
+                .and_then(|(_, after)| {
+                    let (before, after) = (hooks_of(&before), hooks_of(&after));
+                    edited(&before, &after).map(|(a, b)| (a.clone(), b.clone()))
+                }),
+            _ => None,
+        };
+        Ok((applied, edit))
     }
 
     fn apply_serial(&self, plan: &str) -> Result<Applied, ChangeFailure> {
@@ -1872,6 +1941,7 @@ impl ChangeService {
             SourceKey::ClaudeProjectSettings,
             SourceKey::ClaudeProjectLocalSettings,
             SourceKey::CodexUserConfig,
+            SourceKey::CodexUserHooks,
             SourceKey::OpencodeUserConfig,
         ]
         .into_iter()

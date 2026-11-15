@@ -5593,3 +5593,59 @@ fn a_codex_hook_is_added_at_the_end_edited_kept_aside_and_put_back_exactly() {
     assert_eq!(applied(&world, &back), Outcome::Applied);
     assert!(world.codex_hooks_file().contains("bash mark2.sh"));
 }
+
+#[test]
+fn an_applied_edit_of_a_claude_hook_reports_the_hook_it_replaced() {
+    let world = World::new(SETTINGS);
+    let id = world
+        .inventory
+        .snapshot()
+        .inventory
+        .items
+        .iter()
+        .find(|i| i.kind == ItemKind::Hook && i.source == SourceKey::ClaudeUserSettings)
+        .unwrap()
+        .id
+        .clone();
+    let old = world.service.hook_command(&id).unwrap();
+    let plan = world
+        .service
+        .plan_authored(Authoring::EditHook {
+            item: id,
+            command: "edited.sh".into(),
+            expected: old.clone(),
+        })
+        .unwrap();
+    let (applied, edit) = world.service.apply_reporting_hook_edit(&plan.id).unwrap();
+    assert_eq!(applied.outcome, Outcome::Applied);
+    let (was, now) = edit.unwrap();
+    assert_eq!(
+        (was.2.as_str(), now.2.as_str()),
+        (old.as_str(), "edited.sh")
+    );
+    assert_eq!(
+        (was.0.clone(), was.1.clone()),
+        (now.0.clone(), now.1.clone())
+    );
+    // Another kind of plan reports none.
+    world.codex("hooks = true\n");
+    world.codex_hooks(CODEX_HOOKS);
+    let plan = world
+        .service
+        .plan_authored(Authoring::AddCodexHook(spec("Stop", None, "x.sh")))
+        .unwrap();
+    assert!(
+        world
+            .service
+            .apply_reporting_hook_edit(&plan.id)
+            .unwrap()
+            .1
+            .is_none()
+    );
+    // And the shape is read from a settings file.
+    let both = super::changes::hooks_of(
+        br#"{"hooks":{"Stop":[{"hooks":[{"command":"a"},{"command":"b"}]}]}}"#,
+    );
+    assert_eq!(both.len(), 2);
+    assert!(super::changes::edited(&both, &both).is_none());
+}
