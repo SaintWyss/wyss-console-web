@@ -227,6 +227,7 @@
         composites: [],
         spec: { ...DEFAULT_SPEC },
         codexSpec: null,
+        instructions: { project: 'load' },
       };
     }
     const selection = selectionOf(launch, data.selections);
@@ -260,6 +261,12 @@
                 DEFAULT_CODEX_SPEC),
             }
           : null,
+      instructions:
+        selection && data.instructionsFailed?.has(selection.id)
+          ? null
+          : ((selection && data.launchInstructions?.get(selection.id)) ?? {
+              project: 'load',
+            }),
     };
   }
   /** Whether the environment of this preset is in a file that cannot be read. */
@@ -310,7 +317,12 @@
       (current === null || editable(current)) &&
       draft.name.trim() !== '' &&
       launchId(draft.name) !== '' &&
-      draft.directory.startsWith('/'),
+      draft.directory.startsWith('/') &&
+      (draft.instructions?.project !== 'role' ||
+        (draft.instructions.role.length > 0 &&
+          !draft.instructions.role.includes('\0') &&
+          new TextEncoder().encode(draft.instructions.role).length <=
+            64 * 1024)),
   );
 
   // The list, by role, filtered by the search.
@@ -367,6 +379,7 @@
     draft.composites = [];
     draft.spec = agent === 'claude_code' ? { ...DEFAULT_SPEC } : null;
     draft.codexSpec = agent === 'codex' ? { ...DEFAULT_CODEX_SPEC } : null;
+    draft.instructions = { project: 'load' };
   }
   function setItem(id: string, on: boolean) {
     if (!draft) return;
@@ -591,6 +604,9 @@
       savedCodexSpec: d.selection
         ? (data.codexEnvironments.get(d.selection.id) ?? null)
         : null,
+      savedInstructions: d.selection
+        ? data.launchInstructions?.get(d.selection.id)
+        : null,
       allItems: allItemsOf(data.library, d.agent),
     });
     try {
@@ -618,6 +634,20 @@
       } else if (plan.environment && target && d.spec) {
         await client.writeEnvironment(target.id, d.spec);
         done.push(t('environment'));
+      }
+      if (
+        target &&
+        d.instructions &&
+        (JSON.stringify(d.instructions) !==
+          JSON.stringify(
+            data.launchInstructions?.get(d.selection?.id ?? '') ?? {
+              project: 'load',
+            },
+          ) ||
+          ((p.do === 'copy' || p.do === 'create') &&
+            d.instructions.project !== 'load'))
+      ) {
+        await client.writeLaunchInstructions(target.id, d.instructions);
       }
       const launch = await saveLaunch({
         name: d.name.trim(),
@@ -914,6 +944,13 @@
           {t(STALE_HOOKS)}
         </p>
       {/if}
+      {#if !readOnly && d.selection && data.instructionsFailed?.has(d.selection.id)}
+        <p class="notice" data-tone="error" role="alert">
+          {t(
+            'The launch instructions file cannot be read. It was not modified.',
+          )}
+        </p>
+      {/if}
       {#if roles.damaged}
         <p class="notice" data-tone="warn">
           {t(
@@ -942,6 +979,63 @@
         </p>
       {/if}
       {#if !readOnly}
+        <fieldset
+          class="le-fieldset"
+          disabled={busy || !d.selection || !d.instructions}
+        >
+          <legend>{t('Project instructions')}</legend>
+          {#each ['load', 'exclude', 'role'] as mode (mode)}
+            <label
+              ><input
+                type="radio"
+                name="project-instructions"
+                checked={d.instructions?.project === mode}
+                onchange={() =>
+                  (d.instructions =
+                    mode === 'load'
+                      ? { project: 'load' }
+                      : {
+                          project: mode as 'exclude' | 'role',
+                          role:
+                            d.instructions && 'role' in d.instructions
+                              ? d.instructions.role
+                              : '',
+                        })}
+              />
+              {t(
+                mode === 'load'
+                  ? "Load the project's"
+                  : mode === 'exclude'
+                    ? "Without the project's"
+                    : 'Own role',
+              )}</label
+            >
+          {/each}
+          {#if d.instructions?.project === 'role'}
+            <textarea class="le-input" bind:value={d.instructions.role}
+            ></textarea>
+          {/if}
+          <p>
+            {t(
+              'Without project instructions, the agent does not read the project instructions or rules. Your global instructions follow their switch.',
+            )}
+          </p>
+          <p>
+            {t(
+              'The text applies at start. Another open terminal of this launch may see it change; resuming a conversation keeps what it already had.',
+            )}
+          </p>
+          {#if !d.selection}<p>
+              {t('Choose a preset to change project instructions.')}
+            </p>{/if}
+          {#if d.agent === 'claude_code' && d.instructions?.project === 'role' && data.options && !data.options.token_stored}<p
+              role="alert"
+            >
+              {t(
+                'No long-lived token is stored, so this terminal will not start. Run claude setup-token in your own terminal and store it with: secret-tool store --label "Claude Code token (Wyss Console)" service wyss-console kind claude-oauth-token',
+              )}
+            </p>{/if}
+        </fieldset>
         <fieldset class="le-fieldset" disabled={busy}>
           <div class="le-fields">
             <label class="le-field" title={t(HINT.role)}

@@ -320,6 +320,8 @@ pub fn build(owner: &Owner, dir: &Path, spec: &HomeSpec) -> io::Result<Built> {
         let target = (spec.instructions && fs::symlink_metadata(&source).is_ok()).then_some(source);
         place(&dir.join(name), target.as_deref())?;
     }
+    place(&dir.join("ROL.md"), None)?;
+    place(&dir.join("global.md"), None)?;
     // Rules: a folder of its own, one link per kept file.
     let rules = dir.join("rules");
     if fs::symlink_metadata(&rules).is_ok_and(|m| !m.is_dir()) {
@@ -376,6 +378,24 @@ pub fn build(owner: &Owner, dir: &Path, spec: &HomeSpec) -> io::Result<Built> {
         dir: dir.to_path_buf(),
         mcp_config,
     })
+}
+
+/// Replace the home instruction link only after the ordinary home has been built.
+pub fn write_role(owner: &Owner, dir: &Path, spec: &HomeSpec, role: &str) -> io::Result<()> {
+    let global = owner.dir.join("CLAUDE.md");
+    let has_global = spec.instructions && fs::metadata(&global).is_ok_and(|m| m.is_file());
+    place(&dir.join("CLAUDE.md"), None)?;
+    place(
+        &dir.join("global.md"),
+        has_global.then_some(global.as_path()),
+    )?;
+    store::write_atomic(&dir.join("ROL.md"), role.as_bytes())?;
+    let text = if has_global {
+        "@global.md\n@ROL.md\n"
+    } else {
+        "@ROL.md\n"
+    };
+    store::write_atomic(&dir.join("CLAUDE.md"), text.as_bytes())
 }
 
 /// One hook of the owner's settings, as the environment chooser lists it.
@@ -882,6 +902,38 @@ mod tests {
             agents: true,
             ..HomeSpec::default()
         }
+    }
+
+    #[test]
+    fn role_home_preserves_owner_and_returns_to_link() {
+        let root = temp("own-role");
+        let owner = owner(&root);
+        fs::remove_file(owner.dir.join("CLAUDE.md")).unwrap();
+        fs::write(owner.dir.join("CLAUDE.md"), "owner instructions").unwrap();
+        let home = root.join("homes/p");
+        let before = fs::read(owner.dir.join("CLAUDE.md")).unwrap();
+        build(&owner, &home, &spec()).unwrap();
+        write_role(&owner, &home, &spec(), "role text").unwrap();
+        assert_eq!(
+            fs::read(home.join("CLAUDE.md")).unwrap(),
+            b"@global.md\n@ROL.md\n"
+        );
+        assert_eq!(fs::read(home.join("ROL.md")).unwrap(), b"role text");
+        assert_eq!(fs::read(owner.dir.join("CLAUDE.md")).unwrap(), before);
+        assert!(
+            fs::symlink_metadata(owner.dir.join("CLAUDE.md"))
+                .unwrap()
+                .is_file()
+        );
+        build(&owner, &home, &spec()).unwrap();
+        assert!(
+            fs::symlink_metadata(home.join("CLAUDE.md"))
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+        assert!(!home.join("ROL.md").exists());
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

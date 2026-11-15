@@ -1,5 +1,6 @@
 import type { Item, LibraryItem, Selection } from '../../contracts/arsenal';
 import type { Launch } from '../../desktop/launch-client';
+import type { LaunchInstructions } from '../../desktop/arsenal-client';
 import {
   DEFAULT_SPEC,
   type CodexEnvironmentOptions,
@@ -27,6 +28,8 @@ export interface EstimateData {
   claudeUnreadable?: boolean;
   /** Claude presets whose environment could not be read, for any reason: nothing is known. */
   claudeFailed?: ReadonlySet<string>;
+  launchInstructions?: ReadonlyMap<string, LaunchInstructions>;
+  instructionsFailed?: ReadonlySet<string>;
 }
 
 /** Skills and agents of a provider in the library: what a launch without a preset loads. */
@@ -117,6 +120,7 @@ export async function loadEstimateData(client: {
   /** Absent in a client that knows nothing of Codex environments: nothing is read then. */
   codexEnvironmentOptions?: () => Promise<CodexEnvironmentOptions>;
   codexEnvironment?: (selection: string) => Promise<CodexHomeSpec>;
+  launchInstructions?: (selection: string) => Promise<LaunchInstructions>;
 }): Promise<EstimateData> {
   const readCodexOptions = client.codexEnvironmentOptions;
   const readCodex = client.codexEnvironment;
@@ -146,6 +150,19 @@ export async function loadEstimateData(client: {
       ),
   );
   const codexEnvironments = new Map<string, CodexHomeSpec>();
+  const launchInstructions = new Map<string, LaunchInstructions>();
+  const instructionsFailed = new Set<string>();
+  if (client.launchInstructions) {
+    const read = client.launchInstructions;
+    await Promise.all(
+      selections.map((s) =>
+        read(s.id).then(
+          (choice) => launchInstructions.set(s.id, choice),
+          () => instructionsFailed.add(s.id),
+        ),
+      ),
+    );
+  }
   let codexUnreadable = false;
   if (readCodex)
     await Promise.all(
@@ -173,6 +190,8 @@ export async function loadEstimateData(client: {
     codexUnreadable,
     claudeUnreadable,
     claudeFailed,
+    launchInstructions,
+    instructionsFailed,
   };
 }
 

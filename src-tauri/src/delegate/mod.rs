@@ -927,6 +927,7 @@ impl Manager {
         let launch = ArsenalLaunch {
             home: None,
             codex_home: None,
+            launch_instructions: None,
             selection: id.clone(),
             selection_name: request
                 .title

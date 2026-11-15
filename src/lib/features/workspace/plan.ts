@@ -2,6 +2,7 @@ import { msg } from '../../i18n/msg';
 import type { Item, Selection } from '../../contracts/arsenal';
 import type { Permission } from '../../contracts/native';
 import type { Launch } from '../../desktop/launch-client';
+import type { LaunchInstructions } from '../../desktop/arsenal-client';
 import {
   isCodexDefault,
   isDefault,
@@ -38,6 +39,7 @@ export interface LaunchDraft {
   spec: HomeSpec | null;
   /** Codex only: the launch environment of the preset (instructions, hooks left out). */
   codexSpec?: CodexHomeSpec | null;
+  instructions?: LaunchInstructions | null;
 }
 
 const FOLD: Record<string, string> = {
@@ -149,6 +151,7 @@ export interface PlanContext {
   savedSpec: HomeSpec | null;
   /** Codex: the environment the draft's preset has now. */
   savedCodexSpec?: CodexHomeSpec | null;
+  savedInstructions?: LaunchInstructions | null;
   /** Everything of this provider in the library: a launch without a preset loads all of it. */
   allItems: readonly Item[];
 }
@@ -180,13 +183,17 @@ export function savePlan(draft: LaunchDraft, ctx: PlanContext): SavePlan {
         !sameSpec(codexSpec, savedCodex) &&
         !(savedCodex === null && isCodexDefault(codexSpec));
   const names = ctx.selections.map((s) => s.name);
+  const instructionsChanged =
+    draft.instructions != null &&
+    JSON.stringify(draft.instructions) !==
+      JSON.stringify(ctx.savedInstructions ?? { project: 'load' });
   let preset: PresetStep;
   if (!sel) {
     preset =
       contentChanged || specChanged
         ? { do: 'create', name: freeName(draft.name.trim(), names) }
         : { do: 'none' };
-  } else if (!contentChanged && !specChanged) {
+  } else if (!contentChanged && !specChanged && !instructionsChanged) {
     preset = { do: 'keep' };
   } else {
     const shared = sharedBy(

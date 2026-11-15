@@ -35,6 +35,15 @@ const CODE_TEXT: Record<string, string> = {
   environment_too_large: msg(
     'A file of launch environments would be too long with this change, so it was not saved. Leave fewer things out, or delete presets you no longer use.',
   ),
+  role_unreadable: msg(
+    'The launch instructions file (role-instructions.json) cannot be read. Launches with custom instructions do not start. The file was not changed.',
+  ),
+  arsenal_role_unreadable: msg(
+    'The launch instructions file (role-instructions.json) cannot be read. Launches with custom instructions do not start. The file was not changed.',
+  ),
+  role_too_large: msg(
+    'The launch instructions file would be too large, so it was not saved.',
+  ),
   internal: msg(
     'Arsenal returned something unexpected. Refresh and try again.',
   ),

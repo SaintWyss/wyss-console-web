@@ -40,6 +40,100 @@ use wyss_console::{
 pub const MAX_BRIEF: usize = 16 * 1024;
 const FOUND_FOR: Duration = Duration::from_secs(30);
 
+fn project_instruction_excludes(
+    project: &Path,
+    owner: &Path,
+    launch_home: Option<&Path>,
+) -> Result<Vec<String>, NativeError> {
+    let project =
+        fs::canonicalize(project).map_err(|_| NativeError::new("arsenal_project_glob"))?;
+    let mut protected = vec![fs::canonicalize(owner).unwrap_or_else(|_| owner.to_path_buf())];
+    if let Some(home) = launch_home {
+        protected.push(fs::canonicalize(home).unwrap_or_else(|_| home.to_path_buf()));
+    }
+    let mut result = Vec::new();
+    let mut add = |path: PathBuf, subtree: bool| -> Result<(), NativeError> {
+        let canonical = fs::canonicalize(&path).unwrap_or_else(|_| path.clone());
+        let text = path
+            .to_str()
+            .ok_or_else(|| NativeError::new("arsenal_project_glob"))?;
+        if text.chars().any(|c| "*?[]{}\\".contains(c)) {
+            return Err(NativeError::new("arsenal_project_glob"));
+        }
+        if protected
+            .iter()
+            .any(|p| canonical.starts_with(p) || (subtree && p.starts_with(&canonical)))
+        {
+            return Ok(());
+        }
+        result.push(if subtree {
+            format!("{}/**", text.trim_end_matches('/'))
+        } else {
+            text.to_owned()
+        });
+        Ok(())
+    };
+    add(project.clone(), true)?;
+    for ancestor in project.ancestors() {
+        add(ancestor.join("CLAUDE.md"), false)?;
+        add(ancestor.join("CLAUDE.local.md"), false)?;
+        add(ancestor.join(".claude/CLAUDE.md"), false)?;
+        add(ancestor.join(".claude/rules"), true)?;
+    }
+    Ok(result)
+}
+
+fn project_instruction_overlay(overlay: &str, excludes: &[String]) -> Result<String, NativeError> {
+    let mut value: serde_json::Value =
+        serde_json::from_str(overlay).map_err(|_| NativeError::new("store_unavailable"))?;
+    value
+        .as_object_mut()
+        .ok_or_else(|| NativeError::new("store_unavailable"))?
+        .insert("claudeMdExcludes".into(), serde_json::json!(excludes));
+    serde_json::to_string_pretty(&value).map_err(|_| NativeError::new("store_unavailable"))
+}
+
+#[cfg(test)]
+mod project_instruction_tests {
+    use super::*;
+
+    #[test]
+    fn project_excludes_ancestors_and_protects_owner() {
+        let root = std::env::temp_dir().join(format!("role-globs-{}", uuid::Uuid::new_v4()));
+        let owner = root.join(".claude");
+        let project = root.join("parent/project");
+        fs::create_dir_all(&owner).unwrap();
+        fs::create_dir_all(&project).unwrap();
+        let list = project_instruction_excludes(&project, &owner, None).unwrap();
+        assert!(list.contains(&format!("{}/**", project.display())));
+        let overlay =
+            project_instruction_overlay(r#"{"skillOverrides":{"design":"off"}}"#, &list).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&overlay).unwrap();
+        assert_eq!(value["skillOverrides"]["design"], "off");
+        assert!(
+            value["claudeMdExcludes"]
+                .as_array()
+                .unwrap()
+                .contains(&serde_json::json!(format!("{}/**", project.display())))
+        );
+        assert!(list.contains(&root.join("parent/CLAUDE.md").display().to_string()));
+        assert!(
+            !list
+                .iter()
+                .any(|item| item.starts_with(&owner.display().to_string()))
+        );
+        let bad = root.join("project[bad]");
+        fs::create_dir(&bad).unwrap();
+        assert_eq!(
+            project_instruction_excludes(&bad, &owner, None)
+                .unwrap_err()
+                .code,
+            "arsenal_project_glob"
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+}
+
 /// Variables that belong to *one running agent session*, not to the user: if the Console was
 /// itself started from inside Claude Code or Codex it has them, and an agent started from it
 /// must not take them for its own (it would think it is a child of that session, and would
@@ -967,9 +1061,15 @@ impl NativeService {
                 .map(PathBuf::from)
                 .ok_or_else(|| NativeError::new("store_unavailable"))?;
             let home_dir = self.inner.base.join("launch-homes").join(&launch.selection);
-            let built =
-                launch_home::build(&launch_home::Owner::from_home(&owner_home), &home_dir, spec)
+            let owner = launch_home::Owner::from_home(&owner_home);
+            let built = launch_home::build(&owner, &home_dir, spec)
+                .map_err(|_| NativeError::new("arsenal_home_failed"))?;
+            if let Some(crate::arsenal::role_instructions::Choice::Role { role }) =
+                &launch.launch_instructions
+            {
+                launch_home::write_role(&owner, &home_dir, spec, role)
                     .map_err(|_| NativeError::new("arsenal_home_failed"))?;
+            }
             if let Some(mcp) = &built.mcp_config {
                 words.push("--strict-mcp-config".to_owned());
                 words.push("--mcp-config".to_owned());
@@ -996,12 +1096,20 @@ impl NativeService {
                 .join("launch-homes")
                 .join("codex")
                 .join(&launch.selection);
-            let built = launch_home_codex::build(
-                &launch_home_codex::CodexOwner::from_process(&owner_home),
-                &home_dir,
-                spec,
-            )
-            .map_err(|_| NativeError::new("arsenal_home_failed"))?;
+            let owner = launch_home_codex::CodexOwner::from_process(&owner_home);
+            let built = launch_home_codex::build(&owner, &home_dir, spec)
+                .map_err(|_| NativeError::new("arsenal_home_failed"))?;
+            if let Some(crate::arsenal::role_instructions::Choice::Role { role }) =
+                &launch.launch_instructions
+            {
+                launch_home_codex::write_role(&owner, &home_dir, spec, role).map_err(|error| {
+                    NativeError::new(if error.to_string() == "arsenal_role_too_long" {
+                        "arsenal_role_too_long"
+                    } else {
+                        "arsenal_home_failed"
+                    })
+                })?;
+            }
             let built_dir = built.to_string_lossy().into_owned();
             home_env.push(("CODEX_HOME".to_owned(), built_dir.clone()));
             home_pin = Some(("CODEX_HOME", built_dir));
@@ -1025,6 +1133,26 @@ impl NativeService {
             None
         };
         if let Some(overlay) = &plan.overlay {
+            let overlay = if request.agent_id == AgentId::ClaudeCode
+                && request
+                    .arsenal
+                    .as_ref()
+                    .is_some_and(|launch| launch.launch_instructions.is_some())
+            {
+                let owner_home = std::env::var_os("HOME")
+                    .map(PathBuf::from)
+                    .ok_or_else(|| NativeError::new("store_unavailable"))?;
+                let owner = launch_home::Owner::from_home(&owner_home).dir;
+                let launch_home = request
+                    .arsenal
+                    .as_ref()
+                    .map(|launch| self.inner.base.join("launch-homes").join(&launch.selection));
+                let excludes =
+                    project_instruction_excludes(&project, &owner, launch_home.as_deref())?;
+                project_instruction_overlay(overlay, &excludes)?
+            } else {
+                overlay.clone()
+            };
             let write = || -> std::io::Result<()> {
                 store::private_dir(&dir)?;
                 store::write_atomic(&dir.join("settings.json"), overlay.as_bytes())

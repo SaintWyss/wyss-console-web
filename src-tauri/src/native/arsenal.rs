@@ -37,6 +37,8 @@ pub struct ArsenalLaunch {
     /// folder is synced with one.
     #[serde(default, skip_serializing_if = "codex_home_absent")]
     pub codex_home: Option<super::launch_home_codex::CodexHomeSpec>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub launch_instructions: Option<crate::arsenal::role_instructions::Choice>,
 }
 
 fn codex_home_absent(spec: &Option<super::launch_home_codex::CodexHomeSpec>) -> bool {
@@ -144,6 +146,11 @@ impl ArsenalLaunch {
         if let Some(home) = &self.codex_home {
             home.validate().map_err(|_| "arsenal_invalid")?;
         }
+        if self.launch_instructions.as_ref().is_some_and(|choice| {
+            !choice.valid() || matches!(choice, crate::arsenal::role_instructions::Choice::Load)
+        }) {
+            return Err("arsenal_invalid");
+        }
         Ok(())
     }
 }
@@ -157,8 +164,20 @@ pub fn apply(plan: &mut LaunchPlan, agent: AgentId, launch: &ArsenalLaunch) {
             .push("The Arsenal selection is not well formed.".to_owned());
         return;
     }
-    let home = launch.home.as_ref().filter(|home| !home.is_default());
-    let codex_home = launch.codex_home.as_ref().filter(|home| !home.is_default());
+    let own_role = matches!(
+        launch.launch_instructions,
+        Some(crate::arsenal::role_instructions::Choice::Role { .. })
+    );
+    let home = launch
+        .home
+        .as_ref()
+        .filter(|home| own_role || !home.is_default());
+    let default_codex_home = super::launch_home_codex::CodexHomeSpec::default();
+    let codex_home = launch
+        .codex_home
+        .as_ref()
+        .filter(|home| own_role || !home.is_default())
+        .or_else(|| (own_role && agent == AgentId::Codex).then_some(&default_codex_home));
     match agent {
         AgentId::ClaudeCode if launch.skill_files_off.is_empty() && codex_home.is_none() => {}
         AgentId::Codex if home.is_some() => {
@@ -316,6 +335,10 @@ fn apply_codex(plan: &mut LaunchPlan, launch: &ArsenalLaunch) {
         plan.words.push(super::profile::Word::Literal(word));
     };
     literal(plan, "--no-daemon".to_owned());
+    if launch.launch_instructions.is_some() {
+        literal(plan, "-c".to_owned());
+        literal(plan, "project_doc_max_bytes=0".to_owned());
+    }
     if !launch.skill_files_off.is_empty() {
         literal(plan, "-c".to_owned());
         literal(plan, codex_config_value(&launch.skill_files_off));
@@ -341,6 +364,36 @@ mod tests {
             skill_files_off: Vec::new(),
             home: None,
             codex_home: None,
+            launch_instructions: None,
+        }
+    }
+
+    #[test]
+    fn project_instructions_codex_flag_only_for_nondefault_modes() {
+        use crate::arsenal::role_instructions::Choice;
+        for (choice, expected) in [
+            (None, false),
+            (
+                Some(Choice::Exclude {
+                    role: String::new(),
+                }),
+                true,
+            ),
+            (
+                Some(Choice::Role {
+                    role: "role".into(),
+                }),
+                true,
+            ),
+        ] {
+            let launch = ArsenalLaunch {
+                launch_instructions: choice,
+                ..launch(&[])
+            };
+            let mut plan = LaunchPlan::default();
+            apply(&mut plan, AgentId::Codex, &launch);
+            assert!(plan.not_applicable.is_empty());
+            assert_eq!(plan.words.iter().any(|word| matches!(word, Word::Literal(value) if value == "project_doc_max_bytes=0")), expected);
         }
     }
 

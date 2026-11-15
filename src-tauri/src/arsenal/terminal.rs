@@ -121,6 +121,8 @@ pub struct TerminalPlan {
     /// The launch environment the preset chose (Codex), when it changes the owner's own.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub codex_environment: Option<crate::native::launch_home_codex::CodexHomeSpec>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub launch_instructions: Option<super::role_instructions::Choice>,
 }
 
 fn version_text(version: Option<&str>) -> &str {
@@ -360,6 +362,7 @@ pub fn plan(input: Input<'_>) -> TerminalPlan {
         config_hash,
         environment: None,
         codex_environment: None,
+        launch_instructions: None,
     }
 }
 

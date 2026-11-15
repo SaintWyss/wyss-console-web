@@ -137,6 +137,15 @@ export const FAILURE_TEXT: Record<string, string> = {
   arsenal_environment_too_large: msg(
     'A file of launch environments would be too long with this change, so it was not saved. Leave fewer things out, or delete presets you no longer use.',
   ),
+  arsenal_role_unreadable: msg(
+    'The launch instructions file (role-instructions.json) cannot be read. Launches with custom instructions do not start. The file was not changed.',
+  ),
+  arsenal_project_glob: msg(
+    'The project path contains characters that cannot be used for instruction exclusions. Nothing was started.',
+  ),
+  arsenal_role_too_long: msg(
+    'The combined global instructions and role are too long for Codex. Nothing was started.',
+  ),
   arsenal_project_refused: msg(
     'Arsenal does not read this project folder, so its selection cannot be applied here.',
   ),

@@ -1997,6 +1997,7 @@ fn arsenal_launch(off: &[&str]) -> super::arsenal::ArsenalLaunch {
         skill_files_off: Vec::new(),
         home: None,
         codex_home: None,
+        launch_instructions: None,
     }
 }
 

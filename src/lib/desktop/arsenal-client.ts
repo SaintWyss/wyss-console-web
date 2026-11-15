@@ -98,6 +98,28 @@ export interface ImportTarget {
   name: string;
 }
 
+export type LaunchInstructions =
+  { project: 'load' } | { project: 'exclude' | 'role'; role: string };
+
+export function parseLaunchInstructions(value: unknown): LaunchInstructions {
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+    throw new Error('instructions');
+  const entry = value as Record<string, unknown>;
+  const keys = Object.keys(entry).sort().join(',');
+  if (entry.project === 'load' && keys === 'project')
+    return { project: 'load' };
+  if (
+    (entry.project === 'exclude' || entry.project === 'role') &&
+    keys === 'project,role' &&
+    typeof entry.role === 'string' &&
+    !entry.role.includes('\0') &&
+    new TextEncoder().encode(entry.role).length <= 64 * 1024 &&
+    (entry.project !== 'role' || entry.role.length > 0)
+  )
+    return { project: entry.project, role: entry.role };
+  throw new Error('instructions');
+}
+
 /** Every request names something the library or a fresh scan already holds, never a path. */
 export const arsenalClient = {
   discover: () => answer('arsenal_discover', parseDiscover),
@@ -187,6 +209,17 @@ export const arsenalClient = {
     answer('arsenal_codex_environment_options', parseCodexOptions),
   writeCodexEnvironment: (selection: string, environment: CodexHomeSpec) =>
     call('arsenal_codex_environment_write', { selection, environment }).then(
+      () => undefined,
+    ),
+  launchInstructions: (selection: string) =>
+    answer('arsenal_launch_instructions', parseLaunchInstructions, {
+      selection,
+    }),
+  writeLaunchInstructions: (
+    selection: string,
+    instructions: LaunchInstructions,
+  ) =>
+    call('arsenal_launch_instructions_write', { selection, instructions }).then(
       () => undefined,
     ),
   /** Workspace roles: the owner's own and each launch's role, kept on this computer. */

@@ -3935,4 +3935,23 @@ export const ES: Readonly<Record<string, string>> = {
     'La descripción es más larga: se muestra solo el comienzo.',
   'The folder holds more files than are counted here.':
     'La carpeta tiene más archivos de los que se cuentan acá.',
+  "Load the project's": 'Cargar las del proyecto',
+  "Without the project's": 'Sin las del proyecto',
+  'Own role': 'Rol propio',
+  'Without project instructions, the agent does not read the project instructions or rules. Your global instructions follow their switch.':
+    'Sin las instrucciones del proyecto, el agente no lee sus instrucciones ni reglas. Tus instrucciones globales siguen su interruptor.',
+  'The text applies at start. Another open terminal of this launch may see it change; resuming a conversation keeps what it already had.':
+    'El texto se aplica al arrancar. Otra terminal abierta de este lanzamiento puede verlo cambiar; al reanudar una conversación se conserva lo que ya tenía.',
+  'Choose a preset to change project instructions.':
+    'Elegí un preset para cambiar las instrucciones del proyecto.',
+  'The launch instructions file cannot be read. It was not modified.':
+    'No se puede leer el archivo de instrucciones de lanzamiento. No se modificó.',
+  'The launch instructions file (role-instructions.json) cannot be read. Launches with custom instructions do not start. The file was not changed.':
+    'No se puede leer el archivo de instrucciones de lanzamiento (role-instructions.json). Los lanzamientos con instrucciones propias no arrancan. El archivo no se modificó.',
+  'The launch instructions file would be too large, so it was not saved.':
+    'El archivo de instrucciones de lanzamiento sería demasiado grande; no se guardó.',
+  'The project path contains characters that cannot be used for instruction exclusions. Nothing was started.':
+    'La ruta del proyecto contiene caracteres que no se pueden usar para excluir instrucciones. No se inició nada.',
+  'The combined global instructions and role are too long for Codex. Nothing was started.':
+    'Las instrucciones globales y el rol juntos son demasiado largos para Codex. No se inició nada.',
 };

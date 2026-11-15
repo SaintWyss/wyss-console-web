@@ -456,6 +456,28 @@ pub fn build(owner: &CodexOwner, dir: &Path, spec: &CodexHomeSpec) -> io::Result
     Ok(dir.to_path_buf())
 }
 
+pub fn write_role(
+    owner: &CodexOwner,
+    dir: &Path,
+    spec: &CodexHomeSpec,
+    role: &str,
+) -> io::Result<()> {
+    let source = owner.dir.join(INSTRUCTIONS);
+    let mut bytes = if spec.instructions && fs::metadata(&source).is_ok_and(|m| m.is_file()) {
+        let mut bytes = fs::read(source)?;
+        bytes.extend_from_slice(b"\n\n");
+        bytes
+    } else {
+        Vec::new()
+    };
+    bytes.extend_from_slice(role.as_bytes());
+    if bytes.len() > 128 * 1024 {
+        return Err(fail("arsenal_role_too_long"));
+    }
+    place(&dir.join(INSTRUCTIONS), None)?;
+    store::write_atomic(&dir.join(INSTRUCTIONS), &bytes)
+}
+
 /// A hook Codex reads from `config.toml` itself. It runs in every launch: a preset cannot leave
 /// it out.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -596,6 +618,33 @@ mod tests {
 
     fn code(r: io::Result<PathBuf>) -> String {
         r.unwrap_err().to_string()
+    }
+
+    #[test]
+    fn role_home_preserves_owner_and_returns_to_link() {
+        let f = fx("own-role");
+        let spec = CodexHomeSpec::default();
+        f.build(&spec).unwrap();
+        let before = fs::read(f.owner.dir.join(INSTRUCTIONS)).unwrap();
+        write_role(&f.owner, &f.home, &spec, "role text").unwrap();
+        assert_eq!(
+            fs::read(f.home.join(INSTRUCTIONS)).unwrap(),
+            b"kernel\n\nrole text"
+        );
+        assert_eq!(fs::read(f.owner.dir.join(INSTRUCTIONS)).unwrap(), before);
+        assert!(
+            fs::symlink_metadata(f.owner.dir.join(INSTRUCTIONS))
+                .unwrap()
+                .is_file()
+        );
+        f.build(&spec).unwrap();
+        assert!(
+            fs::symlink_metadata(f.home.join(INSTRUCTIONS))
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+        fs::remove_dir_all(f.root).unwrap();
     }
 
     /// Every entry under `dir`: file bytes, `link:<target>` or `dir`.

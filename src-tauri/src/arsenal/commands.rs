@@ -279,6 +279,8 @@ const COMMANDS: &[&str] = &[
     "arsenal_codex_environment",
     "arsenal_codex_environment_options",
     "arsenal_codex_environment_write",
+    "arsenal_launch_instructions",
+    "arsenal_launch_instructions_write",
     "arsenal_roles",
     "arsenal_role_write",
     "arsenal_terminal_plan",
@@ -320,6 +322,8 @@ pub fn extension() -> wyss_console::Extension {
             arsenal_codex_environment,
             arsenal_codex_environment_options,
             arsenal_codex_environment_write,
+            arsenal_launch_instructions,
+            arsenal_launch_instructions_write,
             arsenal_roles,
             arsenal_role_write,
             arsenal_category_write,
@@ -887,6 +891,34 @@ fn arsenal_environment_write(
     super::environment::set(&directory, &selection, &environment).map_err(write_error)
 }
 
+#[tauri::command]
+fn arsenal_launch_instructions(
+    selection: String,
+) -> Result<super::role_instructions::Choice, ArsenalError> {
+    let directory = super::environment::directory().ok_or(ArsenalError::from(Error::Storage))?;
+    super::role_instructions::get(&directory, &selection)
+        .map_err(|_| ArsenalError::code(super::role_instructions::UNREADABLE))
+}
+
+#[tauri::command]
+fn arsenal_launch_instructions_write(
+    selection: String,
+    instructions: super::role_instructions::Choice,
+) -> Result<(), ArsenalError> {
+    let directory = super::environment::directory().ok_or(ArsenalError::from(Error::Storage))?;
+    super::role_instructions::set(&directory, &selection, &instructions).map_err(
+        |error| match error.to_string().as_str() {
+            super::role_instructions::UNREADABLE => {
+                ArsenalError::code(super::role_instructions::UNREADABLE)
+            }
+            super::role_instructions::TOO_LARGE => {
+                ArsenalError::code(super::role_instructions::TOO_LARGE)
+            }
+            _ => ArsenalError::from(Error::Invalid),
+        },
+    )
+}
+
 /// The error of writing a launch environment file, as the window says it.
 fn write_error(error: std::io::Error) -> ArsenalError {
     if super::environment::is_unreadable(&error) {
@@ -1250,6 +1282,15 @@ pub(crate) fn terminal_project(
 
 /// One terminal plan, computed now: the selection as stored, the installed skills as read now, and
 /// the provider build as the host would launch it. Returns the plan and the installed skills.
+fn instruction_hash(
+    base: &str,
+    choice: &super::role_instructions::Choice,
+) -> Result<String, ArsenalError> {
+    let material =
+        serde_json::to_vec(&(base, choice)).map_err(|_| ArsenalError::from(Error::Storage))?;
+    Ok(format!("{:x}", sha2::Sha256::digest(material)))
+}
+
 fn plan_now(
     store: &Arc<Mutex<Store>>,
     link: &HostLink,
@@ -1351,6 +1392,25 @@ fn plan_now(
         plan.config_hash = format!("{:x}", sha2::Sha256::digest(material));
         plan.codex_environment = Some(spec);
     }
+    let directory = super::environment::directory().ok_or(ArsenalError::from(Error::Storage))?;
+    let choice = super::role_instructions::get(&directory, &plan.selection)
+        .map_err(|_| ArsenalError::code(super::role_instructions::UNREADABLE))?;
+    if !matches!(choice, super::role_instructions::Choice::Load) {
+        plan.config_hash = instruction_hash(&plan.config_hash, &choice)?;
+        if matches!(choice, super::role_instructions::Choice::Role { .. }) {
+            if provider == "claude_code" {
+                plan.environment
+                    .get_or_insert_with(|| crate::native::launch_home::HomeSpec {
+                        instructions: true,
+                        memory: true,
+                        ..Default::default()
+                    });
+            } else if provider == "codex" {
+                plan.codex_environment.get_or_insert_with(Default::default);
+            }
+        }
+        plan.launch_instructions = Some(choice);
+    }
     Ok((plan, installed))
 }
 
@@ -1369,6 +1429,7 @@ pub(crate) fn launch_for(
         HostError::new(match error.code {
             "not_found" => "arsenal_selection_unknown",
             "environment_unreadable" => "arsenal_environment_unreadable",
+            "role_unreadable" => "arsenal_role_unreadable",
             "environment_stale" => "arsenal_environment_stale",
             "project_unknown" | "project_refused" => "arsenal_project_refused",
             _ => "arsenal_unavailable",
@@ -1395,6 +1456,7 @@ pub(crate) fn launch_for(
         skill_files_off: plan.excluded_files,
         home: plan.environment,
         codex_home: plan.codex_environment,
+        launch_instructions: plan.launch_instructions,
     })
 }
 
@@ -1632,6 +1694,28 @@ fn arsenal_project_selection(
 mod tests {
     use super::*;
     use rusqlite::Connection;
+
+    #[test]
+    fn instruction_hash_changes_with_mode_and_text() {
+        use crate::arsenal::role_instructions::Choice;
+        let exclude = Choice::Exclude {
+            role: "same".into(),
+        };
+        let role = Choice::Role {
+            role: "same".into(),
+        };
+        let other = Choice::Role {
+            role: "other".into(),
+        };
+        assert_ne!(
+            instruction_hash("base", &exclude).unwrap(),
+            instruction_hash("base", &role).unwrap()
+        );
+        assert_ne!(
+            instruction_hash("base", &role).unwrap(),
+            instruction_hash("base", &other).unwrap()
+        );
+    }
 
     fn candidate(kind: &'static str, name: &str, body: &[u8]) -> Candidate {
         Candidate {
@@ -2168,6 +2252,37 @@ mod tests {
 
         // Nothing chosen: no environment, and the hash of a plan without one.
         let (plain, _) = plan_now(&store, &link, None, &request).unwrap();
+        let role = super::super::role_instructions::Choice::Role {
+            role: "first".into(),
+        };
+        super::super::role_instructions::set(&directory, &selection.id, &role).unwrap();
+        let (first, _) = plan_now(&store, &link, None, &request).unwrap();
+        assert_ne!(plain.config_hash, first.config_hash);
+        super::super::role_instructions::set(
+            &directory,
+            &selection.id,
+            &super::super::role_instructions::Choice::Role {
+                role: "second".into(),
+            },
+        )
+        .unwrap();
+        let (second, _) = plan_now(&store, &link, None, &request).unwrap();
+        assert_ne!(first.config_hash, second.config_hash);
+        std::fs::create_dir_all(root.join("home/.codex")).unwrap();
+        std::fs::write(root.join("home/.codex/AGENTS.md"), "changed global").unwrap();
+        assert_eq!(
+            second.config_hash,
+            plan_now(&store, &link, None, &request)
+                .unwrap()
+                .0
+                .config_hash
+        );
+        super::super::role_instructions::set(
+            &directory,
+            &selection.id,
+            &super::super::role_instructions::Choice::Load,
+        )
+        .unwrap();
         assert!(plain.codex_environment.is_none());
         assert!(plain.environment.is_none());
         let plain_json = serde_json::to_string(&plain).unwrap();

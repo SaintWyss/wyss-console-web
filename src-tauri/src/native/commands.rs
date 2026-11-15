@@ -278,6 +278,8 @@ fn check_arsenal_start(
     if !link.has_feature("native_arsenal_v1")
         || !link.has_feature("native_profile_plan_token")
         || (agent == AgentId::Codex && !link.has_feature("native_arsenal_codex_v1"))
+        || (launch.launch_instructions.is_some()
+            && !link.has_feature("native_arsenal_launch_instructions_v1"))
     {
         return Err(HostError::new("host_outdated"));
     }
@@ -464,6 +466,8 @@ fn preview_with_link(
     if let Some(launch) = &launch {
         if !link.has_feature("native_arsenal_v1")
             || (request.agent_id == AgentId::Codex && !link.has_feature("native_arsenal_codex_v1"))
+            || (launch.launch_instructions.is_some()
+                && !link.has_feature("native_arsenal_launch_instructions_v1"))
         {
             return Err(HostError::new("host_outdated"));
         }
@@ -989,6 +993,10 @@ mod capability_tests {
 
     impl LegacyHost {
         fn new(inherited_effort: bool) -> Self {
+            Self::with_arsenal(inherited_effort, false)
+        }
+
+        fn with_arsenal(inherited_effort: bool, arsenal: bool) -> Self {
             let root = std::env::temp_dir().join(format!(
                 "wyss-native-legacy-{}",
                 uuid::Uuid::new_v4().simple()
@@ -1044,6 +1052,9 @@ mod capability_tests {
                                         &WireAnswer::Err(HostError::new("unknown_op")),
                                     );
                                     continue;
+                                }
+                                "hello" if arsenal => {
+                                    json!({"protocol": 1, "features": ["native_arsenal_v1", "native_profile_plan_token"]})
                                 }
                                 "hello" => json!({"protocol": 1}),
                                 "native_launcher" => json!({
@@ -1128,6 +1139,7 @@ mod capability_tests {
             skill_files_off: Vec::new(),
             home: None,
             codex_home: None,
+            launch_instructions: None,
         }
     }
 
@@ -1206,6 +1218,28 @@ mod capability_tests {
                 .iter()
                 .all(|(op, params)| op != "native_start" && params.get("arsenal").is_none())
         );
+    }
+
+    #[test]
+    fn host_without_launch_instructions_capability_refuses_the_launch() {
+        let host = LegacyHost::with_arsenal(false, true);
+        let link = host.link();
+        let mut launch = arsenal_launch();
+        launch.launch_instructions = Some(crate::arsenal::role_instructions::Choice::Exclude {
+            role: String::new(),
+        });
+        let error = preview_with_link(
+            &link,
+            PreviewRequest {
+                agent_id: AgentId::ClaudeCode,
+                profile_id: None,
+                arsenal: None,
+            },
+            Some(launch),
+        )
+        .unwrap_err();
+        assert_eq!(error.code, "host_outdated");
+        assert!(host.requests().iter().all(|(op, _)| op != "native_preview"));
     }
 
     #[test]

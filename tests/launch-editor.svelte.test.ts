@@ -4,7 +4,11 @@ import { mockIPC } from '@tauri-apps/api/mocks';
 import LaunchEditor from '../src/lib/features/workspace/LaunchEditor.svelte';
 import type { Launch, LaunchList } from '../src/lib/desktop/launch-client';
 import type { LibraryItem, Selection } from '../src/lib/contracts/arsenal';
-import type { Roles, ArsenalClient } from '../src/lib/desktop/arsenal-client';
+import {
+  arsenalClient,
+  type Roles,
+  type ArsenalClient,
+} from '../src/lib/desktop/arsenal-client';
 import {
   DEFAULT_SPEC,
   type HomeSpec,
@@ -97,6 +101,7 @@ function fake(
     launches: Launch[];
     failRole: boolean;
     failEnvironment: boolean;
+    failInstructions: boolean;
     codex: boolean;
     codexEnvironment: () => Promise<{
       instructions: boolean;
@@ -156,6 +161,11 @@ function fake(
       sizes: { instructions: 8000, 'rule:ux.md': 400 },
     }),
     environment: async () => env,
+    launchInstructions: async () => {
+      if (over.failInstructions) throw new Error('unreadable');
+      return { project: 'load' } as const;
+    },
+    writeLaunchInstructions: arsenalClient.writeLaunchInstructions,
     projectSelection: async () => null,
     saveSelection: async (input: Record<string, unknown>) => {
       note('saveSelection', input);
@@ -208,6 +218,44 @@ async function settle() {
   for (let i = 0; i < 12; i++) await tick();
   flushSync();
 }
+
+it('shows role text only for own role and writes launch instructions on save', async () => {
+  await show([session('estudiar', 'Estudio')]);
+  expect(document.querySelector('textarea')).toBeNull();
+  const radios = document.querySelectorAll<HTMLInputElement>(
+    'input[name="project-instructions"]',
+  );
+  radios[2]!.click();
+  flushSync();
+  const area = document.querySelector<HTMLTextAreaElement>('textarea')!;
+  area.value = 'Mi rol';
+  area.dispatchEvent(new Event('input', { bubbles: true }));
+  flushSync();
+  button('Save').click();
+  await settle();
+  expect(
+    ipc.find((call) => call.command === 'arsenal_launch_instructions_write')
+      ?.args,
+  ).toEqual({
+    selection: 'sel-1',
+    instructions: { project: 'role', role: 'Mi rol' },
+  });
+});
+
+it('warns when launch instructions are unreadable and does not overwrite them', async () => {
+  await show([session('estudiar', 'Estudio')], { failInstructions: true });
+  expect(document.body.textContent).toContain(
+    'The launch instructions file cannot be read',
+  );
+  expect(
+    document
+      .querySelector<HTMLInputElement>('input[name="project-instructions"]')
+      ?.matches(':disabled'),
+  ).toBe(true);
+  expect(
+    ipc.some((call) => call.command === 'arsenal_launch_instructions_write'),
+  ).toBe(false);
+});
 
 it('groups launches by role and shows the estimated context', async () => {
   await show([session('estudiar', 'Estudio'), session('otro', null)]);
