@@ -1678,4 +1678,47 @@ trusted_hash = \"OWNER\"
         assert_eq!(stat(&auth), before, "auth.json untouched");
         let _ = fs::remove_dir_all(&scratch);
     }
+
+    /// By hand: `WYSS_TWO_HOMES=<dir> cargo test two_homes_side_by_side -- --ignored`. Builds, in
+    /// `<dir>`, a fake owner with three marker hooks and two launch homes from it that leave out
+    /// different ones; the owner's `auth.json` is fake; each home's link is then pointed at the real one (never opened).
+    #[test]
+    #[ignore = "writes under WYSS_TWO_HOMES; run by hand next to a real Codex"]
+    fn two_homes_side_by_side_leave_out_different_hooks() {
+        let dir = PathBuf::from(std::env::var_os("WYSS_TWO_HOMES").expect("WYSS_TWO_HOMES"));
+        let owner = dir.join("owner/.codex");
+        fs::create_dir_all(&owner).unwrap();
+        let real = PathBuf::from(std::env::var_os("HOME").unwrap()).join(".codex/auth.json");
+        fs::write(owner.join("auth.json"), "FAKE-TOKEN-1").unwrap();
+        fs::write(owner.join("config.toml"), "model = \"gpt-6-luna\"\n").unwrap();
+        let cmd = |n: &str| format!("{}/mark.sh {n}", dir.display());
+        let groups: Vec<String> = ["m1", "m2", "m3"]
+            .iter()
+            .map(|n| {
+                format!(
+                    r#"{{"matcher":"startup","hooks":[{{"type":"command","command":"{}","timeout":5}}]}}"#,
+                    cmd(n)
+                )
+            })
+            .collect();
+        fs::write(
+            owner.join("hooks.json"),
+            format!(r#"{{"hooks":{{"SessionStart":[{}]}}}}"#, groups.join(",")),
+        )
+        .unwrap();
+        let key =
+            |n: &str| crate::native::launch_home::hook_key("SessionStart", "startup", &cmd(n));
+        let o = CodexOwner { dir: owner };
+        for (home, off) in [("home-a", "m1"), ("home-b", "m2")] {
+            let spec = CodexHomeSpec {
+                instructions: true,
+                hooks_off: vec![key(off)],
+            };
+            build(&o, &dir.join(home), &spec).unwrap();
+            // The experiment signs in with the real login: the home's own link goes to it.
+            let link = dir.join(home).join("auth.json");
+            fs::remove_file(&link).unwrap();
+            symlink(&real, &link).unwrap();
+        }
+    }
 }
