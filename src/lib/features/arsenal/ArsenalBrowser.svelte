@@ -18,7 +18,15 @@
     openId = null,
     onclose = () => undefined,
     card,
+    configView,
+    configShown = false,
+    onlist = () => undefined,
   }: {
+    /** Hooks, MCP or Configuration, shown at the side like a list when one is chosen. */
+    configView?: import('svelte').Snippet;
+    configShown?: boolean;
+    /** A list of entries was chosen: a configuration page shown at the side gives way. */
+    onlist?: () => void;
     /** The entry whose card is open: its row goes to the top and the card fills the rest. */
     openId?: string | null;
     onclose?: () => void;
@@ -121,10 +129,14 @@
   const listed = $derived(openId === null ? all : []);
 
   function pick(node: MapNode) {
-    if (node.kind === 'config') return onconfig(node.tool, node.section);
+    if (node.kind === 'config') {
+      selected = node.key;
+      return onconfig(node.tool, node.section);
+    }
     if (node.kind !== 'branch') return;
     if (isList(node)) {
       selected = node.key;
+      onlist();
       return;
     }
     opened = opened.has(node.key)
@@ -200,7 +212,9 @@
   </div>
 
   <div class="ab-list" bind:this={listEl}>
-    {#if openId !== null}
+    {#if configShown && configView}
+      {@render configView()}
+    {:else if openId !== null}
       <!-- The card says where it is: no list title over it. -->
     {:else if query.trim() !== ''}
       <h2 class="ab-title">
@@ -214,7 +228,7 @@
     {:else if listed.length === 0}
       <p class="lib-muted">{t('Choose a category in the tree.')}</p>
     {/if}
-    <ul class="ars-rows">
+    <ul class="ars-rows" hidden={configShown}>
       {#each listed as e (e.key)}
         <li>
           <button

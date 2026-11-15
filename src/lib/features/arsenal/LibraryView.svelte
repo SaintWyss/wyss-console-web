@@ -252,9 +252,6 @@
   function openConfig(tool: MapTool, section: 'hooks' | 'mcp' | 'global') {
     store.choose({ tool, section });
   }
-  function closeConfig() {
-    store.choose({ section: 'origin:mine' });
-  }
 </script>
 
 <svelte:window
@@ -269,6 +266,19 @@
   hidden={!visible}
   inert={!visible}
 >
+  {#snippet configPanel()}
+    <div class="ars-config-inline">
+      <ConfigurationView
+        visible={visible && configOpen}
+        embedded
+        kinds={configKinds ?? []}
+        {configuration}
+        controller={configurationController}
+        {changes}
+        {changesController}
+      />
+    </div>
+  {/snippet}
   {#snippet cardBody()}
     {#if open}
       <article class="ars-card ars-inline" aria-labelledby="ars-card-title">
@@ -482,6 +492,11 @@
       openId={open?.id ?? null}
       onclose={back}
       card={cardBody}
+      configShown={configOpen}
+      configView={configPanel}
+      onlist={() => {
+        if (configOpen) store.choose({ section: 'origin:mine' });
+      }}
     />
   {:else if store.failed}
     <p class="notice" data-tone="error" role="alert">
@@ -497,41 +512,5 @@
     <p class="notice" data-tone="warn">
       {t('A folder holds more than is read: the lists are incomplete.')}
     </p>
-  {/if}
-  {#if configOpen && configKinds !== null}
-    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-    <div
-      class="ars-overlay"
-      onclick={(e) => {
-        if (e.target === e.currentTarget) closeConfig();
-      }}
-    >
-      <div
-        class="ars-card ars-config-card"
-        role="dialog"
-        aria-modal="true"
-        aria-label={t('Configuration')}
-        tabindex="-1"
-        onkeydown={(e) => {
-          if (e.key === 'Escape') closeConfig();
-        }}
-      >
-        <button
-          type="button"
-          class="action quiet ars-close"
-          aria-label={t('Close')}
-          onclick={closeConfig}>✕</button
-        >
-        <ConfigurationView
-          visible={visible && configOpen}
-          embedded
-          kinds={configKinds}
-          {configuration}
-          controller={configurationController}
-          {changes}
-          {changesController}
-        />
-      </div>
-    </div>
   {/if}
 </section>

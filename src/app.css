@@ -6135,7 +6135,22 @@ li.native-row .native-note {
 }
 
 /* Hooks, MCP and Configuration inside Arsenal: the same title size as an entry's card. */
-.ars-config-card .configuration-detail h3 {
+.ars-config-inline .configuration-detail h3 {
   margin: 0 0 8px;
   font-size: var(--text-xl);
+}
+
+/* Hooks, MCP and Configuration at the side of the tree, like a list. */
+.ars-config-inline {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* No scroll bar anywhere in the window: the wheel and the keyboard still scroll. */
+* {
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
 }

@@ -229,7 +229,7 @@ async function openCard(name: string) {
   return library().querySelector<HTMLElement>('.ars-card')!;
 }
 
-it('lives in Arsenal: its configuration opens over it and is read only while Arsenal is shown', async () => {
+it('lives in Arsenal: its configuration shows at the side of the tree and is read only while Arsenal is shown', async () => {
   const ipc = desktop();
   component = mount(App, { target: document.body });
   await flush();
@@ -239,19 +239,21 @@ it('lives in Arsenal: its configuration opens over it and is read only while Ars
   item('Configuration').click();
   await flush();
   expect(view().hidden).toBe(false);
-  expect(view().closest('[role="dialog"]')).not.toBeNull();
+  // At the side of the tree, like a list: no dialog.
+  expect(view().closest('[role="dialog"]')).toBeNull();
+  expect(view().closest('.ab-list')).not.toBeNull();
   expect(ipc.count('configuration_inventory')).toBe(1);
   // It holds rule files, the configured model and plugins only.
   for (const r of view().querySelectorAll('.configuration-row'))
     expect(r.textContent).not.toMatch(/\bHook\b|MCP/);
-  // Esc closes it.
-  view()
-    .closest<HTMLElement>('[role="dialog"]')!
-    .dispatchEvent(
-      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
-    );
+  // Choosing a list of skills puts the list back.
+  // The first category under Personal.
+  item('Personal')
+    .closest('li')!
+    .querySelector<HTMLButtonElement>(':scope > .ab-sub .ab-item')!
+    .click();
   await flush();
-  expect(document.querySelector('.ars-config-card')).toBeNull();
+  expect(document.querySelector('.ars-config-inline')).toBeNull();
 });
 
 it('does not take the desktop’s answer on faith', async () => {
@@ -448,6 +450,6 @@ it('comes back to Arsenal on its tree, with no configuration left open', async (
   await flush();
   tab('Arsenal').click();
   await flush();
-  expect(document.querySelector('.ars-config-card')).toBeNull();
+  expect(document.querySelector('.ars-config-inline')).toBeNull();
   expect(library().querySelector('.ab-tree')).not.toBeNull();
 });
