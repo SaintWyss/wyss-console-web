@@ -953,3 +953,39 @@ mod tests {
         assert!(serde_json::from_str::<HomeSpec>("{\"other\":1}").is_err());
     }
 }
+
+#[cfg(test)]
+mod marker_homes {
+    use super::*;
+
+    /// Writes two launch settings into `$WYSS_E2E_DIR`, from `$WYSS_E2E_DIR/owner.json`: one
+    /// that keeps every hook and one that leaves out the marker (SessionStart, `touch ...off`).
+    /// Run by hand: `claude -p` under each shows which one ran the marker.
+    #[test]
+    #[ignore]
+    fn writes_the_two_marker_homes() {
+        let dir = PathBuf::from(std::env::var("WYSS_E2E_DIR").expect("WYSS_E2E_DIR"));
+        let owner: Value =
+            serde_json::from_str(&fs::read_to_string(dir.join("owner.json")).unwrap()).unwrap();
+        let marker = owner["hooks"]["SessionStart"][0]["hooks"][0]["command"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        for (name, off) in [
+            ("on", vec![]),
+            ("off", vec![hook_key("SessionStart", "", &marker)]),
+        ] {
+            let spec = HomeSpec {
+                hooks_off: off,
+                ..HomeSpec::default()
+            };
+            let home = dir.join(format!("home-{name}"));
+            fs::create_dir_all(&home).unwrap();
+            fs::write(
+                home.join("settings.json"),
+                serde_json::to_vec(&settings(&owner, &spec)).unwrap(),
+            )
+            .unwrap();
+        }
+    }
+}

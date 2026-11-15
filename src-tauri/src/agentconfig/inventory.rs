@@ -723,3 +723,28 @@ pub(super) fn rule_files(
         sink.report(key, PathTrust::Trusted, Outcome::Absent);
     }
 }
+
+#[cfg(test)]
+mod real_account_check {
+    /// The owner's real account: which hooks and skills the Console may write now. Not run by
+    /// default (it reads the real `~/.claude` and `~/.codex`); run by hand after a change of
+    /// permissions or of `trusted-writers`.
+    #[test]
+    #[ignore]
+    fn print_what_the_real_account_lets_the_console_write() {
+        let mut env = super::Environment::from_process(None).expect("environment");
+        let state = std::path::PathBuf::from(std::env::var("HOME").unwrap())
+            .join(".local/state/wyss-console");
+        env.declared_writers = crate::agentconfig::declared::load(&state);
+        println!("declared: {:?}", env.declared_writers);
+        let inv = super::inventory(&env, super::Bounds::PROPOSED).expect("inventory");
+        for item in &inv.items {
+            if matches!(item.kind, super::ItemKind::Hook | super::ItemKind::Skill) {
+                println!(
+                    "{:?} {:?} {:?} -> {:?}",
+                    item.provider, item.kind, item.name, item.not_writable
+                );
+            }
+        }
+    }
+}
