@@ -1,13 +1,14 @@
 <script lang="ts">
-  import { msg, t } from '../../i18n/index.svelte';
+  import { t } from '../../i18n/index.svelte';
   import type { ConfigItem, ItemKind } from '../../contracts/configuration';
-  import type { GuideSetKind } from '../../contracts/arsenal';
-  import { CONFIG_KINDS, treeOf, type GuideSection } from './guide';
+  import { CONFIG_KINDS, originsOf, treeOf, type GuideSection } from './guide';
+  import { originName } from './origin';
   import type { GuideStore } from './guide-store.svelte';
 
   /**
-   * Arsenal's pages, under Arsenal in Personalization's column (arsenal-UI-SPEC "Etapa 4"): the
-   * Guide, the owner's own skills, the sets they come from, agents and the configuration pages.
+   * Arsenal's pages, under Arsenal in Personalization's column (arsenal-UI-SPEC "Etapa 4"): a
+   * search box, the skills by where they come from, each with its colour, then agents and the
+   * configuration pages.
    */
   let {
     store,
@@ -23,16 +24,10 @@
     onpick: (section: GuideSection) => void;
   } = $props();
 
-  /** A set's name on screen: those the desktop names in English go through `t()`. */
-  const SET_NAME: Partial<Record<GuideSetKind, string>> = {
-    account: msg('Claude account'),
-    system: msg('Included with Codex'),
-    repos: msg('Git repos'),
-  };
-
   const tree = $derived(
     store.tool === 'opencode' ? null : treeOf(store.guide, store.tool),
   );
+  const origins = $derived(tree ? originsOf(tree) : []);
   const loading = $derived(store.guide === null);
   function configCount(kinds: readonly ItemKind[]): number | '…' {
     if (configItems === null) return '…';
@@ -42,67 +37,80 @@
   }
   const lit = (section: GuideSection) =>
     current && store.section === section ? 'page' : undefined;
+
+  function search(value: string) {
+    store.query = value;
+    // The search looks through skills: from a configuration page it goes back to them.
+    if (
+      value.trim() !== '' &&
+      !store.section.startsWith('origin:') &&
+      store.section !== 'agents'
+    )
+      onpick('origin:mine');
+  }
 </script>
 
-<ul class="ars-tree" aria-label={t('Arsenal')}>
+<div class="ars-tree-wrap">
   {#if tree}
-    <li>
-      <button
-        type="button"
-        class="ars-tree-item"
-        aria-current={lit('guide')}
-        onclick={() => onpick('guide')}>{t('Guide')}</button
-      >
-    </li>
-    <li>
-      <button
-        type="button"
-        class="ars-tree-item"
-        aria-current={lit('mine')}
-        onclick={() => onpick('mine')}
-        >{t('Mine')}
-        <span class="ars-tree-count">{loading ? '…' : tree.mine}</span></button
-      >
-    </li>
-    {#if tree.sets.length > 0}
-      <li class="ars-tree-label" aria-hidden="true">{t('Sets')}</li>
-      {#each tree.sets as row (row.set.key)}
-        {@const named = SET_NAME[row.set.kind]}
+    <input
+      type="search"
+      class="ars-search"
+      placeholder={t('Search skills and agents…')}
+      aria-label={t('Search skills and agents')}
+      value={store.query}
+      oninput={(e) => search(e.currentTarget.value)}
+    />
+  {/if}
+  <ul class="ars-tree" aria-label={t('Arsenal')}>
+    {#if tree}
+      <li class="ars-tree-label" aria-hidden="true">{t('Skills')}</li>
+      {#if loading}
+        <li class="ars-tree-label" role="status">{t('Reading…')}</li>
+      {/if}
+      {#each origins as row (row.origin)}
         <li>
           <button
             type="button"
-            class="ars-tree-item nested"
-            aria-current={lit(`set:${row.set.key}`)}
-            onclick={() => onpick(`set:${row.set.key}`)}
-            >{named ? t(named) : row.set.name}
+            class="ars-tree-item"
+            data-origin={row.origin}
+            aria-current={lit(`origin:${row.origin}`)}
+            onclick={() => onpick(`origin:${row.origin}`)}
+          >
+            <span class="ars-tree-name"
+              ><span class="ars-dot" aria-hidden="true"></span>{originName(
+                row.origin,
+                store.tool,
+              )}</span
+            >
             <span class="ars-tree-count">{row.count}</span></button
           >
         </li>
       {/each}
+      <li class="ars-tree-sep" aria-hidden="true"></li>
+      <li>
+        <button
+          type="button"
+          class="ars-tree-item"
+          aria-current={lit('agents')}
+          onclick={() => onpick('agents')}
+          >{t('Agents')}
+          <span class="ars-tree-count">{loading ? '…' : tree.agents}</span
+          ></button
+        >
+      </li>
     {/if}
-    <li>
-      <button
-        type="button"
-        class="ars-tree-item"
-        aria-current={lit('agents')}
-        onclick={() => onpick('agents')}
-        >{t('Agents')}
-        <span class="ars-tree-count">{loading ? '…' : tree.agents}</span
-        ></button
-      >
-    </li>
-  {/if}
-  {#each [['hooks', msg('Hooks')], ['mcp', msg('MCP')], ['global', msg('Global')]] as const as [id, name] (id)}
-    <li>
-      <button
-        type="button"
-        class="ars-tree-item"
-        aria-current={lit(id)}
-        onclick={() => onpick(id)}
-        >{t(name)}
-        <span class="ars-tree-count">{configCount(CONFIG_KINDS[id])}</span
-        ></button
-      >
-    </li>
-  {/each}
-</ul>
+    {#each [['hooks', 'Hooks'], ['mcp', 'MCP'], ['global', 'Global']] as const as [id, name] (id)}
+      <li>
+        <button
+          type="button"
+          class="ars-tree-item"
+          aria-current={lit(id)}
+          onclick={() => onpick(id)}
+          >{t(name)}
+          <span class="ars-tree-count">{configCount(CONFIG_KINDS[id])}</span
+          ></button
+        >
+      </li>
+    {/each}
+  </ul>
+</div>

@@ -1,6 +1,10 @@
 <script lang="ts">
   import { msg, t } from '../../i18n/index.svelte';
-  import type { GuideEntry, GuideSetKind } from '../../contracts/arsenal';
+  import type {
+    GuideEntry,
+    GuideSet,
+    GuideSetKind,
+  } from '../../contracts/arsenal';
   import type { ConfigItem } from '../../contracts/configuration';
   import ConfigurationView from '../configuration/ConfigurationView.svelte';
   import ChangePlan from '../configuration/ChangePlan.svelte';
@@ -16,14 +20,19 @@
   import { GROUP_HELP, GROUP_LABEL, type Group } from './groups';
   import {
     CONFIG_KINDS,
+    ORIGINS,
+    ORIGIN_OF,
     blocks,
     byCategory,
     entriesOf,
     firstSentence,
     helpSkill,
+    matches,
     splitDescription,
     usageSection,
+    type Origin,
   } from './guide';
+  import { ORIGIN_HELP, originName } from './origin';
   import type { GuideStore, GuideTool } from './guide-store.svelte';
 
   /**
@@ -70,6 +79,14 @@
     if (visible) configurationController.setProvider(store.tool);
   });
   $effect(() => {
+    // A section that no longer exists (the Guide, a set) lands on the owner's own skills.
+    if (
+      !['hooks', 'mcp', 'global', 'agents'].includes(store.section) &&
+      !store.section.startsWith('origin:')
+    )
+      store.choose({ section: 'origin:mine' });
+  });
+  $effect(() => {
     // OpenCode has only its configuration pages.
     if (
       store.tool === 'opencode' &&
@@ -85,36 +102,95 @@
       : null,
   );
   const skillTool = $derived(store.tool === 'opencode' ? null : store.tool);
-  const setKey = $derived(
-    section.startsWith('set:') ? section.slice('set:'.length) : null,
+  const origin = $derived(
+    section.startsWith('origin:')
+      ? (section.slice('origin:'.length) as Origin)
+      : null,
   );
-  const set = $derived(
-    setKey === null
-      ? null
-      : (store.guide?.sets.find((s) => s.key === setKey) ?? null),
-  );
-  const listed = $derived.by(() => {
-    if (skillTool === null) return [];
-    if (section === 'mine') return entriesOf(store.guide, skillTool, 'mine');
-    if (section === 'agents')
-      return entriesOf(store.guide, skillTool, 'agents');
-    if (setKey !== null) return entriesOf(store.guide, skillTool, setKey);
-    return [];
+  const searching = $derived(store.query.trim() !== '');
+
+  /** A block of the list: a heading (a set, a category or an origin) and its rows. */
+  interface Block {
+    key: string;
+    title: string;
+    origin: Origin;
+    about: string | null;
+    help: string | null;
+    entries: GuideEntry[];
+  }
+  const setsOf = (o: Origin) =>
+    (store.guide?.sets ?? []).filter(
+      (s) => s.tool === skillTool && ORIGIN_OF[s.kind] === o,
+    );
+  function setTitle(set: GuideSet): string {
+    const named = SET_NAME[set.kind];
+    return named ? t(named) : set.name;
+  }
+  const listBlocks = $derived.by((): Block[] => {
+    if (skillTool === null || store.guide === null) return [];
+    const tool = skillTool;
+    const find = (o: Origin): Block[] => {
+      if (o === 'mine') {
+        const mine = entriesOf(store.guide, tool, 'mine').filter((e) =>
+          matches(e, store.query),
+        );
+        return byCategory(mine).map((c) => ({
+          key: `mine:${c.group}`,
+          title: t(GROUP_LABEL[c.group as Group]),
+          origin: 'mine',
+          about: t(GROUP_HELP[c.group as Group]),
+          help: null,
+          entries: c.entries,
+        }));
+      }
+      return setsOf(o)
+        .map((set) => {
+          const all = entriesOf(store.guide, tool, set.key);
+          return {
+            key: set.key,
+            title: setTitle(set) + (set.version ? ` ${set.version}` : ''),
+            origin: o,
+            about: set.description || t(SET_ABOUT[set.kind]),
+            help: helpSkill(all),
+            entries: all.filter((e) => matches(e, store.query)),
+          };
+        })
+        .filter((b) => b.entries.length > 0)
+        .sort((a, b) => a.title.localeCompare(b.title));
+    };
+    if (section === 'agents') {
+      const agents: Block[] = [
+        {
+          key: 'agents',
+          title: t('Agents'),
+          origin: 'mine',
+          about: null,
+          help: null,
+          entries: entriesOf(store.guide, tool, 'agents').filter((e) =>
+            matches(e, store.query),
+          ),
+        },
+      ];
+      return agents.filter((b) => b.entries.length > 0);
+    }
+    if (searching) return ORIGINS.flatMap(find);
+    return origin === null ? [] : find(origin);
   });
-  const categories = $derived(section === 'mine' ? byCategory(listed) : []);
-  const help = $derived(set ? helpSkill(listed) : null);
+  const listedCount = $derived(
+    listBlocks.reduce((n, b) => n + b.entries.length, 0),
+  );
+  const shownOrigins = $derived([...new Set(listBlocks.map((b) => b.origin))]);
+  const entryOrigin = (entry: GuideEntry): Origin => {
+    if (entry.set === 'mine' || entry.set === 'agents') return 'mine';
+    const set = store.guide?.sets.find((s) => s.key === entry.set);
+    return set ? ORIGIN_OF[set.kind] : 'plugin';
+  };
   const open = $derived(
     store.openId === null
       ? null
       : (store.guide?.entries.find((e) => e.id === store.openId) ?? null),
   );
-
-  let opened = $state<Set<string>>(new Set());
-  function toggleCategory(id: string) {
-    opened = opened.has(id)
-      ? new Set([...opened].filter((x) => x !== id))
-      : new Set([...opened, id]);
-  }
+  const openOrigin = $derived(open ? entryOrigin(open) : null);
 
   const SET_NAME: Partial<Record<GuideSetKind, string>> = {
     account: msg('Claude account'),
@@ -200,20 +276,46 @@
   }
   function choose(entry: GuideEntry) {
     leave();
-    if (store.openId === entry.id) {
-      store.close();
-      return;
-    }
+    opener = document.activeElement as HTMLElement | null;
     void store.open(entry.id);
   }
+  /** The row that opened the card: the focus goes back to it when the card closes. */
+  let opener: HTMLElement | null = null;
   function back() {
     leave();
     store.close();
+    opener?.focus({ preventScroll: true });
+    opener = null;
   }
   let cardTitle = $state<HTMLHeadingElement | null>(null);
+  let dialog = $state<HTMLDivElement | null>(null);
   $effect(() => {
     if (open && cardTitle) cardTitle.focus({ preventScroll: true });
   });
+  /** Esc closes the card; Tab stays inside it. */
+  function onDialogKey(event: KeyboardEvent) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      back();
+      return;
+    }
+    if (event.key !== 'Tab' || dialog === null) return;
+    const focusable = [
+      ...dialog.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), summary, [tabindex="0"], a[href]',
+      ),
+    ];
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
 </script>
 
 <section
@@ -246,26 +348,8 @@
         {changesController}
       />
     </div>
-  {:else if section === 'guide'}
-    <div class="ars-body ars-guide">
-      <h2 class="ars-guide-title">{t('What a skill is')}</h2>
-      <ol class="ars-guide-lines">
-        <li>
-          {t(
-            'A skill is an instruction for how to do something, kept in a folder with a SKILL.md.',
-          )}
-        </li>
-        <li>
-          {t(
-            'When it starts, Claude reads only each skill’s name and description; if what you ask matches, it opens the whole skill and follows it.',
-          )}
-        </li>
-        <li>
-          {t(
-            'You use one by typing /name or by asking for what its “Use it when” says.',
-          )}
-        </li>
-      </ol>
+  {:else}
+    <div class="ars-list">
       {#if store.failed}
         <p class="notice" data-tone="error" role="alert">
           {t('The skills on disk could not be read.')}
@@ -273,104 +357,106 @@
             >{t('Try again')}</button
           >
         </p>
-      {:else if store.guide?.truncated}
-        <p class="notice" data-tone="warn">
-          {t('A folder holds more than is read: the lists are incomplete.')}
-        </p>
-      {/if}
-    </div>
-  {:else}
-    <div class="ars-split" class:carded={open !== null}>
-      <div class="ars-list">
-        {#if set}
-          <header class="ars-set-head">
-            <h2>
-              {SET_NAME[set.kind] ? t(SET_NAME[set.kind] ?? '') : set.name}
-              {#if set.version}<span class="ars-count">{set.version}</span>{/if}
-            </h2>
-            <p>{set.description || t(SET_ABOUT[set.kind])}</p>
-            {#if help}
-              <p>
-                <strong>{t('Start with /{name}', { name: help })}</strong>
-              </p>
-            {/if}
-            <p class="lib-muted">
-              {t(
-                'They come from outside and update themselves: they are not edited here.',
-              )}
-            </p>
-          </header>
+      {:else if store.guide === null}
+        <p class="lib-muted" role="status">{t('Reading…')}</p>
+      {:else}
+        {#if store.guide.truncated}
+          <p class="notice" data-tone="warn">
+            {t('A folder holds more than is read: the lists are incomplete.')}
+          </p>
         {/if}
-        {#if store.failed}
-          <p class="notice" data-tone="error" role="alert">
-            {t('The skills on disk could not be read.')}
+        {#if searching}
+          <p class="lib-muted" role="status">
+            {t('{n} found for “{q}”', {
+              n: listedCount,
+              q: store.query.trim(),
+            })}
             <button
               type="button"
-              class="action"
-              onclick={() => void store.load()}>{t('Try again')}</button
+              class="action quiet"
+              onclick={() => (store.query = '')}>{t('Clear')}</button
             >
           </p>
-        {:else if store.guide === null}
-          <p class="lib-muted" role="status">{t('Reading…')}</p>
-        {:else if listed.length === 0}
-          <p class="lib-muted">{t('Nothing here.')}</p>
         {/if}
-
-        {#snippet rows(entries: readonly GuideEntry[])}
-          <ul class="ars-rows">
-            {#each entries as entry (entry.id)}
-              <li>
-                <button
-                  type="button"
-                  class="ars-row"
-                  aria-expanded={store.openId === entry.id}
-                  onclick={() => choose(entry)}
-                >
-                  <span class="lib-name" title={entry.name}>{entry.name}</span>
-                  <span class="lib-desc">{row(entry)}</span>
-                </button>
+        {#if shownOrigins.length > 1}
+          <ul class="ars-legend" aria-label={t('Colours')}>
+            {#each shownOrigins as o (o)}
+              <li data-origin={o}>
+                <span class="ars-dot" aria-hidden="true"></span>{t(
+                  ORIGIN_HELP[o],
+                )}
               </li>
             {/each}
           </ul>
-        {/snippet}
-
-        {#if section === 'mine'}
-          {#each categories as c (c.group)}
-            {@const isOpen = opened.has(c.group)}
-            <section class="ars-group">
-              <h3>
-                <button
-                  type="button"
-                  class="ars-group-head"
-                  aria-expanded={isOpen}
-                  onclick={() => toggleCategory(c.group)}
-                >
-                  <span class="ars-chevron" aria-hidden="true"
-                    >{isOpen ? '▾' : '▸'}</span
-                  >
-                  <span class="ars-group-text">
-                    <span
-                      >{t(GROUP_LABEL[c.group as Group])}
-                      <span class="ars-count">{c.entries.length}</span></span
-                    >
-                    <span class="ars-group-help"
-                      >{t(GROUP_HELP[c.group as Group])}</span
-                    >
-                  </span>
-                </button>
-              </h3>
-              {#if isOpen}{@render rows(c.entries)}{/if}
-            </section>
-          {/each}
-        {:else}
-          {@render rows(listed)}
         {/if}
-      </div>
+        {#if listBlocks.length === 0}
+          <p class="lib-muted">{t('Nothing here.')}</p>
+        {/if}
+        {#each listBlocks as b (b.key)}
+          <section class="ars-block" data-origin={b.origin}>
+            <header class="ars-block-head">
+              <h2>
+                <span class="ars-dot" aria-hidden="true"></span>{b.title}
+                <span class="ars-count">{b.entries.length}</span>
+              </h2>
+              {#if b.about}<p>{b.about}</p>{/if}
+              {#if b.help}
+                <p>
+                  <strong>{t('Start with /{name}', { name: b.help })}</strong>
+                </p>
+              {/if}
+            </header>
+            <ul class="ars-rows">
+              {#each b.entries as entry (entry.id)}
+                <li>
+                  <button
+                    type="button"
+                    class="ars-row"
+                    data-origin={b.origin}
+                    aria-haspopup="dialog"
+                    onclick={() => choose(entry)}
+                  >
+                    <span class="lib-name" title={entry.name}>{entry.name}</span
+                    >
+                    <span class="lib-desc">{row(entry)}</span>
+                    <span class="ars-tag"
+                      >{originName(b.origin, store.tool)}</span
+                    >
+                  </button>
+                </li>
+              {/each}
+            </ul>
+          </section>
+        {/each}
+      {/if}
+    </div>
 
-      {#if open}
-        <article class="ars-card" aria-labelledby="ars-card-title">
-          <button type="button" class="action quiet ars-back" onclick={back}
-            >{t('Back')}</button
+    {#if open}
+      <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+      <div
+        class="ars-overlay"
+        onclick={(e) => {
+          if (e.target === e.currentTarget) back();
+        }}
+      >
+        <div
+          class="ars-card"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="ars-card-title"
+          data-origin={openOrigin}
+          tabindex="-1"
+          bind:this={dialog}
+          onkeydown={onDialogKey}
+        >
+          <button
+            type="button"
+            class="action quiet ars-close"
+            aria-label={t('Close')}
+            onclick={back}>✕</button
+          >
+          <span class="ars-tag" data-origin={openOrigin}
+            >{openOrigin ? originName(openOrigin, store.tool) : ''}</span
           >
           <h2 id="ars-card-title" tabindex="-1" bind:this={cardTitle}>
             {open.name}
@@ -531,12 +617,8 @@
               <p class="mono ars-where">→ {open.linked_to}</p>
             {/if}
           </section>
-        </article>
-      {:else}
-        <p class="ars-card ars-card-empty lib-muted">
-          {t('Choose a skill to see what it does.')}
-        </p>
-      {/if}
-    </div>
+        </div>
+      </div>
+    {/if}
   {/if}
 </section>

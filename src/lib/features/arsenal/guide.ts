@@ -14,9 +14,31 @@ import type {
 import type { ItemKind } from '../../contracts/configuration';
 import { GROUPS, groupFor } from './groups';
 
-/** The tree's sections; a set is `set:<key>`. */
+/**
+ * Where a skill comes from, the tree's first level and the colour of its rows: the owner's own,
+ * GSD Core, plugins (and the batches one tool installed), what comes with the tool (the Claude
+ * account, or what Codex includes) and Git checkouts.
+ */
+export type Origin = 'mine' | 'gsd' | 'plugin' | 'bundled' | 'repos';
+export const ORIGINS: readonly Origin[] = [
+  'mine',
+  'gsd',
+  'plugin',
+  'bundled',
+  'repos',
+];
+export const ORIGIN_OF: Record<GuideSetKind, Exclude<Origin, 'mine'>> = {
+  gsd: 'gsd',
+  plugin: 'plugin',
+  bundle: 'plugin',
+  account: 'bundled',
+  system: 'bundled',
+  repos: 'repos',
+};
+
+/** The tree's sections: an origin is `origin:<origin>`. */
 export type GuideSection =
-  'guide' | 'mine' | 'agents' | 'hooks' | 'mcp' | 'global' | `set:${string}`;
+  'agents' | 'hooks' | 'mcp' | 'global' | `origin:${Origin}`;
 
 /** Where "use it when" begins. Checked in the text in any case. */
 const WHEN = [
@@ -216,6 +238,36 @@ export function treeOf(guide: Guide | null, tool: ArsenalProvider): Tree {
         a.set.name.localeCompare(b.set.name),
     );
   return { mine: count('mine'), sets, agents: count('agents') };
+}
+
+export interface OriginRow {
+  origin: Origin;
+  count: number;
+  /** The sets it gathers, in tree order; empty for the owner's own. */
+  sets: TreeSet[];
+}
+
+/** The tree by origin for one tool: only origins that hold something, in `ORIGINS` order. */
+export function originsOf(tree: Tree): OriginRow[] {
+  return ORIGINS.map((origin) => {
+    if (origin === 'mine') return { origin, count: tree.mine, sets: [] };
+    const sets = tree.sets.filter((row) => ORIGIN_OF[row.set.kind] === origin);
+    return {
+      origin,
+      count: sets.reduce((n, row) => n + row.count, 0),
+      sets,
+    };
+  }).filter((row) => row.count > 0);
+}
+
+/** Whether an entry matches what was typed in the search box: its name or its description. */
+export function matches(entry: GuideEntry, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (q === '') return true;
+  return (
+    entry.name.toLowerCase().includes(q) ||
+    entry.description.toLowerCase().includes(q)
+  );
 }
 
 export function entriesOf(

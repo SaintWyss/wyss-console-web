@@ -7,6 +7,10 @@ import {
   helpSkill,
   splitDescription,
   treeOf,
+  originsOf,
+  matches,
+  ORIGINS,
+  ORIGIN_OF,
   usageSection,
 } from '../src/lib/features/arsenal/guide';
 import {
@@ -210,5 +214,87 @@ describe('parseGuide', () => {
         entries: [{ ...reply.entries[0], scope: 'all' }],
       }),
     ).toThrow();
+  });
+});
+
+describe('origins', () => {
+  it('gathers sets by where they come from, in tree order, empty ones out', () => {
+    const tree = {
+      mine: 2,
+      agents: 0,
+      sets: [
+        {
+          set: {
+            key: 'g',
+            tool: 'claude_code',
+            kind: 'gsd',
+            name: 'GSD Core',
+            version: '',
+            description: '',
+          },
+          count: 3,
+        },
+        {
+          set: {
+            key: 'p',
+            tool: 'claude_code',
+            kind: 'plugin',
+            name: 'caveman',
+            version: '',
+            description: '',
+          },
+          count: 4,
+        },
+        {
+          set: {
+            key: 'b',
+            tool: 'claude_code',
+            kind: 'bundle',
+            name: 'gstack',
+            version: '',
+            description: '',
+          },
+          count: 1,
+        },
+        {
+          set: {
+            key: 'a',
+            tool: 'claude_code',
+            kind: 'account',
+            name: 'Claude account',
+            version: '',
+            description: '',
+          },
+          count: 5,
+        },
+      ],
+    } as Parameters<typeof originsOf>[0];
+    expect(originsOf(tree).map((r) => [r.origin, r.count])).toEqual([
+      ['mine', 2],
+      ['gsd', 3],
+      ['plugin', 5],
+      ['bundled', 5],
+    ]);
+    expect(originsOf({ ...tree, mine: 0, sets: [] })).toEqual([]);
+  });
+  it('maps every kind of set to an origin', () => {
+    for (const kind of [
+      'gsd',
+      'plugin',
+      'account',
+      'bundle',
+      'system',
+      'repos',
+    ] as const)
+      expect(ORIGINS).toContain(ORIGIN_OF[kind]);
+  });
+  it('matches a search on the name or the description, in any case', () => {
+    const e = { name: 'gsd-plan', description: 'Plans a Phase.' } as Parameters<
+      typeof matches
+    >[0];
+    expect(matches(e, 'PHASE')).toBe(true);
+    expect(matches(e, 'gsd')).toBe(true);
+    expect(matches(e, '  ')).toBe(true);
+    expect(matches(e, 'loops')).toBe(false);
   });
 });

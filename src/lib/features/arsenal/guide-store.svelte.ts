@@ -16,8 +16,10 @@ export interface GuideClient {
  */
 export class GuideStore {
   tool = $state<GuideTool>('claude_code');
-  section = $state<GuideSection>('guide');
+  section = $state<GuideSection>('origin:mine');
   guide = $state<Guide | null>(null);
+  /** What is typed in the tree's search box: it filters the skill lists. */
+  query = $state('');
   loading = $state(false);
   failed = $state(false);
   /** The entry whose card is open. */

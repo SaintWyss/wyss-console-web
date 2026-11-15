@@ -39,6 +39,12 @@
 }
 
 :root {
+  /* Where an Arsenal skill comes from (arsenal-UI-SPEC "Etapa 4"). */
+  --origin-mine: #7cc4a0;
+  --origin-gsd: #d9a75c;
+  --origin-plugin: #8fa8e0;
+  --origin-bundled: #c79ad9;
+  --origin-repos: #a3a3a3;
   color-scheme: dark;
   /* Surfaces, darkest to lightest: window chrome, view canvas, panels, controls. */
   --chrome: #151515;
@@ -99,6 +105,12 @@
 }
 
 :root[data-theme='light'] {
+  /* Where an Arsenal skill comes from (arsenal-UI-SPEC "Etapa 4"). */
+  --origin-mine: #1f6e48;
+  --origin-gsd: #8a5a12;
+  --origin-plugin: #2f4f9e;
+  --origin-bundled: #7a3a94;
+  --origin-repos: #595959;
   color-scheme: light;
   --chrome: #ebebeb;
   --bg: #f5f5f5;
@@ -138,6 +150,12 @@
 }
 
 :root[data-theme='high_contrast'] {
+  /* Where an Arsenal skill comes from (arsenal-UI-SPEC "Etapa 4"). */
+  --origin-mine: #7dffb0;
+  --origin-gsd: #ffc04d;
+  --origin-plugin: #9cc0ff;
+  --origin-bundled: #e6a8ff;
+  --origin-repos: #d0d0d0;
   color-scheme: dark;
   --chrome: #000000;
   --bg: #000000;
@@ -5323,7 +5341,6 @@ li.native-row .native-note {
 .ars-group-head:hover {
   background: var(--surface-hover);
 }
-.ars-group-head:focus-visible,
 .ars-row:focus-visible,
 .ars-tree-item:focus-visible {
   outline: 2px solid var(--accent);
@@ -5545,59 +5562,208 @@ li.native-row .native-note {
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
-.ars-guide {
-  max-width: 72ch;
-}
-.ars-guide-title {
-  margin: 0;
-  font-size: var(--text-xl);
-}
-.ars-guide-lines {
+.ars-md {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin: 0;
-  padding-left: 1.4em;
-  font-size: var(--text-md);
+  gap: 8px;
   line-height: 1.5;
 }
-.ars-split {
-  flex: 1;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(340px, 46%);
-  gap: 20px;
+.ars-md p,
+.ars-md ul {
+  margin: 0;
+  overflow-wrap: anywhere;
 }
-.ars-list,
-.ars-card {
-  min-height: 0;
-  overflow-y: auto;
-  padding-right: 8px;
+.ars-md-h {
+  font-weight: 600;
 }
-.ars-set-head {
+.ars-md-h[data-level='1'],
+.ars-md-h[data-level='2'] {
+  font-size: var(--text-lg);
+}
+@media (max-width: 760px) {
+  .ars-tree {
+    flex-direction: row;
+    padding: 0;
+  }
+  .ars-tree-item,
+  .ars-tree-label {
+    white-space: nowrap;
+  }
+}
+
+/* Arsenal by origin: each origin has its colour, always next to its name. */
+[data-origin='mine'] {
+  --oc: var(--origin-mine);
+}
+[data-origin='gsd'] {
+  --oc: var(--origin-gsd);
+}
+[data-origin='plugin'] {
+  --oc: var(--origin-plugin);
+}
+[data-origin='bundled'] {
+  --oc: var(--origin-bundled);
+}
+[data-origin='repos'] {
+  --oc: var(--origin-repos);
+}
+.ars-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 10px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--oc, var(--muted));
+}
+.ars-tree-wrap {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 0 0 12px;
-  margin-bottom: 8px;
-  border-bottom: 1px solid var(--line);
+  padding-left: 10px;
 }
-.ars-set-head h2,
-.ars-set-head p {
+.ars-search {
+  min-height: 36px;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+.ars-search:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+.ars-tree-wrap .ars-tree {
+  padding-left: 0;
+}
+.ars-tree-name {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.ars-tree-sep {
+  height: 1px;
+  margin: 6px 4px;
+  background: var(--line);
+}
+.ars-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.ars-list:hover,
+.personal-tabs:hover {
+  scrollbar-color: var(--line-strong) transparent;
+}
+.personal-tabs {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.ars-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+.ars-legend li {
+  display: flex;
+  align-items: center;
+}
+.ars-legend .ars-dot {
+  margin-right: 6px;
+}
+.ars-block {
+  margin-bottom: 18px;
+}
+.ars-block-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 0 8px;
+}
+.ars-block-head h2 {
+  display: flex;
+  align-items: center;
   margin: 0;
-}
-.ars-set-head h2 {
   font-size: var(--text-lg);
 }
+.ars-block-head p {
+  margin: 0;
+  color: var(--muted);
+  max-width: 80ch;
+}
+.ars-list .ars-row {
+  grid-template-columns: minmax(140px, 240px) minmax(0, 1fr) auto;
+  padding-left: 14px;
+  border-radius: 0;
+  box-shadow: inset 3px 0 0 var(--oc);
+}
+.ars-tag {
+  justify-self: end;
+  align-self: center;
+  padding: 2px 8px;
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  color: var(--oc);
+  border: 1px solid var(--oc);
+  border-radius: 999px;
+}
+.ars-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  /* The app draws nothing translucent: the card stands out by its surface and border. */
+  background: transparent;
+}
 .ars-card {
+  position: relative;
+  width: min(760px, 100%);
+  max-height: min(85vh, 900px);
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding-left: 20px;
-  border-left: 1px solid var(--line);
+  padding: 22px 26px;
+  background: var(--surface-overlay);
+  border: 1px solid var(--line-strong);
+  border-top: 4px solid var(--oc, var(--accent));
+  border-radius: var(--radius-lg, 10px);
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+.ars-card:focus {
+  outline: none;
+}
+.ars-card .ars-tag {
+  align-self: flex-start;
+}
+.ars-card .lib-pre {
+  max-height: none;
+}
+.ars-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  min-width: 44px;
+  min-height: 44px;
 }
 .ars-card h2 {
   margin: 0;
+  padding-right: 48px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -5617,13 +5783,6 @@ li.native-row .native-note {
 .ars-card section p {
   margin: 0;
   line-height: 1.5;
-}
-.ars-card-empty {
-  align-self: start;
-}
-.ars-back {
-  display: none;
-  align-self: flex-start;
 }
 .ars-scope {
   padding: 2px 8px;
@@ -5667,56 +5826,14 @@ li.native-row .native-note {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-.ars-split .ars-row {
-  grid-template-columns: minmax(140px, 220px) minmax(0, 1fr);
-}
-.ars-split .ars-row .lib-desc {
-  white-space: normal;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-.ars-md {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  line-height: 1.5;
-}
-.ars-md p,
-.ars-md ul {
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-.ars-md-h {
-  font-weight: 600;
-}
-.ars-md-h[data-level='1'],
-.ars-md-h[data-level='2'] {
-  font-size: var(--text-lg);
-}
-@container ars (max-width: 719px) {
-  .ars-split {
-    grid-template-columns: minmax(0, 1fr);
+@media (max-width: 640px) {
+  .ars-list .ars-row {
+    grid-template-columns: minmax(0, 1fr) auto;
   }
-  .ars-split.carded .ars-list,
-  .ars-card-empty {
-    display: none;
+  .ars-list .ars-row .lib-desc {
+    grid-column: 1 / -1;
   }
-  .ars-card {
-    padding-left: 0;
-    border-left: 0;
-  }
-  .ars-back {
-    display: inline-flex;
-  }
-}
-@media (max-width: 760px) {
-  .ars-tree {
-    flex-direction: row;
-    padding: 0;
-  }
-  .ars-tree-item,
-  .ars-tree-label {
-    white-space: nowrap;
+  .ars-overlay {
+    padding: 8px;
   }
 }

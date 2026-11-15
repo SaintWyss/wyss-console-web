@@ -241,7 +241,7 @@ it('does not take the desktop’s answer on faith', async () => {
   expect(view().querySelector('.configuration-row')).toBeNull();
 });
 
-it('opens Arsenal on its Guide, with the tree at the side; the earlier screen is under More', async () => {
+it('opens Arsenal on the owner’s skills, the tree by origin at the side; the earlier screen is under More', async () => {
   const ipc = desktop();
   component = mount(App, { target: document.body });
   await flush();
@@ -256,10 +256,14 @@ it('opens Arsenal on its Guide, with the tree at the side; the earlier screen is
     Array.from(document.querySelectorAll('.ars-tree-item')).map((b) =>
       b.textContent?.replace(/\s*[\d…]+$/, '').trim(),
     ),
-  ).toEqual(['Guide', 'Mine', 'GSD Core', 'Agents', 'Hooks', 'MCP', 'Global']);
-  // The Guide: what a skill is, and no description of any skill.
-  expect(text(library)).toContain('A skill is an instruction');
-  expect(text(library)).not.toContain('Designs loops');
+  ).toEqual(['My skills', 'GSD Core', 'Agents', 'Hooks', 'MCP', 'Global']);
+  // Each origin has its colour, named next to it.
+  expect(
+    document.querySelector('.ars-tree-item[data-origin="gsd"] .ars-dot'),
+  ).not.toBeNull();
+  // It lands on the owner's own skills, shown as rows with their origin.
+  expect(text(library)).toContain('Designs loops');
+  expect(text(library)).not.toContain('A skill is an instruction');
   expect(ipc.count('arsenal_guide')).toBe(1);
   Array.from(
     document.querySelectorAll<HTMLButtonElement>(
@@ -276,25 +280,29 @@ it('opens Arsenal on its Guide, with the tree at the side; the earlier screen is
   expect(text(arsenal)).toContain('Nothing is imported yet');
 });
 
-it('shows Mine folded, and a card split from the description, read by id', async () => {
+it('shows the owner’s skills as rows, and a card over them split from the description, read by id', async () => {
   const ipc = desktop();
   component = mount(App, { target: document.body });
   await flush();
   tab('Arsenal').click();
   await flush();
-  kind('Mine').click();
+  kind('My skills').click();
   await flush();
   const library = document.querySelector<HTMLElement>('.library-feature')!;
-  // Folded: the category and its phrase, no row.
-  expect(library.querySelector('.ars-row')).toBeNull();
+  // Rows under their category, each with its origin in words.
   expect(text(library)).toContain('Planning and method');
-  library.querySelector<HTMLButtonElement>('.ars-group-head')!.click();
-  await flush();
-  const row = library.querySelector<HTMLButtonElement>('.ars-row')!;
-  expect(text(row)).toBe('loops Designs loops.');
+  const row = Array.from(
+    library.querySelectorAll<HTMLButtonElement>('.ars-row'),
+  ).find((b) => b.textContent?.includes('loops'))!;
+  expect(text(row)).toBe('loops Designs loops. My skills');
+  expect(row.getAttribute('aria-haspopup')).toBe('dialog');
+  row.focus();
   row.click();
   await flush();
   const card = library.querySelector<HTMLElement>('.ars-card')!;
+  expect(card.getAttribute('role')).toBe('dialog');
+  expect(card.getAttribute('aria-modal')).toBe('true');
+  expect(card.dataset.origin).toBe('mine');
   expect(text(card)).toContain('What it does Designs loops.');
   expect(text(card)).toContain('Use it when Use when a task repeats.');
   expect(text(card)).toContain(
@@ -307,9 +315,42 @@ it('shows Mine folded, and a card split from the description, read by id', async
   // A third party's text is shown as text, never as markup.
   expect(card.querySelector('img')).toBeNull();
   expect(text(card)).toContain('<img src=x onerror=alert(1)>');
+  // Esc closes it and the focus goes back to the row that opened it.
+  card.dispatchEvent(
+    new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+  );
+  await flush();
+  expect(library.querySelector('.ars-card')).toBeNull();
+  expect(document.activeElement).toBe(row);
 });
 
-it('opens a set with where to start and the note that it is not edited here', async () => {
+it('closes the card with a click outside it, and finds skills from the search box', async () => {
+  desktop();
+  component = mount(App, { target: document.body });
+  await flush();
+  tab('Arsenal').click();
+  await flush();
+  const library = document.querySelector<HTMLElement>('.library-feature')!;
+  library.querySelector<HTMLButtonElement>('.ars-row')!.click();
+  await flush();
+  library.querySelector<HTMLElement>('.ars-overlay')!.click();
+  await flush();
+  expect(library.querySelector('.ars-card')).toBeNull();
+  // The search looks through every origin of the tool, from a configuration page too.
+  kind('Hooks').click();
+  await flush();
+  const box = document.querySelector<HTMLInputElement>('.ars-search')!;
+  box.value = 'phase';
+  box.dispatchEvent(new Event('input', { bubbles: true }));
+  await flush();
+  const rows = Array.from(library.querySelectorAll('.ars-row')).map((r) =>
+    text(r),
+  );
+  expect(rows).toEqual(['gsd-plan Plans a phase. GSD Core']);
+  expect(text(library)).toContain('1 found for “phase”');
+});
+
+it('opens an origin with each set, where to start and what the set is', async () => {
   desktop();
   component = mount(App, { target: document.body });
   await flush();
@@ -320,10 +361,10 @@ it('opens a set with where to start and the note that it is not edited here', as
   const library = document.querySelector<HTMLElement>('.library-feature')!;
   expect(text(library)).toContain('GSD Core 1.15.0');
   expect(text(library)).toContain('Start with /gsd-help');
-  expect(text(library)).toContain(
-    'They come from outside and update themselves',
+  expect(text(library)).toContain('A method for planning');
+  expect(library.querySelectorAll('.ars-row[data-origin="gsd"]')).toHaveLength(
+    2,
   );
-  expect(library.querySelectorAll('.ars-row')).toHaveLength(2);
 });
 
 it('switches one of Mine off through Configuration’s own plan', async () => {
@@ -333,14 +374,9 @@ it('switches one of Mine off through Configuration’s own plan', async () => {
   await flush();
   tab('Arsenal').click();
   await flush();
-  kind('Mine').click();
+  kind('My skills').click();
   await flush();
   const library = document.querySelector<HTMLElement>('.library-feature')!;
-  for (const head of library.querySelectorAll<HTMLButtonElement>(
-    '.ars-group-head',
-  ))
-    head.click();
-  await flush();
   Array.from(library.querySelectorAll<HTMLButtonElement>('.ars-row'))
     .find((b) => b.textContent?.includes('useful'))!
     .click();
@@ -366,14 +402,9 @@ it('offers Undo on the card whose change it was, naming that change', async () =
   await flush();
   tab('Arsenal').click();
   await flush();
-  kind('Mine').click();
+  kind('My skills').click();
   await flush();
   const library = document.querySelector<HTMLElement>('.library-feature')!;
-  for (const head of library.querySelectorAll<HTMLButtonElement>(
-    '.ars-group-head',
-  ))
-    head.click();
-  await flush();
   const row = (name: string) =>
     Array.from(library.querySelectorAll<HTMLButtonElement>('.ars-row')).find(
       (b) => b.textContent?.includes(name),
@@ -405,7 +436,7 @@ it('offers Undo on the card whose change it was, naming that change', async () =
   expect(undone).toEqual(['a0000000000000000000000000000001']);
 });
 
-it('comes back to Arsenal on its Guide', async () => {
+it('comes back to Arsenal on the owner’s skills', async () => {
   desktop();
   component = mount(App, { target: document.body });
   await flush();
@@ -419,5 +450,5 @@ it('comes back to Arsenal on its Guide', async () => {
   await flush();
   expect(
     text(document.querySelector('.ars-tree-item[aria-current="page"]')),
-  ).toBe('Guide');
+  ).toBe('My skills 3');
 });

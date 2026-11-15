@@ -349,9 +349,9 @@
     navigated = true;
     // Models is part of Distributors now: a link or a saved page that names it lands there.
     if (view === 'models') view = 'distributors';
-    // Coming into Arsenal from elsewhere lands on its Guide (arsenal-UI-SPEC "Etapa 4").
+    // Coming into Arsenal from elsewhere lands on the owner's own skills (arsenal-UI-SPEC "Etapa 4").
     if (view === 'arsenal' && activeView !== 'arsenal')
-      guide.choose({ section: 'guide' });
+      guide.choose({ section: 'origin:mine' });
     // Configuration is part of Arsenal now: its Global tab holds the agents' own files.
     if (view === 'configuration') {
       view = 'arsenal';
