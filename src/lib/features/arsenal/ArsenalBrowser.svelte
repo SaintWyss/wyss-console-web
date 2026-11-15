@@ -1,0 +1,210 @@
+<script lang="ts">
+  import { t } from '../../i18n/index.svelte';
+  import type { GuideEntry } from '../../contracts/arsenal';
+  import { firstSentence, matches } from './guide';
+  import type { MapNode, MapTool } from './map';
+
+  /**
+   * Arsenal as a folding tree and a list (owner, 2026-11-15, sketch B): the tree holds the layers
+   * (tool → kind → Personal or each set → category); choosing a category lists its entries at the
+   * side, and an entry opens its card. Configuration pages open over the page.
+   */
+  let {
+    roots,
+    query = $bindable(''),
+    onentry,
+    onconfig,
+    openId = null,
+    onclose = () => undefined,
+    card,
+  }: {
+    /** The entry whose card is open: its row goes to the top and the card fills the rest. */
+    openId?: string | null;
+    onclose?: () => void;
+    card?: import('svelte').Snippet;
+    roots: MapNode[];
+    /** What is typed in the search box over the tree: it lists every entry that matches. */
+    query?: string;
+    onentry: (entry: GuideEntry) => void;
+    onconfig: (tool: MapTool, section: 'hooks' | 'mcp' | 'global') => void;
+  } = $props();
+
+  type Branch = Extract<MapNode, { kind: 'branch' }>;
+  /** A branch whose children are all entries: it is chosen, not folded. */
+  const isList = (n: Branch) =>
+    n.children.length > 0 && n.children.every((c) => c.kind === 'entry');
+
+  let opened = $state<Set<string>>(new Set());
+  let selected = $state<string | null>(null);
+
+  // Opens the first tool's own skills on the first category, once there is something.
+  $effect(() => {
+    if (selected !== null || roots.length === 0) return;
+    const path: string[] = [];
+    let level: MapNode[] = roots;
+    for (;;) {
+      const first = level.find((n): n is Branch => n.kind === 'branch');
+      if (!first) break;
+      if (isList(first)) {
+        selected = first.key;
+        break;
+      }
+      path.push(first.key);
+      level = first.children;
+    }
+    opened = new Set(path);
+  });
+
+  function find(nodes: MapNode[], key: string): Branch | null {
+    for (const n of nodes) {
+      if (n.kind !== 'branch') continue;
+      if (n.key === key) return n;
+      const inner = find(n.children, key);
+      if (inner) return inner;
+    }
+    return null;
+  }
+  const shown = $derived(selected ? find(roots, selected) : null);
+  const entries = $derived(
+    shown
+      ? shown.children.filter(
+          (c): c is Extract<MapNode, { kind: 'entry' }> => c.kind === 'entry',
+        )
+      : [],
+  );
+
+  /** The tree folded away, to give the list the width. */
+  let folded = $state(false);
+  type Leaf = Extract<MapNode, { kind: 'entry' }>;
+  const found = $derived.by((): Leaf[] => {
+    if (query.trim() === '') return [];
+    const out: Leaf[] = [];
+    const seen: Record<string, true> = {};
+    const walk = (nodes: MapNode[]) => {
+      for (const n of nodes) {
+        if (n.kind === 'entry') {
+          if (!seen[n.key] && matches(n.entry, query)) {
+            seen[n.key] = true;
+            out.push(n);
+          }
+        } else if (n.kind === 'branch') walk(n.children);
+      }
+    };
+    walk(roots);
+    return out;
+  });
+  const all = $derived(query.trim() !== '' ? found : entries);
+  // With a card open, only the card is shown.
+  const listed = $derived(openId === null ? all : []);
+
+  function pick(node: MapNode) {
+    if (node.kind === 'config') return onconfig(node.tool, node.section);
+    if (node.kind !== 'branch') return;
+    if (isList(node)) {
+      selected = node.key;
+      return;
+    }
+    opened = opened.has(node.key)
+      ? new Set([...opened].filter((k) => k !== node.key))
+      : new Set([...opened, node.key]);
+  }
+  function describe(entry: GuideEntry): string {
+    if (entry.unreadable) return t('Its text could not be read.');
+    if (entry.description === '') return t('Its file has no description.');
+    return firstSentence(entry.description);
+  }
+</script>
+
+<div class="ab-split" class:folded>
+  <div class="ab-side">
+    <div class="ab-head">
+      {#if !folded}
+        <input
+          type="search"
+          class="ab-search"
+          placeholder={t('Search')}
+          aria-label={t('Search skills and agents')}
+          bind:value={query}
+        />
+      {/if}
+      <button
+        type="button"
+        class="ab-fold"
+        aria-label={folded ? t('Show the tree') : t('Hide the tree')}
+        title={folded ? t('Show the tree') : t('Hide the tree')}
+        aria-expanded={!folded}
+        onclick={() => (folded = !folded)}>{folded ? '»' : '«'}</button
+      >
+    </div>
+    {#if !folded}
+      {#snippet branch(nodes: MapNode[], cls: string)}
+        <ul
+          class={cls}
+          aria-label={cls === 'ab-tree' ? t('Arsenal') : undefined}
+        >
+          {#each nodes.filter((n) => n.kind !== 'entry') as node (node.key)}
+            {@const folds = node.kind === 'branch' && !isList(node)}
+            <li>
+              <button
+                type="button"
+                class="ab-item"
+                aria-expanded={folds ? opened.has(node.key) : undefined}
+                aria-current={selected === node.key ? 'page' : undefined}
+                aria-haspopup={node.kind === 'config' ? 'dialog' : undefined}
+                onclick={() => pick(node)}
+              >
+                {#if folds}<span class="ab-chev" aria-hidden="true"
+                    >{opened.has(node.key) ? '▾' : '▸'}</span
+                  >{/if}
+                <span class="ab-label">{node.label}</span>
+                {#if node.kind === 'branch' && node.count !== null}
+                  <span class="ab-count">{node.count}</span>
+                {:else if node.kind === 'config'}
+                  <span class="ab-count">{node.count}</span>
+                {/if}
+              </button>
+              {#if folds && node.kind === 'branch' && opened.has(node.key)}
+                {@render branch(node.children, 'ab-sub')}
+              {/if}
+            </li>
+          {/each}
+        </ul>
+      {/snippet}
+      {@render branch(roots, 'ab-tree')}
+    {/if}
+  </div>
+
+  <div class="ab-list">
+    {#if query.trim() !== ''}
+      <h2 class="ab-title">
+        {t('{n} found for “{q}”', { n: found.length, q: query.trim() })}
+      </h2>
+    {:else if shown}
+      <h2 class="ab-title">
+        {shown.label}
+        <span class="ars-count">{entries.length}</span>
+      </h2>
+    {:else}
+      <p class="lib-muted">{t('Choose a category in the tree.')}</p>
+    {/if}
+    <ul class="ars-rows">
+      {#each listed as e (e.key)}
+        <li>
+          <button
+            type="button"
+            class="ars-row"
+            aria-expanded={openId === e.entry.id}
+            onclick={() =>
+              openId === e.entry.id ? onclose() : onentry(e.entry)}
+          >
+            <span class="lib-name" title={e.entry.name}>{e.entry.name}</span>
+            <span class="lib-desc">{describe(e.entry)}</span>
+          </button>
+        </li>
+      {/each}
+    </ul>
+    {#if openId !== null && card}
+      {@render card()}
+    {/if}
+  </div>
+</div>

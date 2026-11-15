@@ -9,7 +9,6 @@
   import { ApprovalsController } from './lib/features/approvals/controller';
   import ArsenalView from './lib/features/arsenal/ArsenalView.svelte';
   import LibraryView from './lib/features/arsenal/LibraryView.svelte';
-  import ArsenalTree from './lib/features/arsenal/ArsenalTree.svelte';
   import {
     GuideStore,
     type GuideTool,
@@ -533,29 +532,22 @@
     {/if}
     <!-- Personalization: how the agents start. Its tabs are views of their own, one under another. -->
     <div class="personal" hidden={!inPersonalization(activeView)}>
-      <nav class="personal-tabs" aria-label={t('Personalization')}>
+      <nav
+        class="personal-tabs"
+        class:folded={activeView === 'arsenal'}
+        aria-label={t('Personalization')}
+      >
         {#each PERSONALIZATION as tab (tab.id)}
           <button
             type="button"
             class="personal-tab"
-            class:has-tree={tab.id === 'arsenal'}
-            aria-current={activeView === tab.id && tab.id !== 'arsenal'
-              ? 'page'
-              : undefined}
+            aria-current={activeView === tab.id ? 'page' : undefined}
             title={t(tab.hint)}
-            onclick={() => go(tab.id)}>{t(tab.label)}</button
+            onclick={() => go(tab.id)}
+            ><svg viewBox="0 0 24 24" aria-hidden="true"
+              ><path d={tab.icon} /></svg
+            ><span class="personal-label">{t(tab.label)}</span></button
           >
-          {#if tab.id === 'arsenal'}
-            <ArsenalTree
-              store={guide}
-              current={activeView === 'arsenal'}
-              configItems={configuration.reply?.inventory.items ?? null}
-              onpick={(section) => {
-                go('arsenal');
-                guide.choose({ section });
-              }}
-            />
-          {/if}
         {/each}
       </nav>
       <div class="personal-body">

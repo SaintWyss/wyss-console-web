@@ -33,6 +33,8 @@
     type Origin,
   } from './guide';
   import { ORIGIN_HELP, originName } from './origin';
+  import ArsenalBrowser from './ArsenalBrowser.svelte';
+  import { mapOf, type MapNode, type MapTool } from './map';
   import type { GuideStore, GuideTool } from './guide-store.svelte';
 
   /**
@@ -195,17 +197,11 @@
     listBlocks.reduce((n, b) => n + b.entries.length, 0),
   );
   const shownOrigins = $derived([...new Set(listBlocks.map((b) => b.origin))]);
-  const entryOrigin = (entry: GuideEntry): Origin => {
-    if (entry.set === 'mine' || entry.set === 'agents') return 'mine';
-    const set = store.guide?.sets.find((s) => s.key === entry.set);
-    return set ? ORIGIN_OF[set.kind] : 'plugin';
-  };
   const open = $derived(
     store.openId === null
       ? null
       : (store.guide?.entries.find((e) => e.id === store.openId) ?? null),
   );
-  const openOrigin = $derived(open ? entryOrigin(open) : null);
 
   const SET_NAME: Partial<Record<GuideSetKind, string>> = {
     account: msg('Claude account'),
@@ -303,35 +299,60 @@
     opener = null;
   }
   let cardTitle = $state<HTMLHeadingElement | null>(null);
-  let dialog = $state<HTMLDivElement | null>(null);
   $effect(() => {
     if (open && cardTitle) cardTitle.focus({ preventScroll: true });
   });
-  /** Esc closes the card; Tab stays inside it. */
-  function onDialogKey(event: KeyboardEvent) {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      back();
-      return;
-    }
-    if (event.key !== 'Tab' || dialog === null) return;
-    const focusable = [
-      ...dialog.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), summary, [tabindex="0"], a[href]',
-      ),
+
+  /** The map's root: Arsenal, then each tool that has anything. */
+  const mapRoots = $derived.by((): MapNode[] => {
+    const tools: MapTool[] = TOOLS.map((x) => x.id);
+    const children = mapOf(store.guide, configItems, tools, {
+      tool: {
+        claude_code: 'Anthropic · Claude Code',
+        codex: 'OpenAI · Codex',
+        opencode: 'OpenCode',
+      },
+      skills: t('Skills'),
+      agents: t('Agents'),
+      personal: t('Personal'),
+      sets: t('Sets'),
+      hooks: t('Hooks'),
+      mcp: t('MCP'),
+      configuration: t('Configuration'),
+      setName: (key) => {
+        const set = store.guide?.sets.find((x) => x.key === key);
+        return set ? setTitle(set) : key;
+      },
+      category: (label) => t(label),
+    });
+    return [
+      {
+        kind: 'branch',
+        key: 'arsenal',
+        label: t('Arsenal'),
+        count: null,
+        origin: null,
+        children,
+      },
     ];
-    if (focusable.length === 0) return;
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
+  });
+  /** A configuration page chosen in the map, shown over it; null when none is. */
+  let configOpen = $state(false);
+  function openConfig(tool: MapTool, section: 'hooks' | 'mcp' | 'global') {
+    store.choose({ tool, section });
+    configOpen = true;
+  }
+  function closeConfig() {
+    configOpen = false;
+    store.choose({ section: 'origin:mine' });
   }
 </script>
+
+<svelte:window
+  onkeydown={(e) => {
+    if (visible && open && e.key === 'Escape') back();
+  }}
+/>
 
 <section
   class="library-feature"
@@ -339,30 +360,189 @@
   hidden={!visible}
   inert={!visible}
 >
-  <div class="ars-tools" role="tablist" aria-label={t('Tool')}>
-    {#each TOOLS as x (x.id)}
-      <button
-        type="button"
-        role="tab"
-        class="ars-tool"
-        aria-selected={store.tool === x.id}
-        onclick={() => store.choose({ tool: x.id })}>{x.name}</button
+  {#snippet cardBody()}
+    {#if open}
+      <div
+        class="ars-card ars-inline"
+        role="region"
+        aria-labelledby="ars-card-title"
+        tabindex="-1"
       >
-    {/each}
-  </div>
+        <button type="button" class="action ars-back-top" onclick={back}
+          >{t('Back')}</button
+        >
+        <h2 id="ars-card-title" tabindex="-1" bind:this={cardTitle}>
+          {open.name}
+          {#if open.scope}<span class="ars-scope"
+              >{t(SCOPE_LABEL[open.scope])}</span
+            >{/if}
+        </h2>
 
-  {#if configKinds !== null}
-    <div class="ars-config">
-      <ConfigurationView
-        visible={visible && configKinds !== null}
-        embedded
-        kinds={configKinds}
-        {configuration}
-        controller={configurationController}
-        {changes}
-        {changesController}
-      />
-    </div>
+        {#if open.unreadable}
+          <p class="notice" data-tone="warn">
+            {t('Its text could not be read ({reason}).', {
+              reason: t(UNREADABLE[open.unreadable] ?? UNREADABLE.unreadable),
+            })}
+          </p>
+        {:else if split}
+          <section>
+            <h3>{t('What it does')}</h3>
+            <p>{split.what || t('Its file has no description.')}</p>
+          </section>
+          {#if open.description_cut}
+            <p class="lib-muted">
+              {t('The description is longer: only its beginning is shown.')}
+            </p>
+          {/if}
+          {#if split.when}
+            <section>
+              <h3>{t('Use it when')}</h3>
+              <p>{split.when}</p>
+            </section>
+          {/if}
+          {#if split.whenNot}
+            <section>
+              <h3>{t('Do not use it when')}</h3>
+              <p>{split.whenNot}</p>
+            </section>
+          {/if}
+          {#if usage}
+            <section>
+              <h3>{t('How it is used')}</h3>
+              <pre class="lib-pre">{usage}</pre>
+            </section>
+          {/if}
+        {/if}
+
+        {#if switchItem && switchChange}
+          <section>
+            <h3>{t('State')}</h3>
+            <p class="ars-state">
+              <span
+                >{switchItem.persisted === 'present_disabled'
+                  ? t('Switched off')
+                  : t('Switched on')}</span
+              >
+              <button
+                type="button"
+                class="action"
+                disabled={changes.planning || changes.applying}
+                onclick={() =>
+                  draftFrom(open.id, () =>
+                    changesController.draft(
+                      switchChange.operation,
+                      switchItem.id,
+                    ),
+                  )}
+                >{switchItem.persisted === 'present_disabled'
+                  ? t('Switch on')
+                  : t('Switch off')}</button
+              >
+              {#if applied[open.id] && !changes.plan}
+                {@const change = applied[open.id]}
+                <button
+                  type="button"
+                  class="action quiet"
+                  disabled={changes.planning || changes.applying}
+                  onclick={() =>
+                    draftFrom(open.id, () => changesController.undo(change))}
+                  >{t('Undo')}</button
+                >
+              {/if}
+            </p>
+            {#if changedFor === open.id}
+              <ChangePlan {changes} {changesController} />
+            {/if}
+          </section>
+        {/if}
+
+        {#if !open.unreadable}
+          <details class="ars-fold">
+            <summary>{t('Instructions')}</summary>
+            {#if store.bodyLoading}
+              <p class="lib-muted" role="status">{t('Reading…')}</p>
+            {:else if store.bodyFailed}
+              <p class="notice" data-tone="error">
+                {t('The file could not be read.')}
+              </p>
+            {:else if store.body}
+              <div class="ars-md">
+                {#each body as b, i (i)}
+                  {#if b.kind === 'heading'}
+                    <p class="ars-md-h" data-level={b.level}>{b.text}</p>
+                  {:else if b.kind === 'paragraph'}
+                    <p>{b.text}</p>
+                  {:else if b.kind === 'list'}
+                    <ul>
+                      {#each b.items as item, j (j)}<li>{item}</li>{/each}
+                    </ul>
+                  {:else}
+                    <pre class="lib-pre">{b.text}</pre>
+                  {/if}
+                {/each}
+                {#if store.body.cut}
+                  <p class="lib-muted">
+                    {t('Only the first 256 KB are shown.')}
+                  </p>
+                {/if}
+              </div>
+            {/if}
+          </details>
+          {#if store.body && open.kind === 'skill'}
+            <details class="ars-fold">
+              <summary
+                >{t('Files ({n})', {
+                  n: store.body.files.length + store.body.more_files,
+                })}</summary
+              >
+              <ul class="lib-files">
+                {#each store.body.files as f (f)}
+                  <li class="mono">{f}</li>
+                {/each}
+                {#if store.body.more_files > 0}
+                  <li class="lib-muted">
+                    {t('and {n} more', { n: store.body.more_files })}
+                  </li>
+                {/if}
+                {#if store.body.files_cut}
+                  <li class="lib-muted">
+                    {t('The folder holds more files than are counted here.')}
+                  </li>
+                {/if}
+              </ul>
+            </details>
+          {/if}
+        {/if}
+
+        <section>
+          <h3>{t('Scope')}</h3>
+          {#if open.scope}
+            <p>
+              <strong>{t(SCOPE_LABEL[open.scope])}</strong>:
+              {t(SCOPE_HELP[open.scope])}
+            </p>
+          {/if}
+          {#if open.codex_differs}
+            <p>{t('Codex’s copy is different.')}</p>
+          {/if}
+          <p class="mono ars-where">{open.origin}</p>
+          {#if open.linked_to}
+            <p class="mono ars-where">→ {open.linked_to}</p>
+          {/if}
+        </section>
+      </div>
+    {/if}
+  {/snippet}
+  {#if store.guide !== null && !store.failed}
+    <ArsenalBrowser
+      bind:query={store.query}
+      roots={mapRoots[0]?.kind === 'branch' ? mapRoots[0].children : []}
+      onentry={choose}
+      onconfig={openConfig}
+      openId={open?.id ?? null}
+      onclose={back}
+      card={cardBody}
+    />
   {:else}
     <div class="ars-list">
       {#if store.failed}
@@ -445,195 +625,41 @@
         {/each}
       {/if}
     </div>
-
-    {#if open}
-      <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+  {/if}
+  {#if configOpen && configKinds !== null}
+    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+    <div
+      class="ars-overlay"
+      onclick={(e) => {
+        if (e.target === e.currentTarget) closeConfig();
+      }}
+    >
       <div
-        class="ars-overlay"
-        onclick={(e) => {
-          if (e.target === e.currentTarget) back();
+        class="ars-card ars-config-card"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('Configuration')}
+        tabindex="-1"
+        onkeydown={(e) => {
+          if (e.key === 'Escape') closeConfig();
         }}
       >
-        <div
-          class="ars-card"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="ars-card-title"
-          data-origin={openOrigin}
-          tabindex="-1"
-          bind:this={dialog}
-          onkeydown={onDialogKey}
+        <button
+          type="button"
+          class="action quiet ars-close"
+          aria-label={t('Close')}
+          onclick={closeConfig}>✕</button
         >
-          <button
-            type="button"
-            class="action quiet ars-close"
-            aria-label={t('Close')}
-            onclick={back}>✕</button
-          >
-          <span class="ars-tag" data-origin={openOrigin}
-            >{openOrigin ? originName(openOrigin, store.tool) : ''}</span
-          >
-          <h2 id="ars-card-title" tabindex="-1" bind:this={cardTitle}>
-            {open.name}
-            {#if open.scope}<span class="ars-scope"
-                >{t(SCOPE_LABEL[open.scope])}</span
-              >{/if}
-          </h2>
-
-          {#if open.unreadable}
-            <p class="notice" data-tone="warn">
-              {t('Its text could not be read ({reason}).', {
-                reason: t(UNREADABLE[open.unreadable] ?? UNREADABLE.unreadable),
-              })}
-            </p>
-          {:else if split}
-            <section>
-              <h3>{t('What it does')}</h3>
-              <p>{split.what || t('Its file has no description.')}</p>
-            </section>
-            {#if open.description_cut}
-              <p class="lib-muted">
-                {t('The description is longer: only its beginning is shown.')}
-              </p>
-            {/if}
-            {#if split.when}
-              <section>
-                <h3>{t('Use it when')}</h3>
-                <p>{split.when}</p>
-              </section>
-            {/if}
-            {#if split.whenNot}
-              <section>
-                <h3>{t('Do not use it when')}</h3>
-                <p>{split.whenNot}</p>
-              </section>
-            {/if}
-            {#if usage}
-              <section>
-                <h3>{t('How it is used')}</h3>
-                <pre class="lib-pre">{usage}</pre>
-              </section>
-            {/if}
-          {/if}
-
-          {#if switchItem && switchChange}
-            <section>
-              <h3>{t('State')}</h3>
-              <p class="ars-state">
-                <span
-                  >{switchItem.persisted === 'present_disabled'
-                    ? t('Switched off')
-                    : t('Switched on')}</span
-                >
-                <button
-                  type="button"
-                  class="action"
-                  disabled={changes.planning || changes.applying}
-                  onclick={() =>
-                    draftFrom(open.id, () =>
-                      changesController.draft(
-                        switchChange.operation,
-                        switchItem.id,
-                      ),
-                    )}
-                  >{switchItem.persisted === 'present_disabled'
-                    ? t('Switch on')
-                    : t('Switch off')}</button
-                >
-                {#if applied[open.id] && !changes.plan}
-                  {@const change = applied[open.id]}
-                  <button
-                    type="button"
-                    class="action quiet"
-                    disabled={changes.planning || changes.applying}
-                    onclick={() =>
-                      draftFrom(open.id, () => changesController.undo(change))}
-                    >{t('Undo')}</button
-                  >
-                {/if}
-              </p>
-              {#if changedFor === open.id}
-                <ChangePlan {changes} {changesController} />
-              {/if}
-            </section>
-          {/if}
-
-          {#if !open.unreadable}
-            <details class="ars-fold">
-              <summary>{t('Instructions')}</summary>
-              {#if store.bodyLoading}
-                <p class="lib-muted" role="status">{t('Reading…')}</p>
-              {:else if store.bodyFailed}
-                <p class="notice" data-tone="error">
-                  {t('The file could not be read.')}
-                </p>
-              {:else if store.body}
-                <div class="ars-md">
-                  {#each body as b, i (i)}
-                    {#if b.kind === 'heading'}
-                      <p class="ars-md-h" data-level={b.level}>{b.text}</p>
-                    {:else if b.kind === 'paragraph'}
-                      <p>{b.text}</p>
-                    {:else if b.kind === 'list'}
-                      <ul>
-                        {#each b.items as item, j (j)}<li>{item}</li>{/each}
-                      </ul>
-                    {:else}
-                      <pre class="lib-pre">{b.text}</pre>
-                    {/if}
-                  {/each}
-                  {#if store.body.cut}
-                    <p class="lib-muted">
-                      {t('Only the first 256 KB are shown.')}
-                    </p>
-                  {/if}
-                </div>
-              {/if}
-            </details>
-            {#if store.body && open.kind === 'skill'}
-              <details class="ars-fold">
-                <summary
-                  >{t('Files ({n})', {
-                    n: store.body.files.length + store.body.more_files,
-                  })}</summary
-                >
-                <ul class="lib-files">
-                  {#each store.body.files as f (f)}
-                    <li class="mono">{f}</li>
-                  {/each}
-                  {#if store.body.more_files > 0}
-                    <li class="lib-muted">
-                      {t('and {n} more', { n: store.body.more_files })}
-                    </li>
-                  {/if}
-                  {#if store.body.files_cut}
-                    <li class="lib-muted">
-                      {t('The folder holds more files than are counted here.')}
-                    </li>
-                  {/if}
-                </ul>
-              </details>
-            {/if}
-          {/if}
-
-          <section>
-            <h3>{t('Scope')}</h3>
-            {#if open.scope}
-              <p>
-                <strong>{t(SCOPE_LABEL[open.scope])}</strong>:
-                {t(SCOPE_HELP[open.scope])}
-              </p>
-            {/if}
-            {#if open.codex_differs}
-              <p>{t('Codex’s copy is different.')}</p>
-            {/if}
-            <p class="mono ars-where">{open.origin}</p>
-            {#if open.linked_to}
-              <p class="mono ars-where">→ {open.linked_to}</p>
-            {/if}
-          </section>
-        </div>
+        <ConfigurationView
+          visible={visible && configOpen}
+          embedded
+          kinds={configKinds}
+          {configuration}
+          controller={configurationController}
+          {changes}
+          {changesController}
+        />
       </div>
-    {/if}
+    </div>
   {/if}
 </section>

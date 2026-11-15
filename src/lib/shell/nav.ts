@@ -233,11 +233,14 @@ export interface PersonalizationTab {
   label: string;
   /** What the tab is for, shown on hover. */
   hint: string;
+  /** A 24×24 stroke path, drawn next to the label (alone when the column is folded). */
+  icon: string;
 }
 export const PERSONALIZATION: readonly PersonalizationTab[] = [
   {
     id: 'distributors',
     label: msg('Distributors'),
+    icon: 'M3 7l9-4 9 4-9 4-9-4zM3 7v10l9 4 9-4V7M12 11v10',
     hint: msg(
       'Which agents are installed and their version, how to update them, the models each offers, and what runs now.',
     ),
@@ -245,6 +248,7 @@ export const PERSONALIZATION: readonly PersonalizationTab[] = [
   {
     id: 'arsenal',
     label: msg('Arsenal'),
+    icon: 'M12 3l9 5-9 5-9-5 9-5zM3 13l9 5 9-5',
     hint: msg(
       'Skills, agents, MCP servers and presets: what a session can load.',
     ),
@@ -252,6 +256,7 @@ export const PERSONALIZATION: readonly PersonalizationTab[] = [
   {
     id: 'credentials',
     label: msg('Credentials'),
+    icon: 'M15 7a4 4 0 1 1-3.9 4.9L4 19v-3h3v-3h3l1.1-1.1A4 4 0 0 1 15 7zM16 9h.01',
     hint: msg('The API keys each distributor needs, kept sealed.'),
   },
 ];
