@@ -3783,6 +3783,8 @@ export const ES: Readonly<Record<string, string>> = {
   'Git repos': 'Repos git',
   'My skills': 'Mis skills',
   Personal: 'Personales',
+  'No hook is kept aside.': 'No hay ningún hook guardado aparte.',
+  'Kept aside': 'Guardados aparte',
   'When it runs': 'Cuándo corre',
   'When a session opens': 'Al abrir una sesión',
   'When a session ends': 'Al cerrar una sesión',

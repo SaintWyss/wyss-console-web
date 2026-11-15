@@ -236,6 +236,7 @@
       personal: t('Personal'),
       sets: t('Sets'),
       hooks: t('Hooks'),
+      keptAside: t('Kept aside'),
       hookEvent: (event) => t(HOOK_EVENT_NAME[event] ?? event),
       mcp: t('MCP'),
       configuration: t('Configuration'),
@@ -275,6 +276,16 @@
       ? null
       : (configItems.find((i) => i.id === openItemId) ?? null),
   );
+  /** Claude Code's hooks kept aside, shown at the side of the tree. */
+  let parkedOpen = $state(false);
+  const parked = $derived(
+    (changes.records ?? []).filter((r) => r.state === 'parked'),
+  );
+  function showParked(on: boolean) {
+    if (parkedOpen === on) return;
+    parkedOpen = on;
+    changesController.show(on ? 'parked' : 'items');
+  }
   /** Over a hook event's list: the form that adds one, when open. */
   let adding = $state<string | null>(null);
   let addMatcher = $state('');
@@ -291,6 +302,7 @@
   /** A configuration page is open over the Arsenal when the section is one: a link to it opens it too. */
   const configOpen = $derived(configKinds !== null);
   function openConfig(tool: MapTool, section: 'hooks' | 'mcp' | 'global') {
+    showParked(false);
     store.choose({ tool, section });
   }
 </script>
@@ -310,6 +322,37 @@
   hidden={!visible}
   inert={!visible}
 >
+  {#snippet parkedPanel()}
+    <div class="ars-config-inline">
+      <h2 class="ab-title">{t('Hooks')} · {t('Kept aside')}</h2>
+      {@render listTop(`claude_code/hooks/${addEvent}`)}
+      {#if changes.records === null}
+        <p class="lib-muted" role="status">{t('Reading…')}</p>
+      {:else if parked.length === 0}
+        <p class="lib-muted">{t('No hook is kept aside.')}</p>
+      {:else}
+        <ul class="ars-rows">
+          {#each parked as record (record.id)}
+            <li class="ars-parked">
+              <span class="lib-name">{record.label}</span>
+              <button
+                type="button"
+                class="action"
+                disabled={changes.planning || changes.applying}
+                onclick={() => {
+                  changedFor = `restore:${record.id}`;
+                  changesController.draft('restore_hook', record.id);
+                }}>{t('Put back')}</button
+              >
+            </li>
+            {#if changedFor === `restore:${record.id}`}
+              <ChangePlan {changes} {changesController} />
+            {/if}
+          {/each}
+        </ul>
+      {/if}
+    </div>
+  {/snippet}
   {#snippet configPanel()}
     <div class="ars-config-inline">
       <ConfigurationView
@@ -685,14 +728,23 @@
       onclose={() => (openItem ? closeItem() : back())}
       card={openItem ? itemBody : cardBody}
       onitem={(item) => {
+        showParked(false);
         leave();
         store.close();
         openItemId = item.id;
       }}
       {listTop}
-      configShown={configOpen}
-      configView={configPanel}
+      configShown={configOpen || parkedOpen}
+      configView={parkedOpen ? parkedPanel : configPanel}
+      onparked={() => {
+        leave();
+        store.close();
+        openItemId = null;
+        if (configOpen) store.choose({ section: 'origin:mine' });
+        showParked(true);
+      }}
       onlist={() => {
+        showParked(false);
         // A plan left unconfirmed in the list just left is dropped.
         leave();
         adding = null;

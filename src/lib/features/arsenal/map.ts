@@ -33,6 +33,8 @@ export type MapNode =
   | { kind: 'entry'; key: string; entry: GuideEntry; origin: Origin }
   /** One item of the agent's own configuration (a hook), opened as a card like an entry. */
   | { kind: 'item'; key: string; item: ConfigItem; label: string }
+  /** Claude Code's hooks kept aside: shown at the side, each with Put back. */
+  | { kind: 'parked'; key: string; label: string }
   | {
       kind: 'config';
       key: string;
@@ -49,6 +51,7 @@ export interface MapText {
   personal: string;
   sets: string;
   hooks: string;
+  keptAside: string;
   /** What a hook event is called on screen (`PreToolUse` → "Before a tool"). */
   hookEvent: (event: string) => string;
   mcp: string;
@@ -73,7 +76,7 @@ const branch = (
 
 function countOf(node: MapNode): number {
   if (node.kind === 'entry' || node.kind === 'item') return 1;
-  if (node.kind === 'config') return 0;
+  if (node.kind === 'config' || node.kind === 'parked') return 0;
   return node.count ?? 0;
 }
 
@@ -158,13 +161,11 @@ export function mapOf(
         tool === 'claude_code'
           ? configItems.filter((i) => i.provider === tool && i.kind === 'hook')
           : [];
-      if (hooks.length > 0) {
+      if (tool === 'claude_code') {
         const events = [...new Set(hooks.map((h) => eventOf(h.name)))];
         kinds.push(
-          branch(
-            `${tool}/hooks`,
-            text.hooks,
-            events.map((event) =>
+          branch(`${tool}/hooks`, text.hooks, [
+            ...events.map((event) =>
               branch(
                 `${tool}/hooks/${event}`,
                 text.hookEvent(event),
@@ -178,7 +179,12 @@ export function mapOf(
                   })),
               ),
             ),
-          ),
+            {
+              kind: 'parked' as const,
+              key: `${tool}/hooks/parked`,
+              label: text.keptAside,
+            },
+          ]),
         );
       }
       for (const [section, label] of [
@@ -186,7 +192,7 @@ export function mapOf(
         ['mcp', text.mcp],
         ['global', text.configuration],
       ] as const) {
-        if (section === 'hooks' && hooks.length > 0) continue;
+        if (section === 'hooks' && tool === 'claude_code') continue;
         const count = configItems.filter(
           (item) =>
             item.provider === tool && CONFIG_KINDS[section].includes(item.kind),

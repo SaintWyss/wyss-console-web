@@ -115,6 +115,18 @@ function desktop(inventory: () => unknown = () => fixture) {
         return request.after === null ? connected : never();
       case 'configuration_inventory':
         return inventory();
+      case 'configuration_records':
+        return [
+          {
+            id: 'b'.repeat(32),
+            created: 1,
+            state: 'parked',
+            label: 'PreToolUse · Bash',
+            secret_bearing: false,
+            protection: 'plain_no_secret',
+            past_retention: false,
+          },
+        ];
       case 'configuration_changes':
         return { result: 'same', revision: 1 };
       case 'managed_sessions_page':
@@ -265,9 +277,11 @@ it('does not take the desktop’s answer on faith', async () => {
   // Configuration pages are listed only when they hold something: none is shown.
   expect(
     Array.from(document.querySelectorAll('.ab-item')).some((b) =>
-      /Hooks|MCP|Configuration/.test(b.textContent ?? ''),
+      /MCP|Configuration/.test(b.textContent ?? ''),
     ),
   ).toBe(false);
+  // Claude Code's Hooks are always there, so the first can be added and the last put back.
+  expect(item('Hooks')).toBeDefined();
 });
 
 it('opens Arsenal on a folding tree by layers, and the earlier screen is under More', async () => {
@@ -494,4 +508,29 @@ it('lists Claude Code’s hooks by event, opens one as a card with Edit and Dele
       (b) => text(b) === 'Add a hook',
     ),
   ).toBe(true);
+});
+
+it('keeps deleted hooks aside and puts one back through a plan', async () => {
+  desktop();
+  planned.length = 0;
+  await openArsenal();
+  item('Hooks').click();
+  await flush();
+  item('Kept aside').click();
+  await flush();
+  const panel = library().querySelector<HTMLElement>('.ars-config-inline')!;
+  expect(text(panel)).toContain('PreToolUse · Bash');
+  // Adding a hook is offered here too, for any event.
+  expect(
+    Array.from(panel.querySelectorAll('button')).some(
+      (b) => text(b) === 'Add a hook',
+    ),
+  ).toBe(true);
+  Array.from(panel.querySelectorAll<HTMLButtonElement>('button'))
+    .find((b) => text(b) === 'Put back')!
+    .click();
+  await flush();
+  expect(planned).toEqual([
+    { operation: 'restore_hook', target: 'b'.repeat(32) },
+  ]);
 });

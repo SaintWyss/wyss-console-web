@@ -6176,3 +6176,12 @@ li.native-row .native-note {
   font-size: var(--text-sm);
   color: var(--muted);
 }
+
+.ars-parked {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  padding: 4px 8px;
+}

@@ -23,8 +23,11 @@
     configShown = false,
     onlist = () => undefined,
     onitem = () => undefined,
+    onparked = () => undefined,
     listTop,
   }: {
+    /** Hooks kept aside were chosen: they show at the side like a configuration page. */
+    onparked?: () => void;
     /** A configuration item (a hook) was chosen: its card opens like an entry's. */
     onitem?: (item: import('../../contracts/configuration').ConfigItem) => void;
     /** Drawn over the list of a branch, with its key: e.g. "Add a hook" over a hook event. */
@@ -143,6 +146,10 @@
   const listed = $derived(openId === null ? all : []);
 
   function pick(node: MapNode) {
+    if (node.kind === 'parked') {
+      selected = node.key;
+      return onparked();
+    }
     if (node.kind === 'config') {
       selected = node.key;
       return onconfig(node.tool, node.section);
