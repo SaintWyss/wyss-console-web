@@ -5482,3 +5482,114 @@ fn a_hook_is_exported_as_a_sealed_template_and_applied_only_through_the_ordinary
         Err(ChangeFailure::EntryGone)
     );
 }
+
+const CODEX_HOOKS: &str = r#"{
+  "description": "Orientación y gates.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^Bash$|spawn",
+        "hooks": [
+          { "type": "command", "command": "python3 gate.py", "timeout": 10, "statusMessage": "Gate" }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [{ "type": "command", "command": "bash orient.sh", "timeout": 8 }]
+      }
+    ]
+  }
+}
+"#;
+
+impl World {
+    fn codex_hooks(&self, text: &str) {
+        let path = self.home.join(".codex/hooks.json");
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(&path, text).unwrap();
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o600)).unwrap();
+        self.inventory.rescan();
+    }
+    fn codex_hooks_file(&self) -> String {
+        fs::read_to_string(self.home.join(".codex/hooks.json")).unwrap()
+    }
+}
+
+#[test]
+fn a_codex_hook_is_added_at_the_end_edited_kept_aside_and_put_back_exactly() {
+    let world = World::new(SETTINGS);
+    world.codex("hooks = true\n");
+    world.codex_hooks(CODEX_HOOKS);
+    // Added at the end of its event: the hooks before keep their place (and Codex's trust).
+    let plan = world
+        .service
+        .plan_authored(Authoring::AddCodexHook(spec(
+            "SessionStart",
+            Some("startup"),
+            "bash mark.sh",
+        )))
+        .unwrap();
+    assert_eq!(plan.source, SourceKey::CodexUserHooks);
+    assert_eq!(applied(&world, &plan), Outcome::Applied);
+    let added = world.codex_hooks_file();
+    assert!(added.contains("bash mark.sh"));
+    assert!(added.find("bash orient.sh").unwrap() < added.find("bash mark.sh").unwrap());
+    assert!(added.contains("\"statusMessage\": \"Gate\""));
+    // Edited: only its command changes.
+    let id = world.codex_item(ItemKind::Hook, "SessionStart · startup");
+    let mark = world
+        .inventory
+        .snapshot()
+        .inventory
+        .items
+        .iter()
+        .filter(|i| i.provider == super::model::ProviderId::Codex && i.kind == ItemKind::Hook)
+        .map(|i| i.id.clone())
+        .find(|i| *i != id)
+        .unwrap_or(id);
+    let mark = world
+        .inventory
+        .snapshot()
+        .inventory
+        .items
+        .iter()
+        .find(|i| {
+            i.provider == super::model::ProviderId::Codex
+                && i.kind == ItemKind::Hook
+                && format!("{:?}", i.detail).contains("mark.sh")
+        })
+        .map(|i| i.id.clone())
+        .unwrap_or(mark);
+    let plan = world
+        .service
+        .plan_authored(Authoring::EditHook {
+            item: mark.clone(),
+            command: "bash mark2.sh".into(),
+            expected: "bash mark.sh".into(),
+        })
+        .unwrap();
+    assert_eq!(applied(&world, &plan), Outcome::Applied);
+    assert_eq!(
+        world.codex_hooks_file(),
+        added.replace("bash mark.sh", "bash mark2.sh")
+    );
+    // Kept aside: the file is the one it was before the hook was added.
+    let plan = world.service.plan(Operation::ParkHook, &mark).unwrap();
+    assert_eq!(applied(&world, &plan), Outcome::Applied);
+    assert_eq!(world.codex_hooks_file(), CODEX_HOOKS);
+    // Put back.
+    let record = world
+        .service
+        .records()
+        .into_iter()
+        .find(|r| r.state == State::Parked)
+        .unwrap();
+    let back = world
+        .service
+        .plan(Operation::RestoreHook, &record.id)
+        .unwrap();
+    assert_eq!(applied(&world, &back), Outcome::Applied);
+    assert!(world.codex_hooks_file().contains("bash mark2.sh"));
+}

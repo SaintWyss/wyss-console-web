@@ -233,6 +233,7 @@ fn writable(key: SourceKey) -> bool {
             | SourceKey::ClaudeProjectSettings
             | SourceKey::ClaudeProjectLocalSettings
             | SourceKey::CodexUserConfig
+            | SourceKey::CodexUserHooks
             | SourceKey::OpencodeUserConfig
     ) && matches!(key.class(), SourceClass::User | SourceClass::Project)
 }
@@ -443,6 +444,7 @@ impl ChangeService {
                 Some(project?.join(".claude/settings.local.json"))
             }
             SourceKey::CodexUserConfig => Some(environment.codex_dir().join("config.toml")),
+            SourceKey::CodexUserHooks => Some(environment.codex_dir().join("hooks.json")),
             SourceKey::OpencodeUserConfig => {
                 Some(super::opencode::config_in(&environment.opencode_dir()))
             }
@@ -764,7 +766,12 @@ impl ChangeService {
     /// changes it and for exporting it as a template; no page command returns it.
     fn hook_spec(&self, item: &str) -> Option<HookSpec> {
         let found = self.item(item)?;
-        if found.kind != ItemKind::Hook || found.source != SourceKey::ClaudeUserSettings {
+        if found.kind != ItemKind::Hook
+            || !matches!(
+                found.source,
+                SourceKey::ClaudeUserSettings | SourceKey::CodexUserHooks
+            )
+        {
             return None;
         }
         let (_, bytes) = self.read_target(found.source).ok()?;
@@ -907,6 +914,17 @@ impl ChangeService {
                     author::draft_add_hook(&bytes, source, &spec, &self.bounds, protection)?,
                 )
             }
+            // Codex's hooks are `~/.codex/hooks.json`, the same shape as Claude's `hooks`. A new
+            // one goes at the end of its event, so the trust Codex keeps by position is untouched.
+            Authoring::AddCodexHook(spec) => {
+                detail = Some(plain_detail("command", &spec.command));
+                let source = SourceKey::CodexUserHooks;
+                let (_, bytes) = self.read_target(source)?;
+                (
+                    source,
+                    author::draft_add_hook(&bytes, source, &spec, &self.bounds, protection)?,
+                )
+            }
             Authoring::EditHook {
                 item,
                 command,
@@ -917,10 +935,11 @@ impl ChangeService {
                     return Err(ChangeFailure::EntryChanged);
                 }
                 let found = self.item(&item).ok_or(ChangeFailure::EntryGone)?;
-                if found.kind != ItemKind::Hook
-                    || found.provider != ProviderId::ClaudeCode
-                    || found.source != SourceKey::ClaudeUserSettings
-                {
+                let claude = found.provider == ProviderId::ClaudeCode
+                    && found.source == SourceKey::ClaudeUserSettings;
+                let codex = found.provider == ProviderId::Codex
+                    && found.source == SourceKey::CodexUserHooks;
+                if found.kind != ItemKind::Hook || !(claude || codex) {
                     return Err(ChangeFailure::NotSupported);
                 }
                 let (_, bytes) = self.read_target(found.source)?;
@@ -1018,7 +1037,11 @@ impl ChangeService {
         let (source, drafted) = match operation {
             Operation::ParkHook => {
                 let item = self.item(target).ok_or(ChangeFailure::EntryGone)?;
-                if item.kind != ItemKind::Hook || item.provider != ProviderId::ClaudeCode {
+                let codex =
+                    item.provider == ProviderId::Codex && item.source == SourceKey::CodexUserHooks;
+                if item.kind != ItemKind::Hook
+                    || !(item.provider == ProviderId::ClaudeCode || codex)
+                {
                     return Err(ChangeFailure::NotSupported);
                 }
                 let (_, bytes) = self.read_target(item.source)?;
@@ -2075,6 +2098,8 @@ pub enum Authoring {
         text: String,
     },
     AddHook(HookSpec),
+    /// A hook in Codex's own `~/.codex/hooks.json`.
+    AddCodexHook(HookSpec),
     /// `expected` is the command the user was shown when they started: if the file holds
     /// another by the time the plan is made, nothing is replaced.
     EditHook {
@@ -2131,6 +2156,7 @@ impl std::fmt::Debug for Authoring {
             Self::EditDocument { .. } => "Authoring::EditDocument(..)",
             Self::CreateDocument { .. } => "Authoring::CreateDocument(..)",
             Self::AddHook(_) => "Authoring::AddHook(..)",
+            Self::AddCodexHook(_) => "Authoring::AddCodexHook(..)",
             Self::EditHook { .. } => "Authoring::EditHook(..)",
             Self::AddMcp { .. } => "Authoring::AddMcp(..)",
             Self::EditMcp { .. } => "Authoring::EditMcp(..)",

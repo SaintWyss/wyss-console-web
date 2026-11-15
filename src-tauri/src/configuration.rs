@@ -354,6 +354,9 @@ pub struct AuthorHook {
     /// the form of the native window, which the user reviews and may change.
     #[serde(default)]
     from_template: bool,
+    /// `codex` writes it into Codex's own `hooks.json`; anything else, Claude Code's settings.
+    #[serde(default)]
+    agent: Option<String>,
 }
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -716,6 +719,7 @@ async fn configuration_author_hook(
 ) -> Result<PlanView, ConfigurationError> {
     let changes = configuration.changes(&app)?;
     blocking(move || {
+        let codex = request.agent.as_deref() == Some("codex");
         let mut spec = HookSpec {
             event: request.event,
             matcher: request.matcher,
@@ -753,7 +757,11 @@ async fn configuration_author_hook(
                 timeout,
             };
             spec.check().map_err(|_| invalid())?;
-            return Ok(changes.plan_authored(Authoring::AddHook(spec))?);
+            return Ok(changes.plan_authored(if codex {
+                Authoring::AddCodexHook(spec)
+            } else {
+                Authoring::AddHook(spec)
+            })?);
         }
         let where_ = format!(
             "This command will run on every {} event{} of every Claude Code session you start. \
@@ -775,7 +783,11 @@ async fn configuration_author_hook(
         )
         .ok_or_else(cancelled)?;
         spec.command = typed[0].trim().to_owned();
-        Ok(changes.plan_authored(Authoring::AddHook(spec))?)
+        Ok(changes.plan_authored(if codex {
+            Authoring::AddCodexHook(spec)
+        } else {
+            Authoring::AddHook(spec)
+        })?)
     })
     .await
 }
