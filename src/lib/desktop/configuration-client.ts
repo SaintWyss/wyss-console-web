@@ -103,10 +103,13 @@ export function authorHook(
   matcher: string | null,
   timeout: number | null,
   fromTemplate = false,
+  agent: 'claude_code' | 'codex' = 'claude_code',
 ): Promise<Plan> {
   return checked(
     'configuration_author_hook',
-    { request: { event, matcher, timeout, from_template: fromTemplate } },
+    {
+      request: { event, matcher, timeout, from_template: fromTemplate, agent },
+    },
     parsePlan,
   );
 }

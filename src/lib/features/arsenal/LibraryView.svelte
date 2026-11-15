@@ -278,6 +278,8 @@
   );
   /** Claude Code's hooks kept aside, shown at the side of the tree. */
   let parkedOpen = $state(false);
+  /** Whose hooks the "Kept aside" page belongs to. */
+  let parkedTool = $state<'claude_code' | 'codex'>('claude_code');
   const parked = $derived(
     (changes.records ?? []).filter((r) => r.state === 'parked'),
   );
@@ -325,7 +327,7 @@
   {#snippet parkedPanel()}
     <div class="ars-config-inline">
       <h2 class="ab-title">{t('Hooks')} · {t('Kept aside')}</h2>
-      {@render listTop(`claude_code/hooks/${addEvent}`)}
+      {@render listTop(`${parkedTool}/hooks/${addEvent}`)}
       {#if changes.records === null}
         <p class="lib-muted" role="status">{t('Reading…')}</p>
       {:else if parked.length === 0}
@@ -367,8 +369,9 @@
     </div>
   {/snippet}
   {#snippet listTop(key: string)}
-    {#if key.startsWith('claude_code/hooks/')}
-      {@const event = key.slice('claude_code/hooks/'.length)}
+    {#if key.startsWith('claude_code/hooks/') || key.startsWith('codex/hooks/')}
+      {@const agent = key.startsWith('codex/') ? 'codex' : 'claude_code'}
+      {@const event = key.slice(`${agent}/hooks/`.length)}
       <div class="ars-list-top">
         {#if adding === event}
           <form
@@ -377,7 +380,13 @@
               e.preventDefault();
               changedFor = `add:${event}`;
               changesController.author((c) =>
-                c.authorHook(addEvent, addMatcher.trim() || null, null, false),
+                c.authorHook(
+                  addEvent,
+                  addMatcher.trim() || null,
+                  null,
+                  false,
+                  agent,
+                ),
               );
               adding = null;
             }}
@@ -448,6 +457,13 @@
             ? t('Switched on')
             : t('Switched off')}
         </p>
+        {#if item.provider === 'codex'}
+          <p class="ars-note">
+            {t(
+              'Codex asks you to trust a new or changed hook the next time it starts. Deleting one moves the hooks after it in its event, and Codex asks to trust those again.',
+            )}
+          </p>
+        {/if}
         <section class="ars-sec">
           <h3>{t('What it runs')}</h3>
           <pre class="lib-pre">{hookCommand(item) || '—'}</pre>
@@ -736,7 +752,8 @@
       {listTop}
       configShown={configOpen || parkedOpen}
       configView={parkedOpen ? parkedPanel : configPanel}
-      onparked={() => {
+      onparked={(key) => {
+        parkedTool = key.startsWith('codex/') ? 'codex' : 'claude_code';
         leave();
         store.close();
         openItemId = null;

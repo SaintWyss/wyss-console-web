@@ -93,11 +93,12 @@ describe('what the user can write', () => {
         item({ source: 'codex_user_config', kind: 'skill', provider: 'codex' }),
       ),
     ).toBeNull();
+    // Codex's own hooks file is edited like Claude's settings (owner, 2026-11-15).
     expect(
       authoringFor(
         item({ source: 'codex_user_hooks', kind: 'hook', provider: 'codex' }),
       ),
-    ).toBeNull();
+    ).toEqual({ edit: 'hook', remove: null });
     // A project's own files are editable like the account's; its settings and hooks are not.
     for (const source of [
       'claude_project_rules',

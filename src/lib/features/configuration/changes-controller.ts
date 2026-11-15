@@ -41,6 +41,7 @@ export interface ChangesClient {
     matcher: string | null,
     timeout: number | null,
     fromTemplate?: boolean,
+    agent?: 'claude_code' | 'codex',
   ): Promise<Plan>;
   exportTemplate(item: string): Promise<boolean>;
   editHook(item: string): Promise<Plan>;

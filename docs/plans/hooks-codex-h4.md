@@ -13,6 +13,12 @@ Investigación previa: [arsenal-home-por-lanzamiento](../research/arsenal-home-p
 - `--dangerously-bypass-hook-trust` existe; no se usa sin pedido explícito (ADR 0059).
 - `present.ts`: "Codex: … Never a hook" es la regla escrita que esta fase cambia; el doc cambia en el mismo commit.
 
+## Estado (2026-11-15)
+
+- **H4.0 hecho.** Inventario real (test ignorado `real_account_check`): con `trusted-writers` = `agent`, los 9 hooks de Claude, los 3 de Codex y las 390 skills quedan escribibles. Marcador (test ignorado `marker_homes` + `claude -p` sin login, SessionStart dispara igual): el home con el hook prendido escribe el marcador; con su clave en `hooks_off`, no. No cubre Workspace → host (el host que corre es el viejo).
+- **H4.1 hecho.** `~/.codex/hooks.json` es fuente escribible (`CodexUserHooks`); `AddCodexHook`, `EditHook`, `ParkHook` y `RestoreHook` usan los mismos borradores que Claude (misma forma de JSON). Agregar va al final del evento. Test: agregar → editar → guardar aparte devuelve el archivo byte a byte → recuperar. Arsenal: rama Hooks en Codex con la misma ficha y un aviso de confianza.
+- **H4.2–H4.4 pendientes.**
+
 ## Riesgo de credencial (bloquea H4.2)
 
 La investigación usó un enlace a `~/.codex/auth.json`. No se probó la renovación: si Codex reescribe la credencial con `rename`, el enlace se vuelve archivo y `~/.codex` queda con un refresh token viejo; si rota refresh tokens, el login real se invalida. Antes de construir: leer cómo escribe Codex `auth.json` (código o documentación de 0.169.0). Si el login real deja de valer en cualquier prueba: **parar, no re-loguear**, avisar.

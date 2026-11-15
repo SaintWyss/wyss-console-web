@@ -156,12 +156,12 @@ export function mapOf(
             ),
           );
       }
-      // Claude Code's hooks are a branch like skills: by event, then each hook.
-      const hooks =
-        tool === 'claude_code'
-          ? configItems.filter((i) => i.provider === tool && i.kind === 'hook')
-          : [];
-      if (tool === 'claude_code') {
+      // Hooks are a branch like skills: by event, then each hook (Claude Code and Codex).
+      const withHooks = tool === 'claude_code' || tool === 'codex';
+      const hooks = withHooks
+        ? configItems.filter((i) => i.provider === tool && i.kind === 'hook')
+        : [];
+      if (withHooks) {
         const events = [...new Set(hooks.map((h) => eventOf(h.name)))];
         kinds.push(
           branch(`${tool}/hooks`, text.hooks, [
@@ -192,7 +192,7 @@ export function mapOf(
         ['mcp', text.mcp],
         ['global', text.configuration],
       ] as const) {
-        if (section === 'hooks' && tool === 'claude_code') continue;
+        if (section === 'hooks' && withHooks) continue;
         const count = configItems.filter(
           (item) =>
             item.provider === tool && CONFIG_KINDS[section].includes(item.kind),

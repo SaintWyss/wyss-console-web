@@ -569,7 +569,14 @@ export function changeFor(
 ): { operation: Operation; label: string } | null {
   if (item.not_writable !== 'not_in_this_phase') return null;
   if (item.provider === 'codex') {
-    // Codex: a skill or an MCP server of the user's own configuration. Never a hook.
+    // Codex: a hook of `~/.codex/hooks.json` is kept aside like Claude's (decision of the
+    // owner, 2026-11-15); a skill or an MCP server of the user's own configuration switches.
+    if (
+      item.kind === 'hook' &&
+      item.source === 'codex_user_hooks' &&
+      item.persisted === 'present_enabled'
+    )
+      return { operation: 'park_hook', label: msg('Turn off') };
     if (item.source !== 'codex_user_config') return null;
     const on = item.persisted === 'present_enabled';
     const off = item.persisted === 'present_disabled';
@@ -676,9 +683,10 @@ export function authoringFor(item: ConfigItem): {
   )
     return { edit: 'document', remove: 'delete_document' };
   if (
-    item.provider === 'claude_code' &&
     item.kind === 'hook' &&
-    item.source === 'claude_user_settings'
+    ((item.provider === 'claude_code' &&
+      item.source === 'claude_user_settings') ||
+      (item.provider === 'codex' && item.source === 'codex_user_hooks'))
   )
     return { edit: 'hook', remove: null };
   if (

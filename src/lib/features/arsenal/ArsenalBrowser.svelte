@@ -27,7 +27,7 @@
     listTop,
   }: {
     /** Hooks kept aside were chosen: they show at the side like a configuration page. */
-    onparked?: () => void;
+    onparked?: (key: string) => void;
     /** A configuration item (a hook) was chosen: its card opens like an entry's. */
     onitem?: (item: import('../../contracts/configuration').ConfigItem) => void;
     /** Drawn over the list of a branch, with its key: e.g. "Add a hook" over a hook event. */
@@ -148,7 +148,7 @@
   function pick(node: MapNode) {
     if (node.kind === 'parked') {
       selected = node.key;
-      return onparked();
+      return onparked(node.key);
     }
     if (node.kind === 'config') {
       selected = node.key;

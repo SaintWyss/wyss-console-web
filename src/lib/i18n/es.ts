@@ -3783,6 +3783,8 @@ export const ES: Readonly<Record<string, string>> = {
   'Git repos': 'Repos git',
   'My skills': 'Mis skills',
   Personal: 'Personales',
+  'Codex asks you to trust a new or changed hook the next time it starts. Deleting one moves the hooks after it in its event, and Codex asks to trust those again.':
+    'Codex te pide confiar en un hook nuevo o cambiado la próxima vez que arranca. Borrar uno corre los que vienen después en su evento, y Codex vuelve a pedir confianza para esos.',
   'No hook is kept aside.': 'No hay ningún hook guardado aparte.',
   'Kept aside': 'Guardados aparte',
   'When it runs': 'Cuándo corre',

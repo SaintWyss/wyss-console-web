@@ -534,3 +534,41 @@ it('keeps deleted hooks aside and puts one back through a plan', async () => {
     { operation: 'restore_hook', target: 'b'.repeat(32) },
   ]);
 });
+
+it('lists Codex’s own hooks like Claude’s, says Codex will ask for trust, and keeps one aside', async () => {
+  const codexHook = {
+    ...fixture.inventory.items.find((i) => i.kind === 'hook')!,
+    id: 'c'.repeat(32),
+    provider: 'codex',
+    source: 'codex_user_hooks',
+    name: 'SessionStart · startup',
+  };
+  desktop(() => ({
+    ...fixture,
+    inventory: {
+      ...fixture.inventory,
+      items: [...fixture.inventory.items, codexHook],
+    },
+  }));
+  planned.length = 0;
+  await openArsenal();
+  item('OpenAI · Codex').click();
+  await flush();
+  // The first Hooks branch is Claude Code's: the last is Codex's.
+  const hooks = Array.from(
+    document.querySelectorAll<HTMLButtonElement>('.ab-item'),
+  ).filter((b) => b.querySelector('.ab-label')?.textContent === 'Hooks');
+  hooks[hooks.length - 1].click();
+  await flush();
+  item('When a session opens').click();
+  await flush();
+  row('guard.sh').click();
+  await flush();
+  const card = library().querySelector<HTMLElement>('.ars-card')!;
+  expect(text(card)).toContain('Codex asks you to trust');
+  Array.from(card.querySelectorAll<HTMLButtonElement>('button'))
+    .find((b) => text(b) === 'Delete')!
+    .click();
+  await flush();
+  expect(planned).toEqual([{ operation: 'park_hook', target: 'c'.repeat(32) }]);
+});
