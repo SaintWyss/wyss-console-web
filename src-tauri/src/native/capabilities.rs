@@ -271,7 +271,7 @@ const ARSENAL_TEST: ArsenalEvidence = ArsenalEvidence {
 
 /// The exclusion evidence for this exact build, if any. OpenCode and Hermes have none.
 pub fn arsenal_exclusion(agent: AgentId, version: Option<&str>) -> Option<ArsenalEvidence> {
-    let version = version?;
+    let version = version.filter(|v| !v.trim().is_empty())?;
     let records = match agent {
         AgentId::ClaudeCode => ARSENAL_CLAUDE,
         AgentId::Codex => ARSENAL_CODEX,
@@ -343,7 +343,10 @@ mod tests {
         // An unknown version is still refused.
         assert!(!permits_arsenal_exclusion(AgentId::ClaudeCode, None));
         assert!(!permits_arsenal_home(AgentId::ClaudeCode, None));
-        assert!(!permits_arsenal_home(AgentId::ClaudeCode, Some("  ")));
+        for blank in ["", "  "] {
+            assert!(!permits_arsenal_exclusion(AgentId::ClaudeCode, Some(blank)));
+            assert!(!permits_arsenal_home(AgentId::ClaudeCode, Some(blank)));
+        }
         // Codex: only the exact qualified builds; it never uses the Claude home.
         assert!(permits_arsenal_exclusion(
             AgentId::Codex,
