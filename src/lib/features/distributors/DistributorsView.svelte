@@ -56,6 +56,11 @@
   let form = $state<SaveDistributorInput | null>(null);
   let confirmDelete = $state<string | null>(null);
   let working = $state(false);
+  let firstField = $state<HTMLInputElement | null>(null);
+  // The dialog takes the focus on its first field, so Esc and Tab work at once.
+  $effect(() => {
+    if (form && firstField) firstField.focus();
+  });
   function close() {
     form = null;
     confirmDelete = null;
@@ -105,7 +110,8 @@
     addedError = null;
     try {
       const clean = (v: string | null) => (v && v.trim() ? v.trim() : null);
-      await client.save({
+      const isNew = form.id === null;
+      const saved = await client.save({
         ...form,
         name: form.name.trim(),
         open: form.open.trim(),
@@ -113,6 +119,20 @@
         update: clean(form.update),
         note: clean(form.note),
       });
+      // A new tool gets its launch in Workspace right away: adding it is what makes it usable.
+      if (isNew)
+        try {
+          await client.makeLaunch(saved.id);
+        } catch (e) {
+          const why = e instanceof Error ? e.message : '';
+          if (!why.includes('exists'))
+            notice = t(
+              'It was added, but its launch could not be made: {why}',
+              {
+                why,
+              },
+            );
+        }
       form = null;
       await readAdded();
     } catch (e) {
@@ -266,6 +286,15 @@
           </h3>
         </div>
         <div class="dist-actions">
+          <button
+            type="button"
+            class="action"
+            disabled={!home}
+            title={t('Types “{command}” in a new terminal of the Console.', {
+              command: d.open,
+            })}
+            onclick={() => void run(d.id, 'open')}>{t('Open')}</button
+          >
           {#if d.update}
             <button
               type="button"
@@ -379,7 +408,12 @@
           {/if}
           <label class="le-field" title={t('How the card is called.')}
             ><span>{t('Name')}</span>
-            <input class="le-input" maxlength="60" bind:value={f.name} /></label
+            <input
+              class="le-input"
+              maxlength="60"
+              bind:this={firstField}
+              bind:value={f.name}
+            /></label
           >
           <label class="le-field" title={t('Who makes it. Optional.')}
             ><span>{t('Made by')}</span>

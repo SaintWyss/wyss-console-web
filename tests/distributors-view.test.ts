@@ -202,6 +202,7 @@ it('opens from the rail, reads only while shown, and draws what the desktop answ
 it('adds a tool by name and command, opens it from its file, and makes a launch of it', async () => {
   const ipc = desktop();
   const saved: unknown[] = [];
+  const launches: unknown[] = [];
   const kimi = {
     id: 'kimi-cli',
     name: 'Kimi CLI',
@@ -227,7 +228,10 @@ it('adds a tool by name and command, opens it from its file, and makes a launch 
       return kimi;
     }
     if (command === 'distributor_get') return kimi;
-    if (command === 'distributor_make_launch') return 'kimi-cli';
+    if (command === 'distributor_make_launch') {
+      launches.push(request);
+      return 'kimi-cli';
+    }
     return undefined;
   };
   component = mount(App, { target: document.body });
@@ -238,6 +242,16 @@ it('adds a tool by name and command, opens it from its file, and makes a launch 
     Array.from(view().querySelectorAll<HTMLButtonElement>('button')).find(
       (b) => text(b) === label,
     )!;
+  button('Add a tool').click();
+  await flush();
+  // The dialog takes the focus on its first field: Esc works at once.
+  const dialog = document.querySelector<HTMLElement>('[role="dialog"]')!;
+  expect(document.activeElement).toBe(dialog.querySelector('input'));
+  document.activeElement!.dispatchEvent(
+    new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+  );
+  await flush();
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
   button('Add a tool').click();
   await flush();
   button('Kimi CLI').click();
@@ -264,6 +278,13 @@ it('adds a tool by name and command, opens it from its file, and makes a launch 
   );
   // The form was a dialog, and it is gone once saved.
   expect(document.querySelector('[role="dialog"]')).toBeNull();
+  // Adding it made its launch in Workspace, without leaving this page.
+  expect(launches).toHaveLength(1);
+  expect(Array.from(added.querySelectorAll('button')).map(text)).toEqual([
+    'Open',
+    'Edit',
+    'Delete',
+  ]);
   // No Update without a command for it.
   expect(Array.from(added.querySelectorAll('button')).map(text)).not.toContain(
     'Update tool',
