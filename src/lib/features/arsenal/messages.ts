@@ -33,7 +33,7 @@ const CODE_TEXT: Record<string, string> = {
     'A hook this preset leaves out is no longer in hooks.json: it was edited or removed. Nothing was started. Check the preset’s hooks and save it.',
   ),
   environment_too_large: msg(
-    'The file of Codex launch environments would be too long with this change, so it was not saved. Leave fewer hooks out, or delete presets you no longer use.',
+    'A file of launch environments would be too long with this change, so it was not saved. Leave fewer things out, or delete presets you no longer use.',
   ),
   internal: msg(
     'Arsenal returned something unexpected. Refresh and try again.',

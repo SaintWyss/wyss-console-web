@@ -936,6 +936,18 @@ export const ES: Readonly<Record<string, string>> = {
   'The Console could not write its own state.':
     'La consola no pudo escribir su propio estado.',
   'Something went wrong in the desktop.': 'Algo salió mal en el escritorio.',
+  'The folder of this launch could not be prepared, so nothing was started. Your own configuration was not changed. Try again; if it keeps failing, save the launch again in Workspace.':
+    'No se pudo preparar la carpeta de este lanzamiento, así que no se inició nada. Tu configuración no se tocó. Probá de nuevo; si sigue fallando, guardá el lanzamiento otra vez en Workspace.',
+  'The version of this agent could not be read, so the launch was not started with a folder of its own. Check that the agent runs from a terminal and try again.':
+    'No se pudo leer la versión de este agente, así que el lanzamiento no arrancó con carpeta propia. Fijate que el agente corra desde una terminal y probá de nuevo.',
+  'This launch starts Claude Code with a folder of its own, and that needs the sign-in token saved in Settings. None is saved, so nothing was started.':
+    'Este lanzamiento arranca Claude Code con carpeta propia, y para eso hace falta el token de acceso guardado en Configuración. No hay ninguno guardado, así que no se inició nada.',
+  'A file of launch environments would be too long with this change, so it was not saved. Leave fewer things out, or delete presets you no longer use.':
+    'Con este cambio, un archivo de entornos de lanzamiento quedaría demasiado largo, así que no se guardó. Dejá menos cosas afuera o borrá presets que ya no uses.',
+  'Skill exclusion is not qualified for this exact Codex build, so nothing was started with it. Start without applying the selection, or use a qualified Codex build.':
+    'Sacar skills no está calificado para esta versión exacta de Codex, así que no se inició nada con eso. Arrancá sin aplicar la selección o usá una versión de Codex calificada.',
+  'The launch environment could not be saved: the file of launch environments cannot be read. It was not changed.':
+    'No se pudo guardar el entorno de lanzamiento: el archivo de entornos no se puede leer. No se modificó.',
   Other: 'Otro',
   'Add a key': 'Agregar una clave',
   'Enter the key…': 'Ingresar la clave…',
@@ -2332,8 +2344,6 @@ export const ES: Readonly<Record<string, string>> = {
     'Este preset deja afuera un hook de Codex o el AGENTS.md, así que la terminal solo arranca con el preset aplicado: sin aplicarlo volverían a cargarse. Ahora no se puede aplicar, así que no puede arrancar.',
   'The hook was changed, but the launch presets that left it out could not be updated. Until you open each of them in Workspace, check its hooks and save, a launch with one of them may run the changed hook, or (Codex) may not start.':
     'El hook se cambió, pero no se pudieron actualizar los presets de lanzamiento que lo dejaban afuera. Hasta que abras cada uno en Workspace, revises sus hooks y guardes, un lanzamiento con uno de ellos puede correr el hook cambiado o (Codex) no arrancar.',
-  'The file of Codex launch environments would be too long with this change, so it was not saved. Leave fewer hooks out, or delete presets you no longer use.':
-    'El archivo de entornos de lanzamiento de Codex quedaría demasiado largo con este cambio, así que no se guardó. Dejá menos hooks afuera o borrá presets que ya no uses.',
   'A command before the start did not succeed ({result}); the agent started anyway.':
     'Un comando previo al inicio no tuvo éxito ({result}); el agente arrancó igual.',
   'Started with {selection} applied.': 'Iniciado con {selection} aplicado.',
@@ -2501,8 +2511,8 @@ export const ES: Readonly<Record<string, string>> = {
     'Esta terminal arranca con su propia carpeta y entra con tu token de larga duración guardado. Tu ~/.claude no se toca.',
   'This terminal uses your own configuration as it is.':
     'Esta terminal usa tu configuración tal como está.',
-  "Always loaded: the project's own CLAUDE.md, skills and hooks, and Claude Code's built-in plugins.":
-    'Siempre carga: el CLAUDE.md, las skills y los hooks del proyecto, y los plugins incluidos en Claude Code.',
+  "Always loaded: the project's instructions (CLAUDE.md, CLAUDE.local.md, .claude/rules and the CLAUDE.md of each folder it reads in), its skills and hooks, and Claude Code's built-in plugins.":
+    'Siempre carga: las instrucciones del proyecto (CLAUDE.md, CLAUDE.local.md, .claude/rules y el CLAUDE.md de cada carpeta donde lee), sus skills y hooks, y los plugins incluidos en Claude Code.',
   'No long-lived token is stored, so this terminal will not start. Run claude setup-token in your own terminal and store it with: secret-tool store --label "Claude Code token (Wyss Console)" service wyss-console kind claude-oauth-token':
     'No hay un token de larga duración guardado, así que esta terminal no va a arrancar. Corré claude setup-token en tu propia terminal y guardalo con: secret-tool store --label "Claude Code token (Wyss Console)" service wyss-console kind claude-oauth-token',
   'Save environment': 'Guardar entorno',
@@ -3691,8 +3701,8 @@ export const ES: Readonly<Record<string, string>> = {
     'Ayudantes a los que el agente puede pasarles parte de una tarea, cada uno con sus propias instrucciones.',
   'The skills of your Claude account (claude.ai), on top of the ones installed on this computer.':
     'Las skills de tu cuenta de Claude (claude.ai), además de las instaladas en esta PC.',
-  'Scripts that run on their own at fixed moments (before a command, when a turn ends…). They take no context.':
-    'Scripts que corren solos en momentos fijos (antes de un comando, al terminar un turno…). No ocupan contexto.',
+  'Scripts that run on their own at fixed moments (before a command, when a turn ends…). The script takes no context, but what some of them print (at start, before each message) enters the conversation. Not measured.':
+    'Scripts que corren solos en momentos fijos (antes de un comando, al terminar un turno…). El script no ocupa contexto, pero lo que imprimen algunos (al arrancar, antes de cada mensaje) entra en la conversación. No se mide.',
   Personalization: 'Personalización',
   'Which agents are installed, their version and their models.':
     'Qué agentes hay instalados, su versión y sus modelos.',

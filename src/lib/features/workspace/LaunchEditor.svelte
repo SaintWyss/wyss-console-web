@@ -115,7 +115,7 @@
       'The skills of your Claude account (claude.ai), on top of the ones installed on this computer.',
     ),
     hooks: msg(
-      'Scripts that run on their own at fixed moments (before a command, when a turn ends…). They take no context.',
+      'Scripts that run on their own at fixed moments (before a command, when a turn ends…). The script takes no context, but what some of them print (at start, before each message) enters the conversation. Not measured.',
     ),
     codexInstructions: msg(
       'AGENTS.md of your Codex folder: what you told Codex to always follow. Switched off, this launch starts without it.',
@@ -508,7 +508,8 @@
       out.push({
         id: 'hooks',
         label: msg('Hooks'),
-        tokens: 0,
+        tokens: null,
+        note: msg('not measured'),
         rows: options.hooks.map((hook) => ({
           key: hook.key,
           label: hookLabel(hook),
@@ -523,7 +524,8 @@
       out.push({
         id: 'hooks',
         label: msg('Hooks'),
-        tokens: 0,
+        tokens: null,
+        note: msg('not measured'),
         notice: CODEX_HOME_NOTE,
         rows: codex.hooks.map((hook) => ({
           key: hook.key,

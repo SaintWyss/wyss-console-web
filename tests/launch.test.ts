@@ -619,20 +619,26 @@ describe('the text of the desktop failures about a folder of its own', () => {
     expect(ES[HOME_FOLDER_REFUSED]).toContain('carpeta personal');
   });
 
-  // Known gap, not fixed here: these host codes have no entry in FAILURE_TEXT (native/present.ts),
-  // so the window falls back to the generic sentence. `it.fails` goes red the day someone adds
-  // the texts; then turn these into plain `it`.
+  // Every code the host returns about a folder of its own or a launch environment has its own
+  // text, translated: none falls back to the generic sentence.
   const GENERIC = 'Something went wrong in the desktop.';
   for (const code of [
     'arsenal_home_failed',
     'arsenal_home_unqualified',
     'arsenal_token_missing',
+    'arsenal_environment_unreadable',
+    'arsenal_environment_too_large',
   ]) {
-    it(`gap: ${code} still shows the generic sentence (documented)`, () => {
-      expect(failureText(code)).toBe(GENERIC);
-    });
-    it.fails(`gap: ${code} should have a text of its own`, () => {
-      expect(failureText(code)).not.toBe(GENERIC);
+    it(`${code} has a text of its own, translated`, () => {
+      const text = failureText(code);
+      expect(text).not.toBe(GENERIC);
+      expect(ES[text], code).toBeTruthy();
     });
   }
+  it('the unreadable text names both files, the qualification one only Codex', () => {
+    expect(failureText('arsenal_environment_unreadable')).toContain(
+      'environment.json for Claude',
+    );
+    expect(failureText('arsenal_unqualified')).toContain('Codex build');
+  });
 });

@@ -106,7 +106,7 @@ export const FAILURE_TEXT: Record<string, string> = {
     'This exact provider build is not verified for permission flags, so nothing was launched with them. Choose “As configured” or use a qualified build.',
   ),
   arsenal_unqualified: msg(
-    'Skill exclusion is not qualified for this exact provider build, so nothing was started with it. Start without applying the selection, or use a qualified build.',
+    'Skill exclusion is not qualified for this exact Codex build, so nothing was started with it. Start without applying the selection, or use a qualified Codex build.',
   ),
   arsenal_plan_stale: msg(
     'The Arsenal plan changed since it was shown: the library, the installed skills or the provider build moved. Review the new plan and start again.',
@@ -125,6 +125,18 @@ export const FAILURE_TEXT: Record<string, string> = {
     'A hook this preset leaves out is no longer in hooks.json: it was edited or removed. Nothing was started. Check the preset’s hooks and save it.',
   ),
   arsenal_home_cwd_is_home: HOME_FOLDER_REFUSED,
+  arsenal_home_failed: msg(
+    'The folder of this launch could not be prepared, so nothing was started. Your own configuration was not changed. Try again; if it keeps failing, save the launch again in Workspace.',
+  ),
+  arsenal_home_unqualified: msg(
+    'The version of this agent could not be read, so the launch was not started with a folder of its own. Check that the agent runs from a terminal and try again.',
+  ),
+  arsenal_token_missing: msg(
+    'This launch starts Claude Code with a folder of its own, and that needs the sign-in token saved in Settings. None is saved, so nothing was started.',
+  ),
+  arsenal_environment_too_large: msg(
+    'A file of launch environments would be too long with this change, so it was not saved. Leave fewer things out, or delete presets you no longer use.',
+  ),
   arsenal_project_refused: msg(
     'Arsenal does not read this project folder, so its selection cannot be applied here.',
   ),

@@ -14,6 +14,7 @@
   } from './environment';
   import { arsenalClient } from '../../desktop/arsenal-client';
   import { ENVIRONMENT_UNREADABLE } from '../terminal/launch';
+  import { failureMessage } from './messages';
 
   const environmentClient = {
     get: (selection: string) => arsenalClient.environment(selection),
@@ -131,9 +132,15 @@
         await client.write(id, copy);
         if (seq === loadSeq) saved = copy;
       }
-    } catch {
-      if (seq === loadSeq)
-        failure = 'The launch environment could not be saved.';
+    } catch (error: unknown) {
+      if (seq !== loadSeq) return;
+      const code = (error as { code?: unknown }).code;
+      failure =
+        code === 'environment_unreadable'
+          ? 'The launch environment could not be saved: the file of launch environments cannot be read. It was not changed.'
+          : code === 'environment_too_large'
+            ? failureMessage(error)
+            : 'The launch environment could not be saved.';
     } finally {
       saving = false;
     }
@@ -401,7 +408,7 @@
     </p>
     <p class="muted">
       {t(
-        "Always loaded: the project's own CLAUDE.md, skills and hooks, and Claude Code's built-in plugins.",
+        "Always loaded: the project's instructions (CLAUDE.md, CLAUDE.local.md, .claude/rules and the CLAUDE.md of each folder it reads in), its skills and hooks, and Claude Code's built-in plugins.",
       )}
     </p>
     {#if own && !options.token_stored}
