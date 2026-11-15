@@ -31,6 +31,8 @@ export type MapNode =
       children: MapNode[];
     }
   | { kind: 'entry'; key: string; entry: GuideEntry; origin: Origin }
+  /** One item of the agent's own configuration (a hook), opened as a card like an entry. */
+  | { kind: 'item'; key: string; item: ConfigItem; label: string }
   | {
       kind: 'config';
       key: string;
@@ -47,6 +49,8 @@ export interface MapText {
   personal: string;
   sets: string;
   hooks: string;
+  /** What a hook event is called on screen (`PreToolUse` → "Before a tool"). */
+  hookEvent: (event: string) => string;
   mcp: string;
   configuration: string;
   setName: (key: string) => string;
@@ -68,7 +72,7 @@ const branch = (
 });
 
 function countOf(node: MapNode): number {
-  if (node.kind === 'entry') return 1;
+  if (node.kind === 'entry' || node.kind === 'item') return 1;
   if (node.kind === 'config') return 0;
   return node.count ?? 0;
 }
@@ -149,11 +153,40 @@ export function mapOf(
             ),
           );
       }
+      // Claude Code's hooks are a branch like skills: by event, then each hook.
+      const hooks =
+        tool === 'claude_code'
+          ? configItems.filter((i) => i.provider === tool && i.kind === 'hook')
+          : [];
+      if (hooks.length > 0) {
+        const events = [...new Set(hooks.map((h) => eventOf(h.name)))];
+        kinds.push(
+          branch(
+            `${tool}/hooks`,
+            text.hooks,
+            events.map((event) =>
+              branch(
+                `${tool}/hooks/${event}`,
+                text.hookEvent(event),
+                hooks
+                  .filter((h) => eventOf(h.name) === event)
+                  .map((item) => ({
+                    kind: 'item' as const,
+                    key: item.id,
+                    item,
+                    label: matcherOf(item.name) || text.hookEvent(event),
+                  })),
+              ),
+            ),
+          ),
+        );
+      }
       for (const [section, label] of [
         ['hooks', text.hooks],
         ['mcp', text.mcp],
         ['global', text.configuration],
       ] as const) {
+        if (section === 'hooks' && hooks.length > 0) continue;
         const count = configItems.filter(
           (item) =>
             item.provider === tool && CONFIG_KINDS[section].includes(item.kind),
@@ -171,4 +204,13 @@ export function mapOf(
       return branch(`${tool}`, text.tool[tool], kinds);
     })
     .filter((node) => node.kind === 'branch' && node.children.length > 0);
+}
+
+/** A hook's name is `Event · matcher`: its event. */
+export function eventOf(name: string): string {
+  return name.split(' · ')[0].trim();
+}
+/** A hook's name is `Event · matcher`: what it matches, or '' for every tool. */
+export function matcherOf(name: string): string {
+  return name.split(' · ').slice(1).join(' · ').trim();
 }

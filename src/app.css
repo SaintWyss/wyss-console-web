@@ -6154,3 +6154,25 @@ li.native-row .native-note {
 *::-webkit-scrollbar {
   display: none;
 }
+
+/* Over a hook event's list: Add a hook, and its small form. */
+.ars-list-top {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.ars-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+.ars-add label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}

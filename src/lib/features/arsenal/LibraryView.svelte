@@ -25,6 +25,9 @@
     type Block as MdBlock,
   } from './guide';
   import ArsenalBrowser from './ArsenalBrowser.svelte';
+  import { field, hookCommand } from './hook';
+  import { eventOf, matcherOf } from './map';
+  import { SOURCE_LABEL, authoringFor } from '../configuration/present';
   import { mapOf, type MapNode, type MapTool } from './map';
   import type { GuideStore, GuideTool } from './guide-store.svelte';
 
@@ -228,6 +231,7 @@
       personal: t('Personal'),
       sets: t('Sets'),
       hooks: t('Hooks'),
+      hookEvent: (event) => t(HOOK_EVENT_NAME[event] ?? event),
       mcp: t('MCP'),
       configuration: t('Configuration'),
       setName: (key) => {
@@ -247,6 +251,33 @@
       },
     ];
   });
+  /** Hook events by their meaning; the name the tool uses goes in grey under it. */
+  const HOOK_EVENT_NAME: Record<string, string> = {
+    SessionStart: msg('When a session opens'),
+    SessionEnd: msg('When a session ends'),
+    UserPromptSubmit: msg('When you send a message'),
+    PreToolUse: msg('Before a tool runs'),
+    PostToolUse: msg('After a tool runs'),
+    Notification: msg('On a notification'),
+    Stop: msg('When the answer ends'),
+    SubagentStop: msg('When a subagent ends'),
+    PreCompact: msg('Before the context is compacted'),
+  };
+  /** The hook whose card is open, by id; null when none is. */
+  let openItemId = $state<string | null>(null);
+  const openItem = $derived(
+    openItemId === null
+      ? null
+      : (configItems.find((i) => i.id === openItemId) ?? null),
+  );
+  /** Over a hook event's list: the form that adds one, when open. */
+  let adding = $state<string | null>(null);
+  let addMatcher = $state('');
+  function closeItem() {
+    leave();
+    openItemId = null;
+  }
+
   /** A configuration page is open over the Arsenal when the section is one: a link to it opens it too. */
   const configOpen = $derived(configKinds !== null);
   function openConfig(tool: MapTool, section: 'hooks' | 'mcp' | 'global') {
@@ -278,6 +309,139 @@
         {changesController}
       />
     </div>
+  {/snippet}
+  {#snippet listTop(key: string)}
+    {#if key.startsWith('claude_code/hooks/')}
+      {@const event = key.slice('claude_code/hooks/'.length)}
+      <div class="ars-list-top">
+        {#if adding === event}
+          <form
+            class="ars-add"
+            onsubmit={(e) => {
+              e.preventDefault();
+              changedFor = `add:${event}`;
+              changesController.author((c) =>
+                c.authorHook(event, addMatcher.trim() || null, null, false),
+              );
+              adding = null;
+            }}
+          >
+            <label
+              >{t('For which tools (empty = all)')}
+              <input
+                class="le-input mono"
+                placeholder="Bash|Write"
+                spellcheck="false"
+                bind:value={addMatcher}
+              /></label
+            >
+            <button type="submit" class="action primary"
+              >{t('Write the command…')}</button
+            >
+            <button type="button" class="action" onclick={() => (adding = null)}
+              >{t('Cancel')}</button
+            >
+          </form>
+        {:else}
+          <button
+            type="button"
+            class="action"
+            disabled={changes.planning || changes.applying}
+            onclick={() => {
+              adding = event;
+              addMatcher = '';
+            }}>{t('Add a hook')}</button
+          >
+        {/if}
+        {#if changedFor === `add:${event}`}
+          <ChangePlan {changes} {changesController} />
+        {/if}
+      </div>
+    {/if}
+  {/snippet}
+  {#snippet itemBody()}
+    {#if openItem}
+      {@const item = openItem}
+      {@const authoring = authoringFor(item)}
+      {@const off = changeFor(item)}
+      <article class="ars-card ars-inline" aria-labelledby="ars-card-title">
+        <header class="ars-card-head">
+          <h2 id="ars-card-title" tabindex="-1">
+            {matcherOf(item.name) || t('Every tool')}
+          </h2>
+          <button type="button" class="action ars-back-top" onclick={closeItem}
+            >{t('Back')}</button
+          >
+        </header>
+        <p class="ars-meta">
+          {t(HOOK_EVENT_NAME[eventOf(item.name)] ?? eventOf(item.name))} ·
+          {eventOf(item.name)} ·
+          {item.persisted === 'present_enabled'
+            ? t('Switched on')
+            : t('Switched off')}
+        </p>
+        <section class="ars-sec">
+          <h3>{t('What it runs')}</h3>
+          <pre class="lib-pre">{hookCommand(item) || '—'}</pre>
+          {#if field(item, 'timeout')}
+            <p class="ars-note">
+              {t('Stops after {n} s.', { n: field(item, 'timeout') })}
+            </p>
+          {/if}
+        </section>
+        <section class="ars-sec">
+          <h3>{t('Actions')}</h3>
+          <p class="ars-state">
+            {#if authoring}
+              <button
+                type="button"
+                class="action"
+                disabled={changes.planning || changes.applying}
+                onclick={() =>
+                  draftFrom(item.id, () =>
+                    changesController.author((c) => c.editHook(item.id)),
+                  )}>{t('Edit')}</button
+              >
+            {/if}
+            {#if off}
+              <button
+                type="button"
+                class="action"
+                title={t('It is kept aside and can be brought back.')}
+                disabled={changes.planning || changes.applying}
+                onclick={() =>
+                  draftFrom(item.id, () =>
+                    changesController.draft(off.operation, item.id),
+                  )}>{t('Delete')}</button
+              >
+            {/if}
+            {#if applied[item.id] && !changes.plan}
+              {@const change = applied[item.id]}
+              <button
+                type="button"
+                class="action quiet"
+                disabled={changes.planning || changes.applying}
+                onclick={() =>
+                  draftFrom(item.id, () => changesController.undo(change))}
+                >{t('Undo')}</button
+              >
+            {/if}
+          </p>
+          {#if !authoring && !off}
+            <p class="ars-note">{t('This hook cannot be changed here.')}</p>
+          {/if}
+          {#if changedFor === item.id}
+            <ChangePlan {changes} {changesController} />
+          {/if}
+        </section>
+        <div class="ars-folds">
+          <details class="ars-sec ars-fold">
+            <summary><h3>{t('Location')}</h3></summary>
+            <p class="ars-note">{t(SOURCE_LABEL[item.source])}</p>
+          </details>
+        </div>
+      </article>
+    {/if}
   {/snippet}
   {#snippet cardBody()}
     {#if open}
@@ -489,9 +653,15 @@
       roots={mapRoots[0]?.kind === 'branch' ? mapRoots[0].children : []}
       onentry={choose}
       onconfig={openConfig}
-      openId={open?.id ?? null}
-      onclose={back}
-      card={cardBody}
+      openId={open?.id ?? openItem?.id ?? null}
+      onclose={() => (openItem ? closeItem() : back())}
+      card={openItem ? itemBody : cardBody}
+      onitem={(item) => {
+        leave();
+        store.close();
+        openItemId = item.id;
+      }}
+      {listTop}
       configShown={configOpen}
       configView={configPanel}
       onlist={() => {

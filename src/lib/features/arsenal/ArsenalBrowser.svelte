@@ -3,6 +3,7 @@
   import { currentLanguage, t } from '../../i18n/index.svelte';
   import type { GuideEntry } from '../../contracts/arsenal';
   import { firstSentence, matches } from './guide';
+  import { hookCommand } from './hook';
   import type { MapNode, MapTool } from './map';
 
   /**
@@ -21,7 +22,13 @@
     configView,
     configShown = false,
     onlist = () => undefined,
+    onitem = () => undefined,
+    listTop,
   }: {
+    /** A configuration item (a hook) was chosen: its card opens like an entry's. */
+    onitem?: (item: import('../../contracts/configuration').ConfigItem) => void;
+    /** Drawn over the list of a branch, with its key: e.g. "Add a hook" over a hook event. */
+    listTop?: import('svelte').Snippet<[string]>;
     /** Hooks, MCP or Configuration, shown at the side like a list when one is chosen. */
     configView?: import('svelte').Snippet;
     configShown?: boolean;
@@ -41,7 +48,8 @@
   type Branch = Extract<MapNode, { kind: 'branch' }>;
   /** A branch whose children are all entries: it is chosen, not folded. */
   const isList = (n: Branch) =>
-    n.children.length > 0 && n.children.every((c) => c.kind === 'entry');
+    n.children.length > 0 &&
+    n.children.every((c) => c.kind === 'entry' || c.kind === 'item');
 
   let opened = $state<Set<string>>(new Set());
   let selected = $state<string | null>(null);
@@ -124,6 +132,12 @@
     walk(roots);
     return out;
   });
+  type ItemLeaf = Extract<MapNode, { kind: 'item' }>;
+  const items = $derived(
+    shown && query.trim() === '' && openId === null
+      ? shown.children.filter((c): c is ItemLeaf => c.kind === 'item')
+      : [],
+  );
   const all = $derived(query.trim() !== '' ? found : entries);
   // With a card open, only the card is shown.
   const listed = $derived(openId === null ? all : []);
@@ -223,10 +237,30 @@
     {:else if shown}
       <h2 class="ab-title">
         {shown.label}
-        <span class="ars-count">{entries.length}</span>
+        <span class="ars-count">{entries.length + items.length}</span>
       </h2>
     {:else if listed.length === 0}
       <p class="lib-muted">{t('Choose a category in the tree.')}</p>
+    {/if}
+    {#if shown && listTop && openId === null && query.trim() === '' && !configShown}
+      {@render listTop(shown.key)}
+    {/if}
+    {#if items.length > 0 && !configShown}
+      <ul class="ars-rows">
+        {#each items as it (it.key)}
+          <li>
+            <button
+              type="button"
+              class="ars-row"
+              data-entry={it.item.id}
+              onclick={() => onitem(it.item)}
+            >
+              <span class="lib-name" title={it.item.name}>{it.label}</span>
+              <span class="lib-desc">{hookCommand(it.item)}</span>
+            </button>
+          </li>
+        {/each}
+      </ul>
     {/if}
     <ul class="ars-rows" hidden={configShown}>
       {#each listed as e (e.key)}

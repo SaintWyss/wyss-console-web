@@ -453,3 +453,45 @@ it('comes back to Arsenal on its tree, with no configuration left open', async (
   expect(document.querySelector('.ars-config-inline')).toBeNull();
   expect(library().querySelector('.ab-tree')).not.toBeNull();
 });
+
+it('lists Claude Code’s hooks by event, opens one as a card with Edit and Delete, and adds one from its event', async () => {
+  desktop();
+  planned.length = 0;
+  await openArsenal();
+  item('Hooks').click();
+  await flush();
+  item('Before a tool runs').click();
+  await flush();
+  const hook = row('Bash');
+  expect(text(hook)).toContain('guard.sh --token [redacted]');
+  hook.click();
+  await flush();
+  const card = library().querySelector<HTMLElement>('.ars-card')!;
+  expect(text(card.querySelector('h2'))).toBe('Bash');
+  expect(text(card.querySelector('.ars-meta'))).toBe(
+    'Before a tool runs · PreToolUse · Switched on',
+  );
+  const buttons = Array.from(card.querySelectorAll('button')).map((b) =>
+    text(b),
+  );
+  expect(buttons).toContain('Edit');
+  expect(buttons).toContain('Delete');
+  // Delete keeps it aside through Configuration's own plan.
+  Array.from(card.querySelectorAll<HTMLButtonElement>('button'))
+    .find((b) => text(b) === 'Delete')!
+    .click();
+  await flush();
+  expect(planned).toEqual([
+    { operation: 'park_hook', target: '3509f91842ae6d3540a6c182b5491893' },
+  ]);
+  // Back to the event's list: it offers to add a hook there.
+  Array.from(card.querySelectorAll<HTMLButtonElement>('button'))
+    .find((b) => text(b) === 'Back')!
+    .click();
+  await flush();
+  expect(
+    Array.from(library().querySelectorAll('button')).some(
+      (b) => text(b) === 'Add a hook',
+    ),
+  ).toBe(true);
+});
