@@ -422,3 +422,161 @@ describe('a Codex preset that leaves a hook or AGENTS.md out', () => {
     expect(choice && !choice.pending && choice.ready).toBe(false);
   });
 });
+
+describe('a preset with a folder of its own, in the owner home', () => {
+  const available = {
+    state: 'available' as const,
+    reason: 'ok',
+    evidence: null,
+  };
+  const codexSelection = { ...selection, provider: 'codex' as const };
+  const environmentOf = (over: Record<string, unknown> = {}) => ({
+    instructions: true,
+    memory: true,
+    agents: true,
+    account_skills_off: [],
+    mcp: null,
+    rules_off: [],
+    hooks_off: [],
+    plugins_off: [],
+    ...over,
+  });
+
+  function setup(
+    agent: 'claude_code' | 'codex',
+    next: TerminalPlan,
+    {
+      environment = async () => environmentOf({ instructions: false }),
+      homeProject = true,
+      previewer = async () => preview(true),
+    }: {
+      environment?: () => Promise<unknown>;
+      homeProject?: boolean;
+      previewer?: () => Promise<Preview>;
+    } = {},
+  ) {
+    const read = vi.fn(environment);
+    const fake = {
+      selections: vi.fn(async () => [
+        agent === 'codex' ? codexSelection : selection,
+      ]),
+      terminalPlan: vi.fn(async () => next),
+      projectSelection: vi.fn(async () => 'sel-1'),
+      environment: read,
+    } as unknown as ArsenalClient;
+    const choices: (ArsenalChoice | null)[] = [];
+    component = mount(ArsenalTerminalPanel, {
+      target: document.body,
+      props: {
+        agent,
+        project: '/home/u',
+        profile: null,
+        previewer,
+        onchange: (choice: ArsenalChoice | null) => choices.push(choice),
+        client: fake,
+        homeProject,
+      },
+    });
+    flushSync();
+    const ready = () => {
+      const choice = choices[choices.length - 1];
+      return choice && !choice.pending ? choice.ready : undefined;
+    };
+    return { fake, environment: read, previewer, ready };
+  }
+  const alertText = () =>
+    [...document.querySelectorAll('[role=alert]')]
+      .map((node) => node.textContent?.replace(/\s+/g, ' ') ?? '')
+      .join(' | ');
+  const REFUSED = 'cannot use your home folder as its project';
+  const claudePlan = plan({ can_apply: true, enforcement: available });
+  const codexPlan = (over: Partial<TerminalPlan> = {}) =>
+    plan({
+      provider: 'codex',
+      provider_version: 'codex-cli 0.169.0',
+      can_apply: true,
+      enforcement: available,
+      codex_environment: { instructions: false, hooks_off: ['k1'] },
+      ...over,
+    });
+
+  it('14: Codex with an environment that applies shows the alert and is not ready', async () => {
+    const { ready } = setup('codex', codexPlan());
+    await settle();
+    expect(alertText()).toContain(REFUSED);
+    expect(document.querySelector('[role=alert]')).not.toBeNull();
+    expect(ready()).toBe(false);
+  });
+
+  it('14 control: the same Codex plan outside the home is ready, with no alert', async () => {
+    const { ready } = setup('codex', codexPlan(), { homeProject: false });
+    await settle();
+    expect(alertText()).not.toContain(REFUSED);
+    expect(ready()).toBe(true);
+  });
+
+  it('15: Claude with a non-default environment is blocked; with the default one it is not', async () => {
+    const blocked = setup('claude_code', claudePlan);
+    await settle();
+    expect(blocked.environment).toHaveBeenCalledWith('sel-1');
+    expect(alertText()).toContain(REFUSED);
+    expect(blocked.ready()).toBe(false);
+    unmount(component!);
+    document.body.innerHTML = '';
+    const open = setup('claude_code', claudePlan, {
+      environment: async () => environmentOf(),
+    });
+    await settle();
+    expect(alertText()).not.toContain(REFUSED);
+    expect(open.ready()).toBe(true);
+  });
+
+  it('16: Claude recorded only, not applied, is allowed in the home', async () => {
+    // A build that cannot apply: the owner records the selection, and nothing of its own folder runs.
+    const { ready } = setup('claude_code', plan({ can_apply: false }));
+    await settle();
+    const record = [
+      ...document.querySelectorAll<HTMLInputElement>('input[type=checkbox]'),
+    ].find((box) => box.parentElement?.textContent?.includes('record'))!;
+    record.click();
+    flushSync();
+    await settle();
+    expect(alertText()).not.toContain(REFUSED);
+    expect(ready()).toBe(true);
+  });
+
+  it('17: an environment that cannot be read does not block (the host checks again)', async () => {
+    const { ready } = setup('claude_code', claudePlan, {
+      environment: async () => {
+        throw new Error('arsenal_environment_unreadable');
+      },
+    });
+    await settle();
+    expect(alertText()).not.toContain(REFUSED);
+    expect(ready()).toBe(true);
+  });
+
+  it('18: while the environment read is pending the choice is not ready, and it settles after', async () => {
+    let finish: (value: unknown) => void = () => {};
+    const { ready } = setup('claude_code', claudePlan, {
+      environment: () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    });
+    await settle();
+    expect(ready()).toBe(false);
+    finish(environmentOf());
+    await settle();
+    expect(ready()).toBe(true);
+  });
+
+  it('19: outside the home the environment is never read', async () => {
+    const { environment, ready } = setup('claude_code', claudePlan, {
+      homeProject: false,
+    });
+    await settle();
+    expect(environment).not.toHaveBeenCalled();
+    expect(ready()).toBe(true);
+  });
+});

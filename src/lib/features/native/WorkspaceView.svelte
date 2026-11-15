@@ -806,6 +806,7 @@
                 : Promise.reject(new Error('agent'))}
             bind:selected={presetId}
             choices={false}
+            homeProject={known?.home ?? false}
             onchange={(choice) => (arsenalChoice = choice)}
           />
         </details>

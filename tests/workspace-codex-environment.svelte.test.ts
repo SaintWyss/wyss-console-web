@@ -82,7 +82,7 @@ function codexPlan(over: Record<string, unknown>) {
   };
 }
 
-async function openCodex() {
+async function openCodex(home = false) {
   const client = fakeClient({
     launcher: vi.fn(async () =>
       launcher({
@@ -102,6 +102,15 @@ async function openCodex() {
             installed: true,
             path: '/home/u/.local/bin/codex',
             version: 'codex-cli 0.159.0',
+          },
+        ],
+        // A project folder: in the owner's home a preset with a folder of its own does not start.
+        projects: [
+          {
+            path: home ? '/home/u' : '/home/u/code/wyss',
+            home,
+            default_agent: null,
+            last_used: 0,
           },
         ],
       }),
@@ -161,5 +170,33 @@ describe('a Codex preset that leaves something out, in the launcher', () => {
     button('Start Codex').click();
     await settle();
     expect(client.start).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('a Codex preset with an environment, in the owner home', () => {
+  it('shows the refusal and keeps Start disabled, so nothing reaches the host', async () => {
+    plan.value = codexPlan({
+      can_apply: true,
+      enforcement: { state: 'available', reason: 'ok', evidence: null },
+    });
+    const client = await openCodex(true);
+    const skills = document.querySelector('.launch-skills')!;
+    expect(text(skills.querySelector('[role=alert]'))).toContain(
+      'cannot use your home folder as its project',
+    );
+    expect(button('Start Codex').disabled).toBe(true);
+    button('Start Codex').click();
+    await settle();
+    expect(client.start).not.toHaveBeenCalled();
+  });
+
+  it('control: the same preset in a project folder starts', async () => {
+    plan.value = codexPlan({
+      can_apply: true,
+      enforcement: { state: 'available', reason: 'ok', evidence: null },
+    });
+    await openCodex(false);
+    expect(document.querySelector('.launch-skills [role=alert]')).toBeNull();
+    expect(button('Start Codex').disabled).toBe(false);
   });
 });

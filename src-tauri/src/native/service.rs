@@ -920,6 +920,23 @@ impl NativeService {
                 }
             }
         }
+        // A launch with a folder of its own never runs where the agent would read the owner's
+        // folder again as the project's: the hooks, instructions and skills the preset left out
+        // would come back. Refused before anything is written, with no way around it.
+        if plan.home.is_some() || plan.codex_home.is_some() {
+            let owner_home = std::env::var_os("HOME")
+                .map(PathBuf::from)
+                .ok_or_else(|| NativeError::new("store_unavailable"))?;
+            let claude_owner = launch_home::Owner::from_home(&owner_home).dir;
+            let codex_owner = launch_home_codex::CodexOwner::from_process(&owner_home).dir;
+            if launch_home::cwd_would_reload_owner_config(
+                &project,
+                &owner_home,
+                &[&claude_owner, &codex_owner],
+            ) {
+                return Err(NativeError::new("arsenal_home_cwd_is_home"));
+            }
+        }
         let id = uuid::Uuid::new_v4().simple().to_string();
         let dir = self.inner.base.join("sessions").join(&id);
         let version_guard = version_bound && recipe::family(&shell).is_some();

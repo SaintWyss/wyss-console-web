@@ -2484,3 +2484,252 @@ fn a_codex_launch_pins_its_home_only_when_it_has_one() {
     );
     assert!(!argv.contains("CLAUDE_CONFIG_DIR="), "{argv}");
 }
+
+// ---- a launch with a folder of its own is refused in the owner's home -----------------------
+
+const HOME_REFUSED: &str = "arsenal_home_cwd_is_home";
+const CODEX_VERSION: &str = "codex-cli 0.169.0";
+
+/// A world whose fake owner home IS the project folder (`world.home`): the case the host refuses.
+/// The key ring is fake and holds the token; `HOME` is never the real one.
+fn project_is_home_world() -> (World, FakeOwnerEnv, FakeKeyRing) {
+    let world = World::new();
+    let env = FakeOwnerEnv::new(&world.home);
+    let ring = FakeKeyRing::new(&world.base.join("fake-ring"));
+    (world, env, ring)
+}
+
+/// Fake `claude` and `codex` that leave a marker file when they run for real (not for `--version`).
+fn marker_agents(world: &World) -> PathBuf {
+    let marker = world.base.join("agent-spawned");
+    let touch = format!("touch '{}'", marker.display());
+    script(
+        &world.bin.join("claude"),
+        &format!(
+            "[ \"$1\" = \"--version\" ] && {{ echo '{}'; exit 0; }}\n{touch}\n\
+             echo CLAUDE-READY; exec cat",
+            super::capabilities::ARSENAL_TEST_VERSION
+        ),
+    );
+    script(
+        &world.bin.join("codex"),
+        &format!(
+            "[ \"$1\" = \"--version\" ] && {{ echo '{CODEX_VERSION}'; exit 0; }}\n{touch}\n\
+             echo CODEX-READY; exec cat"
+        ),
+    );
+    marker
+}
+
+fn claude_owner_folder(world: &World) {
+    fs::create_dir_all(world.home.join(".claude")).unwrap();
+    fs::write(world.home.join(".claude/settings.json"), "{}").unwrap();
+}
+
+fn codex_owner_folder(world: &World) {
+    let owner = world.home.join(".codex");
+    fs::create_dir_all(&owner).unwrap();
+    fs::write(owner.join("config.toml"), "model = \"x\"\n").unwrap();
+    fs::write(owner.join("AGENTS.md"), "kernel").unwrap();
+    fs::write(owner.join("auth.json"), "FAKE-TOKEN").unwrap();
+}
+
+fn claude_own_home() -> super::arsenal::ArsenalLaunch {
+    super::arsenal::ArsenalLaunch {
+        home: Some(crate::native::launch_home::HomeSpec {
+            instructions: false,
+            ..Default::default()
+        }),
+        ..arsenal_launch(&[])
+    }
+}
+
+fn codex_own_home() -> super::arsenal::ArsenalLaunch {
+    super::arsenal::ArsenalLaunch {
+        codex_home: Some(super::launch_home_codex::CodexHomeSpec {
+            instructions: false,
+            hooks_off: Vec::new(),
+        }),
+        ..arsenal_launch(&[])
+    }
+}
+
+/// Previews and starts `launch` for `agent` in `project`.
+fn start_in(
+    world: &World,
+    agent: AgentId,
+    project: &Path,
+    launch: &super::arsenal::ArsenalLaunch,
+) -> Result<super::service::StartReply, super::service::NativeError> {
+    let version = match agent {
+        AgentId::Codex => CODEX_VERSION,
+        _ => super::capabilities::ARSENAL_TEST_VERSION,
+    };
+    let preview = world.service.preview(agent, None, Some(launch)).unwrap();
+    assert!(preview.can_start, "{:?}", preview.not_applicable);
+    world.service.start(
+        &world.terminal,
+        StartRequest {
+            agent_id: agent,
+            project: project.to_string_lossy().into_owned(),
+            profile_id: None,
+            size: SIZE,
+            brief: None,
+            plan_token: preview.plan_token,
+            expected_cli_version: Some(version.to_owned()),
+            arsenal: Some(launch.clone()),
+            delegation: false,
+        },
+    )
+}
+
+/// The refusal wrote nothing: no session record or folder, no launch home, no agent spawned.
+fn assert_nothing_started(world: &World, marker: &Path) {
+    assert!(!marker.exists(), "the agent was spawned");
+    assert!(
+        !world.base.join("launch-homes").exists(),
+        "a launch home was built"
+    );
+    let sessions = world.base.join("sessions");
+    let folders = fs::read_dir(&sessions).map_or(0, |entries| entries.count());
+    assert_eq!(folders, 0, "a sessions/<id> folder was created");
+    assert!(world.service.sessions(&world.terminal, false).is_empty());
+}
+
+#[test]
+fn a_claude_launch_with_a_home_of_its_own_is_refused_when_the_project_is_the_owner_home() {
+    let (world, _env, _ring) = project_is_home_world();
+    let marker = marker_agents(&world);
+    claude_owner_folder(&world);
+    let error = start_in(&world, AgentId::ClaudeCode, &world.home, &claude_own_home()).unwrap_err();
+    assert_eq!(error.code, HOME_REFUSED);
+    assert_nothing_started(&world, &marker);
+}
+
+#[test]
+fn a_codex_launch_with_a_home_of_its_own_is_refused_when_the_project_is_the_owner_home() {
+    let (world, _env, _ring) = project_is_home_world();
+    let marker = marker_agents(&world);
+    codex_owner_folder(&world);
+    let error = start_in(&world, AgentId::Codex, &world.home, &codex_own_home()).unwrap_err();
+    assert_eq!(error.code, HOME_REFUSED);
+    assert_nothing_started(&world, &marker);
+}
+
+#[test]
+fn launches_without_a_home_of_their_own_start_in_the_owner_home() {
+    let (world, _env, _ring) = project_is_home_world();
+    marker_agents(&world);
+    claude_owner_folder(&world);
+    codex_owner_folder(&world);
+    // An Arsenal launch whose environment is the default: no home on either agent.
+    let reply = start_in(
+        &world,
+        AgentId::ClaudeCode,
+        &world.home,
+        &arsenal_launch(&[]),
+    )
+    .unwrap();
+    world.output_until(&reply.terminal.terminal_id, "CLAUDE-READY");
+    let codex_default = super::arsenal::ArsenalLaunch {
+        codex_home: Some(super::launch_home_codex::CodexHomeSpec::default()),
+        ..arsenal_launch(&[])
+    };
+    let reply = start_in(&world, AgentId::Codex, &world.home, &codex_default).unwrap();
+    world.output_until(&reply.terminal.terminal_id, "CODEX-READY");
+    // And no Arsenal at all.
+    let reply = world.start(AgentId::ClaudeCode, None).unwrap();
+    world.output_until(&reply.terminal.terminal_id, "CLAUDE-READY");
+}
+
+#[test]
+fn a_launch_with_a_home_of_its_own_starts_in_a_subfolder_of_the_owner_home() {
+    let (world, _env, _ring) = project_is_home_world();
+    marker_agents(&world);
+    claude_owner_folder(&world);
+    codex_owner_folder(&world);
+    let project = world.home.join("code/app");
+    fs::create_dir_all(&project).unwrap();
+    world
+        .service
+        .remember_chosen(project.to_string_lossy().into_owned());
+    let reply = start_in(&world, AgentId::ClaudeCode, &project, &claude_own_home()).unwrap();
+    world.output_until(&reply.terminal.terminal_id, "CLAUDE-READY");
+    let reply = start_in(&world, AgentId::Codex, &project, &codex_own_home()).unwrap();
+    world.output_until(&reply.terminal.terminal_id, "CODEX-READY");
+}
+
+#[test]
+fn the_home_refusal_comes_before_the_missing_token_and_the_failed_home() {
+    let (world, _env, _ring) = project_is_home_world();
+    let marker = marker_agents(&world);
+    // No token in the key ring and no owner folder to build a home from.
+    script(&world.base.join("fake-ring/secret-tool"), "exit 1");
+    let project = world.home.join("code/app");
+    fs::create_dir_all(&project).unwrap();
+    world
+        .service
+        .remember_chosen(project.to_string_lossy().into_owned());
+    // In the home the refusal comes first, for both agents.
+    for (agent, launch) in [
+        (AgentId::ClaudeCode, claude_own_home()),
+        (AgentId::Codex, codex_own_home()),
+    ] {
+        let error = start_in(&world, agent, &world.home, &launch).unwrap_err();
+        assert_eq!(error.code, HOME_REFUSED, "{agent:?}");
+    }
+    assert_nothing_started(&world, &marker);
+    // Controls (after, they leave a session folder behind): where the project is not the home,
+    // the two other errors do show up, so the refusal above really came first.
+    assert_eq!(
+        start_in(&world, AgentId::ClaudeCode, &project, &claude_own_home())
+            .unwrap_err()
+            .code,
+        "arsenal_token_missing"
+    );
+    assert_eq!(
+        start_in(&world, AgentId::Codex, &project, &codex_own_home())
+            .unwrap_err()
+            .code,
+        "arsenal_home_failed"
+    );
+}
+
+#[test]
+fn a_restart_of_a_launch_with_a_home_of_its_own_is_refused_in_the_owner_home_too() {
+    let world = World::new();
+    let marker = marker_agents(&world);
+    // The session starts under another owner (a sibling folder): it is allowed.
+    let first_owner = world.home.parent().unwrap().join("owner-home");
+    fs::create_dir_all(first_owner.join(".claude")).unwrap();
+    fs::write(first_owner.join(".claude/settings.json"), "{}").unwrap();
+    let id = {
+        let _env = FakeOwnerEnv::new(&first_owner);
+        let _ring = FakeKeyRing::new(&world.base.join("fake-ring"));
+        let reply = start_in(&world, AgentId::ClaudeCode, &world.home, &claude_own_home()).unwrap();
+        world.output_until(&reply.terminal.terminal_id, "CLAUDE-READY");
+        reply.session.session.id.clone()
+    };
+    fs::remove_file(&marker).unwrap();
+    let before = world.service.sessions(&world.terminal, false).len();
+    // Then the owner's home is the project's folder: the restart goes through `start_with`.
+    let _env = FakeOwnerEnv::new(&world.home);
+    let _ring = FakeKeyRing::new(&world.base.join("fake-ring"));
+    let preview = world
+        .service
+        .preview(AgentId::ClaudeCode, None, Some(&claude_own_home()))
+        .unwrap();
+    let error = world
+        .service
+        .restart(
+            &world.terminal,
+            &id,
+            SIZE,
+            preview.plan_token,
+            Some(super::capabilities::ARSENAL_TEST_VERSION.to_owned()),
+        )
+        .unwrap_err();
+    assert_eq!(error.code, HOME_REFUSED);
+    assert!(!marker.exists(), "the restart spawned the agent");
+    assert_eq!(world.service.sessions(&world.terminal, false).len(), before);
+}

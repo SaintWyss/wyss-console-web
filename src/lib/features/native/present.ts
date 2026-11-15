@@ -74,6 +74,16 @@ export const STATE_NOTE: Record<SessionState, string> = {
   ),
 };
 
+/**
+ * Said wherever a launch with a folder of its own would run in the owner's home: the agent reads
+ * `.claude` and `.codex` of its working folder as the project's, so what the preset leaves out
+ * would load again. The window says it before starting; the host refuses it with
+ * `arsenal_home_cwd_is_home`.
+ */
+export const HOME_FOLDER_REFUSED = msg(
+  'A launch with a folder of its own cannot use your home folder as its project: your configuration (hooks, instructions, skills) would load anyway. Choose a project folder.',
+);
+
 export const FAILURE_TEXT: Record<string, string> = {
   agent_not_installed: msg('That agent is not installed on this computer.'),
   project_invalid: msg(
@@ -114,6 +124,7 @@ export const FAILURE_TEXT: Record<string, string> = {
   arsenal_environment_stale: msg(
     'A hook this preset leaves out is no longer in hooks.json: it was edited or removed. Nothing was started. Check the preset’s hooks and save it.',
   ),
+  arsenal_home_cwd_is_home: HOME_FOLDER_REFUSED,
   arsenal_project_refused: msg(
     'Arsenal does not read this project folder, so its selection cannot be applied here.',
   ),

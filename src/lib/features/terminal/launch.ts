@@ -8,6 +8,7 @@ import type { Selection, TerminalPlan } from '../../contracts/arsenal';
 import type { ArsenalStart } from '../../desktop/native-client';
 import type { BeforeOutcome, Launch } from '../../desktop/launch-client';
 import { msg } from '../../i18n/msg';
+import { HOME_FOLDER_REFUSED } from '../native/present';
 
 /** The part of an Arsenal selection a launch needs to find its preset. */
 export type SelectionName = Pick<Selection, 'id' | 'name' | 'provider'>;
@@ -43,6 +44,10 @@ export interface LaunchDeps {
     selection: string,
     configHash: string,
   ): Promise<{ state: 'applied' | 'not_applied'; selection_name: string }>;
+  /** The owner's home folder as the desktop lists it; null or absent when it is not known. */
+  ownerHome?(): Promise<string | null>;
+  /** Whether a Claude Code preset gives the launch a folder of its own. */
+  ownsHome?(selection: string): Promise<boolean>;
   /** A new tab in `cwd` titled `title`, with `input` typed once its shell runs. */
   openTerminal(title: string, cwd: string, input: string): void;
   /** A tab for the agent the desktop started. */
@@ -134,6 +139,23 @@ export function launchBlock(
 }
 
 /**
+ * Whether an applied plan gives the launch a folder of its own and `directory` is the owner's
+ * home. What cannot be read counts as no: the host checks again and has the last word.
+ */
+async function ownFolderInHome(
+  plan: TerminalPlan,
+  agent: AgentId,
+  directory: string,
+  deps: LaunchDeps,
+): Promise<boolean> {
+  const home = await deps.ownerHome?.().catch(() => null);
+  if (!home || directory !== home) return false;
+  if (plan.codex_environment) return true;
+  if (agent !== 'claude_code') return false;
+  return (await deps.ownsHome?.(plan.selection).catch(() => false)) ?? false;
+}
+
+/**
  * Opens a launch by its id: re-read from its file, then a terminal with its commands typed, or
  * its `before` commands run and its agent started with the permission it names and the Arsenal
  * selection its folder remembers, exactly as a start from the Agents view.
@@ -206,6 +228,11 @@ export async function openLaunch(
       ),
       { name: plan.selection_name, reason: plan.enforcement.reason },
     );
+  // A launch with a folder of its own never starts in the owner's home, where the agent would
+  // read the owner's configuration again as the project's. Said before any `before` command runs;
+  // what the window cannot tell (another name of the same folder) the host refuses.
+  if (apply && plan && (await ownFolderInHome(plan, agent, directory, deps)))
+    throw new LaunchRefusal(HOME_FOLDER_REFUSED);
   const notes: LaunchNote[] = (await deps.runBefore(launch.id))
     .filter((o) => o.result !== 'ok')
     .map((o) => ({
@@ -219,13 +246,15 @@ export async function openLaunch(
     throw new Error(
       `The Arsenal selection ${plan!.selection_name} cannot be applied with this permission now; start it from Agents to choose.`,
     );
-  const reply = await deps.start(
-    agent,
-    directory,
-    profileId,
-    preview,
-    apply ? arsenal : null,
-  );
+  const reply = await deps
+    .start(agent, directory, profileId, preview, apply ? arsenal : null)
+    .catch((error: unknown) => {
+      // The host's own refusal of the same thing, in the same words.
+      const failure = (error as { failure?: { code?: unknown } }).failure;
+      if (failure?.code === 'arsenal_home_cwd_is_home')
+        throw new LaunchRefusal(HOME_FOLDER_REFUSED);
+      throw error;
+    });
   deps.openNative(reply);
   if (plan) {
     try {

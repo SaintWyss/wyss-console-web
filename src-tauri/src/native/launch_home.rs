@@ -243,6 +243,26 @@ impl Owner {
     }
 }
 
+/// Whether an agent started in `cwd` would load the owner's configuration again as the
+/// configuration of a project: Claude Code reads `<cwd>/.claude` and Codex reads `<cwd>/.codex`
+/// whatever `CLAUDE_CONFIG_DIR` or `CODEX_HOME` say. True when `cwd` is the owner's home, by
+/// either name of the same folder, or when one of those two folders in `cwd` is one of
+/// `owner_dirs`. A path that cannot be resolved is compared as written.
+pub fn cwd_would_reload_owner_config(cwd: &Path, home: &Path, owner_dirs: &[&Path]) -> bool {
+    let real = |path: &Path| path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+    let cwd = real(cwd);
+    if cwd == real(home) {
+        return true;
+    }
+    [".claude", ".codex"].iter().any(|name| {
+        let project_dir = cwd.join(name);
+        fs::symlink_metadata(&project_dir).is_ok() && {
+            let project_dir = real(&project_dir);
+            owner_dirs.iter().any(|owner| real(owner) == project_dir)
+        }
+    })
+}
+
 pub struct Built {
     pub dir: PathBuf,
     pub mcp_config: Option<PathBuf>,
@@ -732,6 +752,127 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         dir
+    }
+
+    // ---- cwd_would_reload_owner_config ------------------------------------------------------
+
+    /// A fake owner: `home` with a `.claude` and a `.codex` folder, and the two as owner dirs.
+    fn reload_world(name: &str) -> (PathBuf, PathBuf, PathBuf) {
+        let root = temp(name).canonicalize().unwrap();
+        let home = root.join("home");
+        fs::create_dir_all(home.join(".claude")).unwrap();
+        fs::create_dir_all(home.join(".codex")).unwrap();
+        (root, home.join(".claude"), home.join(".codex"))
+    }
+
+    #[test]
+    fn a_cwd_that_is_the_owner_home_reloads_the_owner_config() {
+        let (root, claude, codex) = reload_world("reload-same");
+        let home = root.join("home");
+        assert!(cwd_would_reload_owner_config(
+            &home,
+            &home,
+            &[&claude, &codex]
+        ));
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn a_cwd_that_is_a_symlink_to_the_owner_home_reloads_the_owner_config() {
+        let (root, claude, codex) = reload_world("reload-link");
+        let home = root.join("home");
+        let alias = root.join("alias");
+        symlink(&home, &alias).unwrap();
+        assert!(cwd_would_reload_owner_config(
+            &alias,
+            &home,
+            &[&claude, &codex]
+        ));
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn a_subfolder_of_the_home_without_config_folders_does_not_reload() {
+        let (root, claude, codex) = reload_world("reload-sub");
+        let home = root.join("home");
+        let project = home.join("code/app");
+        fs::create_dir_all(&project).unwrap();
+        assert!(!cwd_would_reload_owner_config(
+            &project,
+            &home,
+            &[&claude, &codex]
+        ));
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn a_config_folder_linked_to_an_owner_dir_reloads_it() {
+        let (root, claude, codex) = reload_world("reload-config-link");
+        let home = root.join("home");
+        // `<cwd>/.claude` -> the owner's Claude folder.
+        let first = root.join("first");
+        fs::create_dir_all(&first).unwrap();
+        symlink(&claude, first.join(".claude")).unwrap();
+        assert!(cwd_would_reload_owner_config(
+            &first,
+            &home,
+            &[&claude, &codex]
+        ));
+        // `<cwd>/.codex` -> the owner's Codex folder.
+        let second = root.join("second");
+        fs::create_dir_all(&second).unwrap();
+        symlink(&codex, second.join(".codex")).unwrap();
+        assert!(cwd_would_reload_owner_config(
+            &second,
+            &home,
+            &[&claude, &codex]
+        ));
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn a_config_folder_of_the_project_itself_does_not_reload() {
+        let (root, claude, codex) = reload_world("reload-own-config");
+        let home = root.join("home");
+        let project = root.join("project");
+        fs::create_dir_all(project.join(".claude")).unwrap();
+        fs::create_dir_all(project.join(".codex")).unwrap();
+        assert!(!cwd_would_reload_owner_config(
+            &project,
+            &home,
+            &[&claude, &codex]
+        ));
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn a_codex_home_outside_the_home_linked_from_the_cwd_reloads() {
+        let (root, claude, _) = reload_world("reload-codex-outside");
+        let home = root.join("home");
+        let outside = root.join("elsewhere/codex-home");
+        fs::create_dir_all(&outside).unwrap();
+        let project = root.join("project");
+        fs::create_dir_all(&project).unwrap();
+        symlink(&outside, project.join(".codex")).unwrap();
+        assert!(cwd_would_reload_owner_config(
+            &project,
+            &home,
+            &[&claude, &outside]
+        ));
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn a_cwd_that_does_not_exist_does_not_panic() {
+        let (root, claude, codex) = reload_world("reload-missing");
+        let home = root.join("home");
+        let missing = root.join("no/such/folder");
+        assert!(!cwd_would_reload_owner_config(
+            &missing,
+            &home,
+            &[&claude, &codex]
+        ));
+        let _ = fs::remove_dir_all(root);
     }
 
     fn spec() -> HomeSpec {

@@ -12,7 +12,8 @@
     type ArsenalClient,
   } from '../../desktop/arsenal-client';
   import { failureMessage } from './messages';
-  import { FAILURE_TEXT } from '../native/present';
+  import { FAILURE_TEXT, HOME_FOLDER_REFUSED } from '../native/present';
+  import { isDefault } from './environment';
   import { msg, t } from '../../i18n/index.svelte';
   import {
     ENFORCEMENT_LABEL,
@@ -33,6 +34,7 @@
     client = arsenalClient,
     selected = $bindable(''),
     choices = true,
+    homeProject = false,
   }: {
     agent: AgentId | null;
     /** The launcher's project path for this terminal. */
@@ -51,6 +53,8 @@
     selected?: string;
     /** False when another control chooses the selection: the radio list and its reload are not drawn. */
     choices?: boolean;
+    /** Whether `project` is the owner's home folder, as the launcher lists it. */
+    homeProject?: boolean;
   } = $props();
 
   let selections = $state<Selection[]>([]);
@@ -78,6 +82,42 @@
    */
   const mustApply = $derived(!!plan?.codex_environment);
   const applying = $derived(!!plan && plan.can_apply && (apply || mustApply));
+
+  // Whether the Claude Code preset gives the terminal a folder of its own. Read only where it
+  // matters, in the owner's home; a read that fails says no, and the host checks again.
+  let claudeOwnFolder = $state(false);
+  // Start waits for the answer: an instant of "ready" would let the start reach the host.
+  let ownFolderPending = $state(false);
+  let ownFolderSeq = 0;
+  $effect(() => {
+    const id = selected;
+    const wanted = homeProject && provider === 'claude_code' && !!id;
+    void refreshKey;
+    void reloads;
+    const seq = ++ownFolderSeq;
+    claudeOwnFolder = false;
+    ownFolderPending = wanted;
+    if (!wanted) return;
+    void Promise.resolve()
+      .then(() => client.environment(id))
+      .then(
+        (spec) => {
+          if (seq !== ownFolderSeq) return;
+          claudeOwnFolder = !isDefault(spec);
+          ownFolderPending = false;
+        },
+        () => {
+          if (seq === ownFolderSeq) ownFolderPending = false;
+        },
+      );
+  });
+  /**
+   * Applied in the owner's home, a preset with a folder of its own would load the owner's
+   * configuration again as the project's: it does not start there.
+   */
+  const homeBlocked = $derived(
+    homeProject && applying && (!!plan?.codex_environment || claudeOwnFolder),
+  );
 
   async function readSelections() {
     try {
@@ -197,7 +237,7 @@
       project,
     };
     const ready = applying
-      ? preview?.can_start === true
+      ? !homeBlocked && !ownFolderPending && preview?.can_start === true
       : recordOnly && !mustApply;
     onchange({ pending: false, start, plan, apply: applying, preview, ready });
   });
@@ -358,6 +398,9 @@
             <input type="checkbox" bind:checked={apply} />
             {t('Apply to this terminal (restart required to change it later)')}
           </label>
+        {/if}
+        {#if homeBlocked}
+          <p class="native-warning" role="alert">{t(HOME_FOLDER_REFUSED)}</p>
         {/if}
         {#if applying}
           {#if previewing}

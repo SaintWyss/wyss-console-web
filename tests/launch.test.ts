@@ -16,6 +16,11 @@ import {
   type StartReply,
 } from '../src/lib/contracts/native';
 import { t } from '../src/lib/i18n/index.svelte';
+import { ES } from '../src/lib/i18n/es';
+import {
+  failureText,
+  HOME_FOLDER_REFUSED,
+} from '../src/lib/features/native/present';
 
 // A note is a sentence and its values; the terminal view draws it through t(), and so do these.
 const shown = (note: {
@@ -472,4 +477,162 @@ describe('openLaunch when what a preset leaves out cannot be told', () => {
     expect(d.runBefore).not.toHaveBeenCalled();
     expect(d.start).not.toHaveBeenCalled();
   });
+});
+
+describe('openLaunch in the owner home with a folder of its own', () => {
+  const codexEnvironment = { instructions: false, hooks_off: ['k1'] };
+  const inHome = (over: Partial<Extract<Launch, { kind: 'session' }>> = {}) =>
+    session({ directory: '/home/me', before: ['scan'], ...over });
+  const untouched = (d: LaunchDeps) => {
+    expect(d.runBefore).not.toHaveBeenCalled();
+    expect(d.preview).not.toHaveBeenCalled();
+    expect(d.start).not.toHaveBeenCalled();
+    expect(d.openNative).not.toHaveBeenCalled();
+  };
+
+  it('20: refuses before any command runs, a preview or a start (Codex environment)', async () => {
+    const { d } = deps(inHome(), undefined, {
+      selection: 'sel-remembered',
+      codexEnvironment,
+    });
+    d.ownerHome = vi.fn(async () => '/home/me');
+    const refusal = await openLaunch('codex', d).catch((e: unknown) => e);
+    expect(refusal).toBeInstanceOf(LaunchRefusal);
+    expect((refusal as LaunchRefusal).template).toBe(HOME_FOLDER_REFUSED);
+    untouched(d);
+  });
+
+  it('20: the same for a Claude preset that owns its folder, and not for one that does not', async () => {
+    const claude = () =>
+      inHome({
+        id: 'claude',
+        agent: 'claude_code' as const,
+        permission: 'ask',
+      });
+    const refused = deps(claude(), undefined, { selection: 'sel-remembered' });
+    refused.d.ownerHome = vi.fn(async () => '/home/me');
+    refused.d.ownsHome = vi.fn(async () => true);
+    const refusal = await openLaunch('claude', refused.d).catch(
+      (e: unknown) => e,
+    );
+    expect(refusal).toBeInstanceOf(LaunchRefusal);
+    expect(refused.d.ownsHome).toHaveBeenCalledWith('sel-1');
+    untouched(refused.d);
+    // Control: the default environment starts in the home.
+    const open = deps(claude(), undefined, { selection: 'sel-remembered' });
+    open.d.ownerHome = vi.fn(async () => '/home/me');
+    open.d.ownsHome = vi.fn(async () => false);
+    await openLaunch('claude', open.d);
+    expect(open.d.start).toHaveBeenCalledTimes(1);
+  });
+
+  it('20 control: a project folder other than the home starts', async () => {
+    const { d } = deps(inHome({ directory: '/home/me/app' }), undefined, {
+      selection: 'sel-remembered',
+      codexEnvironment,
+    });
+    d.ownerHome = vi.fn(async () => '/home/me');
+    await openLaunch('codex', d);
+    expect(d.start).toHaveBeenCalledTimes(1);
+  });
+
+  it('21: without the optional deps nothing blocks in the window (the host decides)', async () => {
+    const { d } = deps(inHome(), undefined, {
+      selection: 'sel-remembered',
+      codexEnvironment,
+    });
+    expect(d.ownerHome).toBeUndefined();
+    await openLaunch('codex', d);
+    expect(d.start).toHaveBeenCalledTimes(1);
+    // Claude knows the home but has no way to read the environment: not blocked either.
+    const claude = deps(
+      inHome({ id: 'claude', agent: 'claude_code' as const }),
+      undefined,
+      { selection: 'sel-remembered' },
+    );
+    claude.d.ownerHome = vi.fn(async () => '/home/me');
+    await openLaunch('claude', claude.d);
+    expect(claude.d.start).toHaveBeenCalledTimes(1);
+  });
+
+  it('21: deps that fail or find no home do not block either', async () => {
+    const failing = deps(inHome(), undefined, {
+      selection: 'sel-remembered',
+      codexEnvironment,
+    });
+    failing.d.ownerHome = vi.fn(async () => {
+      throw new Error('launcher unreadable');
+    });
+    await openLaunch('codex', failing.d);
+    expect(failing.d.start).toHaveBeenCalledTimes(1);
+    const unknown = deps(inHome(), undefined, {
+      selection: 'sel-remembered',
+      codexEnvironment,
+    });
+    unknown.d.ownerHome = vi.fn(async () => null);
+    await openLaunch('codex', unknown.d);
+    expect(unknown.d.start).toHaveBeenCalledTimes(1);
+  });
+
+  it('22: a start the host refuses as arsenal_home_cwd_is_home becomes the same refusal', async () => {
+    // The window could not tell (another name of the same folder): no ownerHome here.
+    const { d } = deps(inHome({ directory: '/alias/of/home' }), undefined, {
+      selection: 'sel-remembered',
+      codexEnvironment,
+    });
+    d.start = vi.fn(async () => {
+      throw { failure: { code: 'arsenal_home_cwd_is_home' } };
+    });
+    const refusal = await openLaunch('codex', d).catch((e: unknown) => e);
+    expect(refusal).toBeInstanceOf(LaunchRefusal);
+    expect((refusal as LaunchRefusal).template).toBe(HOME_FOLDER_REFUSED);
+    expect(d.openNative).not.toHaveBeenCalled();
+  });
+
+  it('23: any other start error reaches the caller untouched', async () => {
+    for (const error of [
+      { failure: { code: 'arsenal_home_failed' } },
+      { failure: {} },
+      new Error('boom'),
+      'text',
+    ]) {
+      const { d } = deps(inHome(), undefined, {
+        selection: 'sel-remembered',
+        codexEnvironment,
+      });
+      d.start = vi.fn(async () => {
+        throw error;
+      });
+      const caught = await openLaunch('codex', d).catch((e: unknown) => e);
+      expect(caught).toBe(error);
+      expect(caught).not.toBeInstanceOf(LaunchRefusal);
+    }
+  });
+});
+
+describe('the text of the desktop failures about a folder of its own', () => {
+  it('24: arsenal_home_cwd_is_home says its sentence, and the sentence is translated', () => {
+    expect(failureText('arsenal_home_cwd_is_home')).toBe(HOME_FOLDER_REFUSED);
+    expect(failureText('arsenal_home_cwd_is_home')).toContain(
+      'cannot use your home folder as its project',
+    );
+    expect(ES[HOME_FOLDER_REFUSED]).toContain('carpeta personal');
+  });
+
+  // Known gap, not fixed here: these host codes have no entry in FAILURE_TEXT (native/present.ts),
+  // so the window falls back to the generic sentence. `it.fails` goes red the day someone adds
+  // the texts; then turn these into plain `it`.
+  const GENERIC = 'Something went wrong in the desktop.';
+  for (const code of [
+    'arsenal_home_failed',
+    'arsenal_home_unqualified',
+    'arsenal_token_missing',
+  ]) {
+    it(`gap: ${code} still shows the generic sentence (documented)`, () => {
+      expect(failureText(code)).toBe(GENERIC);
+    });
+    it.fails(`gap: ${code} should have a text of its own`, () => {
+      expect(failureText(code)).not.toBe(GENERIC);
+    });
+  }
 });

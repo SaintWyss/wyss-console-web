@@ -2877,6 +2877,8 @@ export const ES: Readonly<Record<string, string>> = {
     'Esa carpeta no se puede usar. Elegí una carpeta con el botón de carpeta.',
   'Skill exclusion is not qualified for this exact provider build, so nothing was started with it. Start without applying the selection, or use a qualified build.':
     'La exclusión de skills no está calificada para esta versión exacta del proveedor, así que no se inició nada con ella. Iniciá sin aplicar la selección, o usá una versión calificada.',
+  'A launch with a folder of its own cannot use your home folder as its project: your configuration (hooks, instructions, skills) would load anyway. Choose a project folder.':
+    'Con una carpeta propia para este lanzamiento no se puede usar tu carpeta personal como proyecto: tu configuración (hooks, instrucciones, skills) se cargaría igual. Elegí una carpeta de proyecto.',
   'The Arsenal plan changed since it was shown: the library, the installed skills or the provider build moved. Review the new plan and start again.':
     'El plan de Arsenal cambió desde que se mostró: cambiaron la biblioteca, las skills instaladas o la versión del proveedor. Revisá el plan nuevo y volvé a iniciar.',
   'The Arsenal plan has items that cannot be carried or names a skill that is not installed, so nothing was started with it.':
