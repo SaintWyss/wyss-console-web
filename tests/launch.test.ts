@@ -15,7 +15,8 @@ import {
   profilePermission,
   type StartReply,
 } from '../src/lib/contracts/native';
-import { t } from '../src/lib/i18n/index.svelte';
+import { t, setLanguage } from '../src/lib/i18n/index.svelte';
+import { parseTerminalPlan } from '../src/lib/contracts/arsenal';
 import { ES } from '../src/lib/i18n/es';
 import {
   failureText,
@@ -380,6 +381,98 @@ describe('a session launch and the Arsenal selection its folder remembers', () =
   });
 });
 
+it('refuses every unappliable custom instruction plan before running commands', async () => {
+  const base = {
+    selection: 'sel-1',
+    selection_name: 'Work',
+    provider_version: null,
+    project: '/home/me',
+    status: 'blocked',
+    can_apply: false,
+    enforcement: {
+      state: 'unqualified',
+      reason: 'not qualified',
+      evidence: null,
+    },
+    items: [],
+    kept: [],
+    excluded: [],
+    inherited_off: [],
+    excluded_files: [],
+    untouched: [],
+    composites: [],
+    conflicts: [],
+    warnings: [],
+    overlay: null,
+    config_hash: 'hash-1',
+  };
+  for (const [agent, project] of [
+    ['claude_code', 'role'],
+    ['claude_code', 'exclude'],
+    ['codex', 'exclude'],
+  ] as const) {
+    const { d } = deps(session({ agent }), undefined, { selection: 'sel-1' });
+    const plan = parseTerminalPlan({
+      ...base,
+      provider: agent,
+      launch_instructions: {
+        project,
+        role: project === 'role' ? 'role text' : '',
+      },
+    });
+    expect(plan).toHaveProperty('launch_instructions', {
+      project,
+      role: project === 'role' ? 'role text' : '',
+    });
+    d.plan = vi.fn(async () => plan);
+    await expect(openLaunch('codex', d)).rejects.toBeInstanceOf(LaunchRefusal);
+    expect(d.runBefore).not.toHaveBeenCalled();
+    expect(d.preview).not.toHaveBeenCalled();
+    expect(d.start).not.toHaveBeenCalled();
+  }
+  for (const bad of [
+    { project: 'invalid' },
+    { project: 'role', role: '' },
+    { project: 'exclude' },
+    { project: 'load', unexpected: true },
+  ]) {
+    expect(() =>
+      parseTerminalPlan({
+        ...base,
+        provider: 'codex',
+        launch_instructions: bad,
+      }),
+    ).toThrow();
+  }
+  const control = deps(session(), undefined, { selection: 'sel-1' });
+  control.d.plan = vi.fn(async () =>
+    parseTerminalPlan({
+      ...base,
+      provider: 'codex',
+      launch_instructions: { project: 'load' },
+    }),
+  );
+  await openLaunch('codex', control.d);
+  expect(control.d.start).toHaveBeenCalled();
+  const applied = deps(session(), undefined, { selection: 'sel-1' });
+  applied.d.plan = vi.fn(async () =>
+    parseTerminalPlan({
+      ...base,
+      provider: 'codex',
+      can_apply: true,
+      launch_instructions: { project: 'exclude', role: '' },
+    }),
+  );
+  await openLaunch('codex', applied.d);
+  expect(applied.d.start).toHaveBeenCalledWith(
+    'codex',
+    '/home/me',
+    'template-full-access',
+    expect.anything(),
+    expect.objectContaining({ selection: 'sel-1' }),
+  );
+});
+
 describe('a permission and the template it is sent as', () => {
   it('maps the five cases: none, ask, read only, edits and bypass', () => {
     expect(permissionProfileId(null)).toBeNull();
@@ -447,6 +540,21 @@ describe('openLaunch when what a preset leaves out cannot be told', () => {
     );
     return { d, refusal };
   };
+
+  it('translates unreadable launch instructions and runs nothing', async () => {
+    const { d, refusal } = await refuse('role_unreadable');
+    expect(refusal).toBeInstanceOf(LaunchRefusal);
+    const { template } = refusal as LaunchRefusal;
+    setLanguage('en');
+    expect(t(template)).toContain('role-instructions.json');
+    setLanguage('es');
+    expect(t(template)).toContain('role-instructions.json');
+    expect(t(template)).not.toBe(template);
+    setLanguage('en');
+    expect(d.runBefore).not.toHaveBeenCalled();
+    expect(d.preview).not.toHaveBeenCalled();
+    expect(d.start).not.toHaveBeenCalled();
+  });
 
   it('an environment file that cannot be read refuses the launch and runs nothing before it', async () => {
     const { d, refusal } = await refuse('environment_unreadable');

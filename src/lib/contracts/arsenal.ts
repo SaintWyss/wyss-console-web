@@ -256,6 +256,28 @@ export interface PlanItem {
   dependencies: Dependency[];
 }
 
+export type LaunchInstructions =
+  { project: 'load' } | { project: 'exclude' | 'role'; role: string };
+
+export function parseLaunchInstructions(value: unknown): LaunchInstructions {
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+    throw new Error('instructions');
+  const entry = value as Record<string, unknown>;
+  const keys = Object.keys(entry).sort().join(',');
+  if (entry.project === 'load' && keys === 'project')
+    return { project: 'load' };
+  if (
+    (entry.project === 'exclude' || entry.project === 'role') &&
+    keys === 'project,role' &&
+    typeof entry.role === 'string' &&
+    !entry.role.includes('\0') &&
+    new TextEncoder().encode(entry.role).length <= 64 * 1024 &&
+    (entry.project !== 'role' || entry.role.length > 0)
+  )
+    return { project: entry.project, role: entry.role };
+  throw new Error('instructions');
+}
+
 /** The configuration one terminal would start with, computed now. Never a claim that it is active. */
 export interface TerminalPlan {
   selection: string;
@@ -296,6 +318,7 @@ export interface TerminalPlan {
    * only when it changes the owner's own configuration.
    */
   codex_environment?: { instructions: boolean; hooks_off: string[] } | null;
+  launch_instructions?: LaunchInstructions | null;
 }
 
 /** What a terminal started with, read from the host's own record right after the start. */
@@ -809,6 +832,10 @@ export function parseTerminalPlan(value: unknown): TerminalPlan {
     config_hash: text(v.config_hash, 'config_hash'),
     // Absent from a plan that leaves nothing out. One that does not parse fails the whole plan:
     // a launch never starts on a guess of what it was to leave out.
+    launch_instructions:
+      v.launch_instructions == null
+        ? null
+        : parseLaunchInstructions(v.launch_instructions),
     codex_environment:
       v.codex_environment === undefined || v.codex_environment === null
         ? null

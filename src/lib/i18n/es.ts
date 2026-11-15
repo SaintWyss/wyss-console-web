@@ -3946,6 +3946,8 @@ export const ES: Readonly<Record<string, string>> = {
     'Elegí un preset para cambiar las instrucciones del proyecto.',
   'The launch instructions file cannot be read. It was not modified.':
     'No se puede leer el archivo de instrucciones de lanzamiento. No se modificó.',
+  'The preset “{name}” changes the project instructions, and it cannot be applied now: {reason} Nothing was started.':
+    'El preset “{name}” cambia las instrucciones del proyecto y ahora no se puede aplicar: {reason} No se inició nada.',
   'The launch instructions file (role-instructions.json) cannot be read. Launches with custom instructions do not start. The file was not changed.':
     'No se puede leer el archivo de instrucciones de lanzamiento (role-instructions.json). Los lanzamientos con instrucciones propias no arrancan. El archivo no se modificó.',
   'The launch instructions file would be too large, so it was not saved.':

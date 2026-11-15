@@ -252,6 +252,10 @@ it('warns when launch instructions are unreadable and does not overwrite them', 
       .querySelector<HTMLInputElement>('input[name="project-instructions"]')
       ?.matches(':disabled'),
   ).toBe(true);
+  rename('Otro nombre');
+  button('Save').click();
+  await settle();
+  expect(savedRequest().name).toBe('Otro nombre');
   expect(
     ipc.some((call) => call.command === 'arsenal_launch_instructions_write'),
   ).toBe(false);

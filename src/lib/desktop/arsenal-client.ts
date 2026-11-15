@@ -10,6 +10,8 @@ import {
 } from '../features/arsenal/environment';
 import type { Section } from '../features/arsenal/groups';
 import {
+  parseLaunchInstructions,
+  type LaunchInstructions,
   parseBinding,
   parseBindings,
   parseSyncStatus,
@@ -98,27 +100,8 @@ export interface ImportTarget {
   name: string;
 }
 
-export type LaunchInstructions =
-  { project: 'load' } | { project: 'exclude' | 'role'; role: string };
-
-export function parseLaunchInstructions(value: unknown): LaunchInstructions {
-  if (typeof value !== 'object' || value === null || Array.isArray(value))
-    throw new Error('instructions');
-  const entry = value as Record<string, unknown>;
-  const keys = Object.keys(entry).sort().join(',');
-  if (entry.project === 'load' && keys === 'project')
-    return { project: 'load' };
-  if (
-    (entry.project === 'exclude' || entry.project === 'role') &&
-    keys === 'project,role' &&
-    typeof entry.role === 'string' &&
-    !entry.role.includes('\0') &&
-    new TextEncoder().encode(entry.role).length <= 64 * 1024 &&
-    (entry.project !== 'role' || entry.role.length > 0)
-  )
-    return { project: entry.project, role: entry.role };
-  throw new Error('instructions');
-}
+export { parseLaunchInstructions } from '../contracts/arsenal';
+export type { LaunchInstructions } from '../contracts/arsenal';
 
 /** Every request names something the library or a fresh scan already holds, never a path. */
 export const arsenalClient = {

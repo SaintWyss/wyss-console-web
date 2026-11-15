@@ -199,6 +199,12 @@ export async function openLaunch(
     ? await deps.plan(selection, agent, directory).catch((error: unknown) => {
         // What the preset leaves out cannot be told: nothing starts, and the owner reads why.
         const code = (error as { code?: unknown }).code;
+        if (code === 'role_unreadable')
+          throw new LaunchRefusal(
+            msg(
+              'The launch instructions file (role-instructions.json) cannot be read. Launches with custom instructions do not start. The file was not changed.',
+            ),
+          );
         if (code === 'environment_unreadable')
           throw new LaunchRefusal(ENVIRONMENT_UNREADABLE);
         if (code === 'environment_stale')
@@ -219,6 +225,17 @@ export async function openLaunch(
       }
     : null;
   const apply = !!plan?.can_apply;
+  if (
+    plan?.launch_instructions &&
+    plan.launch_instructions.project !== 'load' &&
+    !apply
+  )
+    throw new LaunchRefusal(
+      msg(
+        'The preset “{name}” changes the project instructions, and it cannot be applied now: {reason} Nothing was started.',
+      ),
+      { name: plan.selection_name, reason: plan.enforcement.reason },
+    );
   // A preset that leaves a Codex hook or AGENTS.md out starts with that applied or not at all:
   // started without it, the hook the owner switched off would run.
   if (plan?.codex_environment && !apply)

@@ -47,9 +47,31 @@ fn project_instruction_excludes(
 ) -> Result<Vec<String>, NativeError> {
     let project =
         fs::canonicalize(project).map_err(|_| NativeError::new("arsenal_project_glob"))?;
-    let mut protected = vec![fs::canonicalize(owner).unwrap_or_else(|_| owner.to_path_buf())];
+    let mut protected = vec![
+        owner.to_path_buf(),
+        fs::canonicalize(owner).unwrap_or_else(|_| owner.to_path_buf()),
+    ];
     if let Some(home) = launch_home {
+        protected.push(home.to_path_buf());
         protected.push(fs::canonicalize(home).unwrap_or_else(|_| home.to_path_buf()));
+    }
+    // Matching a global instruction target removes the global and role as well.
+    let mut targets = Vec::new();
+    for name in ["CLAUDE.md", "AGENTS.md"] {
+        if let Ok(target) = fs::canonicalize(owner.join(name)) {
+            targets.push(target);
+        }
+    }
+    let mut rules = vec![owner.join("rules")];
+    while let Some(directory) = rules.pop() {
+        for entry in fs::read_dir(directory).into_iter().flatten().flatten() {
+            if let Ok(target) = fs::canonicalize(entry.path()) {
+                targets.push(target);
+            }
+            if entry.file_type().is_ok_and(|kind| kind.is_dir()) {
+                rules.push(entry.path());
+            }
+        }
     }
     let mut result = Vec::new();
     let mut add = |path: PathBuf, subtree: bool| -> Result<(), NativeError> {
@@ -60,10 +82,15 @@ fn project_instruction_excludes(
         if text.chars().any(|c| "*?[]{}\\".contains(c)) {
             return Err(NativeError::new("arsenal_project_glob"));
         }
-        if protected
-            .iter()
-            .any(|p| canonical.starts_with(p) || (subtree && p.starts_with(&canonical)))
-        {
+        if protected.iter().any(|p| {
+            path.starts_with(p)
+                || canonical.starts_with(p)
+                || (subtree && (p.starts_with(&path) || p.starts_with(&canonical)))
+        }) || targets.iter().any(|target| {
+            target == &path
+                || target == &canonical
+                || (subtree && (target.starts_with(&path) || target.starts_with(&canonical)))
+        }) {
             return Ok(());
         }
         result.push(if subtree {
@@ -96,6 +123,27 @@ fn project_instruction_overlay(overlay: &str, excludes: &[String]) -> Result<Str
 #[cfg(test)]
 mod project_instruction_tests {
     use super::*;
+
+    #[test]
+    fn project_excludes_protect_global_symlink_targets() {
+        use std::os::unix::fs::symlink;
+        let root = std::env::temp_dir().join(format!("role-targets-{}", uuid::Uuid::new_v4()));
+        let owner = root.join(".claude");
+        let project = root.join("repo");
+        fs::create_dir_all(owner.join("rules")).unwrap();
+        fs::create_dir_all(&project).unwrap();
+        fs::write(root.join("CLAUDE.md"), "global").unwrap();
+        fs::write(root.join("CLAUDE.local.md"), "rule").unwrap();
+        symlink(root.join("CLAUDE.md"), owner.join("CLAUDE.md")).unwrap();
+        symlink(root.join("CLAUDE.local.md"), owner.join("rules/global.md")).unwrap();
+        let list = project_instruction_excludes(&project, &owner, None).unwrap();
+        assert!(!list.contains(&root.join("CLAUDE.md").display().to_string()));
+        assert!(!list.contains(&root.join("CLAUDE.local.md").display().to_string()));
+        assert!(!list.contains(&owner.join("CLAUDE.md").display().to_string()));
+        assert!(!list.contains(&format!("{}/**", owner.join("rules").display())));
+        assert!(list.contains(&format!("{}/**", project.display())));
+        fs::remove_dir_all(root).unwrap();
+    }
 
     #[test]
     fn project_excludes_ancestors_and_protects_owner() {
