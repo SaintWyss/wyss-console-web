@@ -56,6 +56,10 @@
   let form = $state<SaveDistributorInput | null>(null);
   let confirmDelete = $state<string | null>(null);
   let working = $state(false);
+  function close() {
+    form = null;
+    confirmDelete = null;
+  }
   let notice = $state<string | null>(null);
 
   async function readAdded() {
@@ -242,131 +246,10 @@
         </div>
       </article>
     {/each}
-  </div>
-
-  <div class="dist-bar">
-    <h3 class="dist-section">{t('Other tools')}</h3>
-    <button
-      type="button"
-      class="action"
-      title={t(
-        'Add a tool the Console does not know: by its name and the commands that open and update it.',
-      )}
-      disabled={form !== null}
-      onclick={() => (form = blank())}>{t('Add a tool')}</button
-    >
-  </div>
-  <p class="dist-note">
-    {t(
-      'A tool you add opens and updates in a terminal of the Console. Arsenal and the context estimate are only for the tools the Console knows.',
-    )}
-  </p>
-  {#each refusedFiles as r (r.id)}
-    <p class="notice" data-tone="warn">{r.id}.toml: {r.error}</p>
-  {/each}
-
-  {#if form}
-    {@const f = form}
-    <form
-      class="dist-card dist-form"
-      aria-label={f.id ? t('Edit distributor') : t('Add distributor')}
-      onsubmit={(e) => {
-        e.preventDefault();
-        void submit();
-      }}
-    >
-      {#if !f.id}
-        <div class="dist-suggest">
-          <span class="dist-note">{t('Suggestions:')}</span>
-          {#each SUGGESTED as s (s.name)}
-            <button
-              type="button"
-              class="action"
-              title={t(
-                'Fills in its name and the command that opens it. Its update command depends on how you installed it.',
-              )}
-              onclick={() => {
-                f.name = s.name;
-                f.maker = s.maker;
-                f.open = s.open;
-              }}>{s.name}</button
-            >
-          {/each}
-        </div>
-      {/if}
-      <label class="le-field" title={t('How the card is called.')}
-        ><span>{t('Name')}</span>
-        <input class="le-input" maxlength="60" bind:value={f.name} /></label
-      >
-      <label class="le-field" title={t('Who makes it. Optional.')}
-        ><span>{t('Made by')}</span>
-        <input
-          class="le-input"
-          maxlength="60"
-          value={f.maker ?? ''}
-          oninput={(e) => (f.maker = e.currentTarget.value)}
-        /></label
-      >
-      <label
-        class="le-field"
-        title={t(
-          'Typed in a new terminal to open it. Its first word is the command looked for to say whether it is installed.',
-        )}
-        ><span>{t('Command to open')}</span>
-        <input
-          class="le-input mono"
-          placeholder="kimi"
-          spellcheck="false"
-          bind:value={f.open}
-        /></label
-      >
-      <label
-        class="le-field"
-        title={t(
-          'Typed in a new terminal by Update. Optional: it depends on how you installed the tool.',
-        )}
-        ><span>{t('Command to update')}</span>
-        <input
-          class="le-input mono"
-          placeholder={t('optional')}
-          spellcheck="false"
-          value={f.update ?? ''}
-          oninput={(e) => (f.update = e.currentTarget.value)}
-        /></label
-      >
-      <label
-        class="le-field"
-        title={t('Anything to remember about it. Optional.')}
-        ><span>{t('Note')}</span>
-        <input
-          class="le-input"
-          maxlength="280"
-          value={f.note ?? ''}
-          oninput={(e) => (f.note = e.currentTarget.value)}
-        /></label
-      >
-      <div class="dist-actions">
-        <span class="dist-spacer"></span>
-        <button type="button" class="action" onclick={() => (form = null)}
-          >{t('Cancel')}</button
-        >
-        <button
-          type="submit"
-          class="action primary"
-          disabled={!formOk || working}>{t('Save')}</button
-        >
-      </div>
-    </form>
-  {/if}
-
-  <div class="dist-grid">
     {#each added as d (d.id)}
       <article class="dist-card" aria-label={d.name} data-id={`added:${d.id}`}>
         <div class="dist-head">
-          <h3>{d.maker ?? d.name}</h3>
-          <span
-            class="dist-status"
-            class:ok={d.found !== null}
+          <h3
             title={d.found
               ? t('Found at {path}.', { path: d.found })
               : t(
@@ -374,22 +257,15 @@
                   {
                     command: d.executable,
                   },
-                )}>{d.found ? t('Installed') : t('Tool not installed')}</span
+                )}
           >
+            {d.maker ? `${d.maker} · ` : ''}{d.name} ·
+            <span class="dist-status" class:ok={d.found !== null}
+              >{d.found ? t('Installed') : t('Tool not installed')}</span
+            >
+          </h3>
         </div>
-        <p class="dist-tool">{d.name}</p>
-        <p class="dist-note"><code class="dist-cmd">{d.open}</code></p>
-        {#if d.note}<p class="dist-note">{d.note}</p>{/if}
         <div class="dist-actions">
-          <button
-            type="button"
-            class="action"
-            disabled={!home}
-            title={t('Types “{command}” in a new terminal of the Console.', {
-              command: d.open,
-            })}
-            onclick={() => void run(d.id, 'open')}>{t('Open')}</button
-          >
           {#if d.update}
             <button
               type="button"
@@ -406,16 +282,6 @@
           <button
             type="button"
             class="action"
-            disabled={working}
-            title={t(
-              'Makes a launch in Workspace that opens it, so it starts from + Launch like the others.',
-            )}
-            onclick={() => void makeLaunch(d.id)}>{t('Make launch')}</button
-          >
-          <span class="dist-spacer"></span>
-          <button
-            type="button"
-            class="action"
             title={t('Change its name or its commands.')}
             onclick={() =>
               (form = {
@@ -427,31 +293,164 @@
                 note: d.note,
               })}>{t('Edit')}</button
           >
-          {#if confirmDelete === d.id}
-            <button
-              type="button"
-              class="action danger"
-              disabled={working}
-              onclick={() => void remove(d.id)}>{t('Delete')}</button
-            >
-            <button
-              type="button"
-              class="action"
-              onclick={() => (confirmDelete = null)}>{t('Cancel')}</button
-            >
-          {:else}
-            <button
-              type="button"
-              class="action"
-              title={t('Removes its card. The tool itself stays installed.')}
-              onclick={() => (confirmDelete = d.id)}>{t('Delete')}</button
-            >
-          {/if}
         </div>
       </article>
     {/each}
   </div>
-  {#if added.length === 0 && !form}
-    <p class="dist-note">{t('Nothing added yet.')}</p>
+  {#each refusedFiles as r (r.id)}
+    <p class="notice" data-tone="warn">{r.id}.toml: {r.error}</p>
+  {/each}
+  <div class="dist-foot">
+    <button
+      type="button"
+      class="action"
+      title={t(
+        'Add a tool the Console does not know: by its name and the commands that open and update it.',
+      )}
+      onclick={() => (form = blank())}>{t('Add a tool')}</button
+    >
+  </div>
+
+  {#if form}
+    {@const f = form}
+    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+    <div
+      class="ars-overlay"
+      onclick={(e) => {
+        if (e.target === e.currentTarget) close();
+      }}
+    >
+      <div
+        class="ars-card"
+        role="dialog"
+        aria-modal="true"
+        aria-label={f.id ? t('Edit distributor') : t('Add distributor')}
+        tabindex="-1"
+        onkeydown={(e) => {
+          if (e.key === 'Escape') close();
+        }}
+      >
+        <form
+          class="dist-form"
+          aria-label={f.id ? t('Edit distributor') : t('Add distributor')}
+          onsubmit={(e) => {
+            e.preventDefault();
+            void submit();
+          }}
+        >
+          {#if !f.id}
+            <div class="dist-suggest">
+              <span class="dist-note">{t('Suggestions:')}</span>
+              {#each SUGGESTED as s (s.name)}
+                <button
+                  type="button"
+                  class="action"
+                  title={t(
+                    'Fills in its name and the command that opens it. Its update command depends on how you installed it.',
+                  )}
+                  onclick={() => {
+                    f.name = s.name;
+                    f.maker = s.maker;
+                    f.open = s.open;
+                  }}>{s.name}</button
+                >
+              {/each}
+            </div>
+          {/if}
+          <label class="le-field" title={t('How the card is called.')}
+            ><span>{t('Name')}</span>
+            <input class="le-input" maxlength="60" bind:value={f.name} /></label
+          >
+          <label class="le-field" title={t('Who makes it. Optional.')}
+            ><span>{t('Made by')}</span>
+            <input
+              class="le-input"
+              maxlength="60"
+              value={f.maker ?? ''}
+              oninput={(e) => (f.maker = e.currentTarget.value)}
+            /></label
+          >
+          <label
+            class="le-field"
+            title={t(
+              'Typed in a new terminal to open it. Its first word is the command looked for to say whether it is installed.',
+            )}
+            ><span>{t('Command to open')}</span>
+            <input
+              class="le-input mono"
+              placeholder="kimi"
+              spellcheck="false"
+              bind:value={f.open}
+            /></label
+          >
+          <label
+            class="le-field"
+            title={t(
+              'Typed in a new terminal by Update. Optional: it depends on how you installed the tool.',
+            )}
+            ><span>{t('Command to update')}</span>
+            <input
+              class="le-input mono"
+              placeholder={t('optional')}
+              spellcheck="false"
+              value={f.update ?? ''}
+              oninput={(e) => (f.update = e.currentTarget.value)}
+            /></label
+          >
+          <label
+            class="le-field"
+            title={t('Anything to remember about it. Optional.')}
+            ><span>{t('Note')}</span>
+            <input
+              class="le-input"
+              maxlength="280"
+              value={f.note ?? ''}
+              oninput={(e) => (f.note = e.currentTarget.value)}
+            /></label
+          >
+          <div class="dist-actions">
+            {#if f.id}
+              {@const id = f.id}
+              <button
+                type="button"
+                class="action"
+                disabled={working}
+                title={t(
+                  'Makes a launch in Workspace that opens it, so it starts from + Launch like the others.',
+                )}
+                onclick={() => void makeLaunch(id)}>{t('Make launch')}</button
+              >
+              {#if confirmDelete === id}
+                <button
+                  type="button"
+                  class="action danger"
+                  disabled={working}
+                  onclick={() => void remove(id).then(close)}
+                  >{t('Delete')}</button
+                >
+              {:else}
+                <button
+                  type="button"
+                  class="action"
+                  title={t(
+                    'Removes its card. The tool itself stays installed.',
+                  )}
+                  onclick={() => (confirmDelete = id)}>{t('Delete')}</button
+                >
+              {/if}
+            {/if}
+            <span class="dist-spacer"></span>
+            <button type="button" class="action" onclick={close}
+              >{t('Cancel')}</button
+            >
+            <button
+              type="submit"
+              class="action primary"
+              disabled={!formOk || working}>{t('Save')}</button
+            >
+          </div>
+        </form>
+      </div>
+    </div>
   {/if}
 </section>

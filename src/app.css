@@ -5853,3 +5853,14 @@ li.native-row .native-note {
     padding: 8px;
   }
 }
+
+.dist-foot {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 0;
+}
+.ars-card .dist-form .le-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}

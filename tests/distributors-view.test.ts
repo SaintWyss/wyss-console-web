@@ -255,14 +255,25 @@ it('adds a tool by name and command, opens it from its file, and makes a launch 
     },
   ]);
   const added = view().querySelector('[data-id="added:kimi-cli"]')!;
-  expect(text(added)).toContain('Tool not installed');
-  expect(added.querySelector('.dist-status')!.getAttribute('title')).toContain(
+  // The same one line as the tools the Console knows: maker · name · state.
+  expect(text(added.querySelector('h3'))).toBe(
+    'Moonshot AI · Kimi CLI · Tool not installed',
+  );
+  expect(added.querySelector('h3')!.getAttribute('title')).toContain(
     'was not found',
   );
+  // The form was a dialog, and it is gone once saved.
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
   // No Update without a command for it.
   expect(Array.from(added.querySelectorAll('button')).map(text)).not.toContain(
     'Update tool',
   );
+  // Its launch and its removal are in its dialog, opened by Edit.
+  Array.from(added.querySelectorAll<HTMLButtonElement>('button'))
+    .find((b) => text(b) === 'Edit')!
+    .click();
+  await flush();
+  expect(document.querySelector('[role="dialog"]')).not.toBeNull();
   button('Make launch').click();
   await flush();
   // Workspace opens on the launch made.
