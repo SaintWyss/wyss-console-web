@@ -92,6 +92,25 @@ pub fn set(directory: &Path, selection: &str, spec: &HomeSpec) -> io::Result<()>
     store::write_atomic(&directory.join(FILE), &bytes)
 }
 
+/// A hook was edited: every preset that left out the old one leaves out the new one. Returns how
+/// many presets changed; nothing is written when none did.
+pub fn rename_hook_key(directory: &Path, old: &str, new: &str) -> io::Result<usize> {
+    let mut state = load(directory);
+    let mut changed = 0;
+    for spec in state.presets.values_mut() {
+        if let Some(slot) = spec.hooks_off.iter_mut().find(|k| k.as_str() == old) {
+            *slot = new.to_owned();
+            changed += 1;
+        }
+    }
+    if changed > 0 {
+        state.schema_version = VERSION;
+        let bytes = serde_json::to_vec(&state).map_err(io::Error::other)?;
+        store::write_atomic(&directory.join(FILE), &bytes)?;
+    }
+    Ok(changed)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -140,5 +159,28 @@ mod tests {
         .unwrap();
         assert_eq!(get(&dir, "abc"), None);
         fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn an_edited_hook_stays_left_out_where_it_was() {
+        let dir = scratch("rename");
+        let spec = HomeSpec {
+            hooks_off: vec!["0123456789abcdef".to_owned()],
+            ..HomeSpec::default()
+        };
+        set(&dir, "p1", &spec).unwrap();
+        assert_eq!(
+            rename_hook_key(&dir, "0123456789abcdef", "fedcba9876543210").unwrap(),
+            1
+        );
+        assert_eq!(
+            get(&dir, "p1").unwrap().hooks_off,
+            vec!["fedcba9876543210".to_owned()]
+        );
+        // A key no preset holds writes nothing.
+        assert_eq!(
+            rename_hook_key(&dir, "aaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbb").unwrap(),
+            0
+        );
     }
 }

@@ -238,7 +238,78 @@ async fn configuration_apply(
     request: PlanId,
 ) -> Result<Applied, ConfigurationError> {
     let changes = configuration.changes(&app)?;
-    blocking(move || Ok(changes.apply(checked(&request.plan)?)?)).await
+    blocking(move || {
+        let before = claude_hooks();
+        let applied = changes.apply(checked(&request.plan)?)?;
+        follow_edited_hook(&before, &claude_hooks());
+        Ok(applied)
+    })
+    .await
+}
+
+/// Claude Code's hooks as (event, matcher, command), read from the owner's settings file.
+fn claude_hooks() -> Vec<Hook> {
+    let dir = std::env::var_os("CLAUDE_CONFIG_DIR")
+        .map(std::path::PathBuf::from)
+        .filter(|p| p.is_absolute())
+        .or_else(|| std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join(".claude")));
+    let Some(text) = dir.and_then(|d| std::fs::read_to_string(d.join("settings.json")).ok()) else {
+        return Vec::new();
+    };
+    hooks_of(&text)
+}
+
+fn hooks_of(text: &str) -> Vec<Hook> {
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(text) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    if let Some(events) = value.get("hooks").and_then(|h| h.as_object()) {
+        for (event, groups) in events {
+            for group in groups.as_array().into_iter().flatten() {
+                let matcher = group.get("matcher").and_then(|m| m.as_str()).unwrap_or("");
+                for hook in group
+                    .get("hooks")
+                    .and_then(|h| h.as_array())
+                    .into_iter()
+                    .flatten()
+                {
+                    if let Some(command) = hook.get("command").and_then(|c| c.as_str()) {
+                        out.push((event.clone(), matcher.to_owned(), command.to_owned()));
+                    }
+                }
+            }
+        }
+    }
+    out
+}
+
+/// After a change: when exactly one hook left and one came with the same event and matcher, it
+/// was an edit of its command, and the launches that left it out keep leaving it out.
+type Hook = (String, String, String);
+
+/// The edit a change made, when it was one: one hook gone and one come, same event and matcher.
+fn edited<'a>(before: &'a [Hook], after: &'a [Hook]) -> Option<(&'a Hook, &'a Hook)> {
+    let gone: Vec<_> = before.iter().filter(|h| !after.contains(h)).collect();
+    let came: Vec<_> = after.iter().filter(|h| !before.contains(h)).collect();
+    let (&[old], &[new]) = (gone.as_slice(), came.as_slice()) else {
+        return None;
+    };
+    (old.0 == new.0 && old.1 == new.1).then_some((old, new))
+}
+
+fn follow_edited_hook(before: &[Hook], after: &[Hook]) {
+    let Some((old, new)) = edited(before, after) else {
+        return;
+    };
+    let key = crate::native::launch_home::hook_key;
+    if let Some(dir) = crate::arsenal::environment::directory() {
+        let _ = crate::arsenal::environment::rename_hook_key(
+            &dir,
+            &key(&old.0, &old.1, &old.2),
+            &key(&new.0, &new.1, &new.2),
+        );
+    }
 }
 
 #[tauri::command]
@@ -1257,5 +1328,32 @@ mod tests {
                 ),
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod hook_follow_tests {
+    use super::*;
+
+    #[test]
+    fn an_edit_of_a_hook_command_is_told_apart_from_an_add_or_a_delete() {
+        let before = hooks_of(
+            r#"{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"a.py"}]}],"SessionStart":[{"hooks":[{"command":"o.sh"}]}]}}"#,
+        );
+        assert_eq!(before.len(), 2);
+        let mut after = before.clone();
+        after[0].2 = "b.py".to_owned();
+        let (old, new) = edited(&before, &after).unwrap();
+        assert_eq!((old.2.as_str(), new.2.as_str()), ("a.py", "b.py"));
+        // A hook added or removed is not an edit.
+        let mut added = before.clone();
+        added.push(("Stop".into(), String::new(), "x.sh".into()));
+        assert!(edited(&before, &added).is_none());
+        assert!(edited(&before, &before[..1]).is_none());
+        // Another matcher is another hook.
+        let mut moved = before.clone();
+        moved[0].1 = "Write".to_owned();
+        moved[0].2 = "b.py".to_owned();
+        assert!(edited(&before, &moved).is_none());
     }
 }
