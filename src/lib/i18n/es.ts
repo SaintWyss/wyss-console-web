@@ -3783,6 +3783,7 @@ export const ES: Readonly<Record<string, string>> = {
   'Git repos': 'Repos git',
   'My skills': 'Mis skills',
   Personal: 'Personales',
+  'When it runs': 'Cuándo corre',
   'When a session opens': 'Al abrir una sesión',
   'When a session ends': 'Al cerrar una sesión',
   'When you send a message': 'Al mandar un mensaje',

@@ -27,7 +27,11 @@
   import ArsenalBrowser from './ArsenalBrowser.svelte';
   import { field, hookCommand } from './hook';
   import { eventOf, matcherOf } from './map';
-  import { SOURCE_LABEL, authoringFor } from '../configuration/present';
+  import {
+    HOOK_EVENTS,
+    SOURCE_LABEL,
+    authoringFor,
+  } from '../configuration/present';
   import { mapOf, type MapNode, type MapTool } from './map';
   import type { GuideStore, GuideTool } from './guide-store.svelte';
 
@@ -273,6 +277,7 @@
   /** Over a hook event's list: the form that adds one, when open. */
   let adding = $state<string | null>(null);
   let addMatcher = $state('');
+  let addEvent = $state('PreToolUse');
   function closeItem() {
     leave();
     openItemId = null;
@@ -321,11 +326,21 @@
               e.preventDefault();
               changedFor = `add:${event}`;
               changesController.author((c) =>
-                c.authorHook(event, addMatcher.trim() || null, null, false),
+                c.authorHook(addEvent, addMatcher.trim() || null, null, false),
               );
               adding = null;
             }}
           >
+            <label
+              >{t('When it runs')}
+              <select bind:value={addEvent}>
+                {#each HOOK_EVENTS as name (name)}
+                  <option value={name}
+                    >{t(HOOK_EVENT_NAME[name] ?? name)} · {name}</option
+                  >
+                {/each}
+              </select></label
+            >
             <label
               >{t('For which tools (empty = all)')}
               <input
@@ -349,6 +364,7 @@
             disabled={changes.planning || changes.applying}
             onclick={() => {
               adding = event;
+              addEvent = event;
               addMatcher = '';
             }}>{t('Add a hook')}</button
           >
