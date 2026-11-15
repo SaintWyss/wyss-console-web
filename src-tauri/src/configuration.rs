@@ -1399,9 +1399,10 @@ mod tests {
         fs::write(&file, "{broken").unwrap();
         assert!(!follow_edited_hook(&edit(HookFile::CodexHooks, false)));
         assert_eq!(fs::read(&file).unwrap(), b"{broken");
-        // Claude's file keeps loading damaged as empty: nothing to follow, nothing failed.
+        // Claude's file is read the same strict way: not followed, and left alone.
         fs::write(dir.join("environment.json"), "{broken").unwrap();
-        assert!(follow_edited_hook(&edit(HookFile::ClaudeSettings, false)));
+        assert!(!follow_edited_hook(&edit(HookFile::ClaudeSettings, false)));
+        assert_eq!(fs::read(dir.join("environment.json")).unwrap(), b"{broken");
         let _ = fs::remove_dir_all(root);
     }
 }

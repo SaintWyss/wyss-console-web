@@ -1,17 +1,16 @@
 //! What each preset chose for the launch environment (instructions, hooks, MCP, plugins, memory),
 //! kept in `environment.json` beside the library, by selection id. A small private file rather
-//! than a table, so the database schema stays the one older builds open. A damaged file loads as
-//! empty (every preset then launches as the owner's own configuration), and loading never writes.
+//! than a table, so the database schema stays the one older builds open. Loading never writes.
 //!
 //! What a Codex preset chose (instructions, hooks left out) is kept the same way in a file of its
 //! own, `environment-codex.json` ([`codex`]): `environment.json` keeps the exact shape an older
 //! build reads, which refuses a key it does not know.
 //!
-//! The Codex file is read strictly: a file that is not there is an empty one, but one that is
+//! Both files are read strictly: a file that is not there is an empty one, but one that is
 //! there and cannot be used (unreadable, not a regular file, too long, not this schema, an
 //! invalid entry) is an error, [`UNREADABLE`]. A preset whose choice cannot be read must not
 //! launch as if it had chosen nothing: the hooks it left out would run. Such a file is never
-//! written over. `environment.json` keeps its older rule (a damaged file loads as empty).
+//! written over.
 //! Neither file is written when its text would be longer than the reader accepts.
 
 use std::collections::BTreeMap;
@@ -44,7 +43,7 @@ trait Spec: Serialize + DeserializeOwned + Clone {
 
 impl Spec for HomeSpec {
     const FILE: &'static str = FILE;
-    const STRICT: bool = false;
+    const STRICT: bool = true;
     fn valid(&self) -> bool {
         self.validate().is_ok()
     }
@@ -210,12 +209,16 @@ fn rename_key<S: Spec>(
     Ok(changed)
 }
 
-/// The environment a preset chose; `None` when it keeps the owner's own.
-pub fn get(directory: &Path, selection: &str) -> Option<HomeSpec> {
-    get_spec(directory, selection).ok().flatten()
+/// The environment a preset chose; `None` when it keeps the owner's own. An error
+/// ([`UNREADABLE`]) when the file is there and cannot be used: the caller must not go on as if the
+/// preset had chosen nothing.
+pub fn get(directory: &Path, selection: &str) -> io::Result<Option<HomeSpec>> {
+    get_spec(directory, selection)
 }
 
-/// Records a preset's environment. A default one is removed, so the file only holds changes.
+/// Records a preset's environment. A default one is removed, so the file only holds changes. A
+/// file that is there and cannot be used is left as it is ([`UNREADABLE`]), and so is one the new
+/// text would make too long ([`TOO_LARGE`]).
 pub fn set(directory: &Path, selection: &str, spec: &HomeSpec) -> io::Result<()> {
     set_spec(directory, selection, spec)
 }
@@ -287,31 +290,31 @@ mod tests {
             mcp: Some(vec!["context7".into()]),
             ..HomeSpec::default()
         };
-        assert_eq!(get(&dir, "abc-1"), None);
+        assert_eq!(get(&dir, "abc-1").unwrap(), None);
         set(&dir, "abc-1", &spec).unwrap();
-        assert_eq!(get(&dir, "abc-1"), Some(spec));
+        assert_eq!(get(&dir, "abc-1").unwrap(), Some(spec));
         let default = HomeSpec {
             instructions: true,
             memory: true,
             ..HomeSpec::default()
         };
         set(&dir, "abc-1", &default).unwrap();
-        assert_eq!(get(&dir, "abc-1"), None);
+        assert_eq!(get(&dir, "abc-1").unwrap(), None);
         assert!(set(&dir, "../x", &default).is_err());
         fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
-    fn a_damaged_file_loads_as_empty() {
+    fn a_damaged_file_is_an_error() {
         let dir = scratch("damaged");
         fs::write(dir.join(FILE), "{not json").unwrap();
-        assert_eq!(get(&dir, "abc"), None);
+        assert!(get(&dir, "abc").is_err_and(|e| is_unreadable(&e)));
         fs::write(
             dir.join(FILE),
             r#"{"schema_version":1,"presets":{"abc":{"rules_off":["../x"]}}}"#,
         )
         .unwrap();
-        assert_eq!(get(&dir, "abc"), None);
+        assert!(get(&dir, "abc").is_err_and(|e| is_unreadable(&e)));
         fs::remove_dir_all(dir).unwrap();
     }
 
@@ -328,7 +331,7 @@ mod tests {
             1
         );
         assert_eq!(
-            get(&dir, "p1").unwrap().hooks_off,
+            get(&dir, "p1").unwrap().unwrap().hooks_off,
             vec!["fedcba9876543210".to_owned()]
         );
         // Both keys already left out: one is kept, never twice the same key.
@@ -339,7 +342,7 @@ mod tests {
         set(&dir, "p2", &both).unwrap();
         rename_hook_key(&dir, "1111111111111111", "2222222222222222", false).unwrap();
         assert_eq!(
-            get(&dir, "p2").unwrap().hooks_off,
+            get(&dir, "p2").unwrap().unwrap().hooks_off,
             vec!["2222222222222222".to_owned()]
         );
         // A key no preset holds writes nothing.
@@ -405,7 +408,7 @@ mod tests {
         codex::rename_hook_key(&dir, "fedcba9876543210", "1111111111111111", false).unwrap();
         codex::set(&dir, "p1", &CodexHomeSpec::default()).unwrap();
         assert_eq!(fs::read(dir.join(FILE)).unwrap(), before);
-        assert_eq!(get(&dir, "p1"), Some(claude));
+        assert_eq!(get(&dir, "p1").unwrap(), Some(claude));
         fs::remove_dir_all(dir).unwrap();
     }
 
@@ -597,32 +600,72 @@ mod tests {
     }
 
     #[test]
-    fn the_claude_file_still_loads_damaged_as_empty_and_is_written_over() {
+    fn a_damaged_claude_file_is_an_error_and_is_never_written_over() {
         use std::os::unix::fs::symlink;
-        let dir = scratch("claude-damaged");
-        for make in [
-            |dir: &Path| fs::write(dir.join(FILE), "{not json").unwrap(),
-            |dir: &Path| fs::create_dir(dir.join(FILE)).unwrap(),
-            |dir: &Path| symlink("/nonexistent", dir.join(FILE)).unwrap(),
-            |dir: &Path| {
-                fs::write(dir.join(FILE), br#"{"schema_version":9,"presets":{}}"#).unwrap();
-            },
-        ] {
-            let case = scratch("claude-damaged-case");
-            make(&case);
-            assert_eq!(get(&case, "abc"), None);
-            assert_eq!(rename_hook_key(&case, KEY_A, KEY_B, false).unwrap(), 0);
-            let _ = fs::remove_dir_all(case);
-        }
-        // A damaged regular file is replaced by a save: the older rule.
-        fs::write(dir.join(FILE), "{not json").unwrap();
         let spec = HomeSpec {
             instructions: false,
             ..HomeSpec::default()
         };
-        set(&dir, "abc", &spec).unwrap();
-        assert_eq!(get(&dir, "abc"), Some(spec));
-        fs::remove_dir_all(dir).unwrap();
+        let huge = vec![b' '; (MAX_FILE_BYTES + 1) as usize];
+        for (name, make) in [
+            (
+                "json",
+                (|dir: &Path| fs::write(dir.join(FILE), "{not json").unwrap()) as fn(&Path),
+            ),
+            ("dir", |dir: &Path| fs::create_dir(dir.join(FILE)).unwrap()),
+            ("link", |dir: &Path| {
+                symlink("/nonexistent", dir.join(FILE)).unwrap()
+            }),
+            ("schema", |dir: &Path| {
+                fs::write(dir.join(FILE), br#"{"schema_version":9,"presets":{}}"#).unwrap();
+            }),
+            ("unknown key", |dir: &Path| {
+                fs::write(
+                    dir.join(FILE),
+                    br#"{"schema_version":1,"presets":{},"x":1}"#,
+                )
+                .unwrap();
+            }),
+        ] {
+            let case = scratch("claude-damaged-case");
+            make(&case);
+            let before = fs::symlink_metadata(case.join(FILE)).map(|m| m.is_file());
+            let bytes = fs::read(case.join(FILE)).ok();
+            assert!(
+                get(&case, "abc").is_err_and(|e| is_unreadable(&e)),
+                "{name}"
+            );
+            assert!(
+                set(&case, "abc", &spec).is_err_and(|e| is_unreadable(&e)),
+                "{name}"
+            );
+            assert!(
+                rename_hook_key(&case, KEY_A, KEY_B, false).is_err(),
+                "{name}"
+            );
+            assert_eq!(
+                fs::symlink_metadata(case.join(FILE))
+                    .map(|m| m.is_file())
+                    .ok(),
+                before.ok(),
+                "{name}"
+            );
+            assert_eq!(fs::read(case.join(FILE)).ok(), bytes, "{name}");
+            let _ = fs::remove_dir_all(case);
+        }
+        // Too long to read: also an error, bytes intact.
+        let case = scratch("claude-huge");
+        fs::write(case.join(FILE), &huge).unwrap();
+        assert!(get(&case, "abc").is_err_and(|e| is_unreadable(&e)));
+        assert!(set(&case, "abc", &spec).is_err());
+        assert_eq!(fs::read(case.join(FILE)).unwrap(), huge);
+        let _ = fs::remove_dir_all(case);
+        // No file at all is an empty one, not an error.
+        let case = scratch("claude-missing");
+        assert!(get(&case, "abc").unwrap().is_none());
+        set(&case, "abc", &spec).unwrap();
+        assert_eq!(get(&case, "abc").unwrap(), Some(spec));
+        let _ = fs::remove_dir_all(case);
     }
 
     #[test]
@@ -635,7 +678,7 @@ mod tests {
         set(&dir, "p1", &spec).unwrap();
         assert_eq!(rename_hook_key(&dir, KEY_A, KEY_B, true).unwrap(), 1);
         assert_eq!(
-            get(&dir, "p1").unwrap().hooks_off,
+            get(&dir, "p1").unwrap().unwrap().hooks_off,
             vec![KEY_A.to_owned(), KEY_B.to_owned()]
         );
         // Both already there: nothing changes and nothing is written.
@@ -644,7 +687,10 @@ mod tests {
         assert_eq!(fs::read(dir.join(FILE)).unwrap(), bytes);
         // The same old key, without old_remains and with both there: the old one goes.
         assert_eq!(rename_hook_key(&dir, KEY_A, KEY_B, false).unwrap(), 1);
-        assert_eq!(get(&dir, "p1").unwrap().hooks_off, vec![KEY_B.to_owned()]);
+        assert_eq!(
+            get(&dir, "p1").unwrap().unwrap().hooks_off,
+            vec![KEY_B.to_owned()]
+        );
         fs::remove_dir_all(dir).unwrap();
     }
 
