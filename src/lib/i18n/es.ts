@@ -3682,6 +3682,8 @@ export const ES: Readonly<Record<string, string>> = {
   'Other tools': 'Otras herramientas',
   'Add a tool': 'Agregar herramienta',
   'Confirm delete': 'Confirmar borrado',
+  'It has no update command yet: set one in Edit.':
+    'Todavía no tiene comando para actualizar: cargalo en Editar.',
   'It was added, but its launch could not be made: {why}':
     'Se agregó, pero no se pudo crear su lanzamiento: {why}',
   'Add a tool the Console does not know: by its name and the commands that open and update it.':

@@ -295,19 +295,29 @@
             })}
             onclick={() => void run(d.id, 'open')}>{t('Open')}</button
           >
-          {#if d.update}
-            <button
-              type="button"
-              class="action"
-              disabled={!home}
-              title={t(
-                'Types “{command}” in a new terminal of the Console, where you see it run.',
-                { command: d.update },
-              )}
-              onclick={() => void run(d.id, 'update')}
-              >{t('Update tool')}</button
-            >
-          {/if}
+          <!-- Always there: without an update command it opens Edit to set one. -->
+          <button
+            type="button"
+            class="action"
+            disabled={!home}
+            title={d.update
+              ? t(
+                  'Types “{command}” in a new terminal of the Console, where you see it run.',
+                  { command: d.update },
+                )
+              : t('It has no update command yet: set one in Edit.')}
+            onclick={() =>
+              d.update
+                ? void run(d.id, 'update')
+                : (form = {
+                    id: d.id,
+                    name: d.name,
+                    maker: d.maker,
+                    open: d.open,
+                    update: d.update,
+                    note: d.note,
+                  })}>{t('Update tool')}</button
+          >
           <button
             type="button"
             class="action"

@@ -282,13 +282,17 @@ it('adds a tool by name and command, opens it from its file, and makes a launch 
   expect(launches).toHaveLength(1);
   expect(Array.from(added.querySelectorAll('button')).map(text)).toEqual([
     'Open',
+    'Update tool',
     'Edit',
     'Delete',
   ]);
-  // No Update without a command for it.
-  expect(Array.from(added.querySelectorAll('button')).map(text)).not.toContain(
-    'Update tool',
-  );
+  // Without an update command, Update opens Edit to set one.
+  expect(
+    Array.from(added.querySelectorAll('button'))
+      .find((b) => text(b) === 'Update tool')!
+      .getAttribute('title'),
+  ).toContain('set one in Edit');
+
   // Its launch and its removal are in its dialog, opened by Edit.
   Array.from(added.querySelectorAll<HTMLButtonElement>('button'))
     .find((b) => text(b) === 'Edit')!
