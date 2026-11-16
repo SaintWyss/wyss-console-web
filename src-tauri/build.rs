@@ -158,6 +158,8 @@ fn main() {
             "arsenal_codex_environment",
             "arsenal_codex_environment_options",
             "arsenal_codex_environment_write",
+            "arsenal_launch_instructions",
+            "arsenal_launch_instructions_write",
             "arsenal_roles",
             "arsenal_role_write",
             "arsenal_terminal_plan",

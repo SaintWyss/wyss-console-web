@@ -2568,6 +2568,22 @@ mod tests {
 mod routing_tests {
     /// A command the handler serves but `COMMANDS` does not list is never routed to it: the
     /// window gets a bare error ("arsenal: internal"). Every command of this file is listed.
+    /// A routed command the window may not call is denied by Tauri: the window gets a bare
+    /// error. Every command of `COMMANDS` is in build.rs and has its permission in the capability.
+    #[test]
+    fn every_routed_command_is_allowed_to_the_window() {
+        let build = include_str!("../../build.rs");
+        let capability = include_str!("../../capabilities/main.json");
+        let mut missing = Vec::new();
+        for command in super::COMMANDS {
+            let permission = format!("\"allow-{}\"", command.replace('_', "-"));
+            if !build.contains(&format!("\"{command}\"")) || !capability.contains(&permission) {
+                missing.push(*command);
+            }
+        }
+        assert!(missing.is_empty(), "not allowed: {missing:?}");
+    }
+
     #[test]
     fn every_command_of_the_file_is_routed() {
         let source = include_str!("commands.rs");
