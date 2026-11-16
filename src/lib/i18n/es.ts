@@ -2,6 +2,7 @@ import { ES_AREA as ES_ARSENAL } from './es-arsenal';
 import { ES_AREA as ES_NATIVE } from './es-native';
 import { ES_AREA as ES_CONFIGURATION } from './es-configuration';
 import { ES_AREA as ES_REST } from './es-rest';
+import { ES_SCREENS } from './screens';
 
 /**
  * Spanish for the window's own text. The key is the English sentence exactly as it is written
@@ -3974,4 +3975,5 @@ export const ES: Readonly<Record<string, string>> = {
   ...ES_NATIVE,
   ...ES_CONFIGURATION,
   ...ES_REST,
+  ...ES_SCREENS,
 };

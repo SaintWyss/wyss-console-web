@@ -5,6 +5,7 @@ import { INCOMING as A } from '../src/lib/i18n/incoming/arsenal';
 import { INCOMING as N } from '../src/lib/i18n/incoming/native';
 import { INCOMING as C } from '../src/lib/i18n/incoming/configuration';
 import { INCOMING as R } from '../src/lib/i18n/incoming/rest';
+import { INCOMING_SCREENS as S } from '../src/lib/i18n/screens';
 import {
   fillTemplate,
   setLanguage,
@@ -42,7 +43,7 @@ it('every area entry keeps its {name} places and no sentence is in two areas', (
 
 it('every area entry is a sentence the desktop (Rust) writes', () => {
   const rust = rustSources();
-  for (const dict of [A, N, C, R])
+  for (const dict of [A, N, C, R, S])
     for (const en of Object.keys(dict))
       for (const part of en
         .split(/\{\w+\}/)
