@@ -1,4 +1,4 @@
-# Mudanza antes de borrar Terminal agents y Arsenal presets — diseño (Fable, 2026-11-16), PENDIENTE de aprobación del dueño
+# Mudanza antes de borrar Terminal agents y Arsenal presets — diseño (Fable, 2026-11-16), APROBADO por el dueño el 2026-11-16: D1-D9 como recomienda Fable (presets = lista en Arsenal, alta/edición en Workspace; se pierden OpenCode/Hermes y el arranque sin lanzamiento, handoff, delegación, categorías y sync now)
 
 Ruta: SHAPE/decidir · R0 · ui · diseño de la mudanza, solo lectura, sin cambios
 
