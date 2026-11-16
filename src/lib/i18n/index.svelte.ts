@@ -3,7 +3,6 @@ import { ES } from './es';
 import { INCOMING as IN_ARSENAL } from './incoming/arsenal';
 import { INCOMING as IN_NATIVE } from './incoming/native';
 import { INCOMING as IN_CONFIGURATION } from './incoming/configuration';
-import { INCOMING as IN_REST } from './incoming/rest';
 import { INCOMING_SCREENS } from './screens';
 import type { Phrase } from './msg';
 
@@ -66,7 +65,6 @@ export const INCOMING_ES: Readonly<Record<string, string>> = {
   ...IN_ARSENAL,
   ...IN_NATIVE,
   ...IN_CONFIGURATION,
-  ...IN_REST,
   ...INCOMING_SCREENS,
 };
 

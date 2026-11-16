@@ -4,7 +4,6 @@ import { afterEach, expect, it } from 'vitest';
 import { INCOMING as A } from '../src/lib/i18n/incoming/arsenal';
 import { INCOMING as N } from '../src/lib/i18n/incoming/native';
 import { INCOMING as C } from '../src/lib/i18n/incoming/configuration';
-import { INCOMING as R } from '../src/lib/i18n/incoming/rest';
 import { INCOMING_SCREENS as S } from '../src/lib/i18n/screens';
 import {
   fillTemplate,
@@ -31,7 +30,7 @@ const names = (s: string) =>
 
 it('every area entry keeps its {name} places and no sentence is in two areas', () => {
   const seen = new Map<string, string>();
-  for (const [area, dict] of Object.entries({ A, N, C, R })) {
+  for (const [area, dict] of Object.entries({ A, N, C })) {
     for (const [en, es] of Object.entries(dict)) {
       expect(names(es), `${area}: ${en}`).toEqual(names(en));
       expect(es.trim().length, `${area}: ${en}`).toBeGreaterThan(0);
@@ -43,7 +42,7 @@ it('every area entry keeps its {name} places and no sentence is in two areas', (
 
 it('every area entry is a sentence the desktop (Rust) writes', () => {
   const rust = rustSources();
-  for (const dict of [A, N, C, R, S])
+  for (const dict of [A, N, C, S])
     for (const en of Object.keys(dict))
       for (const part of en
         .split(/\{\w+\}/)
@@ -71,7 +70,7 @@ it('translates an exact sentence, a filled sentence, and leaves the rest as it c
   expect(tIncoming('This profile was not written for this agent.')).toBe(
     N['This profile was not written for this agent.'],
   );
-  const filled = Object.entries({ ...A, ...N, ...C, ...R }).find(([en]) =>
+  const filled = Object.entries({ ...A, ...N, ...C }).find(([en]) =>
     /^\{\w+\} /.test(en),
   );
   expect(filled, 'a sentence that starts with a part').toBeDefined();

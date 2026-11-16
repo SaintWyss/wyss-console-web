@@ -1,6 +1,5 @@
 import { mount } from 'svelte';
 import App from './App.svelte';
-import ProjectsWindow from './lib/features/projects/ProjectsWindow.svelte';
 import './app.css';
 
 const target = document.getElementById('app');
@@ -21,7 +20,4 @@ async function fontsReady(): Promise<void> {
   ]);
 }
 
-// A window opened for the project workspace carries one capability and shows one view.
-void fontsReady().then(() =>
-  mount(location.hash === '#workspace' ? ProjectsWindow : App, { target }),
-);
+void fontsReady().then(() => mount(App, { target }));

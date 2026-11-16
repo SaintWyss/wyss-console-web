@@ -23,7 +23,7 @@
     onselect: (id: ShownView) => void;
     /** Approvals waiting for a decision. Counted on Activity and on Approvals under More. */
     waiting?: number;
-    /** Every view this window offers (Runtimes and Projects only when they exist). */
+    /** Every view this window offers. */
     items?: readonly NavItem[];
     /** The Personalization tab last visited: what its rail entry opens. */
     personal?: ViewId;

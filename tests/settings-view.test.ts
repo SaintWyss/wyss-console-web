@@ -144,7 +144,6 @@ it('opens from the sidebar with every section, in order, and the defaults select
       'Authority · protocol 1',
       'About',
       'Reset',
-      'Projects and workspaces',
       'Terminals after the window closes',
     ],
   );
