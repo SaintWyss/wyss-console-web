@@ -146,6 +146,37 @@ mod project_instruction_tests {
     }
 
     #[test]
+    fn a_folder_that_holds_the_owner_or_the_launch_home_never_gets_a_subtree_pattern() {
+        let root = std::env::temp_dir().join(format!("role-holds-{}", uuid::Uuid::new_v4()));
+        let owner = root.join(".claude");
+        let home = root.join(".local/share/wyss-console/launch-homes/p1");
+        fs::create_dir_all(&owner).unwrap();
+        fs::create_dir_all(&home).unwrap();
+        fs::write(owner.join("CLAUDE.md"), "global").unwrap();
+        let canonical = fs::canonicalize(&root).unwrap();
+        // The folder is the owner's HOME: it holds both.
+        for list in [
+            project_instruction_excludes(&root, &owner, Some(&home)).unwrap(),
+            project_instruction_excludes(&root.join(".local"), &owner, Some(&home)).unwrap(),
+        ] {
+            for pattern in &list {
+                let base = pattern.trim_end_matches("/**");
+                for kept in [owner.join("CLAUDE.md"), home.clone()] {
+                    let kept = fs::canonicalize(&kept).unwrap();
+                    assert!(
+                        !(pattern.ends_with("/**") && kept.starts_with(base)),
+                        "{pattern} covers {}",
+                        kept.display()
+                    );
+                    assert_ne!(Path::new(pattern), kept.as_path(), "{pattern}");
+                }
+            }
+            assert!(!list.contains(&format!("{}/**", canonical.display())));
+        }
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn project_excludes_ancestors_and_protects_owner() {
         let root = std::env::temp_dir().join(format!("role-globs-{}", uuid::Uuid::new_v4()));
         let owner = root.join(".claude");
