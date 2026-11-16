@@ -600,6 +600,8 @@ mod tests {
             "allow-arsenal-codex-environment",
             "allow-arsenal-codex-environment-options",
             "allow-arsenal-codex-environment-write",
+            "allow-arsenal-launch-instructions",
+            "allow-arsenal-launch-instructions-write",
             // Workspace roles (redesign stage 2): roles.json beside environment.json.
             "allow-arsenal-roles",
             "allow-arsenal-role-write",
