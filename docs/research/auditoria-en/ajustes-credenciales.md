@@ -1,0 +1,99 @@
+# Auditoría en inglés — ajustes-credenciales
+
+Auditor Claude Sonnet, solo lectura, 2026-11-16, sobre 5f709e5/7bc208a. Hallazgos SIN verificar salvo que el plan diga lo contrario.
+
+El diff `f2a913e..5f709e5` salió vacío en estas carpetas, así que auditué el estado actual del código. No ejecuté nada y no edité nada.
+
+## Hallazgos
+
+| Clase | archivo:línea | Texto actual | Por qué (evidencia) | Arreglo propuesto |
+|---|---|---|---|---|
+| FALLO | `SettingsView.svelte:186-189` | `Saved on this computer` | Se muestra siempre que `phase==='ready'` y no se está guardando. Con `storage` en `unavailable`, `newer` o `unsafe` el aviso de `STORAGE_NOTICE` dice que los cambios no se guardan (`present.ts:92-97`) o que no se puede editar, y la cabecera dice lo contrario. | Mostrar el texto solo si `view.storage==='ready'`. Si no: `Not saved` para `unavailable` y `Defaults in use` para `recovered`, `newer` y `unsafe`. |
+| DUPLICADO | `present.ts:187-191` y `SettingsView.svelte:445-447` | `Protocol` → `Version {version}` y `Authority protocol` → `Version {version}` | El mismo valor `protocol_version` aparece en dos secciones de la misma pantalla. | Borrar la fila `Authority protocol` de About (y `protocol` de `SettingsView.svelte:83-89`). |
+| FALLO | `SettingsView.svelte:399` | `Authority · protocol 1` | El `1` está fijo en el texto. El valor real de `protocol_version` se muestra más abajo, y puede divergir. | `Authority` |
+| FALLO | `present.ts:59-61` | `scrollbackLabel` (devuelve `` `${lines} lines` `` sin `t()`) | No lo usa nadie (grep: solo la definición). La vista usa `t('{count} lines')`. Es código muerto con inglés sin traducir. | Borrar la función. |
+| DUPLICADO | `present.ts:106` y `present.ts:108` | `The preference could not be saved. Nothing was changed.` | `not_saved` e `internal` tienen texto idéntico, así que las dos causas son indistinguibles. | `internal`: `The preference could not be saved because of an internal error. Nothing was changed.` |
+| EXCESIVO | `SettingsView.svelte:356-360` | `These apply to every terminal, open or new. What a terminal runs is not a preference.` | La frase 2 repite la idea del lede (`They never change what Codex may do…`). Además, `TerminalView.svelte` no leyó `font_size`, `cursor_blink` ni `cursor_style` en mi grep. No pude confirmar que apliquen a terminales abiertas, y debe revisarse. | Si no aplican en vivo: `These apply to terminals opened from now on.` Si aplican: borrar la segunda frase. |
+| ERROR_DE_HECHO (sin verificar) | `SettingsView.svelte:227-230` | `Preferences change how Wyss Console looks and where it opens.` | La pantalla también cambia terminal, formato de hora y filtro de eventos (`SettingsView.svelte:296-395`). Esa descripción es incompleta. | `Preferences change how Wyss Console looks and behaves.` |
+| FALLO | `CredentialsView.svelte:116-124` | `No keys yet` / `Add one above. Its value is asked for in a separate window.` | Si `phase==='failed'` (falló `list`), `items` está vacío y se muestra "No keys yet" junto al error. Dice que no hay claves cuando solo no se pudieron leer. No hay ramas para `failed`. | Añadir rama `phase==='failed'` con `Keys could not be read.` y botón `Try again`, o no mostrar el vacío. |
+| FALLO | `credentials/commands.rs:75-81, 104-110` (`secret_entry`) | Cerrar o enviar el diálogo vacío devuelve `None` | `controller.ts:100` y `controller.ts:105` devuelven `null` y no hay `notice`. El usuario no recibe ninguna señal si cancela. Esto puede ser a propósito. | Opcional: `Nothing was kept.` |
+| FALLO (Rust) | `credentials/commands.rs:77-78, 106-107, 151-153` y `native_dialog.rs:287-288, 410-411` | `New API key`, `Paste the key. It is never shown again.`, `Replace API key`, `Paste the new key. The old one is discarded.`, `Delete this API key?`, `“{name}” is removed from this computer. It cannot be brought back.`, `Delete`, `Cancel`, `Keep` | Son diálogos GTK, así que no pasan por `tIncoming`. `grep es.ts` no encuentra ninguna de las cadenas. En español quedan en inglés mientras la UI está en español. | Pasarlas por una tabla de traducción en Rust, o aceptar inglés y anotarlo. |
+| ERROR_DE_HECHO | `CredentialsView.svelte:30` | `The key may not be empty, hold spaces or line breaks, or be longer than 4096 characters.` | `core.rs:150-151` rechaza cualquier carácter de control o espacio en blanco, no solo espacios y saltos. El límite es `secret.len()`, o sea 4096 bytes, no caracteres. | `The key may not be empty, contain spaces or control characters, or be longer than 4096 bytes.` |
+| FALLO | `CredentialsView.svelte:26-28` | `The name must be 1 to 60 characters, without control characters.` | `core.rs:142-145` también rechaza el nombre formado solo por espacios (`trim().is_empty()`). | `The name must be 1 to 60 characters, not blank, without control characters.` |
+| ERROR_DE_HECHO (matiz) | `CredentialsView.svelte:42` | `Something went wrong in the desktop.` | "Desktop" no es lo que ve el usuario; el resto de la app dice "Console". | `Something went wrong in Wyss Console.` |
+| ERROR_DE_HECHO | `CredentialsView.svelte:41` | `The Console could not write its own state.` | Mapea `StoreUnavailable`, que también cubre un fallo de `spawn_blocking` y un `credentials_start` fallido (`commands.rs:50, 25`). El texto es más estrecho que la causa. | `The key store of Wyss Console is not available.` |
+| FALLO | `CredentialsView.svelte:119-123`, `controller.ts:122-123` | `The record is damaged: replace the key.` | Es el `false` de `verify`. En `core.rs:211-217` también cubre una huella que no coincide, no solo un archivo dañado. Además, "record is damaged" duplica `damaged` (`CredentialsView.svelte:40`). | `The key could not be verified. Replace the key.` |
+| EXCESIVO | `CredentialsView.svelte:67` | `API keys for the AI services, kept sealed on this computer (…). A key is typed in a window of its own and is never shown again, never sent to this page and never written unsealed. Only a name, the service and a short checksum are listed. Nothing here starts an agent with a key.` | Seis frases. Los diálogos de Rust ya dicen "never shown again", y "never sent to this page" es verdad pero técnico. | `API keys for AI services, sealed on this computer with a key from your Secret Service. A key is typed in a separate window and never shown again. Nothing here starts an agent with a key.` |
+
+## Todas las frases en inglés
+
+**Settings (SettingsView.svelte y present.ts)**
+
+Settings · Reading preferences · Preferences unavailable · Saving… · Saved on this computer · Preferences could not be read, so the defaults are shown. Nothing is saved until they can be. · Try again
+
+Textos de aviso:
+- `{title}.` (cada título lleva punto)
+- el lede completo (`Preferences change how Wyss Console looks…`)
+- Appearance · Color theme · Dark · Light · High contrast
+- Changes appearance only. It does not change provider or approval permissions.
+- Interface · Language · English · Español (sin `t()`, a propósito) · The language of Wyss Console itself. What an agent, a provider or the system writes is shown as it arrives.
+- Open on · Console · Sessions · Agents · Approvals · Events · The view shown when Wyss Console starts.
+- Terminal · Font size · `{size} px` (sin `t()`) · History kept · `{count} lines`
+- How far back each terminal can scroll. Larger values use more memory.
+- Cursor · Block · Bar · Underline · Blinking cursor
+- These apply to every terminal, open or new. What a terminal runs is not a preference.
+- Time · Follow the system · 12-hour · 24-hour · Show first · All events · Runtime · Turns · Security
+- Only narrows what is shown. The authority records every event either way.
+- Authority · protocol 1 · Retrying… · Retry
+- The protocol 1 authority keeps its sessions, approvals and history, and keeps running when this window is closed. Local terminals and these preferences work without it. Managed runtimes use a separate protocol 2 connection, shown in Runtimes.
+- About · Wyss Console · Version {version} · Not available · Build · Platform · `Linux (x86_64)` (`platformLabel`, sin `t()`) · Authority protocol
+- Reset · Reset all preferences to their defaults? · Your sessions, history, approvals, workspaces and Codex login are not touched. · Reset preferences · Cancel · Reset preferences… · Restores the defaults on this screen. Nothing else is deleted.
+
+Avisos de almacenamiento:
+- Your saved preferences could not be read / They were set aside and the defaults are in use. Change a preference to save a new set, or reset to start clean.
+- Saved by a newer version of Wyss Console / These preferences were left as they are and the defaults are in use. They cannot be changed from this version until they are reset.
+- Your saved preferences were not trusted / The file is not private to you, so it was not read and the defaults are in use. Changing a preference replaces it.
+- Preferences cannot be saved here / The place they are kept in is not safely yours, so the defaults are in use and changes are not kept.
+
+Fallos:
+- That value is not allowed.
+- These preferences were saved by a newer version. Reset them to change them from this version.
+- The preference could not be saved. Nothing was changed. (aparece dos veces)
+- Wyss Console is busy. Try again in a moment.
+
+Hechos de autoridad:
+- Authority · Connected · Not running · Offline · Codex runtime · Not available while offline · Installation · Managed by Wyss Console · Started outside Wyss Console · Installed by Wyss Console · Not installed · Not known yet
+- Compatibility · This Wyss authority is not compatible with this version of the app. · Compatible · Checked when the authority answers
+- Authority version · Not reported · Protocol · Version {version}
+- Update · A newer authority is installed the next time it starts
+
+**Credentials (CredentialsView.svelte y controller.ts)**
+
+API credentials · Add a key · Name · Service · Other · Enter the key… · Reading… · No keys yet · Add one above. Its value is asked for in a separate window. · Keys · New name · checksum · kept {date} · changed {date} · Save name · Cancel · Replace key… · Rename · Check · Delete…
+
+Párrafo introductorio: el de `CredentialsView.svelte:67`.
+
+Fallos:
+- The name must be 1 to 60 characters, without control characters.
+- The key may not be empty, hold spaces or line breaks, or be longer than 4096 characters.
+- That key is not kept any more.
+- There are too many keys (100).
+- No key store (the Secret Service) is available, so nothing was kept. A key is never kept unsealed.
+- The key that sealed this record is gone from the key store. Replace the key.
+- The record is damaged. Replace the key.
+- The Console could not write its own state.
+- Something went wrong in the desktop.
+
+Avisos de resultado: Key kept, sealed. · Key replaced. · Renamed. · Key deleted. · The key opens and matches its checksum. · The record is damaged: replace the key.
+
+Nombres de servicio sin `t()` (a propósito): Anthropic, OpenAI, Google, OpenRouter.
+
+**Rust (marcadas; ninguna pasa por `tIncoming`)**
+
+(Rust) New API key · Paste the key. It is never shown again. · Replace API key · Paste the new key. The old one is discarded. · Delete this API key? · “{name}” is removed from this computer. It cannot be brought back. · Delete · Cancel · Keep
+
+En Settings no encontré texto inglés que Rust ponga en pantalla: `about.version` y `revision` son datos, y `platform` sale como `linux-x86_64` y se formatea en el front. El formateo de `platformLabel` queda sin `t()` y sin nombre de plataforma traducido.
+
+## Pendiente de verificar
+- Si `TerminalView` aplica en vivo `font_size`, `cursor_style` y `cursor_blink`. Mi grep no los encontró fuera de `features/settings`, así que el aviso `These apply to every terminal, open or new.` queda sin confirmar.
+- No revisé `es.ts` clave por clave, así que no puedo asegurar qué frases lo cubren.
