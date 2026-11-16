@@ -484,7 +484,7 @@
               bind:value={f.name}
             /></label
           >
-          <label class="le-field" title={t('Who makes it. Optional.')}
+          <label class="le-field" title={t('Who makes it.')}
             ><span>{t('Made by')}</span>
             <input
               class="le-input"
@@ -509,7 +509,7 @@
           <label
             class="le-field"
             title={t(
-              'Typed in a new terminal by Update. Optional: it depends on how you installed the tool.',
+              'Typed in a new terminal by Update. It depends on how you installed the tool.',
             )}
             ><span>{t('Command to update')}</span>
             <input
@@ -522,7 +522,7 @@
           >
           <label
             class="le-field"
-            title={t('Anything to remember about it. Optional.')}
+            title={t('Anything to remember about it.')}
             ><span>{t('Note')}</span>
             <input
               class="le-input"
