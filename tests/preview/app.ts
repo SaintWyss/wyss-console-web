@@ -23,7 +23,6 @@ import approvals from '../fixtures/approval-list-v1.json';
 import inventory from '../fixtures/configuration-inventory-v1.json';
 import views from '../fixtures/authority-view-v1.json';
 import pages from '../fixtures/session-page-v4.json';
-import catalogue from '../fixtures/model-catalogue-v1.json';
 
 type Json = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 const query = new URLSearchParams(location.search);
@@ -361,8 +360,6 @@ mockIPC((command, payload) => {
       return { schema_version: 1, turns: [], next: null };
     case 'managed_approvals':
       return approvals.empty;
-    case 'managed_model_catalogue':
-      return catalogue;
     case 'credentials_list':
       return { schema_version: 1, credentials: [] };
     case 'arsenal_capabilities':

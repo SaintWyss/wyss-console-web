@@ -84,7 +84,6 @@ fn main() {
             "authority_lifecycle",
             "authority_retry",
             "managed_sessions_page",
-            "managed_model_catalogue",
             "managed_session_prepare",
             "managed_session_resume",
             "managed_session_close",

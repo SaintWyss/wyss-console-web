@@ -5,21 +5,15 @@
 //! an account may use one. A default, an effort or a replacement is shown **as the runtime
 //! marked it**, never as what a session uses; that is the observed model, read elsewhere.
 //! The runtime's own prose (upgrade copy, descriptions) is never carried.
-use super::{
-    service::SessionService,
-    view::{AgentMode, RuntimeFacts, SessionError, SessionFailure},
-};
-use crate::contracts::control::{
-    ActualState, ControlError, ModelOffer, ResultValue, RuntimeModels, RuntimeTarget,
-};
+#[cfg(test)]
+use super::view::AgentMode;
+use crate::contracts::control::ModelOffer;
 use serde::Serialize;
-use std::time::{SystemTime, UNIX_EPOCH};
 
+#[cfg(test)]
 pub const CATALOGUE_SCHEMA_VERSION: u8 = 1;
-/// Protocol pages one read walks at most (twenty entries each; the authority holds at most fifty).
-const WALK_PAGES: usize = 4;
-
 /// Whether the managed runtime that was asked is there to answer.
+#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CatalogueState {
@@ -48,6 +42,7 @@ pub struct CatalogueEntry {
     pub retires_at: Option<String>,
 }
 
+#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ModelCatalogue {
     pub schema_version: u8,
@@ -62,12 +57,6 @@ pub struct ModelCatalogue {
     pub entries: Vec<CatalogueEntry>,
     /// When this desktop read it from the authority (Unix seconds).
     pub read_at: u64,
-}
-
-fn now() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |elapsed| elapsed.as_secs())
 }
 
 /// The descriptor's fields by name: its own accessors are not public, its encoding is.
@@ -91,91 +80,6 @@ pub(crate) fn entry_of(
         replaced_by: offer.and_then(|o| o.replaced_by.clone()),
         retires_at: offer.and_then(|o| o.retires_at.clone()),
     })
-}
-
-impl SessionService {
-    /// One reading of the managed runtime's catalogue: its state first, then its pages.
-    pub fn model_catalogue(&self) -> Result<ModelCatalogue, SessionError> {
-        self.call(|client| {
-            let status = client.runtime_status().map_err(SessionError::of)?;
-            let facts = RuntimeFacts::of(&status);
-            if status.actual_state != ActualState::Ready {
-                return Ok(ModelCatalogue {
-                    schema_version: CATALOGUE_SCHEMA_VERSION,
-                    state: CatalogueState::NotReady,
-                    mode: None,
-                    runtime_version: None,
-                    complete: None,
-                    entries: Vec::new(),
-                    read_at: now(),
-                });
-            }
-            let target = RuntimeTarget::codex();
-            let mut entries = Vec::new();
-            let mut complete = None;
-            let mut cursor = None;
-            for _ in 0..WALK_PAGES {
-                let page = client.runtime_models(RuntimeModels {
-                    adapter_id: target.adapter_id.clone(),
-                    runtime_kind: target.runtime_kind,
-                    cursor: cursor.take(),
-                    limit: 20,
-                });
-                let page = match page {
-                    Ok(page) => page,
-                    // The runtime stopped between the status and the page: nothing is shown
-                    // of a catalogue whose runtime has gone, and the rest is not guessed.
-                    Err(ControlError::InvalidTransition | ControlError::StaleRevision) => {
-                        return Ok(ModelCatalogue {
-                            schema_version: CATALOGUE_SCHEMA_VERSION,
-                            state: CatalogueState::NotReady,
-                            mode: None,
-                            runtime_version: None,
-                            complete: None,
-                            entries: Vec::new(),
-                            read_at: now(),
-                        });
-                    }
-                    Err(error) => return Err(SessionError::of(error)),
-                };
-                let ResultValue::RuntimeModels {
-                    models,
-                    offers,
-                    complete: whole,
-                    next,
-                    ..
-                } = page
-                else {
-                    return Err(SessionError::new(SessionFailure::Unavailable));
-                };
-                complete = whole;
-                for (index, model) in models.iter().enumerate() {
-                    let value = serde_json::to_value(model)
-                        .map_err(|_| SessionError::new(SessionFailure::Unavailable))?;
-                    if let Some(entry) = entry_of(&value, offers.get(index)) {
-                        entries.push(entry);
-                    }
-                }
-                match next {
-                    Some(next) => cursor = Some(next),
-                    None => break,
-                }
-            }
-            // More pages than the walk takes is an incomplete catalogue, said as such.
-            if cursor.is_some() {
-                complete = Some(false);
-            }
-            Ok(ModelCatalogue {
-                schema_version: CATALOGUE_SCHEMA_VERSION,
-                state: CatalogueState::Listed,
-                mode: facts.mode,
-                runtime_version: status.runtime_version.clone(),
-                complete,
-                entries,
-                read_at: now(),
-            })
-        })
-    }
 }
 
 #[cfg(test)]
@@ -221,159 +125,6 @@ mod tests {
 #[cfg(test)]
 mod service_tests {
     use super::*;
-    use crate::contracts::control::Operation;
-    use crate::sessions::tests::{Peer, answer, runtime_status, uuid};
-    use serde_json::json;
-
-    fn descriptor(name: &str) -> crate::contracts::agent_adapter::AgentModelDescriptorV1 {
-        crate::contracts::agent_adapter::AgentModelDescriptorV1::from_value(json!({
-            "schema_version": 1, "provider_id": null, "model_id": name,
-            "display_name": format!("{name} name"), "availability": "unknown"
-        }))
-        .unwrap()
-    }
-    fn offer(default: bool) -> ModelOffer {
-        ModelOffer {
-            is_default: default,
-            default_effort: Some("medium".into()),
-            efforts: vec!["low".into(), "medium".into()],
-            replaced_by: None,
-            retires_at: None,
-        }
-    }
-
-    #[test]
-    fn a_runtime_that_is_not_ready_has_no_catalogue_and_no_page_is_asked_for() {
-        let peer = Peer::canonical(|op| match op {
-            Operation::RuntimeStatus(_) => answer(Ok(runtime_status(None, None))),
-            other => panic!("{other:?}"),
-        });
-        let catalogue = peer.service().model_catalogue().unwrap();
-        assert_eq!(catalogue.state, CatalogueState::NotReady);
-        assert!(catalogue.entries.is_empty() && catalogue.complete.is_none());
-        assert_eq!(peer.methods(), vec!["runtime/status".to_owned()]);
-    }
-
-    #[test]
-    fn the_pages_of_a_ready_runtime_are_read_with_their_offers_and_say_whether_they_are_whole() {
-        let id =
-            crate::contracts::identities::AgentRuntimeInstanceId::parse(uuid().as_str()).unwrap();
-        let mut served = 0u16;
-        let peer = Peer::canonical(move |op| match op {
-            Operation::RuntimeStatus(_) => {
-                answer(Ok(runtime_status(Some("codex_inference_v1"), None)))
-            }
-            Operation::RuntimeModels(p) => {
-                assert_eq!(p.limit, 20);
-                let (names, next): (Vec<String>, _) = if p.cursor.is_none() {
-                    (
-                        (0..20).map(|n| format!("m{n}")).collect(),
-                        Some(crate::contracts::control::ModelCursor {
-                            runtime_instance_id: id.clone(),
-                            index: 20,
-                        }),
-                    )
-                } else {
-                    served += 1;
-                    (vec!["last".to_owned()], None)
-                };
-                answer(Ok(ResultValue::RuntimeModels {
-                    runtime_instance_id: id.clone(),
-                    offers: names.iter().map(|n| offer(n == "m0")).collect(),
-                    models: names.iter().map(|n| descriptor(n)).collect(),
-                    complete: Some(false),
-                    next,
-                }))
-            }
-            other => panic!("{other:?} {served}"),
-        });
-        let catalogue = peer.service().model_catalogue().unwrap();
-        assert_eq!(catalogue.state, CatalogueState::Listed);
-        assert_eq!(catalogue.mode, Some(AgentMode::Inference));
-        assert_eq!(catalogue.runtime_version.as_deref(), Some("0.159.0"));
-        assert_eq!(catalogue.entries.len(), 21);
-        assert_eq!(catalogue.entries[0].is_default, Some(true));
-        assert_eq!(catalogue.entries[1].is_default, Some(false));
-        assert_eq!(catalogue.entries[20].model_id, "last");
-        assert_eq!(
-            catalogue.entries[0].display_name.as_deref(),
-            Some("m0 name")
-        );
-        // The runtime's own listing continued past what the authority took: said, not hidden.
-        assert_eq!(catalogue.complete, Some(false));
-        // Everything about it is a read: status, then two pages, nothing else.
-        assert_eq!(
-            peer.methods(),
-            vec!["runtime/status", "runtime/model/list", "runtime/model/list"]
-        );
-    }
-
-    #[test]
-    fn an_authority_that_reports_no_offers_gives_entries_that_claim_nothing() {
-        let id =
-            crate::contracts::identities::AgentRuntimeInstanceId::parse(uuid().as_str()).unwrap();
-        let peer = Peer::canonical(move |op| match op {
-            Operation::RuntimeStatus(_) => {
-                answer(Ok(runtime_status(Some("codex_inference_v1"), None)))
-            }
-            Operation::RuntimeModels(_) => answer(Ok(ResultValue::RuntimeModels {
-                runtime_instance_id: id.clone(),
-                models: vec![descriptor("only")],
-                offers: vec![],
-                complete: None,
-                next: None,
-            })),
-            other => panic!("{other:?}"),
-        });
-        let catalogue = peer.service().model_catalogue().unwrap();
-        let entry = &catalogue.entries[0];
-        assert_eq!(
-            (entry.is_default, &entry.efforts, &entry.default_effort),
-            (None, &None, &None)
-        );
-        assert_eq!(catalogue.complete, None);
-    }
-
-    #[test]
-    fn a_runtime_that_stops_between_the_status_and_a_page_leaves_no_catalogue() {
-        let peer = Peer::canonical(|op| match op {
-            Operation::RuntimeStatus(_) => {
-                answer(Ok(runtime_status(Some("codex_inference_v1"), None)))
-            }
-            Operation::RuntimeModels(_) => answer(Err(ControlError::InvalidTransition)),
-            other => panic!("{other:?}"),
-        });
-        let catalogue = peer.service().model_catalogue().unwrap();
-        assert_eq!(catalogue.state, CatalogueState::NotReady);
-        assert!(catalogue.entries.is_empty());
-    }
-
-    #[test]
-    fn a_listing_that_never_ends_is_walked_to_its_bound_and_called_incomplete() {
-        let id =
-            crate::contracts::identities::AgentRuntimeInstanceId::parse(uuid().as_str()).unwrap();
-        let peer = Peer::canonical(move |op| match op {
-            Operation::RuntimeStatus(_) => {
-                answer(Ok(runtime_status(Some("codex_inference_v1"), None)))
-            }
-            Operation::RuntimeModels(_) => answer(Ok(ResultValue::RuntimeModels {
-                runtime_instance_id: id.clone(),
-                models: vec![descriptor("x")],
-                offers: vec![],
-                complete: Some(true),
-                next: Some(crate::contracts::control::ModelCursor {
-                    runtime_instance_id: id.clone(),
-                    index: 1,
-                }),
-            })),
-            other => panic!("{other:?}"),
-        });
-        let catalogue = peer.service().model_catalogue().unwrap();
-        assert_eq!(catalogue.entries.len(), WALK_PAGES);
-        assert_eq!(catalogue.complete, Some(false));
-        assert_eq!(peer.methods().len(), 1 + WALK_PAGES);
-    }
-
     #[test]
     fn the_catalogue_serializes_exactly_the_windows_fixture() {
         let fixture: serde_json::Value = serde_json::from_str(include_str!(

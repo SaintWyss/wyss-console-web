@@ -9,7 +9,6 @@ import { listing } from './agent-harness';
 import { launcher } from './native-harness';
 import approvals from './fixtures/approval-list-v1.json';
 import inventory from './fixtures/configuration-inventory-v1.json';
-import catalogues from './fixtures/model-catalogue-v1.json';
 import views from './fixtures/authority-view-v1.json';
 import pages from './fixtures/session-page-v4.json';
 
@@ -40,8 +39,6 @@ const text = (node: Element | null | undefined) =>
 function desktop() {
   const calls: string[] = [];
   const answers = {
-    /** A value, or a function called on each read (a promise leaves the read in flight). */
-    catalogue: catalogues.listed as unknown,
     inventory: (() => inventory) as () => unknown,
     launcherFails: false,
     /** Answers of its own for a command; `undefined` leaves it to the rest. */
@@ -73,10 +70,6 @@ function desktop() {
         return { m9_native_status: 'ready' };
       case 'native_sessions':
         return [];
-      case 'managed_model_catalogue':
-        return typeof answers.catalogue === 'function'
-          ? (answers.catalogue as () => unknown)()
-          : answers.catalogue;
       case 'configuration_inventory':
         return answers.inventory();
       case 'configuration_changes':
@@ -158,7 +151,6 @@ it('opens from the rail and draws what the desktop answered', async () => {
   const before = ipc.count('native_launcher');
   expect(before).toBe(1);
   expect(ipc.count('configuration_inventory')).toBe(0);
-  expect(ipc.count('managed_model_catalogue')).toBe(0);
 
   tab('Distributors').click();
   await flush();
@@ -173,7 +165,6 @@ it('opens from the rail and draws what the desktop answered', async () => {
   // Showing the view reads launcher status and the owner-added distributors.
   expect(ipc.count('native_launcher')).toBe(before + 1);
   expect(ipc.count('configuration_inventory')).toBe(0);
-  expect(ipc.count('managed_model_catalogue')).toBe(0);
 
   // One line each: maker · tool · version, nothing about models or the last read.
   expect(
