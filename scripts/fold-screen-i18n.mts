@@ -126,7 +126,12 @@ function fold(
 }
 
 fold(own, OWN_FILES, 'src/lib/i18n/es.ts', /^ {2}\.\.\.ES_ARSENAL,/m);
-fold(incoming, INCOMING_FILES, 'src/lib/i18n/incoming/configuration.ts', /^};/m);
+fold(
+  incoming,
+  INCOMING_FILES,
+  'src/lib/i18n/incoming/configuration.ts',
+  /^};/m,
+);
 
 if (!dry)
   for (const f of screens) {
