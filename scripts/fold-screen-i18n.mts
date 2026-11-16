@@ -4,7 +4,7 @@
  *
  * - A sentence already in a dictionary gets its Spanish replaced where it lives (an area file
  *   is merged after es.ts and wins, so it is replaced there, not shadowed).
- * - A new sentence is appended to es.ts (own text) or incoming/rest.ts (Rust text).
+ * - A new sentence is appended to es.ts (own text) or incoming/configuration.ts (Rust text).
  * - Two fragments giving one sentence different Spanish stop the fold.
  * - For each replaced sentence, the folders that draw it are printed: a fix is global.
  *
@@ -19,14 +19,12 @@ const OWN_FILES = [
   'src/lib/i18n/es-arsenal.ts',
   'src/lib/i18n/es-native.ts',
   'src/lib/i18n/es-configuration.ts',
-  'src/lib/i18n/es-rest.ts',
   'src/lib/i18n/es.ts',
 ];
 const INCOMING_FILES = [
   'src/lib/i18n/incoming/arsenal.ts',
   'src/lib/i18n/incoming/native.ts',
   'src/lib/i18n/incoming/configuration.ts',
-  'src/lib/i18n/incoming/rest.ts',
 ];
 
 type Entries = Map<string, { es: string; from: string }>;
@@ -128,7 +126,7 @@ function fold(
 }
 
 fold(own, OWN_FILES, 'src/lib/i18n/es.ts', /^ {2}\.\.\.ES_ARSENAL,/m);
-fold(incoming, INCOMING_FILES, 'src/lib/i18n/incoming/rest.ts', /^};/m);
+fold(incoming, INCOMING_FILES, 'src/lib/i18n/incoming/configuration.ts', /^};/m);
 
 if (!dry)
   for (const f of screens) {
