@@ -750,3 +750,73 @@ describe('the text of the desktop failures about a folder of its own', () => {
     expect(failureText('arsenal_unqualified')).toContain('Codex build');
   });
 });
+
+it.each([
+  ['instructions', 1],
+  ['instructions', 7],
+  ['codex', 1],
+  ['codex', 7],
+] as const)(
+  'names blocked items instead of enforcement for %s (%i items)',
+  async (kind, count) => {
+    const { d } = deps(session(), undefined, { selection: 'sel-1' });
+    d.plan = vi.fn(
+      async () =>
+        ({
+          selection: 'sel-1',
+          selection_name: 'Work',
+          can_apply: false,
+          status: 'blocked',
+          enforcement: { reason: 'ENFORCEMENT_CONTROL' },
+          items: Array.from({ length: count }, (_, i) => ({
+            capability: `id-${i}`,
+            name: `Skill ${i}`,
+            state: i % 2 ? 'missing' : 'rejected',
+          })),
+          ...(kind === 'instructions'
+            ? { launch_instructions: { project: 'exclude', role: '' } }
+            : { codex_environment: { instructions: false, hooks_off: [] } }),
+        }) as never,
+    );
+    const refusal = (await openLaunch('codex', d).catch(
+      (e: unknown) => e,
+    )) as LaunchRefusal;
+    expect(refusal).toBeInstanceOf(LaunchRefusal);
+    try {
+      for (const language of ['en', 'es'] as const) {
+        setLanguage(language);
+        const rendered = t(refusal.template, refusal.values);
+        expect(rendered).toContain('Skill 0');
+        if (count > 5) expect(rendered).toContain('Skill 4');
+        expect(rendered).not.toContain('Skill 5');
+        expect(rendered).not.toContain('ENFORCEMENT_CONTROL');
+        if (count > 5)
+          expect(rendered).toContain(
+            language === 'es' ? 'y 2 más' : 'and 2 more',
+          );
+        else expect(rendered).not.toContain(language === 'es' ? 'más' : 'more');
+        expect(rendered).toContain('Arsenal');
+      }
+    } finally {
+      setLanguage('en');
+    }
+    expect(d.start).not.toHaveBeenCalled();
+  },
+);
+
+it('identifies a removed capability when its plan no longer has a name', async () => {
+  const { d } = deps(session(), undefined, { selection: 'sel-1' });
+  d.plan = vi.fn(
+    async () =>
+      ({
+        selection: 'sel-1',
+        selection_name: 'Work',
+        can_apply: false,
+        status: 'blocked',
+        enforcement: { reason: 'unrelated' },
+        launch_instructions: { project: 'exclude', role: '' },
+        items: [{ capability: 'removed-skill', name: '', state: 'missing' }],
+      }) as never,
+  );
+  await expect(openLaunch('codex', d)).rejects.toThrow('removed-skill');
+});

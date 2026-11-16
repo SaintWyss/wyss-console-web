@@ -111,9 +111,9 @@ it('copies a shared preset to one of its own, named after the launch, and never 
       }),
     ).preset.do,
   ).toBe('write');
-  // The folder remembers this preset: it is shared with the folder too.
+  // Remembering the preset after starting this launch does not make a second consumer.
   expect(savePlan(changed, ctx({ folderSelection: 'sel-1' })).preset.do).toBe(
-    'copy',
+    'write',
   );
 });
 
@@ -343,4 +343,41 @@ it('never writes a Codex environment for Claude Code, nor a Claude one for Codex
     savePlan(codexDraft({ spec: { ...DEFAULT_SPEC, memory: false } }), ctx())
       .environment,
   ).toBe(false);
+});
+
+it.each(['exclude', 'role'] as const)(
+  'creates a preset for %s without other changes',
+  (project) => {
+    const all = ctx().allItems.map((i) => ({ ...i }));
+    expect(
+      savePlan(
+        draft({
+          selection: null,
+          items: all,
+          instructions: { project, role: 'Own role' },
+        }),
+        ctx(),
+      ).preset,
+    ).toEqual({ do: 'create', name: 'Estudiar' });
+  },
+);
+
+it('writes own instructions twice in the same preset even after the folder remembers it', () => {
+  const context = ctx({
+    folderSelection: 'sel-1',
+    savedInstructions: { project: 'load' },
+  });
+  const d = draft({ instructions: { project: 'role', role: 'first' } });
+  expect(savePlan(d, context).preset).toEqual({
+    do: 'write',
+    id: 'sel-1',
+    name: 'Estudio',
+  });
+  context.savedInstructions = d.instructions;
+  d.instructions = { project: 'role', role: 'second' };
+  expect(savePlan(d, context).preset).toEqual({
+    do: 'write',
+    id: 'sel-1',
+    name: 'Estudio',
+  });
 });

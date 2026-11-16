@@ -3,7 +3,11 @@ import { flushSync, mount, tick, unmount } from 'svelte';
 import { mockIPC } from '@tauri-apps/api/mocks';
 import LaunchEditor from '../src/lib/features/workspace/LaunchEditor.svelte';
 import type { Launch, LaunchList } from '../src/lib/desktop/launch-client';
-import type { LibraryItem, Selection } from '../src/lib/contracts/arsenal';
+import type {
+  LibraryItem,
+  Selection,
+  TerminalPlan,
+} from '../src/lib/contracts/arsenal';
 import {
   arsenalClient,
   type Roles,
@@ -103,6 +107,7 @@ function fake(
     failEnvironment: boolean;
     failInstructions: boolean;
     codex: boolean;
+    terminalPlan: ArsenalClient['terminalPlan'];
     codexEnvironment: () => Promise<{
       instructions: boolean;
       hooks_off: string[];
@@ -167,6 +172,9 @@ function fake(
     },
     writeLaunchInstructions: arsenalClient.writeLaunchInstructions,
     projectSelection: async () => null,
+    terminalPlan:
+      over.terminalPlan ??
+      (async () => ({ items: [] }) as unknown as TerminalPlan),
     saveSelection: async (input: Record<string, unknown>) => {
       note('saveSelection', input);
       return { ...sel, ...input, id: input.id ?? 'sel-new' } as Selection;
@@ -191,7 +199,6 @@ async function show(
     target: document.body,
     props: {
       visible: true,
-      ...extra,
       recent: [{ path: '/home/me/UTN', last_used: 2 }],
       choose: async () => null,
       onopen: vi.fn(),
@@ -203,6 +210,7 @@ async function show(
           refused: [],
           system: { id: 'cachyos', like: ['arch'], name: 'CachyOS' },
         }) as LaunchList,
+      ...extra,
     },
   });
   for (let i = 0; i < 6; i++) await tick();
@@ -222,11 +230,7 @@ async function settle() {
 it('shows role text only for own role and writes launch instructions on save', async () => {
   await show([session('estudiar', 'Estudio')]);
   expect(document.querySelector('textarea')).toBeNull();
-  const radios = document.querySelectorAll<HTMLInputElement>(
-    'input[name="project-instructions"]',
-  );
-  radios[2]!.click();
-  flushSync();
+  projectInstructions('role');
   const area = document.querySelector<HTMLTextAreaElement>('textarea')!;
   area.value = 'Mi rol';
   area.dispatchEvent(new Event('input', { bubbles: true }));
@@ -249,7 +253,9 @@ it('warns when launch instructions are unreadable and does not overwrite them', 
   );
   expect(
     document
-      .querySelector<HTMLInputElement>('input[name="project-instructions"]')
+      .querySelector<HTMLSelectElement>(
+        'select[aria-label="Project instructions"]',
+      )
       ?.matches(':disabled'),
   ).toBe(true);
   rename('Otro nombre');
@@ -852,3 +858,197 @@ it('does not draw the environment of a preset whose file cannot be read, says so
   await settle();
   expect(calls.writeCodexEnvironment).toBeUndefined();
 });
+
+function projectInstructions(mode: 'load' | 'exclude' | 'role') {
+  const select = document.querySelector<HTMLSelectElement>(
+    'select[aria-label="Project instructions"]',
+  )!;
+  select.value = mode;
+  select.dispatchEvent(new Event('change', { bubbles: true }));
+  flushSync();
+}
+
+it.each(['exclude', 'role'] as const)(
+  'saves %s without an existing preset to a new preset',
+  async (mode) => {
+    const { calls } = await show([session('estudiar', null)]);
+    projectInstructions(mode);
+    if (mode === 'role') {
+      const area = document.querySelector<HTMLTextAreaElement>('textarea')!;
+      area.value = 'My role';
+      area.dispatchEvent(new Event('input', { bubbles: true }));
+      flushSync();
+    }
+    expect(document.body.textContent).not.toContain('Choose a preset');
+    button('Save').click();
+    await settle();
+    expect(calls.saveSelection).toHaveLength(1);
+    expect(calls.saveSelection[0]).toMatchObject({
+      id: null,
+      items: [
+        { capability: 's1', revision: null },
+        { capability: 's2', revision: null },
+        { capability: 'a1', revision: null },
+      ],
+    });
+    expect(
+      ipc.find((c) => c.command === 'arsenal_launch_instructions_write')?.args,
+    ).toEqual({
+      selection: 'sel-new',
+      instructions: { project: mode, role: mode === 'role' ? 'My role' : '' },
+    });
+  },
+);
+
+it('uses the plan for the folder and provider, unticks unavailable skills and removes them only on save', async () => {
+  const terminalPlan = vi.fn(
+    async () =>
+      ({
+        items: [
+          {
+            capability: 's1',
+            state: 'rejected',
+            reason: 'Installed copy differs',
+          },
+          { capability: 's2', state: 'missing', reason: 'Not in this folder' },
+        ],
+      }) as TerminalPlan,
+  );
+  const { calls } = await show([session('estudiar', 'Estudio')], {
+    terminalPlan,
+  });
+  expect(terminalPlan).toHaveBeenCalledWith('', 'claude_code', '/home/me/UTN', [
+    { capability: 's1', revision: 7 },
+    { capability: 's2', revision: null },
+    { capability: 'a1', revision: null },
+  ]);
+  expect(calls.saveSelection).toBeUndefined();
+  const skills = [...document.querySelectorAll('.le-group')].find((g) =>
+    g.textContent?.includes('Skills'),
+  )!;
+  const inputs = [
+    ...skills.querySelectorAll<HTMLInputElement>('.le-row input'),
+  ];
+  expect(inputs).toHaveLength(2);
+  expect(inputs.every((i) => i.disabled && !i.checked)).toBe(true);
+  expect(inputs.map((i) => i.title)).toEqual([
+    'Installed copy differs',
+    'Not in this folder',
+  ]);
+  expect(
+    inputs.map((i) => i.parentElement!.querySelector('span')!.title),
+  ).toEqual(['Installed copy differs', 'Not in this folder']);
+  button('Save').click();
+  await settle();
+  expect(calls.saveSelection[0]).toMatchObject({ id: 'sel-1', items: [] });
+});
+
+it('ignores a late plan from a previously selected folder', async () => {
+  let resolve!: (plan: TerminalPlan) => void;
+  const terminalPlan = vi
+    .fn()
+    .mockImplementationOnce(
+      () =>
+        new Promise<TerminalPlan>((r) => {
+          resolve = r;
+        }),
+    )
+    .mockResolvedValue({
+      items: [{ capability: 's1', state: 'prepared', reason: '' }],
+    });
+  await show(
+    [session('estudiar', 'Estudio')],
+    { terminalPlan },
+    { choose: async () => '/home/me/Other' },
+  );
+  button('Browse…').click();
+  await settle();
+  resolve({
+    items: [{ capability: 's1', state: 'rejected', reason: 'Old folder' }],
+  } as TerminalPlan);
+  await settle();
+  expect(terminalPlan).toHaveBeenLastCalledWith(
+    '',
+    'claude_code',
+    '/home/me/Other',
+    expect.any(Array),
+  );
+  const skill = [
+    ...document.querySelectorAll<HTMLInputElement>('.le-row input'),
+  ].find((i) => i.closest('label')?.textContent?.includes('frontend-design'))!;
+  expect(skill.disabled).toBe(false);
+  expect(skill.checked).toBe(true);
+});
+
+it.each([false, true])(
+  'clears launch instructions on delete only when its preset is not shared (shared=%s)',
+  async (shared) => {
+    await show([
+      session('estudiar', 'Estudio'),
+      ...(shared ? [session('otro', 'Estudio')] : []),
+    ]);
+    document.querySelector<HTMLButtonElement>('.le-delete')!.click();
+    await settle();
+    button('Delete').click();
+    await settle();
+    expect(ipc.some((c) => c.command === 'launch_delete')).toBe(true);
+    const writes = ipc.filter(
+      (c) => c.command === 'arsenal_launch_instructions_write',
+    );
+    expect(writes).toHaveLength(shared ? 0 : 1);
+    if (!shared)
+      expect(writes[0].args).toEqual({
+        selection: 'sel-1',
+        instructions: { project: 'load' },
+      });
+  },
+);
+
+it('uses the group and select styles, six full-width role lines and only the chosen help', async () => {
+  await show([session('estudiar', 'Estudio')]);
+  const group = document
+    .querySelector('select[aria-label="Project instructions"]')!
+    .closest('.le-group')!;
+  expect(group.querySelector('.le-ghead')?.textContent).toBe(
+    'Project instructions',
+  );
+  expect(group.textContent).toContain('Loads the project instructions.');
+  expect(group.textContent).not.toContain('Without project instructions,');
+  expect(group.textContent).not.toContain('The text applies at start.');
+  projectInstructions('exclude');
+  expect(group.textContent).not.toContain('Loads the project instructions.');
+  expect(group.textContent).toContain('Without project instructions,');
+  expect(group.textContent).not.toContain('The text applies at start.');
+  projectInstructions('role');
+  expect(group.textContent).toContain('The text applies at start.');
+  expect(group.querySelector('textarea')?.rows).toBe(6);
+  expect(group.querySelector('textarea')?.closest('.le-field')).not.toBeNull();
+});
+
+it.each(['launch_delete', 'arsenal_launch_instructions_write'])(
+  'reports a failure of %s without claiming the wrong deletion state',
+  async (failure) => {
+    await show([session('estudiar', 'Estudio')]);
+    mockIPC((command, args) => {
+      ipc.push({ command, args });
+      if (command === failure) throw new Error('Fixture failure');
+      return null;
+    });
+    document.querySelector<HTMLButtonElement>('.le-delete')!.click();
+    await settle();
+    button('Delete').click();
+    await settle();
+    if (failure === 'launch_delete') {
+      expect(
+        ipc.some((c) => c.command === 'arsenal_launch_instructions_write'),
+      ).toBe(false);
+      expect(document.body.textContent).toContain(
+        'The launch could not be deleted.',
+      );
+    } else {
+      expect(document.body.textContent).toContain(
+        'The launch was deleted, but its instructions or role could not be cleared.',
+      );
+    }
+  },
+);

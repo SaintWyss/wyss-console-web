@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { msg, t } from '../../i18n/index.svelte';
-  import type { Item, Selection } from '../../contracts/arsenal';
+  import type { Item, Selection, PlanItem } from '../../contracts/arsenal';
   import { permissionsFor, type Permission } from '../../contracts/native';
   import {
     arsenalClient,
@@ -166,6 +166,45 @@
   let foldersOpen = $state(false);
   /** The draft dropped a hook its preset left out that hooks.json no longer has. */
   let staleHooks = $state(false);
+  let itemPlan = $state<PlanItem[]>([]);
+  let itemPlanState = $state<'loading' | 'ready' | 'failed'>('loading');
+  const unavailable = (item: PlanItem) =>
+    item.state === 'missing' || item.state === 'rejected';
+
+  // Evaluate every library item, including unticked skills, with the launch's pinned revisions.
+  // No preset is created by opening the editor. Ignore an answer for an older folder or agent.
+  $effect(() => {
+    if (!draft) return;
+    const agent = draft.agent;
+    const directory = draft.directory;
+    const selection = draft.selection;
+    const items = allItemsOf(data.library, agent);
+    for (const item of selection?.items ?? []) {
+      const index = items.findIndex((i) => i.capability === item.capability);
+      if (index < 0) items.push({ ...item });
+      else items[index] = { ...item };
+    }
+    let active = true;
+    itemPlanState = 'loading';
+    itemPlan = [];
+    void client
+      .terminalPlan('', agent, directory, items)
+      .then((plan) => {
+        if (!active || !draft) return;
+        itemPlan = plan.items;
+        const blocked = new Set(
+          plan.items.filter(unavailable).map((i) => i.capability),
+        );
+        draft.items = draft.items.filter((i) => !blocked.has(i.capability));
+        itemPlanState = 'ready';
+      })
+      .catch(() => {
+        if (active) itemPlanState = 'failed';
+      });
+    return () => {
+      active = false;
+    };
+  });
 
   const allRoles = $derived([
     ...BASIC.map((r) => ({ id: r.id, name: t(r.name), basic: true })),
@@ -314,6 +353,7 @@
   );
   const canSave = $derived(
     draft !== null &&
+      itemPlanState === 'ready' &&
       (current === null || editable(current)) &&
       draft.name.trim() !== '' &&
       launchId(draft.name) !== '' &&
@@ -382,7 +422,13 @@
     draft.instructions = { project: 'load' };
   }
   function setItem(id: string, on: boolean) {
-    if (!draft) return;
+    if (
+      !draft ||
+      (on &&
+        (itemPlanState !== 'ready' ||
+          itemPlan.some((i) => i.capability === id && unavailable(i))))
+    )
+      return;
     const has = draft.items.some((i) => i.capability === id);
     if (on && !has)
       draft.items = [...draft.items, { capability: id, revision: null }];
@@ -397,6 +443,7 @@
     on: boolean;
     set: (on: boolean) => void;
     disabled?: boolean;
+    title?: string;
   }
   interface Group {
     id: string;
@@ -423,7 +470,16 @@
         .map((item) => ({
           key: item.id,
           label: item.name,
-          on: on.has(item.id),
+          on:
+            on.has(item.id) &&
+            !itemPlan.some((i) => i.capability === item.id && unavailable(i)),
+          disabled:
+            kind === 'skill' &&
+            (itemPlanState !== 'ready' ||
+              itemPlan.some((i) => i.capability === item.id && unavailable(i))),
+          title: itemPlan.find(
+            (i) => i.capability === item.id && unavailable(i),
+          )?.reason,
           set: (v: boolean) => setItem(item.id, v),
         }));
     const out: Group[] = [];
@@ -587,6 +643,10 @@
     if (!draft || !canSave || busy) return null;
     // A frozen copy: the fields are disabled while saving, and nothing typed meanwhile mixes in.
     const d: LaunchDraft = $state.snapshot(draft) as LaunchDraft;
+    const blocked = new Set(
+      itemPlan.filter(unavailable).map((i) => i.capability),
+    );
+    d.items = d.items.filter((i) => !blocked.has(i.capability));
     busy = true;
     error = null;
     notice = null;
@@ -722,16 +782,41 @@
     if (id) onopen(id);
   }
   async function remove() {
-    if (!current || !editable(current)) return;
+    const removing = current;
+    if (!removing || removing.kind !== 'session' || !editable(removing)) return;
     busy = true;
+    let deleted = false;
     try {
-      await deleteLaunch(current.id);
-      roles = await client.writeRole({ do: 'forget', launch: current.id });
+      const selection = selectionOf(removing, data.selections);
+      await deleteLaunch(removing.id);
+      deleted = true;
+      if (
+        selection &&
+        !launches.some(
+          (l) =>
+            l.id !== removing.id &&
+            l.kind === 'session' &&
+            l.agent === removing.agent &&
+            l.preset === selection.name,
+        )
+      ) {
+        await client.writeLaunchInstructions(selection.id, { project: 'load' });
+      }
+      roles = await client.writeRole({ do: 'forget', launch: removing.id });
       selected = null;
       draft = null;
       await load();
     } catch {
-      error = t('The launch could not be deleted.');
+      if (deleted) {
+        selected = null;
+        draft = null;
+        await load();
+      }
+      error = t(
+        deleted
+          ? 'The launch was deleted, but its instructions or role could not be cleared.'
+          : 'The launch could not be deleted.',
+      );
     } finally {
       busy = false;
       confirming = false;
@@ -980,62 +1065,74 @@
       {/if}
       {#if !readOnly}
         <fieldset
-          class="le-fieldset"
-          disabled={busy || !d.selection || !d.instructions}
+          class="le-fieldset le-group"
+          disabled={busy || !d.instructions}
         >
-          <legend>{t('Project instructions')}</legend>
-          {#each ['load', 'exclude', 'role'] as mode (mode)}
-            <label
-              ><input
-                type="radio"
-                name="project-instructions"
-                checked={d.instructions?.project === mode}
-                onchange={() =>
-                  (d.instructions =
+          <div class="le-ghead">{t('Project instructions')}</div>
+          <div class="le-fields">
+            <label class="le-field">
+              <span>{t('Project instructions')}</span>
+              <select
+                class="le-input"
+                aria-label={t('Project instructions')}
+                value={d.instructions?.project ?? 'load'}
+                onchange={(e) => {
+                  const mode = e.currentTarget.value as
+                    'load' | 'exclude' | 'role';
+                  d.instructions =
                     mode === 'load'
                       ? { project: 'load' }
                       : {
-                          project: mode as 'exclude' | 'role',
+                          project: mode,
                           role:
                             d.instructions && 'role' in d.instructions
                               ? d.instructions.role
                               : '',
-                        })}
-              />
-              {t(
-                mode === 'load'
-                  ? "Load the project's"
-                  : mode === 'exclude'
-                    ? "Without the project's"
-                    : 'Own role',
-              )}</label
-            >
-          {/each}
-          {#if d.instructions?.project === 'role'}
-            <textarea class="le-input" bind:value={d.instructions.role}
-            ></textarea>
-          {/if}
-          <p>
-            {t(
-              'Without project instructions, the agent does not read the project instructions or rules. Your global instructions follow their switch.',
-            )}
-          </p>
-          <p>
-            {t(
-              'The text applies at start. Another open terminal of this launch may see it change; resuming a conversation keeps what it already had.',
-            )}
-          </p>
-          {#if !d.selection}<p>
-              {t('Choose a preset to change project instructions.')}
-            </p>{/if}
-          {#if d.agent === 'claude_code' && d.instructions?.project === 'role' && data.options && !data.options.token_stored}<p
-              role="alert"
-            >
-              {t(
-                'No long-lived token is stored, so this terminal will not start. Run claude setup-token in your own terminal and store it with: secret-tool store --label "Claude Code token (Wyss Console)" service wyss-console kind claude-oauth-token',
-              )}
-            </p>{/if}
+                        };
+                }}
+              >
+                <option value="load">{t("Load the project's")}</option>
+                <option value="exclude">{t("Without the project's")}</option>
+                <option value="role">{t('Own role')}</option>
+              </select>
+              {#if d.instructions?.project === 'role'}
+                <textarea
+                  class="le-input"
+                  rows="6"
+                  aria-label={t('Own role')}
+                  bind:value={d.instructions.role}></textarea>
+              {/if}
+              <span
+                >{t(
+                  d.instructions?.project === 'load'
+                    ? 'Loads the project instructions.'
+                    : 'Without project instructions, the agent does not read the project instructions or rules. Your global instructions follow their switch.',
+                )}</span
+              >
+              {#if d.instructions?.project === 'role'}
+                <span
+                  >{t(
+                    'The text applies at start. Another open terminal of this launch may see it change; resuming a conversation keeps what it already had.',
+                  )}</span
+                >
+              {/if}
+              {#if d.agent === 'claude_code' && d.instructions?.project === 'role' && data.options && !data.options.token_stored}
+                <span class="notice" data-tone="warn" role="alert"
+                  >{t(
+                    'No long-lived token is stored, so this terminal will not start. Run claude setup-token in your own terminal and store it with: secret-tool store --label "Claude Code token (Wyss Console)" service wyss-console kind claude-oauth-token',
+                  )}</span
+                >
+              {/if}
+            </label>
+          </div>
         </fieldset>
+        {#if itemPlanState === 'failed'}
+          <p class="notice" data-tone="error" role="alert">
+            {t(
+              'The launch plan could not be read. Check the folder and try again.',
+            )}
+          </p>
+        {/if}
         <fieldset class="le-fieldset" disabled={busy}>
           <div class="le-fields">
             <label class="le-field" title={t(HINT.role)}
@@ -1175,7 +1272,8 @@
                   aria-label={t(group.label)}
                   checked={n === group.rows.length && n > 0}
                   indeterminate={n > 0 && n < group.rows.length}
-                  disabled={group.rows.length === 0}
+                  disabled={group.rows.length === 0 ||
+                    group.rows.every((r) => r.disabled)}
                   onchange={(e) => setAll(group, e.currentTarget.checked)}
                 />
                 <button
@@ -1214,14 +1312,15 @@
                     <p class="le-meta">{t(group.notice)}</p>
                   {/if}
                   {#each group.rows as row (row.key)}
-                    <label class="le-row" class:off={!row.on}>
+                    <label class="le-row" class:off={!row.on} title={row.title}>
                       <input
                         type="checkbox"
                         checked={row.on}
                         disabled={row.disabled}
+                        title={row.title}
                         onchange={(e) => row.set(e.currentTarget.checked)}
                       />
-                      <span title={row.label}>{row.label}</span>
+                      <span title={row.title ?? row.label}>{row.label}</span>
                     </label>
                   {/each}
                   {#if group.rows.length === 0 && !group.fixed?.length}

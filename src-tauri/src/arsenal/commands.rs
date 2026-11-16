@@ -236,6 +236,9 @@ pub struct TerminalRequest {
     /// A project path as the launcher lists it; `None` or the home entry means no project.
     #[serde(default)]
     pub project: Option<String>,
+    /// Workspace-only preview: evaluate these items without writing a preset.
+    #[serde(default)]
+    pub preview_items: Option<Vec<store::Item>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1291,6 +1294,36 @@ fn instruction_hash(
     Ok(format!("{:x}", sha2::Sha256::digest(material)))
 }
 
+/// Builds a transient selection for Workspace, or reads a saved one for a real launch.
+fn selection_for_plan(
+    store: &Store,
+    request: &TerminalRequest,
+    provider: &str,
+) -> Result<Selection, ArsenalError> {
+    Ok(if let Some(items) = &request.preview_items {
+        // A transient plan cannot pretend to be a saved selection or load its environment.
+        if !request.selection.is_empty() {
+            return Err(ArsenalError::code("invalid_request"));
+        }
+        store::check_items(items)?;
+        Selection {
+            id: String::new(),
+            name: String::new(),
+            provider: provider.into(),
+            items: items.clone(),
+            composites: vec![],
+            created_at: 0,
+            updated_at: 0,
+        }
+    } else {
+        store
+            .selections()?
+            .into_iter()
+            .find(|selection| selection.id == request.selection)
+            .ok_or(ArsenalError::code("not_found"))?
+    })
+}
+
 fn plan_now(
     store: &Arc<Mutex<Store>>,
     link: &HostLink,
@@ -1306,11 +1339,7 @@ fn plan_now(
         let store = store
             .lock()
             .map_err(|_| ArsenalError::from(Error::Storage))?;
-        let selection = store
-            .selections()?
-            .into_iter()
-            .find(|selection| selection.id == request.selection)
-            .ok_or(ArsenalError::code("not_found"))?;
+        let selection = selection_for_plan(&store, request, provider)?;
         let (items, _) = resolve_items(&store, &selection)?;
         (selection, items)
     };
@@ -1341,6 +1370,9 @@ fn plan_now(
         }),
     });
     let mut plan = plan;
+    if request.preview_items.is_some() {
+        return Ok((plan, installed));
+    }
     // Claude: read strictly, like Codex below. A choice that cannot be read is an error, never
     // "nothing left out". A left-out hook the settings no longer have is not checked: a hook
     // switched off or kept aside in the Arsenal leaves settings.json and must not block presets.
@@ -1424,6 +1456,9 @@ pub(crate) fn launch_for(
     request: &TerminalRequest,
     config_hash: &str,
 ) -> Result<ArsenalLaunch, HostError> {
+    if request.preview_items.is_some() {
+        return Err(HostError::new("arsenal_unavailable"));
+    }
     let store = store.ok_or_else(|| HostError::new("arsenal_unavailable"))?;
     let (plan, installed) = plan_now(&store, link, selected, request).map_err(|error| {
         HostError::new(match error.code {
@@ -1531,6 +1566,7 @@ async fn arsenal_terminal_bind(
             .ok_or(ArsenalError::code("session_unknown"))?
             .to_owned();
         let terminal_request = TerminalRequest {
+            preview_items: None,
             selection: request.selection.clone(),
             agent_id: agent,
             project: Some(project.clone()),
@@ -2239,6 +2275,7 @@ mod tests {
             .unwrap();
         let store = Arc::new(Mutex::new(store));
         let request = TerminalRequest {
+            preview_items: None,
             selection: selection.id.clone(),
             agent_id: AgentId::Codex,
             project: None,
@@ -2381,6 +2418,7 @@ mod tests {
             .unwrap();
         let store = Arc::new(Mutex::new(store));
         let request = TerminalRequest {
+            preview_items: None,
             selection: selection.id.clone(),
             agent_id: AgentId::Codex,
             project: None,
@@ -2485,6 +2523,7 @@ mod tests {
             .unwrap();
         let store = Arc::new(Mutex::new(store));
         let request = TerminalRequest {
+            preview_items: None,
             selection: selection.id.clone(),
             agent_id: AgentId::ClaudeCode,
             project: None,
@@ -2561,6 +2600,119 @@ mod tests {
         stop.store(true, std::sync::atomic::Ordering::Release);
         thread.join().unwrap();
         let _ = std::fs::remove_dir_all(root);
+    }
+    #[test]
+    fn workspace_preview_selection_is_bounded_transient_and_keeps_pins() {
+        let store = Store::open(Connection::open_in_memory().unwrap()).unwrap();
+        let items = vec![store::Item {
+            capability: "gone".into(),
+            revision: Some(7),
+        }];
+        let mut request = TerminalRequest {
+            selection: String::new(),
+            agent_id: AgentId::Codex,
+            project: None,
+            preview_items: Some(items.clone()),
+        };
+        let selection = selection_for_plan(&store, &request, "codex").unwrap();
+        assert_eq!(selection.items, items);
+        assert_eq!(selection.provider, "codex");
+        assert!(selection.id.is_empty());
+        assert!(store.selections().unwrap().is_empty());
+        request.selection = "saved".into();
+        assert_eq!(
+            selection_for_plan(&store, &request, "codex")
+                .unwrap_err()
+                .code,
+            "invalid_request"
+        );
+        request.selection.clear();
+        request.preview_items = Some(
+            (0..513)
+                .map(|i| store::Item {
+                    capability: format!("item-{i}"),
+                    revision: None,
+                })
+                .collect(),
+        );
+        assert_eq!(
+            selection_for_plan(&store, &request, "codex")
+                .unwrap_err()
+                .code,
+            "invalid_request"
+        );
+        request.preview_items = None;
+        assert_eq!(
+            selection_for_plan(&store, &request, "codex")
+                .unwrap_err()
+                .code,
+            "not_found"
+        );
+    }
+
+    #[test]
+    fn workspace_preview_evaluates_items_without_saving_or_loading_instructions() {
+        let root = std::env::temp_dir().join(format!(
+            "arsenal-workspace-preview-{}",
+            uuid::Uuid::new_v4().simple()
+        ));
+        std::fs::create_dir_all(root.join("home")).unwrap();
+        let _env = crate::native::service_tests::FakeOwnerEnv::new(&root.join("home"));
+        let (link, stop, thread) = codex_host(&root);
+        let store = Arc::new(Mutex::new(
+            Store::open(Connection::open_in_memory().unwrap()).unwrap(),
+        ));
+        let directory = super::super::environment::directory().unwrap();
+        std::fs::create_dir_all(&directory).unwrap();
+        let role_path = directory.join("role-instructions.json");
+        std::fs::write(&role_path, b"unreadable fixture").unwrap();
+        let mut request = TerminalRequest {
+            selection: String::new(),
+            agent_id: AgentId::Codex,
+            project: None,
+            preview_items: Some(vec![store::Item {
+                capability: "gone".into(),
+                revision: Some(1),
+            }]),
+        };
+        let (plan, _) = plan_now(&store, &link, None, &request).unwrap();
+        assert_eq!(plan.items.len(), 1);
+        assert_eq!(plan.items[0].capability, "gone");
+        assert_eq!(plan.items[0].state, "missing");
+        assert_eq!(plan.status, "blocked");
+        assert!(store.lock().unwrap().selections().unwrap().is_empty());
+        assert_eq!(std::fs::read(&role_path).unwrap(), b"unreadable fixture");
+        assert!(
+            launch_for(
+                Some(store.clone()),
+                &link,
+                None,
+                &request,
+                &plan.config_hash
+            )
+            .is_err()
+        );
+        request.selection = "saved".into();
+        assert_eq!(
+            plan_now(&store, &link, None, &request).unwrap_err().code,
+            "invalid_request"
+        );
+        request.selection.clear();
+        request.preview_items = Some(
+            (0..513)
+                .map(|i| store::Item {
+                    capability: format!("gone-{i}"),
+                    revision: None,
+                })
+                .collect(),
+        );
+        assert_eq!(
+            plan_now(&store, &link, None, &request).unwrap_err().code,
+            "invalid_request"
+        );
+        stop.store(true, std::sync::atomic::Ordering::Relaxed);
+        thread.join().unwrap();
+        std::fs::remove_dir_all(root).unwrap();
     }
 }
 

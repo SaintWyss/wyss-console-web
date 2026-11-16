@@ -90,14 +90,13 @@ const sameSpec = (
 
 /**
  * Whether a preset is used by something other than this launch: another launch of the same
- * agent names it, or it is the preset this folder remembers for the agent.
+ * agent names it. A folder remembering this launch's preset is not another consumer.
  */
 export function sharedBy(
   selection: Selection,
   agent: Agent,
   launches: readonly Launch[],
   editing: string | null,
-  folderSelection: string | null,
 ): string[] {
   const others = launches
     .filter(
@@ -108,7 +107,7 @@ export function sharedBy(
         l.preset === selection.name,
     )
     .map((l) => l.name);
-  return folderSelection === selection.id ? [...others, '·folder'] : others;
+  return others;
 }
 
 /** A preset name not taken among `taken`: the launch's name, then "name 2", "name 3"… */
@@ -190,19 +189,13 @@ export function savePlan(draft: LaunchDraft, ctx: PlanContext): SavePlan {
   let preset: PresetStep;
   if (!sel) {
     preset =
-      contentChanged || specChanged
+      contentChanged || specChanged || instructionsChanged
         ? { do: 'create', name: freeName(draft.name.trim(), names) }
         : { do: 'none' };
   } else if (!contentChanged && !specChanged && !instructionsChanged) {
     preset = { do: 'keep' };
   } else {
-    const shared = sharedBy(
-      sel,
-      draft.agent,
-      ctx.launches,
-      draft.id,
-      ctx.folderSelection,
-    );
+    const shared = sharedBy(sel, draft.agent, ctx.launches, draft.id);
     preset =
       shared.length > 0
         ? {

@@ -3956,4 +3956,13 @@ export const ES: Readonly<Record<string, string>> = {
     'La ruta del proyecto contiene caracteres que no se pueden usar para excluir instrucciones. No se inició nada.',
   'The combined global instructions and role are too long for Codex. Nothing was started.':
     'Las instrucciones globales y el rol juntos son demasiado largos para Codex. No se inició nada.',
+  'Loads the project instructions.': 'Carga las instrucciones del proyecto.',
+  'The launch plan could not be read. Check the folder and try again.':
+    'No se pudo leer el plan del lanzamiento. Revisá la carpeta y volvé a intentarlo.',
+  'The preset “{name}” cannot be applied because these items are missing or rejected: {items}, and {count} more. Uncheck them or restore them in Arsenal. Nothing was started.':
+    'El preset «{name}» no se puede aplicar porque estos ítems faltan o fueron rechazados: {items}, y {count} más. Destildalos o restauralos en el Arsenal. No se inició nada.',
+  'The preset “{name}” cannot be applied because these items are missing or rejected: {items}. Uncheck them or restore them in Arsenal. Nothing was started.':
+    'El preset «{name}» no se puede aplicar porque estos ítems faltan o fueron rechazados: {items}. Destildalos o restauralos en el Arsenal. No se inició nada.',
+  'The launch was deleted, but its instructions or role could not be cleared.':
+    'Se borró el lanzamiento, pero no se pudieron borrar sus instrucciones o su rol de la lista.',
 };

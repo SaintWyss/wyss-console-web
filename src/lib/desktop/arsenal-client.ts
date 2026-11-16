@@ -226,9 +226,15 @@ export const arsenalClient = {
     selection: string,
     agent_id: AgentId,
     project: string | null,
+    preview_items?: Item[],
   ) =>
     answer<TerminalPlan>('arsenal_terminal_plan', parseTerminalPlan, {
-      request: { selection, agent_id, project },
+      request: {
+        selection,
+        agent_id,
+        project,
+        ...(preview_items ? { preview_items } : {}),
+      },
     }),
   /** Records what a started terminal carries; the desktop reads that from the host itself. */
   bindTerminal: (session_id: string, selection: string, config_hash: string) =>

@@ -331,6 +331,7 @@ fn arsenal_launch(
         link,
         selected.as_deref(),
         &TerminalRequest {
+            preview_items: None,
             selection: request.selection.clone(),
             agent_id: agent,
             project: Some(request.project.clone()),

@@ -10,6 +10,31 @@ import type { BeforeOutcome, Launch } from '../../desktop/launch-client';
 import { msg } from '../../i18n/msg';
 import { HOME_FOLDER_REFUSED } from '../native/present';
 
+/** Item failures take precedence over the provider's independent enforcement verdict. */
+function blockedItemsRefusal(plan: TerminalPlan): LaunchRefusal | null {
+  if (plan.status !== 'blocked') return null;
+  const items = plan.items.filter(
+    (i) => i.state === 'missing' || i.state === 'rejected',
+  );
+  return new LaunchRefusal(
+    items.length > 5
+      ? msg(
+          'The preset “{name}” cannot be applied because these items are missing or rejected: {items}, and {count} more. Uncheck them or restore them in Arsenal. Nothing was started.',
+        )
+      : msg(
+          'The preset “{name}” cannot be applied because these items are missing or rejected: {items}. Uncheck them or restore them in Arsenal. Nothing was started.',
+        ),
+    {
+      name: plan.selection_name,
+      items: items
+        .slice(0, 5)
+        .map((i) => i.name || i.capability)
+        .join(', '),
+      count: String(items.length - 5),
+    },
+  );
+}
+
 /** The part of an Arsenal selection a launch needs to find its preset. */
 export type SelectionName = Pick<Selection, 'id' | 'name' | 'provider'>;
 
@@ -230,20 +255,26 @@ export async function openLaunch(
     plan.launch_instructions.project !== 'load' &&
     !apply
   )
-    throw new LaunchRefusal(
-      msg(
-        'The preset “{name}” changes the project instructions, and it cannot be applied now: {reason} Nothing was started.',
-      ),
-      { name: plan.selection_name, reason: plan.enforcement.reason },
+    throw (
+      blockedItemsRefusal(plan) ??
+      new LaunchRefusal(
+        msg(
+          'The preset “{name}” changes the project instructions, and it cannot be applied now: {reason} Nothing was started.',
+        ),
+        { name: plan.selection_name, reason: plan.enforcement.reason },
+      )
     );
   // A preset that leaves a Codex hook or AGENTS.md out starts with that applied or not at all:
   // started without it, the hook the owner switched off would run.
   if (plan?.codex_environment && !apply)
-    throw new LaunchRefusal(
-      msg(
-        'The preset “{name}” leaves a Codex hook or AGENTS.md out, and it cannot be applied now: {reason} Nothing was started.',
-      ),
-      { name: plan.selection_name, reason: plan.enforcement.reason },
+    throw (
+      blockedItemsRefusal(plan) ??
+      new LaunchRefusal(
+        msg(
+          'The preset “{name}” leaves a Codex hook or AGENTS.md out, and it cannot be applied now: {reason} Nothing was started.',
+        ),
+        { name: plan.selection_name, reason: plan.enforcement.reason },
+      )
     );
   // A launch with a folder of its own never starts in the owner's home, where the agent would
   // read the owner's configuration again as the project's. Said before any `before` command runs;

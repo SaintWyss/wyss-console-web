@@ -13,7 +13,7 @@ use sha2::{Digest, Sha256};
 use crate::agentconfig::catalogue::{MAX_FILE_BYTES, MAX_FILES, MAX_TREE_BYTES, name_ok};
 
 const MAX_PATH_BYTES: usize = 256;
-const MAX_ITEMS: usize = 128;
+const MAX_ITEMS: usize = 512;
 const SCHEMA_VERSION: i64 = 2;
 /// Most terminal bindings kept; the oldest go first.
 const MAX_BINDINGS: i64 = 500;
@@ -1745,6 +1745,22 @@ mod tests {
         store.delete_preset(&renamed.id).unwrap();
         assert!(store.presets().unwrap().is_empty());
         assert_eq!(store.delete_preset(&renamed.id), Err(Error::NotFound));
+    }
+
+    #[test]
+    fn item_limit_accepts_512_and_rejects_513() {
+        let mut items: Vec<Item> = (0..512)
+            .map(|i| Item {
+                capability: format!("item-{i}"),
+                revision: None,
+            })
+            .collect();
+        assert_eq!(check_items(&items), Ok(()));
+        items.push(Item {
+            capability: "item-512".into(),
+            revision: None,
+        });
+        assert_eq!(check_items(&items), Err(Error::Invalid));
     }
 
     #[test]
