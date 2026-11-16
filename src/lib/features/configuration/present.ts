@@ -39,14 +39,6 @@ export const KIND_LABEL: Record<ItemKind, string> = {
   model_preference: msg('Models'),
   plugin: msg('Plugins'),
 };
-export const KIND_ORDER: readonly ItemKind[] = [
-  'hook',
-  'skill',
-  'mcp_server',
-  'rule_file',
-  'model_preference',
-  'plugin',
-];
 const KIND_SINGULAR: Record<ItemKind, string> = {
   hook: msg('Hook'),
   skill: msg('Skill'),

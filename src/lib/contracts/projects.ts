@@ -41,10 +41,6 @@ export const NEXT_ACTIONS = [
 export type NextAction = (typeof NEXT_ACTIONS)[number];
 
 export type SafetyProfile = 'inference' | 'local_tools';
-export const SAFETY_PROFILES: readonly SafetyProfile[] = [
-  'inference',
-  'local_tools',
-];
 export type Provider = 'claude' | 'codex';
 export type LaunchProvider = Provider | 'shell';
 export type Mode = 'native' | 'managed';

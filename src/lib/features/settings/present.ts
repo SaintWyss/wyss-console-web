@@ -56,10 +56,6 @@ export function scrollbackChoices(current: number): readonly number[] {
     ? SCROLLBACK_STEPS
     : [...SCROLLBACK_STEPS, current].sort((a, b) => a - b);
 }
-export function scrollbackLabel(lines: number): string {
-  return `${lines.toLocaleString('en-US')} lines`;
-}
-
 export interface SettingsNotice {
   tone: RuntimeTone;
   title: string;

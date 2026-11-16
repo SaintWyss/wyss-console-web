@@ -192,14 +192,6 @@ export const LAYOUT_VERSION = 1;
 /** At most this many tabs are kept. */
 export const MAX_TABS = 16;
 
-export interface SavedLeaf {
-  /** The host's terminal the pane showed. */
-  terminal: string;
-  /** What to call a terminal that has to be made again. */
-  title: string;
-  /** Where its shell started. */
-  cwd: string;
-}
 export interface SavedTab {
   root: Node<string>;
   /** The terminal that had the focus. */
