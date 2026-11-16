@@ -7,7 +7,7 @@ import { ES_SCREENS } from './screens';
 /**
  * Spanish for the window's own text. The key is the English sentence exactly as it is written
  * where it is used; `tests/i18n.test.ts` fails when a sentence in `src/` has no entry here, when
- * an entry is no longer used, or when the `{name}` places of the two do not match.
+ * the `{name}` places of the two do not match.
  *
  * Product and provider names (Wyss Console, Arsenal, Workspace, Codex, Claude Code) are not
  * translated, and neither are the words the product uses as names of things (Inference, Local
@@ -20,12 +20,7 @@ export const ES: Readonly<Record<string, string>> = {
   More: 'Más',
   Distributors: 'Distribuidores',
   // Distributors
-  'Last read: {time}': 'Última lectura: {time}',
-  'Installed · {version}': 'Instalado · {version}',
-  'Installed · version not reported': 'Instalado · versión no informada',
   'Tool not installed': 'No instalado',
-  'Not configured': 'Sin configurar',
-  'new model': 'nuevo',
   // Workspace: launch editor
   'Choose it with Browse… or from the known folders.':
     'Elegila con Examinar… o entre las carpetas conocidas.',
@@ -133,10 +128,7 @@ export const ES: Readonly<Record<string, string>> = {
   Arsenal: 'Arsenal',
   'Installed capabilities': 'Capacidades instaladas',
   Configuration: 'Configuración',
-  'What the agents are set up with': 'Con qué están configurados los agentes',
   Models: 'Modelos',
-  'What is offered, set, selected and in use':
-    'Qué se ofrece, qué está fijado, elegido y en uso',
   Profiles: 'Perfiles',
   Credentials: 'Credenciales',
   'API keys, kept sealed': 'Claves de API, guardadas selladas',
@@ -153,8 +145,6 @@ export const ES: Readonly<Record<string, string>> = {
     'Carpetas, workspaces y las sesiones que muestran',
   Primary: 'Principal',
   '{count} waiting': '{count} en espera',
-  'Expand the sidebar': 'Expandir la barra lateral',
-  'Collapse the sidebar': 'Contraer la barra lateral',
 
   // Shell: top bar
   'Terminal tools': 'Herramientas de terminal',
@@ -164,8 +154,6 @@ export const ES: Readonly<Record<string, string>> = {
   'Split, one above the other (Ctrl+Shift+E)':
     'Dividir, una arriba de la otra (Ctrl+Shift+E)',
   'Keyboard shortcuts': 'Atajos de teclado',
-  'Launches from your files in ~/.config/wyss-console/launch':
-    'Lanzamientos de tus archivos en ~/.config/wyss-console/launch',
   Launch: 'Lanzar',
 
   // Shell: status
@@ -823,78 +811,13 @@ export const ES: Readonly<Record<string, string>> = {
     'El runtime del agente no está listo, así que no hay a qué conectarse.',
 
   // Models: what is offered, configured, selected and reported in use
-  'Four different things, kept apart: what a runtime':
-    'Cuatro cosas distintas, separadas: lo que un runtime',
   offers: 'ofrece',
-  ', what an agent’s files are': ', lo que los archivos de un agente tienen',
   configured: 'configurado',
-  'with, what a profile': 'con, lo que un perfil',
   selects: 'selecciona',
-  'for a session it starts, and what a runtime':
-    'para una sesión que arranca, y lo que un runtime',
   'reported in use': 'informó en uso',
-  '. None is filled from another. A default in a list, a value in a file or a name passed at start says what was asked for, never what answered.':
-    '. Ninguna se completa con otra. Un valor por defecto en una lista, un valor en un archivo o un nombre pasado al arrancar dice lo que se pidió, nunca lo que respondió.',
-  'Offered by the managed Codex runtime':
-    'Ofrecidos por el runtime de Codex administrado',
-  'Reading the runtime’s list…': 'Leyendo la lista del runtime…',
-  'The last read failed. What is shown is older.':
-    'La última lectura falló. Lo que se muestra es anterior.',
-  'The runtime listed no model.': 'El runtime no listó ningún modelo.',
-  'Models the runtime offers': 'Modelos que ofrece el runtime',
-  'default of this runtime': 'predeterminado de este runtime',
-  'Provider {provider}': 'Proveedor {provider}',
-  'Efforts:': 'Esfuerzos:',
-  'not reported by this authority version':
-    'no informado por esta versión de la autoridad',
-  'none listed': 'ninguno listado',
-  '{effort} (default)': '{effort} (predeterminado)',
   '{effort}': '{effort}',
-  'Configured in the agents’ own files':
-    'Configurados en los archivos propios de los agentes',
-  'Not read yet. The Configuration view reads these files.':
-    'Todavía no se leyó. La vista de Configuración lee estos archivos.',
-  'No model setting was found in the places read.':
-    'No se encontró ninguna configuración de modelo en los lugares leídos.',
-  'Configured models': 'Modelos configurados',
   'not shown here': 'no se muestra acá',
-  'As the file says; it applies to new sessions, and what a running session does with a change is not known.':
-    'Tal como dice el archivo; se aplica a las sesiones nuevas, y no se sabe qué hace una sesión en curso con un cambio.',
-  'Selected by a profile': 'Seleccionados por un perfil',
-  'No profile names a model or an effort.':
-    'Ningún perfil nombra un modelo ni un esfuerzo.',
-  'Models selected by profiles': 'Modelos seleccionados por perfiles',
   'Reported in use': 'Informados en uso',
-  'Managed sessions have not been read yet.':
-    'Todavía no se leyeron las sesiones Managed.',
-  'No managed session is attached.': 'No hay ninguna sesión Managed conectada.',
-  'Models reported by the runtime': 'Modelos informados por el runtime',
-  'The list could not be read: the authority did not answer.':
-    'No se pudo leer la lista: la autoridad no respondió.',
-  'The list could not be read: the authority speaks another version than this app.':
-    'No se pudo leer la lista: la autoridad habla otra versión que esta app.',
-  'The list could not be read: the authority is busy. Try again.':
-    'No se pudo leer la lista: la autoridad está ocupada. Probá de nuevo.',
-  'The list could not be read. Nothing is shown rather than something unverified.':
-    'No se pudo leer la lista. No se muestra nada en lugar de algo no verificado.',
-  'This is the runtime’s own list. A model being listed does not mean your account can use it: that is not known here.':
-    'Esta es la lista propia del runtime. Que un modelo aparezca en la lista no quiere decir que tu cuenta pueda usarlo: eso no se sabe acá.',
-  'The managed Codex runtime is not running, so there is no list. A list of a runtime that has stopped is never shown. Start a managed session and it is listed again.':
-    'El runtime de Codex administrado no está corriendo, así que no hay lista. Nunca se muestra la lista de un runtime que se detuvo. Iniciá una sesión Managed y la lista vuelve a aparecer.',
-  'Listed once by the managed Codex runtime (version {version}) when it started, in {mode}. Read from the authority at {at}.':
-    'Listado una vez por el runtime de Codex administrado (versión {version}) al arrancar, en {mode}. Leído de la autoridad el {at}.',
-  'Listed once by the managed Codex runtime when it started, in {mode}. Read from the authority at {at}.':
-    'Listado una vez por el runtime de Codex administrado al arrancar, en {mode}. Leído de la autoridad el {at}.',
-  'The runtime’s list continued past what was taken: this list is partial.':
-    'La lista del runtime siguió más allá de lo que se tomó: esta lista está incompleta.',
-  'Whether this list is complete is not reported by this authority version.':
-    'Esta versión de la autoridad no informa si la lista está completa.',
-  'The runtime marks it for replacement by {by}, retiring {retires}.':
-    'El runtime marca que lo reemplaza {by}, y se retira el {retires}.',
-  'The runtime marks it for replacement by {by}.':
-    'El runtime marca que lo reemplaza {by}.',
-  'Agents you start in a terminal do not report the model they use, and this app adds no hook and reads no terminal to find out. What you see for them is what was asked for and what their files say, never what is in use.':
-    'Los agentes que arrancás en una terminal no informan el modelo que usan, y esta app no agrega ningún hook ni lee la terminal para saberlo. Lo que se ve de ellos es lo que se pidió y lo que dicen sus archivos, nunca lo que está en uso.',
 
   // Credentials: the API keys the desktop keeps sealed
   'API credentials': 'Credenciales de API',
@@ -932,44 +855,12 @@ export const ES: Readonly<Record<string, string>> = {
   'Enter the key…': 'Ingresar la clave…',
   'Reading…': 'Leyendo…',
   Global: 'Global',
-  'Nothing here yet. Add brings what is already on your computer.':
-    'Todavía no hay nada. Agregar trae lo que ya está en tu PC.',
-  'What Wyss Console found in your folders and is not in the library yet. It is copied to your library; your original files are not touched.':
-    'Lo que Wyss Console encontró en tus carpetas y todavía no está en la biblioteca. Se copia a tu biblioteca; tus archivos originales no se tocan.',
-  'What Wyss Console found in your folders and is not in the library yet. Before it is added you see what it does, its files and whether it runs code.':
-    'Lo que Wyss Console encontró en tus carpetas y todavía no está en la biblioteca. Antes de sumarlo ves qué hace, qué archivos trae y si ejecuta código.',
   '1 launch': '1 lanzamiento',
-  'Activates when': 'Se activa cuando',
-  'Bring what you already use': 'Traé lo que ya usás',
   Context: 'Contexto',
-  'Could not be saved. What was saved before this stays.':
-    'No se pudo guardar. Lo que ya estaba guardado sigue igual.',
-  'Import {n} items': 'Importar {n} elementos',
-  'In a launch’s environment': 'En el entorno de un lanzamiento',
-  '{n} launches': '{n} lanzamientos',
   No: 'No',
-  'No launch of this agent has this role.':
-    'Ningún lanzamiento de este agente tiene este rol.',
-  'No launch of this agent yet.': 'Todavía no hay lanzamientos de este agente.',
   'Not known': 'No se sabe',
-  'Nothing found to bring.': 'No se encontró nada para traer.',
-  'Nothing here.': 'No hay nada acá.',
-  'Nothing matches “{q}”.': 'Nada coincide con “{q}”.',
   Origin: 'Origen',
-  'Putting it in a role adds it to every launch of that role.':
-    'Ponerla en un rol la suma a todos los lanzamientos de ese rol.',
-  'Suggestion: {group}': 'Sugerencia: {group}',
-  'This is chosen in each launch’s environment, in Workspace.':
-    'Esto se elige en el entorno de cada lanzamiento, en Workspace.',
-  'This launch runs commands before it starts: it is changed in its file.':
-    'Este lanzamiento corre comandos antes de arrancar: se cambia en su archivo.',
-  'tokens, estimated': 'tokens, estimado',
-  Unplaced: 'Sin ubicar',
   'What it does': 'Qué hace',
-  'Where it goes': 'Dónde va',
-  'Works in': 'Funciona en',
-  'Wyss Console found this on your computer. It is copied to your library; your original files are not touched.':
-    'Wyss Console encontró esto en tu PC. Se copia a tu biblioteca; tus archivos originales no se tocan.',
   Yes: 'Sí',
   'Arsenal presets': 'Presets de Arsenal',
   'The earlier Arsenal screen: presets by provider':
@@ -2284,7 +2175,6 @@ export const ES: Readonly<Record<string, string>> = {
   'Terminal sessions': 'Sesiones de terminal',
   Launches: 'Lanzamientos',
   'New terminal': 'Nueva terminal',
-  'Start agent…': 'Iniciar agente…',
   'Reading launches…': 'Leyendo lanzamientos…',
   'No launches. Add a file in {folder}.':
     'No hay lanzamientos. Agregá un archivo en {folder}.',
@@ -2296,8 +2186,6 @@ export const ES: Readonly<Record<string, string>> = {
   Order: 'Orden',
   'Every other key goes to the program in the terminal.':
     'Cualquier otra tecla va al programa de la terminal.',
-  'No terminals open. Create a new terminal to continue.':
-    'No hay terminales abiertas. Creá una nueva terminal para seguir.',
   'New terminal in a new tab': 'Nueva terminal en una pestaña nueva',
   'Split the pane side by side': 'Dividir el panel lado a lado',
   'Split the pane, one above the other':
@@ -2430,9 +2318,6 @@ export const ES: Readonly<Record<string, string>> = {
   'Part of {name}': 'Parte de {name}',
   'No custom commands. Your /commands are skills here.':
     'No tenés comandos propios. Acá tus /comandos son skills.',
-  'Shown, not selectable yet': 'Para ver, todavía no se eligen',
-  'Hooks, MCP servers, plugins and commands will be chosen per preset in a later step. GSD Core agents go on and off with Keep GSD Core.':
-    'Hooks, servidores MCP, plugins y comandos se van a elegir por preset en un paso siguiente. Los agentes de GSD Core se prenden y apagan con Mantener GSD Core.',
   'A rule is a file of permanent instructions, such as invariantes.md. The agent reads it when every session starts and follows it the whole time. It does not run anything.':
     'Una regla es un archivo de instrucciones permanentes, como invariantes.md. El agente lo lee al arrancar cada sesión y lo cumple todo el tiempo. No ejecuta nada.',
   'A skill is a how-to manual for one kind of task, such as designing a screen or finding a bug. The agent opens it only when the task you give it needs it.':
@@ -2450,7 +2335,6 @@ export const ES: Readonly<Record<string, string>> = {
   'Missing dependency': 'Falta una dependencia',
   Conflicting: 'En conflicto',
   Unsupported: 'No compatible',
-  'Models and rules': 'Modelos y reglas',
   'Fixing bugs': 'Depuración',
   Integrations: 'Integraciones',
   Automations: 'Automatizaciones',
@@ -2502,8 +2386,6 @@ export const ES: Readonly<Record<string, string>> = {
     'No se pudo borrar la categoría. Probá de nuevo.',
   'That name cannot be used: it is empty, longer than 40 characters, or already in this section.':
     'Ese nombre no sirve: está vacío, tiene más de 40 caracteres o ya existe en esta sección.',
-  'Rules the agent always follows, and the Codex model profiles (astra, luna, sol) that choose which model and effort a task runs with.':
-    'Reglas que el agente cumple siempre, y los perfiles de modelo de Codex (astra, luna, sol) que eligen con qué modelo y esfuerzo corre una tarea.',
   'Checks for security problems: audits, threat reviews and guards against dangerous commands.':
     'Controles de seguridad: auditorías, revisión de amenazas y frenos ante comandos peligrosos.',
   'Finding why something fails: method to chase a bug down to its cause.':
@@ -2531,7 +2413,6 @@ export const ES: Readonly<Record<string, string>> = {
     'Esta computadora y las propias herramientas: configuración, chequeos de salud y actualizaciones.',
   'What no rule placed. Use Move to group… to put it where it belongs.':
     'Lo que ninguna regla ubicó. Usá Mover a grupo… para ponerlo donde va.',
-  Debugging: 'Depuración',
   'Content and SEO': 'Contenido y SEO',
   'Animation and video': 'Animación y video',
   'Design and interface': 'Diseño e interfaz',
@@ -2864,8 +2745,6 @@ export const ES: Readonly<Record<string, string>> = {
     'Ese agente no está instalado en esta computadora.',
   'That folder cannot be used. Choose a folder with the folder button.':
     'Esa carpeta no se puede usar. Elegí una carpeta con el botón de carpeta.',
-  'Skill exclusion is not qualified for this exact provider build, so nothing was started with it. Start without applying the selection, or use a qualified build.':
-    'La exclusión de skills no está calificada para esta versión exacta del proveedor, así que no se inició nada con ella. Iniciá sin aplicar la selección, o usá una versión calificada.',
   'A launch with a folder of its own cannot use your home folder as its project: your configuration (hooks, instructions, skills) would load anyway. Choose a project folder.':
     'Con una carpeta propia para este lanzamiento no se puede usar tu carpeta personal como proyecto: tu configuración (hooks, instrucciones, skills) se cargaría igual. Elegí una carpeta de proyecto.',
   'The Arsenal plan changed since it was shown: the library, the installed skills or the provider build moved. Review the new plan and start again.':
@@ -3683,26 +3562,17 @@ export const ES: Readonly<Record<string, string>> = {
   'Scripts that run on their own at fixed moments (before a command, when a turn ends…). The script takes no context, but what some of them print (at start, before each message) enters the conversation. Not measured.':
     'Scripts que corren solos en momentos fijos (antes de un comando, al terminar un turno…). El script no ocupa contexto, pero lo que imprimen algunos (al arrancar, antes de cada mensaje) entra en la conversación. No se mide.',
   Personalization: 'Personalización',
-  'Which agents are installed, their version and their models.':
-    'Qué agentes hay instalados, su versión y sus modelos.',
-  'What each distributor offers, which model is set and which one a session is using.':
-    'Qué ofrece cada distribuidor, qué modelo está configurado y cuál usa cada sesión.',
   'Skills, agents, MCP servers and presets: what a session can load.':
     'Skills, agentes, servidores MCP y presets: lo que una sesión puede cargar.',
   'The API keys each distributor needs, kept sealed.':
     'Las claves de API que necesita cada distribuidor, guardadas selladas.',
   // Distributors: added by the owner
-  'This agent’s own configuration files: hooks, skills, MCP servers.':
-    'Los archivos de configuración propios de este agente: hooks, skills, servidores MCP.',
-  'The API key this agent uses.': 'La clave de API que usa este agente.',
   'The added distributors did not load.':
     'No se pudieron leer los distribuidores agregados.',
   'It could not be deleted.': 'No se pudo borrar.',
   'The launch could not be made.': 'No se pudo crear el lanzamiento.',
   'Types “{command}” in a new terminal of the Console, where you see it run.':
     'La Consola escribe «{command}» en una terminal nueva para que puedas ver cómo se ejecuta.',
-  'Added by you': 'Agregados por vos',
-  'Other tools': 'Otras herramientas',
   'Add a tool': 'Agregar herramienta',
   'Confirm delete': 'Confirmar borrado',
   'Comes with the Console: it cannot be edited or deleted.':
@@ -3731,18 +3601,7 @@ export const ES: Readonly<Record<string, string>> = {
   'Make launch': 'Crear lanzamiento',
   'Change its name or its commands.': 'Cambiar su nombre o sus comandos.',
   Edit: 'Editar',
-  'Nothing added yet.': 'Todavía no agregaste ninguno.',
-  'Models in detail': 'Modelos en detalle',
-  'Offered, with the efforts each accepts':
-    'Ofrecidos, con los esfuerzos que acepta cada uno',
-  'Running now': 'Corriendo ahora',
-  'Nothing of this tool is running now.':
-    'Ahora no corre nada de esta herramienta.',
   // ---- permissions ----
-  'What this tool offers and what is running with it now.':
-    'Qué ofrece esta herramienta y qué está corriendo con ella ahora.',
-  'A tool you add opens and updates in a terminal of the Console. Arsenal and the context estimate are only for the tools the Console knows.':
-    'Una herramienta que agregás se abre y se actualiza en una terminal de la Consola. Arsenal y la estimación de contexto son solo para las herramientas que la Consola conoce.',
   'Could not check what this permission would pass. Refresh Native before starting.':
     'No se pudo comprobar qué pasaría este permiso. Actualizá Native antes de iniciar.',
   'What the permission passes': 'Qué pasa el permiso',
@@ -3780,12 +3639,9 @@ export const ES: Readonly<Record<string, string>> = {
     'El agente lee y planifica; no cambia nada.',
   'The agent edits files without asking; it still asks before running commands. Claude Code only.':
     'El agente edita archivos sin preguntar; igual pregunta antes de ejecutar comandos. Solo Claude Code.',
-  'The real configuration files of Claude Code and Codex: what an agent starts with when a launch names no permission.':
-    'Los archivos de configuración reales de Claude Code y Codex: con lo que arranca un agente cuando un lanzamiento no nombra un permiso.',
   'Claude account': 'Cuenta de Claude',
   'Included with Codex': 'Incluidas en Codex',
   'Git repos': 'Repos git',
-  'My skills': 'Mis skills',
   Personal: 'Personales',
   'Codex asks you to trust a new or changed hook the next time it starts. Deleting one moves the hooks after it in its event, and Codex asks to trust those again.':
     'Codex te pide confiar en un hook nuevo o cambiado la próxima vez que arranca. Borrar uno corre los que vienen después en su evento, y Codex vuelve a pedir confianza para esos.',
@@ -3821,30 +3677,12 @@ export const ES: Readonly<Record<string, string>> = {
   'Code ({n} lines)': 'Código ({n} líneas)',
   'Hide the tree': 'Ocultar el árbol',
   'Show the tree': 'Mostrar el árbol',
-  'Personal: you can edit it': 'Personal: la podés editar',
   'Choose a category in the tree.': 'Elegí una categoría en el árbol.',
   Sets: 'Conjuntos',
   'GSD Core': 'GSD Core',
   'Search skills and agents': 'Buscar skills y agentes',
   '{n} found for “{q}”': '{n} encontradas para “{q}”',
-  Colours: 'Colores',
-  'Yours: you made it': 'Tuya: la hiciste vos',
-  'GSD: updates itself': 'GSD: se actualiza solo',
-  'Plugin: comes from outside': 'Plugin: viene de afuera',
-  'Comes with the tool': 'Viene con la herramienta',
   'Git repo': 'Repo git',
-  'A method for planning, building and checking work in phases. Its skills and agents are linked in from its own install.':
-    'Un método para planear, construir y verificar el trabajo por fases. Sus skills y agentes están enlazados desde su propia instalación.',
-  'A plugin installed for this tool.':
-    'Un plugin instalado para esta herramienta.',
-  'Skills that come with your Claude account.':
-    'Skills que vienen con tu cuenta de Claude.',
-  'Skills one tool installed in a batch.':
-    'Skills que una herramienta instaló en tanda.',
-  'Skills Codex installs and replaces itself.':
-    'Skills que Codex instala y reemplaza solo.',
-  'Skills that are a Git repository of their own.':
-    'Skills que son un repositorio Git propio.',
   'its link leads out of the agents’ folders':
     'su enlace lleva fuera de las carpetas de los agentes',
   'its link leads nowhere': 'su enlace no lleva a ningún lado',
@@ -3859,26 +3697,15 @@ export const ES: Readonly<Record<string, string>> = {
     'Está en las carpetas que leen las dos, así que se carga en toda sesión de cada una.',
   'Its text could not be read.': 'No se pudo leer su texto.',
   'Its file has no description.': 'Su archivo no trae descripción.',
-  'What a skill is': 'Qué es una skill',
-  'A skill is an instruction for how to do something, kept in a folder with a SKILL.md.':
-    'Una skill es una instrucción de cómo hacer algo, guardada en una carpeta con un SKILL.md.',
-  'When it starts, Claude reads only each skill’s name and description; if what you ask matches, it opens the whole skill and follows it.':
-    'Al arrancar, Claude lee solo el nombre y la descripción de cada una; si lo que pedís coincide, abre la skill entera y la sigue.',
-  'You use one by typing /name or by asking for what its “Use it when” says.':
-    'Se usa escribiendo /nombre o pidiendo lo que dice su “Usala cuando”.',
   'The skills on disk could not be read.':
     'No se pudieron leer las skills del disco.',
   'A folder holds more than is read: the lists are incomplete.':
     'Una carpeta tiene más de lo que se lee: las listas están incompletas.',
-  'Start with /{name}': 'Empezá por /{name}',
-  'They come from outside and update themselves: they are not edited here.':
-    'Vienen de afuera y se actualizan solas: no se editan acá.',
   Back: 'Volver',
   'Its text could not be read ({reason}).':
     'No se pudo leer su texto ({reason}).',
   'Use it when': 'Usala cuando',
   'Do not use it when': 'No la uses cuando',
-  'How it is used': 'Cómo se usa',
   State: 'Estado',
   'Switched on': 'Prendida',
   'Switched off': 'Apagada',
@@ -3890,7 +3717,6 @@ export const ES: Readonly<Record<string, string>> = {
   'and {n} more': 'y {n} más',
   Scope: 'Alcance',
   'Codex’s copy is different.': 'La copia de Codex es distinta.',
-  'Choose a skill to see what it does.': 'Elegí una skill para ver qué hace.',
   'The description is longer: only its beginning is shown.':
     'La descripción es más larga: se muestra solo el comienzo.',
   'The folder holds more files than are counted here.':
@@ -3902,8 +3728,6 @@ export const ES: Readonly<Record<string, string>> = {
     'Sin las instrucciones del proyecto, el agente no lee sus instrucciones ni reglas. Tus instrucciones globales siguen su interruptor.',
   'The text applies at start. Another open terminal of this launch may see it change; resuming a conversation keeps what it already had.':
     'El texto se aplica al arrancar. Otra terminal abierta de este lanzamiento puede verlo cambiar; al reanudar una conversación se conserva lo que ya tenía.',
-  'Choose a preset to change project instructions.':
-    'Elegí un preset para cambiar las instrucciones del proyecto.',
   'The launch instructions file cannot be read. It was not modified.':
     'No se puede leer el archivo de instrucciones de lanzamiento. No se modificó.',
   'The preset “{name}” changes the project instructions, and it cannot be applied now: {reason} Nothing was started.':
