@@ -4,6 +4,7 @@ import { mockIPC } from '@tauri-apps/api/mocks';
 import App from '../src/App.svelte';
 import type { TerminalRenderer } from '../src/lib/features/terminal/renderer';
 import { parseTerminalId } from '../src/lib/contracts/identities';
+import { setLanguage } from '../src/lib/i18n/index.svelte';
 import { listing } from './agent-harness';
 import { launcher } from './native-harness';
 import approvals from './fixtures/approval-list-v1.json';
@@ -111,8 +112,8 @@ const view = () =>
 const card = (id: string) =>
   view().querySelector<HTMLElement>(`.dist-card[data-id="${id}"]`)!;
 const status = (id: string) => text(card(id).querySelector('.dist-status'));
-// There is no refresh button: showing the view again reads everything again.
-const refresh = async () => {
+// Showing the view again lets its controllers read current state.
+const showAgain = async () => {
   tab('Credentials').click();
   await flush();
   tab('Distributors').click();
@@ -142,11 +143,12 @@ afterEach(async () => {
   component = undefined;
   document.body.innerHTML = '';
   localStorage.clear();
+  setLanguage('en');
   vi.clearAllMocks();
   vi.unstubAllGlobals();
 });
 
-it('opens from the rail, reads only while shown, and draws what the desktop answered', async () => {
+it('opens from the rail and draws what the desktop answered', async () => {
   const ipc = desktop();
   component = mount(App, { target: document.body });
   await flush();
@@ -168,10 +170,10 @@ it('opens from the rail, reads only while shown, and draws what the desktop answ
   ).toBe(true);
   // The cards say what the view is: no title is drawn over them.
   expect(document.querySelector('.context-title')).toBeNull();
-  // Showing the view reads the tools again: there is no refresh button.
+  // Showing the view reads launcher status and the owner-added distributors.
   expect(ipc.count('native_launcher')).toBe(before + 1);
-  expect(ipc.count('configuration_inventory')).toBe(1);
-  expect(ipc.count('managed_model_catalogue')).toBe(1);
+  expect(ipc.count('configuration_inventory')).toBe(0);
+  expect(ipc.count('managed_model_catalogue')).toBe(0);
 
   // One line each: maker · tool · version, nothing about models or the last read.
   expect(
@@ -314,7 +316,7 @@ it('adds a tool by name and command, opens it from its file, and makes a launch 
   );
 });
 
-it('says unknown, not missing, when the tools did not answer a refresh', async () => {
+it('refreshes installed status when the view is shown again', async () => {
   const ipc = desktop();
   component = mount(App, { target: document.body });
   await flush();
@@ -323,14 +325,115 @@ it('says unknown, not missing, when the tools did not answer a refresh', async (
   expect(status('anthropic')).toBe('2.1.303');
 
   ipc.answers.launcherFails = true;
-  await refresh();
+  await showAgain();
   expect(status('anthropic')).toBe('Unknown');
   expect(status('openai')).toBe('Unknown');
   expect(status('opencode')).toBe('Unknown');
 
   // It answers again: what it says is shown again.
   ipc.answers.launcherFails = false;
-  await refresh();
+  await showAgain();
   expect(status('anthropic')).toBe('2.1.303');
   expect(status('openai')).toBe('Tool not installed');
+});
+
+it('keeps a save error inside the dialog and clears the error and notice on close', async () => {
+  const ipc = desktop();
+  const kimi = {
+    id: 'kimi-cli',
+    name: 'Kimi CLI',
+    maker: 'Moonshot AI',
+    open: 'kimi',
+    update: null,
+    note: null,
+    executable: 'kimi',
+    found: null,
+  };
+  let list: unknown[] = [];
+  let failSave = true;
+  ipc.answers.extra = (command) => {
+    if (command === 'distributor_list')
+      return {
+        folder: '~/d',
+        distributors: list,
+        refused: [],
+        home: '/home/me',
+      };
+    if (command === 'distributor_save') {
+      if (failSave)
+        throw {
+          code: 'distributor_invalid',
+          reasons: ['a distributor with that name exists'],
+        };
+      list = [kimi];
+      return kimi;
+    }
+    if (command === 'distributor_make_launch')
+      throw { code: 'internal', reasons: [] };
+    return undefined;
+  };
+  component = mount(App, { target: document.body });
+  await flush();
+  tab('Distributors').click();
+  await flush();
+
+  const button = (label: string) =>
+    Array.from(view().querySelectorAll<HTMLButtonElement>('button')).find(
+      (b) => text(b) === label,
+    )!;
+  const fillForm = () => {
+    const form = view().querySelector<HTMLFormElement>('.dist-form')!;
+    const fields = form.querySelectorAll<HTMLInputElement>('input');
+    fields[0].value = 'Kimi CLI';
+    fields[0].dispatchEvent(new Event('input', { bubbles: true }));
+    fields[2].value = 'kimi';
+    fields[2].dispatchEvent(new Event('input', { bubbles: true }));
+    return form;
+  };
+
+  button('Add a tool').click();
+  await flush();
+  let form = fillForm();
+  form.requestSubmit();
+  await flush();
+  expect(text(form.querySelector('[role="alert"]'))).toContain(
+    'a distributor with that name exists',
+  );
+  expect(view().querySelector(':scope > [role="alert"]')).toBeNull();
+  button('Cancel').click();
+  await flush();
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
+  expect(view().querySelector('[role="alert"]')).toBeNull();
+
+  failSave = false;
+  button('Add a tool').click();
+  await flush();
+  form = fillForm();
+  form.requestSubmit();
+  await flush();
+  expect(view().querySelector('[role="status"]')).not.toBeNull();
+
+  const added = view().querySelector('[data-id="added:kimi-cli"]')!;
+  Array.from(added.querySelectorAll<HTMLButtonElement>('button'))
+    .find((b) => text(b) === 'Edit')!
+    .click();
+  await flush();
+  expect(view().querySelector('[role="status"]')).not.toBeNull();
+  button('Cancel').click();
+  await flush();
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
+  expect(view().querySelector('[role="status"]')).toBeNull();
+});
+
+it('shows distributor labels and status in Spanish', async () => {
+  component = mount(App, { target: document.body });
+  await flush();
+  setLanguage('es');
+  await flush();
+  tab('Distribuidores').click();
+  await flush();
+  expect(view().getAttribute('aria-label')).toBe('Distribuidores');
+  expect(
+    Array.from(view().querySelectorAll<HTMLButtonElement>('button')).map(text),
+  ).toContain('Agregar herramienta');
 });

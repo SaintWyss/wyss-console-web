@@ -1,10 +1,7 @@
 <script lang="ts">
-  import type { ConfigItem } from '../../contracts/configuration';
   import { t, tIncoming, tPhrase } from '../../i18n/index.svelte';
-  import type { ModelsState } from '../models/controller';
   import type { NativeState } from '../native/controller';
   import { distributorCards, SUGGESTED } from './present';
-  import type { SessionSummary } from '../../contracts/sessions';
   import {
     distributorsClient,
     DistributorError,
@@ -12,15 +9,11 @@
     type DistributorsClient,
     type SaveDistributorInput,
   } from '../../desktop/distributors-client';
-  import { listedIds, loadSeen, reconcile, saveSeen } from './seen';
 
   let {
     visible,
     native,
-    models,
-    configItems,
-    configStale,
-    onrefresh,
+    launcherAnswered,
     onrun = () => undefined,
     onlaunch = () => undefined,
 
@@ -28,24 +21,12 @@
   }: {
     visible: boolean;
     native: NativeState;
-    models: ModelsState;
-    configItems: readonly ConfigItem[] | null;
-    /** The last read of the agents' files failed: what is held is from an earlier one. */
-    configStale: boolean;
-    /** Reads the tools, the configuration and the Codex list again; false when the tools did not answer. */
-    onrefresh: () => Promise<boolean>;
+    /** False when the most recent `native_launcher` read did not answer. */
+    launcherAnswered: boolean;
     /** Opens a terminal in the Console that types `input`, where it is seen. */
     onrun?: (title: string, cwd: string, input: string) => void;
-    /** Opens another Personalization tab. */
-    /** Opens a page; Configuration opens on the tool of the card it was chosen from. */
-    ongo?: (
-      view: 'configuration' | 'credentials',
-      tool?: 'claude_code' | 'codex' | 'opencode',
-    ) => void;
     /** A launch was made: Workspace opens on it. */
     onlaunch?: (id: string) => void;
-    /** The managed sessions the Sessions view read (Codex only); null before a read. */
-    managed?: readonly SessionSummary[] | null;
     client?: DistributorsClient;
   } = $props();
 
@@ -101,15 +82,12 @@
       addedError = t('The added distributors did not load.');
     }
   }
-  // Read each time the view is shown: a failed read is tried again, and files edited by
-  // hand or on the other computer appear.
-  // Each time the view is shown it reads everything again: the tools, their files and the
-  // Codex list. There is no button for it.
+  // Read each time the view is shown so files edited by hand or on the other computer appear.
   let shown = false;
   $effect(() => {
     if (visible && !shown) {
       shown = true;
-      void refresh();
+      void readAdded();
     } else if (!visible) shown = false;
   });
 
@@ -203,53 +181,8 @@
     }
   }
 
-  let busy = $state(false);
-  /** Codex models not seen before the last refresh. Gone at the next one. */
-  let fresh = $state<string[]>([]);
-  /** False after a refresh in which `native_launcher` did not answer: nothing is said of the tools. */
-  let answered = $state(true);
-  let compared = false;
-
-  /** One comparison per read: what is new is marked, and what was listed is kept. */
-  function compare() {
-    const result = reconcile(loadSeen(), listedIds(models));
-    if (result.save) saveSeen(result.save);
-    fresh = result.fresh;
-  }
-  // The first read of the Codex list, once it has an answer of either kind.
-  $effect(() => {
-    if (
-      !visible ||
-      compared ||
-      (models.phase !== 'ready' && models.phase !== 'failed')
-    )
-      return;
-    compared = true;
-    compare();
-  });
-
-  async function refresh() {
-    if (busy) return;
-    busy = true;
-    void readAdded();
-    try {
-      answered = await onrefresh();
-    } catch {
-      answered = false;
-    }
-    busy = false;
-    compared = true;
-    compare();
-  }
-
   const cards = $derived(
-    distributorCards(
-      answered ? native.launcher : null,
-      models,
-      configItems,
-      fresh,
-      configStale,
-    ),
+    distributorCards(launcherAnswered ? native.launcher : null),
   );
 </script>
 
@@ -326,12 +259,9 @@
           <h3
             title={d.found
               ? t('Found at {path}.', { path: d.found })
-              : t(
-                  '“{command}” was not found, or is not an executable file.',
-                  {
-                    command: d.executable,
-                  },
-                )}
+              : t('“{command}” was not found, or is not an executable file.', {
+                  command: d.executable,
+                })}
           >
             {d.maker ? `${d.maker} · ` : ''}{d.name} ·
             <span class="dist-status" class:ok={d.found !== null}
@@ -520,9 +450,7 @@
               oninput={(e) => (f.update = e.currentTarget.value)}
             /></label
           >
-          <label
-            class="le-field"
-            title={t('Anything to remember about it.')}
+          <label class="le-field" title={t('Anything to remember about it.')}
             ><span>{t('Note')}</span>
             <input
               class="le-input"

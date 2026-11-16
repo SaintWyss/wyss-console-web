@@ -33,7 +33,6 @@
   import ProjectsView from './lib/features/projects/ProjectsView.svelte';
   import { desktopProjects } from './lib/desktop/projects-client';
   import RuntimesView from './lib/features/f8/RuntimesView.svelte';
-  import { ModelsController } from './lib/features/models/controller';
   import { NativeController } from './lib/features/native/controller';
   import WorkspaceView from './lib/features/native/WorkspaceView.svelte';
   import LaunchEditor from './lib/features/workspace/LaunchEditor.svelte';
@@ -151,11 +150,6 @@
     },
   );
   let native = $state(nativeController.state());
-  // What the managed runtime offers: read once when a view that needs it is first shown.
-  const modelsController = new ModelsController((next) => {
-    models = next;
-  });
-  let models = $state(modelsController.state());
   // API keys: listed by name while their view is shown; a key never reaches the window.
   const credentialsController = new CredentialsController((next) => {
     credentials = next;
@@ -225,12 +219,9 @@
   $effect(() => {
     eventsController.setVisible(activeView === 'events' || activity);
   });
-  // The Models view reads the same inventory as Configuration, the managed sessions of the
-  // Sessions view, and the runtime's list: it asks for nothing of its own.
+  // Arsenal reads the same inventory as Configuration; it asks for nothing of its own.
   $effect(() => {
-    configurationController.setVisible(
-      activeView === 'arsenal' || activeView === 'distributors',
-    );
+    configurationController.setVisible(activeView === 'arsenal');
   });
   $effect(() => {
     arsenalController.setVisible(
@@ -238,13 +229,16 @@
     );
   });
   $effect(() => {
-    // Distributors says what runs now: the managed sessions are read while it is shown.
-    sessionsController.setVisible(
-      activeView === 'sessions' || activeView === 'distributors',
-    );
+    sessionsController.setVisible(activeView === 'sessions');
   });
+  let distributorsAnswered = $state(true);
+  let distributorRead = 0;
   $effect(() => {
-    modelsController.setVisible(activeView === 'distributors');
+    const read = ++distributorRead;
+    if (activeView !== 'distributors') return;
+    void nativeController.rediscover().then((answered) => {
+      if (read === distributorRead) distributorsAnswered = answered;
+    });
   });
   $effect(() => {
     credentialsController.setVisible(activeView === 'credentials');
@@ -254,7 +248,6 @@
     nativeController.setVisible(
       activeView === 'workspace' ||
         activeView === 'launches' ||
-        activeView === 'distributors' ||
         activeView === 'projects',
     );
   });
@@ -327,7 +320,6 @@
       arsenalController.dispose();
       changesController.dispose();
       nativeController.dispose();
-      modelsController.dispose();
       credentialsController.dispose();
       settingsController.dispose();
       f8Controller.dispose();
@@ -432,15 +424,6 @@
       if (terminal?.runCommand(title, cwd, input)) return;
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
-  }
-  /** Distributors' refresh: the tools, the agents' files and the Codex list. */
-  async function refreshDistributors(): Promise<boolean> {
-    const [answered] = await Promise.all([
-      nativeController.rediscover(),
-      configurationController.refresh(),
-      modelsController.refresh(),
-    ]);
-    return answered;
   }
   let legend = $state(false);
   let launchOpen = $state(false);
@@ -554,13 +537,8 @@
         <DistributorsView
           visible={activeView === 'distributors'}
           {native}
-          {models}
-          configItems={configuration.reply?.inventory.items ?? null}
-          configStale={configuration.stale}
-          onrefresh={refreshDistributors}
+          launcherAnswered={distributorsAnswered}
           onrun={(title, cwd, input) => void runInConsole(title, cwd, input)}
-          ongo={go}
-          managed={sessions.page?.sessions ?? null}
           onlaunch={(id) => {
             launchToOpen = id;
             go('launches');

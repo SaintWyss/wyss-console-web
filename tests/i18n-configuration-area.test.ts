@@ -9,7 +9,7 @@ it('draws configuration-owned text in Spanish and preserves English', () => {
     'No se pudo acceder a los distribuidores.',
   );
   expect(t('The desktop could not complete the request.')).toBe(
-    'El escritorio no pudo completar la operación.',
+    'La aplicación no pudo completar la solicitud.',
   );
   setLanguage('en');
   expect(t('The distributors could not be reached.')).toBe(

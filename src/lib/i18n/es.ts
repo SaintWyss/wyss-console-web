@@ -26,11 +26,6 @@ export const ES: Readonly<Record<string, string>> = {
   'Tool not installed': 'No instalado',
   'Not configured': 'Sin configurar',
   'new model': 'nuevo',
-  'Configured model: {model}': 'Modelo configurado: {model}',
-  'Configured models are from an earlier read.':
-    'Los modelos configurados son de una lectura anterior.',
-  'This tool does not list its models to the Console.':
-    'Esta herramienta no le lista sus modelos a la Console.',
   // Workspace: launch editor
   'Choose it with Browse… or from the known folders.':
     'Elegila con Examinar… o entre las carpetas conocidas.',
@@ -3766,16 +3761,11 @@ export const ES: Readonly<Record<string, string>> = {
   'Running now': 'Corriendo ahora',
   'Nothing of this tool is running now.':
     'Ahora no corre nada de esta herramienta.',
-  '{session} (managed): {line}': '{session} (administrada): {line}',
   // ---- permissions ----
   'What this tool offers and what is running with it now.':
     'Qué ofrece esta herramienta y qué está corriendo con ella ahora.',
   'A tool you add opens and updates in a terminal of the Console. Arsenal and the context estimate are only for the tools the Console knows.':
     'Una herramienta que agregás se abre y se actualiza en una terminal de la Console. Arsenal y la estimación de contexto son solo para las herramientas que la Console conoce.',
-  'In {folder}: started with {permission}.':
-    'En {folder}: arrancó con {permission}.',
-  'In {folder}: started as the agent is configured.':
-    'En {folder}: arrancó como está configurado el agente.',
   'Could not check what this permission would pass. Refresh Native before starting.':
     'No se pudo comprobar qué pasaría este permiso. Actualizá Native antes de iniciar.',
   'What the permission passes': 'Qué pasa el permiso',

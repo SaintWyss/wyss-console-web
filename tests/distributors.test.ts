@@ -1,81 +1,26 @@
 import { afterEach, expect, it } from 'vitest';
-import {
-  parseModelCatalogue,
-  type ModelCatalogue,
-} from '../src/lib/contracts/models';
 import { parseInventoryReply } from '../src/lib/contracts/configuration';
-import {
-  ModelsController,
-  type ModelsState,
-} from '../src/lib/features/models/controller';
 import { ConfigurationController } from '../src/lib/features/configuration/controller';
 import {
   distributorCards,
-  versionNumber,
-  inUse,
-  SET_UP_IN,
-  SUGGESTED,
   distributorOf,
+  SUGGESTED,
+  versionNumber,
 } from '../src/lib/features/distributors/present';
-import {
-  listedIds,
-  loadSeen,
-  parseSeen,
-  reconcile,
-  saveSeen,
-} from '../src/lib/features/distributors/seen';
-import { setLanguage, t, tPhrase } from '../src/lib/i18n/index.svelte';
-import catalogues from './fixtures/model-catalogue-v1.json';
+import { setLanguage, tPhrase } from '../src/lib/i18n/index.svelte';
 import inventory from './fixtures/configuration-inventory-v1.json';
 import { launcher } from './native-harness';
 
-const KEY = 'wyss-console.distributors-seen';
 afterEach(() => {
   localStorage.clear();
   setLanguage('en');
 });
 
-const listed = parseModelCatalogue(catalogues.listed);
-const notReady = parseModelCatalogue(catalogues.not_ready);
-const partial = parseModelCatalogue(catalogues.partial_without_offers);
-const ready = (
-  catalogue: ModelCatalogue,
-  over: Partial<ModelsState> = {},
-): ModelsState => ({
-  phase: 'ready',
-  catalogue,
-  stale: false,
-  failure: null,
-  ...over,
-});
-const withModel = (id: string): ModelCatalogue => ({
-  ...listed,
-  entries: [...listed.entries, { ...listed.entries[0], model_id: id }],
-});
-const items = parseInventoryReply(inventory).inventory.items;
-const idle: ModelsState = {
-  phase: 'idle',
-  catalogue: null,
-  stale: false,
-  failure: null,
-};
 const card = (cards: ReturnType<typeof distributorCards>, id: string) =>
   cards.find((c) => c.id === id)!;
-const labels = (c: ReturnType<typeof card>) =>
-  c.models.map((m) =>
-    typeof m.label === 'string' ? m.label : [m.label.text, m.label.values],
-  );
-
-/** One refresh as the view does it: compare with what is kept, keep what the read allows. */
-function refresh(models: ModelsState): string[] {
-  const result = reconcile(loadSeen(), listedIds(models));
-  if (result.save) saveSeen(result.save);
-  return result.fresh;
-}
 
 it('says installed with the version, not installed, or unknown, as the launcher answered', () => {
-  // The launcher of the harness: Claude Code installed, Codex not, OpenCode not named.
-  const cards = distributorCards(launcher(), idle, null, []);
+  const cards = distributorCards(launcher());
   expect(cards.map((c) => c.name)).toEqual(['Anthropic', 'OpenAI', 'OpenCode']);
   expect(cards.map((c) => c.tool)).toEqual([
     'Claude Code',
@@ -99,242 +44,41 @@ it('says installed with the version, not installed, or unknown, as the launcher 
   // An installed tool whose version was not reported is still installed.
   const unversioned = launcher();
   unversioned.agents[0].version = null;
-  expect(
-    card(distributorCards(unversioned, idle, null, []), 'anthropic').status,
-  ).toEqual({ text: 'Installed' });
+  expect(card(distributorCards(unversioned), 'anthropic').status).toEqual({
+    text: 'Installed',
+  });
 
   // The launcher did not answer: every tool is unknown, none is said to be missing.
-  const unknown = distributorCards(null, idle, null, []);
+  const unknown = distributorCards(null);
   for (const id of ['anthropic', 'openai', 'opencode']) {
     expect(card(unknown, id).status, id).toEqual({ text: 'Unknown' });
     expect(card(unknown, id).installed, id).toBe(false);
   }
-  // No card ever says "connected".
   expect(JSON.stringify([cards, unknown])).not.toMatch(/connected/i);
 });
 
-it('knows three tools, each with where it is set up; Kimi is a suggestion under Add', () => {
-  const cards = distributorCards(null, idle, null, []);
+it('keeps the known tools, their update commands, and the Add suggestions', () => {
+  const cards = distributorCards(null);
   expect(cards.map((c) => c.id)).toEqual(['anthropic', 'openai', 'opencode']);
-  // Hermes has no card.
-  expect(cards.map((c) => c.id)).not.toContain('hermes');
   expect(card(cards, 'anthropic').update).toBe('claude update');
   expect(card(cards, 'openai').update).toBe('codex update');
   // OpenCode's update command is not checked: it has none.
   expect(card(cards, 'opencode').update).toBeNull();
-  expect(SET_UP_IN.opencode).toEqual(['configuration']);
   expect(SUGGESTED.map((s) => s.open)).toEqual(['kimi', 'gemini', 'aider']);
 });
 
-it('names the configured model for the tools that list nothing', () => {
-  const cards = distributorCards(launcher(), idle, items);
-  const anthropic = card(cards, 'anthropic');
-  // The same value in two files is one row.
-  expect(labels(anthropic)).toEqual([
-    ['Configured model: {model}', { model: 'opus' }],
-  ]);
-  expect(anthropic.models.every((m) => !m.fresh)).toBe(true);
-  expect(anthropic.notes).toEqual([
-    { text: 'This tool does not list its models to the Console.' },
-  ]);
-  const opencode = card(cards, 'opencode');
-  expect(labels(opencode)).toEqual([]);
-  expect(opencode.notes).toEqual(anthropic.notes);
-  // Codex is never filled from a file: with no list read it shows none.
-  expect(card(cards, 'openai').models).toEqual([]);
-});
-
-it('lists what Codex offers, and says why when there is no list', () => {
-  const offered = card(
-    distributorCards(launcher(), ready(listed), items, ['model-b']),
-    'openai',
-  );
-  expect(labels(offered)).toEqual(['model-a', 'model-b']);
-  expect(offered.models.map((m) => m.fresh)).toEqual([false, true]);
-  expect(offered.notes).toEqual([]);
-
-  const stopped = card(
-    distributorCards(launcher(), ready(notReady), items, []),
-    'openai',
-  );
-  expect(stopped.models).toEqual([]);
-  expect(stopped.notes.map((n) => n.text)).toEqual([
-    'The managed Codex runtime is not running, so there is no list. A list of a runtime that has stopped is never shown. Start a managed session and it is listed again.',
-  ]);
-
-  const cut = card(
-    distributorCards(launcher(), ready(partial), items, []),
-    'openai',
-  );
-  expect(labels(cut)).toEqual(['model-only']);
-  expect(cut.notes.map((n) => n.text)).toEqual([
-    'The runtime’s list continued past what was taken: this list is partial.',
-  ]);
-
-  const failed = card(
-    distributorCards(
-      launcher(),
-      { phase: 'failed', catalogue: null, stale: false, failure: 'busy' },
-      items,
-      [],
-    ),
-    'openai',
-  );
-  expect(failed.notes.map((n) => n.text)).toEqual([
-    'The list could not be read: the authority is busy. Try again.',
-  ]);
-});
-
-it('maps an agent to who makes it', () => {
+it('maps each agent to its distributor', () => {
   expect(distributorOf('claude_code')).toBe('Anthropic');
   expect(distributorOf('codex')).toBe('OpenAI');
   expect(distributorOf('opencode')).toBe('OpenCode');
 });
 
-it('keeps the first read without marking anything', () => {
-  expect(loadSeen()).toBeNull();
-  expect(refresh(ready(listed))).toEqual([]);
-  expect(loadSeen()).toEqual(['model-a', 'model-b']);
-});
-
-it('marks a model not seen before, and clears the mark at the next refresh', () => {
-  refresh(ready(listed));
-  expect(refresh(ready(withModel('model-c')))).toEqual(['model-c']);
-  expect(loadSeen()).toEqual(['model-a', 'model-b', 'model-c']);
-  expect(refresh(ready(withModel('model-c')))).toEqual([]);
-  // A model that left the list and came back is not new again.
-  expect(refresh(ready(listed))).toEqual([]);
-  expect(refresh(ready(withModel('model-c')))).toEqual([]);
-});
-
-it('never marks from, or overwrites what was seen with, a read that is not ready, failed or partial', () => {
-  refresh(ready(listed));
-  const kept = localStorage.getItem(KEY);
-  for (const [name, models] of Object.entries({
-    not_ready: ready(notReady),
-    // The last read failed: what is held is the older list.
-    failed: ready(withModel('model-x'), {
-      stale: true,
-      failure: 'unavailable',
-    }),
-    never_read: {
-      phase: 'failed',
-      catalogue: null,
-      stale: false,
-      failure: 'internal',
-    } satisfies ModelsState,
-    partial: ready(partial),
-    loading: { ...idle, phase: 'loading' } satisfies ModelsState,
-  })) {
-    expect(listedIds(models), name).toBeNull();
-    expect(refresh(models), name).toEqual([]);
-    expect(localStorage.getItem(KEY), name).toBe(kept);
-  }
-  // What was seen survived: the next whole list marks only what really is new.
-  expect(refresh(ready(withModel('model-c')))).toEqual(['model-c']);
-});
-
-it('does not take a read that cannot be compared as the first one', () => {
-  expect(refresh(ready(notReady))).toEqual([]);
-  expect(refresh(ready(partial))).toEqual([]);
-  expect(localStorage.getItem(KEY)).toBeNull();
-  // The first whole list is the first read: kept, nothing marked.
-  expect(refresh(ready(listed))).toEqual([]);
-  expect(loadSeen()).toEqual(['model-a', 'model-b']);
-});
-
-it('reads storage that is missing or damaged as never read, and survives storage that throws', () => {
-  expect(parseSeen(null)).toBeNull();
-  expect(parseSeen('')).toBeNull();
-  expect(parseSeen('{')).toBeNull();
-  expect(parseSeen('{"a":1}')).toBeNull();
-  expect(parseSeen('[]')).toEqual([]);
-  expect(parseSeen('["a",1,"b"]')).toEqual(['a', 'b']);
-  // "An empty list was seen" is not "never read": a model after it is new.
-  expect(reconcile([], ['model-a'])).toEqual({
-    save: ['model-a'],
-    fresh: ['model-a'],
-  });
-  const real = globalThis.localStorage;
-  Object.defineProperty(globalThis, 'localStorage', {
-    configurable: true,
-    get() {
-      throw new Error('denied');
-    },
-  });
-  try {
-    expect(loadSeen()).toBeNull();
-    expect(() => saveSeen(['a'])).not.toThrow();
-  } finally {
-    Object.defineProperty(globalThis, 'localStorage', {
-      configurable: true,
-      value: real,
-    });
-  }
-});
-
-it('says each state in Spanish in the words the owner fixed', () => {
+it('says launcher status in Spanish', () => {
   setLanguage('es');
-  const cards = distributorCards(launcher(), ready(listed), items);
+  const cards = distributorCards(launcher());
   expect(tPhrase(card(cards, 'anthropic').status)).toBe('2.1.303');
   expect(tPhrase(card(cards, 'openai').status)).toBe('No instalado');
   expect(tPhrase(card(cards, 'opencode').status)).toBe('Desconocido');
-  expect(t('new model')).toBe('nuevo');
-  expect(t('Reading…')).toBe('Leyendo…');
-  expect(t('Last read: {time}', { time: '10:00' })).toBe(
-    'Última lectura: 10:00',
-  );
-  const anthropic = card(cards, 'anthropic');
-  expect(
-    anthropic.models.map((m) =>
-      typeof m.label === 'string' ? m.label : tPhrase(m.label),
-    ),
-  ).toEqual(['Modelo configurado: opus']);
-  expect(tPhrase(anthropic.notes[0])).toBe(
-    'Esta herramienta no le lista sus modelos a la Console.',
-  );
-});
-
-it('says a configured model is from an earlier read only on a card that shows one', () => {
-  const note = { text: 'Configured models are from an earlier read.' };
-  const stale = distributorCards(launcher(), idle, items, [], true);
-  expect(card(stale, 'anthropic').notes).toContainEqual(note);
-  expect(card(stale, 'opencode').notes).not.toContainEqual(note);
-  expect(card(stale, 'openai').notes).not.toContainEqual(note);
-  const whole = distributorCards(launcher(), idle, items, [], false);
-  expect(card(whole, 'anthropic').notes).not.toContainEqual(note);
-  setLanguage('es');
-  expect(tPhrase(note)).toBe(
-    'Los modelos configurados son de una lectura anterior.',
-  );
-});
-
-it('hands whoever refreshes the Codex list the read already in flight', async () => {
-  let answer!: (value: ModelCatalogue) => void;
-  let reads = 0;
-  let state!: ModelsState;
-  const controller = new ModelsController((next) => (state = next), {
-    catalogue: () => {
-      reads++;
-      return new Promise((resolve) => (answer = resolve));
-    },
-  });
-  let first = false;
-  let second = false;
-  void controller.refresh().then(() => (first = true));
-  void controller.refresh().then(() => (second = true));
-  for (let i = 0; i < 20; i++) await Promise.resolve();
-  // One read, and neither request is over before it answers.
-  expect(reads).toBe(1);
-  expect([first, second]).toEqual([false, false]);
-  answer(withModel('model-c'));
-  for (let i = 0; i < 20; i++) await Promise.resolve();
-  expect([first, second]).toEqual([true, true]);
-  expect(listedIds(state)).toEqual(['model-a', 'model-b', 'model-c']);
-  // The next request reads again.
-  void controller.refresh();
-  expect(reads).toBe(2);
-  controller.dispose();
 });
 
 it('lets a configuration read be waited for, and reports a failed one as older', async () => {
@@ -369,38 +113,4 @@ it('lets a configuration read be waited for, and reports a failed one as older',
   expect(controller.state().reply).toBe(reply);
   expect(controller.state().stale).toBe(true);
   controller.dispose();
-});
-
-it('says what each running session started with, without claiming a model in use', () => {
-  const session = (over: Record<string, unknown>) =>
-    ({
-      id: 's1',
-      agent_id: 'claude_code',
-      project: '/home/me/UTN',
-      profile: { id: 'template-edits', name: 'Accept edits', version: 0 },
-      state: 'running',
-      ...over,
-    }) as never;
-  const said = (rows: ReturnType<typeof inUse>) =>
-    rows.map((r) => [r.line.text, r.line.values]);
-  expect(said(inUse('claude_code', [session({})], null))).toEqual([
-    [
-      'In {folder}: started with {permission}.',
-      {
-        folder: 'UTN',
-        permission: { text: 'Accept edits' },
-      },
-    ],
-  ]);
-  // Started with no permission: as the agent is configured.
-  expect(
-    said(inUse('claude_code', [session({ profile: null })], null)),
-  ).toEqual([
-    ['In {folder}: started as the agent is configured.', { folder: 'UTN' }],
-  ]);
-  // Ended sessions and other tools are not running here.
-  expect(inUse('claude_code', [session({ state: 'exited' })], null)).toEqual(
-    [],
-  );
-  expect(inUse('codex', [session({})], null)).toEqual([]);
 });
