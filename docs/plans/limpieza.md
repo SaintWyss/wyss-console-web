@@ -1,0 +1,39 @@
+# Limpieza del repo y revisión por áreas
+
+Lo pidió el dueño el 2026-11-16. Mientras dure, la traducción por pantalla queda pausada en el tag `pre-limpieza-20261116`.
+
+Los inventarios están en `docs/research/limpieza/`. Son de solo lectura y los armó Fable.
+
+## Decisiones del dueño (2026-11-16)
+
+- **Basura:**
+  - código muerto;
+  - pantallas viejas de Más;
+  - docs y planes ya cumplidos;
+  - archivos sueltos (en lo versionado no apareció ninguno).
+- **Actualizar:**
+  - arreglar lo que encuentre la revisión; lo que cambie comportamiento se le pregunta al dueño;
+  - dependencias;
+  - docs al día.
+- **Código muerto:** se borra entero, incluido el comando Rust `managed_model_catalogue`. `docs/contracts/interface.md` se actualiza en el mismo commit.
+- **Pantallas de Más que se borran:**
+  - Remote, Providers, Pipelines, Runtimes y Projects. Projects se va junto con su interruptor en Ajustes y la ventana `#workspace`.
+  - Terminal agents y Arsenal presets, recién después de mudar lo esencial:
+    - parar, reiniciar y olvidar un agente pasan a la pestaña de la Consola;
+    - los presets (alta, edición, borrado e importación) pasan a Arsenal.
+    - El diseño de la mudanza se le muestra al dueño antes de construirlo.
+- **Pantallas de Más que quedan:** Sessions y Agents, para que Actividad siga teniendo contenido. Por eso el menú Más sigue existiendo con ellas.
+- **"Open on":** si quedara apuntando a una pantalla borrada, se migra a `console` sin perder las otras preferencias. Hoy no hace falta, porque `sessions` y `agents` quedan.
+- **Backend** (Rust `f8`, `m3`, `projects`, `orchestration`, `remote`): no se toca en esta pasada. Queda anotado.
+
+## Orden
+
+1. **Código muerto:** un commit por unidad, con la cadena completa y `rust:test` después de cada uno.
+2. **Pantallas hoja:** U1 Remote, U2 Providers, U3 Pipelines, U4 Runtimes, U5 Projects.
+3. **Mudanza y borrado:** diseño para el dueño, después la mudanza, después U6 Arsenal presets y U7 Terminal agents.
+4. **Cierre de la limpieza:** shell, CSS y una segunda pasada de exports.
+5. **Dependencias:** primero menores y parches, después cada mayor por separado. Tauri sube junto en el front y en el back.
+6. **App real:** recorrido de todas las pantallas en el display aislado :78.
+7. **Revisión por áreas:** la arregla Fable y la juzga Sol Medium, una pasada por área.
+8. **Docs:** se ponen al día.
+9. **Traducción:** se retoma.
