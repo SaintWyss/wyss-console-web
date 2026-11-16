@@ -927,24 +927,6 @@ code,
 .terminal-tab .tab-close:hover:not(:disabled) {
   color: var(--text);
 }
-.new-terminal {
-  flex-shrink: 0;
-  min-height: 28px;
-  padding: 0 10px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--line);
-  background: transparent;
-  color: var(--text);
-  font-size: var(--text-sm);
-  font-weight: 500;
-}
-.new-terminal:hover:not(:disabled) {
-  background: var(--surface-hover);
-  border-color: var(--line-strong);
-}
-.new-terminal:disabled {
-  opacity: 0.5;
-}
 /* The panes of the active tab are laid out inside this area by their share of it. */
 .pane-area {
   flex: 1;
@@ -1224,11 +1206,6 @@ code,
   margin: 0;
   padding: 0;
   list-style: none;
-}
-.launch-files {
-  margin-top: 2px;
-  padding-top: 6px;
-  border-top: 1px solid var(--line);
 }
 .launch-row {
   display: flex;
@@ -3087,29 +3064,6 @@ li.native-row .native-note {
   padding: 0 10px;
   font-size: var(--text-sm);
 }
-.native-profiles {
-  flex: 1;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
-  gap: 14px;
-}
-.native-profile-list,
-.native-profile-editor {
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--line-strong) transparent;
-}
-.native-profile-editor form {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
 .profile-template-note {
   margin: 0;
   padding: 10px 14px;
@@ -3134,52 +3088,11 @@ li.native-row .native-note {
 .profile-actions-gap {
   flex: 1;
 }
-.native-profile-item {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 8px 12px;
-  text-align: left;
-  color: var(--text);
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  background: var(--surface-subtle);
-  cursor: pointer;
-  font: inherit;
-}
-.native-profile-item:hover {
-  background: var(--surface-raised);
-}
-.native-profile-item[aria-current='true'] {
-  border-color: var(--accent-line);
-  background: var(--accent-soft);
-}
-.native-versions {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: var(--text-sm);
-}
-.native-versions li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
 .tab-agent {
   margin-right: 6px;
   font-size: var(--text-xs);
   color: var(--accent);
   vertical-align: 1px;
-}
-@container (max-width: 640px) {
-  .native-profiles {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 .native-note {
@@ -3188,36 +3101,6 @@ li.native-row .native-note {
   color: var(--muted);
 }
 /* Models: four lists in one scrolling column, each row a quiet card */
-.models-view {
-  overflow-y: auto;
-  padding-right: 6px;
-}
-.models-view h3 {
-  margin: 14px 0 0;
-  font-size: var(--text-lg);
-}
-.models-view .events-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.models-row {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 8px 12px;
-  border-radius: var(--radius-md);
-  background: var(--surface-subtle);
-}
-.models-row .event-title {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
 .native-warning {
   margin: 0;
   font-size: var(--text-sm);
@@ -4805,19 +4688,6 @@ li.native-row .native-note {
   padding-right: 14px;
   container-type: inline-size;
 }
-.dist-bar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-.dist-read {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  font-size: var(--text-xs);
-  color: var(--muted);
-}
 /* One row per maker, full width, divided by one line and nothing else. Three columns: who
    (maker, tool), what there is (status, models, detail) and what can be done (actions). */
 .dist-grid {
@@ -4842,9 +4712,6 @@ li.native-row .native-note {
 .dist-card > .dist-head {
   display: contents;
 }
-.dist-card > .dist-tool {
-  grid-column: 1;
-}
 /* Maker · tool · version on one line across the card, the same for every tool. */
 .dist-card h3 {
   grid-column: 1 / 3;
@@ -4861,9 +4728,7 @@ li.native-row .native-note {
   margin: 0;
 }
 .dist-card .dist-status,
-.dist-card > .dist-models,
-.dist-card > .dist-note,
-.dist-card > .dist-more {
+.dist-card > .dist-note {
   grid-column: 2;
   justify-self: start;
   margin: 0 0 8px;
@@ -4888,11 +4753,8 @@ li.native-row .native-note {
     grid-template-columns: minmax(0, 1fr);
   }
   .dist-card h3,
-  .dist-card > .dist-tool,
   .dist-card .dist-status,
-  .dist-card > .dist-models,
   .dist-card > .dist-note,
-  .dist-card > .dist-more,
   .dist-card > .dist-actions {
     grid-column: 1;
   }
@@ -4914,39 +4776,8 @@ li.native-row .native-note {
   color: var(--muted);
   text-align: right;
 }
-.dist-status.ok,
-.dist-new {
+.dist-status.ok {
   color: var(--ok);
-}
-.dist-tool,
-.dist-models {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-}
-.dist-tool {
-  color: var(--muted);
-}
-.dist-models {
-  padding: 0;
-  list-style: none;
-  font-size: var(--text-sm);
-}
-.dist-models li {
-  min-height: 32px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.dist-model {
-  flex: 1;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-.dist-new {
-  font-family: var(--font-sans);
-  font-size: var(--text-xs);
-  font-weight: 600;
 }
 .dist-note {
   margin: 0;
@@ -5155,31 +4986,6 @@ li.native-row .native-note {
 .dist-spacer {
   flex: 1;
 }
-.dist-cmd {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--muted);
-}
-.dist-link {
-  padding: 2px 4px;
-  color: var(--accent);
-  font-size: var(--text-sm);
-  background: none;
-  border: 0;
-  cursor: pointer;
-}
-.dist-link:hover {
-  text-decoration: underline;
-}
-.dist-link:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-.dist-section {
-  margin: 0;
-  font-size: var(--text-md);
-  color: var(--text);
-}
 .dist-form {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -5195,51 +5001,8 @@ li.native-row .native-note {
   flex-wrap: wrap;
   gap: 6px;
 }
-.dist-more {
-  margin-top: 8px;
-}
-.dist-more > summary {
-  cursor: pointer;
-  color: var(--muted);
-  font-size: var(--text-sm);
-  padding: 4px 0;
-}
-.dist-more > summary:hover,
-.dist-more[open] > summary {
-  color: var(--text);
-}
-.dist-sub {
-  margin: 10px 0 4px;
-  font-size: var(--text-xs);
-  font-weight: 600;
-  color: var(--faint);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-.dist-offered {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.dist-offered > li {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 6px;
-  min-width: 0;
-}
 .dist-grid {
   align-items: start;
-}
-.dist-default {
-  font-size: var(--text-xs);
-  color: var(--muted);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-sm);
-  padding: 0 5px;
 }
 
 /* Arsenal (redesign stage 4): first the tool, then the kind; a plain list by category. */
@@ -5250,43 +5013,6 @@ li.native-row .native-note {
   flex-direction: column;
   gap: 0;
   container: ars / inline-size;
-}
-.library-feature > .ars-tools {
-  margin-bottom: 14px;
-}
-.ars-tools,
-.ars-kinds {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  border-bottom: 1px solid var(--line);
-}
-.ars-kinds {
-  margin-bottom: 14px;
-}
-.ars-tool,
-.ars-kind {
-  min-height: 44px;
-  padding: 0 16px;
-  font: inherit;
-  color: var(--muted);
-  border: 0;
-  border-bottom: 2px solid transparent;
-  background: transparent;
-  cursor: pointer;
-}
-.ars-tool {
-  font-size: var(--text-lg);
-  font-weight: 600;
-}
-.ars-tool:hover,
-.ars-kind:hover {
-  color: var(--text);
-}
-.ars-tool[aria-selected='true'],
-.ars-kind[aria-selected='true'] {
-  color: var(--text);
-  border-bottom-color: var(--accent);
 }
 .ars-count {
   margin-left: 4px;
@@ -5303,63 +5029,9 @@ li.native-row .native-note {
 .ars-config[hidden] {
   display: none;
 }
-.ars-body {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  overflow-y: auto;
-  padding-right: 14px;
-}
-.ars-bar {
-  display: flex;
-  justify-content: flex-end;
-}
-.ars-group h3 {
-  margin: 0;
-}
-.ars-group-head {
-  width: 100%;
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  border-radius: var(--radius-md);
-  background: var(--surface-control);
-  font: inherit;
-  font-size: var(--text-md);
-  font-weight: 600;
-  color: var(--text);
-  text-align: left;
-  border: 0;
-  cursor: pointer;
-}
-.ars-group-head:hover {
-  background: var(--surface-hover);
-}
-.ars-row:focus-visible,
-.ars-tree-item:focus-visible {
+.ars-row:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
-}
-.ars-group {
-  margin-bottom: 6px;
-}
-.ars-group-text {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-.ars-group-help {
-  font-size: var(--text-sm);
-  font-weight: 400;
-  color: var(--muted);
-}
-.ars-chevron {
-  width: 1em;
-  color: var(--muted);
 }
 .ars-rows {
   margin: 0 0 8px;
@@ -5392,15 +5064,6 @@ li.native-row .native-note {
   background: var(--accent-soft);
   box-shadow: inset 3px 0 0 var(--accent);
 }
-.ars-detail {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 4px 4px 12px 24px;
-}
-.ars-detail p {
-  margin: 0;
-}
 .lib-name {
   font-weight: 600;
   overflow: hidden;
@@ -5418,8 +5081,7 @@ li.native-row .native-note {
   margin: 0;
   color: var(--muted);
 }
-.lib-files,
-.lib-picks {
+.lib-files {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -5449,33 +5111,8 @@ li.native-row .native-note {
   border-radius: var(--radius-md);
   background: var(--surface-subtle);
 }
-.lib-add {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 14px 0;
-  border-bottom: 1px solid var(--line);
-}
-.lib-picks label {
-  display: grid;
-  grid-template-columns: auto minmax(160px, 260px) minmax(0, 1fr);
-  align-items: center;
-  gap: 12px;
-  min-height: 44px;
-  padding: 0 4px;
-  cursor: pointer;
-}
-.lib-picks input {
-  accent-color: var(--accent);
-}
-.lib-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
 @media (max-width: 640px) {
-  .ars-row,
-  .lib-picks label {
+  .ars-row {
     grid-template-columns: minmax(0, 1fr);
     gap: 2px;
   }
@@ -5506,55 +5143,6 @@ li.native-row .native-note {
 }
 
 /* Arsenal as a guide (arsenal-UI-SPEC "Etapa 4"): the tree, the Guide, the list and its card */
-.ars-tree {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin: 0 0 4px;
-  padding: 0 0 0 10px;
-  list-style: none;
-}
-.ars-tree-item {
-  width: 100%;
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 6px 10px;
-  font: inherit;
-  font-size: var(--text-sm);
-  text-align: left;
-  color: var(--muted);
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-}
-.ars-tree-item.nested {
-  padding-left: 22px;
-}
-.ars-tree-item:hover {
-  color: var(--text);
-  background: var(--surface-hover);
-}
-.ars-tree-item[aria-current='page'] {
-  color: var(--text);
-  background: var(--accent-soft);
-  border-color: var(--accent-line);
-}
-.ars-tree-count {
-  font-size: var(--text-xs);
-  font-variant-numeric: tabular-nums;
-  color: var(--muted);
-}
-.ars-tree-label {
-  padding: 8px 10px 2px;
-  font-size: var(--text-xs);
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
 .ars-md {
   display: flex;
   flex-direction: column;
@@ -5572,50 +5160,6 @@ li.native-row .native-note {
 .ars-md-h[data-level='1'],
 .ars-md-h[data-level='2'] {
   font-size: var(--text-lg);
-}
-@media (max-width: 760px) {
-  .ars-tree {
-    flex-direction: row;
-    padding: 0;
-  }
-  .ars-tree-item,
-  .ars-tree-label {
-    white-space: nowrap;
-  }
-}
-
-.ars-tree-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding-left: 10px;
-}
-.ars-search {
-  min-height: 36px;
-  padding: 6px 10px;
-  font: inherit;
-  font-size: var(--text-sm);
-  color: var(--text);
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-}
-.ars-search:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -1px;
-}
-.ars-tree-wrap .ars-tree {
-  padding-left: 0;
-}
-.ars-tree-name {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-}
-.ars-tree-sep {
-  height: 1px;
-  margin: 6px 4px;
-  background: var(--line);
 }
 .ars-list {
   flex: 1;
@@ -5662,13 +5206,6 @@ li.native-row .native-note {
 .ars-card .ars-card .lib-pre {
   max-height: none;
 }
-.ars-close {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  min-width: 44px;
-  min-height: 44px;
-}
 .ars-card h2 {
   margin: 0;
   padding-right: 48px;
@@ -5691,14 +5228,6 @@ li.native-row .native-note {
 .ars-card section p {
   margin: 0;
   line-height: 1.5;
-}
-.ars-scope {
-  padding: 2px 8px;
-  font-size: var(--text-xs);
-  font-weight: 600;
-  color: var(--text);
-  border: 1px solid var(--accent-line);
-  border-radius: var(--radius-sm);
 }
 .ars-where {
   font-size: var(--text-sm);
