@@ -8,7 +8,9 @@
 use super::pins::{BRIDGE_PROTOCOL, MAX_FRAME};
 use crate::contracts::control::{ControlError as E, ControlResult, unique_json};
 use serde::Deserialize;
-use serde_json::{Value, json};
+#[cfg(test)]
+use serde_json::Value;
+use serde_json::json;
 use std::collections::BTreeMap;
 
 pub const MAX_TEXT_BYTES: usize = 16_384;
@@ -525,12 +527,6 @@ impl Command {
         debug_assert!(!bytes.contains(&b'\n'));
         Ok(bytes)
     }
-}
-
-/// Used by tests and the launcher's own diagnostics: whether a JSON value is a protocol frame
-/// of a known kind, without interpreting it.
-pub fn is_known_event_tag(v: &Value) -> bool {
-    Event::parse(v.to_string().as_bytes()).is_ok()
 }
 
 #[cfg(test)]

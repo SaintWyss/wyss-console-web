@@ -115,10 +115,6 @@ impl ProcessWorker {
     pub fn buffered_outbound(&self) -> usize {
         self.out.len()
     }
-    /// Stdout reached EOF: the provider closed its side.
-    pub fn stdout_closed(&self) -> bool {
-        self.eof
-    }
 
     fn drain_stderr(&mut self) {
         let mut scratch = [0u8; PROVIDER_SCRATCH];

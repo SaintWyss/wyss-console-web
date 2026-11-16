@@ -9,7 +9,7 @@
 use super::{
     CAPABILITY_VERSION, gate,
     history::SinkState,
-    model::{CAPABILITY, CAPABILITY_VERSION as MODEL_VERSION, ModelFacts},
+    model::{CAPABILITY, CAPABILITY_VERSION as MODEL_VERSION},
     profiles::{self, Card, ClaudeInstall, CodexInstall, Host},
     report::ProviderReport,
 };
@@ -239,11 +239,6 @@ impl M3Service {
             fixture: self.inner.fixture.as_ref().map(|f| f.view()),
         }
     }
-}
-
-/// The model facts of the fixture runtime, for the window's four-column view.
-pub fn facts_of(report: &ProviderReport) -> Option<&ModelFacts> {
-    report.model.as_ref()
 }
 
 #[tauri::command]

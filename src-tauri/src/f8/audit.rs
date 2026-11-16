@@ -502,14 +502,6 @@ impl AuditReplay {
     pub fn head(&self) -> u64 {
         self.head
     }
-    /// Folds one page; it must begin exactly at the next unseen sequence.
-    pub fn observe_page(&mut self, events: &[EventEnvelopeV1]) -> ControlResult<()> {
-        for event in events {
-            let v = serde_json::to_value(event).map_err(|_| E::InvalidRequest)?;
-            self.observe(&v)?;
-        }
-        Ok(())
-    }
     pub fn observe(&mut self, v: &Value) -> ControlResult<()> {
         if self.poisoned {
             return Err(bad());

@@ -516,13 +516,6 @@ impl Engine {
     fn ms(&self, now: Instant) -> u64 {
         u64::try_from(now.saturating_duration_since(self.epoch).as_millis()).unwrap_or(u64::MAX)
     }
-    /// Polls which found a stop that even SIGKILL could not reap (the slot stays consumed).
-    pub fn stuck_polls(&self) -> usize {
-        self.stuck
-    }
-    pub fn staging_anomalies(&self) -> usize {
-        self.staging_anomalies
-    }
     fn stage(&mut self, stage: LaunchStage) -> ControlResult<()> {
         match self.hook.as_mut() {
             Some(h) => h(stage),
