@@ -419,22 +419,6 @@ export const ES: Readonly<Record<string, string>> = {
   'Session {id}': 'Sesión {id}',
   Name: 'Nombre',
   Version: 'Versión',
-  'PTY diagnostic — Sprint 1A': 'Diagnóstico de PTY — Sprint 1A',
-  'Temporary backend smoke test. No terminal renderer. Preview capped at 8,192 characters.':
-    'Prueba de humo temporal del backend. Sin renderer de terminal. La vista previa se limita a 8.192 caracteres.',
-  'Run PTY smoke': 'Ejecutar prueba de PTY',
-  'Running PTY smoke…': 'Ejecutando prueba de PTY…',
-  'PTY smoke failed; backend cleanup requested.':
-    'La prueba de PTY falló; se pidió limpiar el backend.',
-  'PTY smoke PASS — create, input, output, resize, close.':
-    'Prueba de PTY APROBADA — crear, escribir, leer, cambiar tamaño, cerrar.',
-  'No PTY created.': 'No se creó ningún PTY.',
-  'Shell:': 'Shell:',
-  'Cwd:': 'Directorio:',
-  'PID (observed):': 'PID (observado):',
-  'TerminalId:': 'Id de terminal:',
-  'State:': 'Estado:',
-  'bytes received:': 'bytes recibidos:',
 
   // Agent: the turn view and the presenter that words its states
   Agent: 'Agente',

@@ -7,7 +7,6 @@ afterEach(() => setLanguage('en'));
 it('draws native-owned phrases in Spanish and keeps English unchanged', () => {
   setLanguage('es');
   expect(t('Managed sessions')).toBe('Sesiones Managed');
-  expect(t('Run PTY smoke')).toBe('Ejecutar prueba de PTY');
   setLanguage('en');
   expect(t('Managed sessions')).toBe('Managed sessions');
 });
