@@ -70,6 +70,8 @@
   };
   function close() {
     form = null;
+    addedError = null;
+    notice = null;
     confirmDelete = null;
   }
   let notice = $state<string | null>(null);
@@ -129,6 +131,7 @@
     if (!form || !formOk || working) return;
     working = true;
     addedError = null;
+    notice = null;
     try {
       const clean = (v: string | null) => (v && v.trim() ? v.trim() : null);
       const isNew = form.id === null;
@@ -166,6 +169,7 @@
   }
   async function remove(id: string) {
     working = true;
+    notice = null;
     try {
       await client.remove(id);
       confirmDelete = null;
@@ -255,7 +259,7 @@
   hidden={!visible}
   inert={!visible}
 >
-  {#if addedError}<p class="notice" data-tone="error" role="alert">
+  {#if addedError && !form}<p class="notice" data-tone="error" role="alert">
       {addedError}
     </p>{/if}
   {#if notice}<p class="notice" data-tone="ok" role="status">{notice}</p>{/if}
@@ -323,7 +327,7 @@
             title={d.found
               ? t('Found at {path}.', { path: d.found })
               : t(
-                  '“{command}” was not found where the agents are looked for.',
+                  '“{command}” was not found, or is not an executable file.',
                   {
                     command: d.executable,
                   },
@@ -398,7 +402,9 @@
             <button
               type="button"
               class="action"
-              title={t('Removes its card. The tool itself stays installed.')}
+              title={t(
+                'Removes its card and the launch made from it, unless you changed that launch by hand. The tool itself stays installed.',
+              )}
               onclick={() => (confirmDelete = d.id)}>{t('Delete')}</button
             >
           {/if}
@@ -447,6 +453,9 @@
             void submit();
           }}
         >
+          {#if addedError}<p class="notice" data-tone="error" role="alert">
+              {addedError}
+            </p>{/if}
           {#if !f.id}
             <div class="dist-suggest">
               <span class="dist-note">{t('Suggestions:')}</span>
@@ -455,7 +464,7 @@
                   type="button"
                   class="action"
                   title={t(
-                    'Fills in its name and the command that opens it. Its update command depends on how you installed it.',
+                    'Fills in its name, maker and the command that opens it. Its update command depends on how you installed it.',
                   )}
                   onclick={() => {
                     f.name = s.name;

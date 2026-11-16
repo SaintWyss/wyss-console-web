@@ -3743,8 +3743,6 @@ export const ES: Readonly<Record<string, string>> = {
   'Edit distributor': 'Editar distribuidor',
   'Add distributor': 'Agregar distribuidor',
   'Suggestions:': 'Sugerencias:',
-  'Fills in its name and the command that opens it. Its update command depends on how you installed it.':
-    'Completa su nombre y el comando que la abre. El de actualizar depende de cómo la instalaste.',
   'How the card is called.': 'Cómo se llama la tarjeta.',
   'Who makes it. Optional.': 'Quién la hace. Opcional.',
   'Made by': 'Hecho por',
@@ -3759,8 +3757,6 @@ export const ES: Readonly<Record<string, string>> = {
     'Lo que quieras recordar de ella. Opcional.',
   Note: 'Nota',
   'Found at {path}.': 'Encontrada en {path}.',
-  '“{command}” was not found where the agents are looked for.':
-    '«{command}» no se encontró donde se buscan los agentes.',
   'Types “{command}” in a new terminal of the Console.':
     'Escribe «{command}» en una terminal nueva de la Console.',
   'Makes a launch in Workspace that opens it, so it starts from + Launch like the others.':
@@ -3768,8 +3764,6 @@ export const ES: Readonly<Record<string, string>> = {
   'Make launch': 'Crear lanzamiento',
   'Change its name or its commands.': 'Cambiar su nombre o sus comandos.',
   Edit: 'Editar',
-  'Removes its card. The tool itself stays installed.':
-    'Saca su tarjeta. La herramienta sigue instalada.',
   'Nothing added yet.': 'Todavía no agregaste ninguno.',
   'Models in detail': 'Modelos en detalle',
   'Offered, with the efforts each accepts':
