@@ -417,14 +417,8 @@ export const ES: Readonly<Record<string, string>> = {
   // App shell and diagnostics
   'Skip to main content': 'Saltar al contenido principal',
   'Session {id}': 'Sesión {id}',
-  'Foundation ready': 'Foundation lista',
-  'Application information from IPC': 'Información de la aplicación desde IPC',
-  'Unable to load application information. Restart Wyss Console to try again.':
-    'No se pudo cargar la información de la aplicación. Reiniciá Wyss Console para intentar de nuevo.',
-  'Loading application information…': 'Cargando información de la aplicación…',
   Name: 'Nombre',
   Version: 'Versión',
-  Schema: 'Esquema',
   'PTY diagnostic — Sprint 1A': 'Diagnóstico de PTY — Sprint 1A',
   'Temporary backend smoke test. No terminal renderer. Preview capped at 8,192 characters.':
     'Prueba de humo temporal del backend. Sin renderer de terminal. La vista previa se limita a 8.192 caracteres.',
