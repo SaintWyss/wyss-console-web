@@ -1,0 +1,197 @@
+## dies with dead file
+src/lib/i18n/es.ts:420 | Foundation ready | src/lib/features/foundation/Foundation.svelte
+src/lib/i18n/es.ts:421 | Application information from IPC | src/lib/features/foundation/Foundation.svelte
+src/lib/i18n/es.ts:422 | Unable to load application information. Restart Wyss Console to try ag | src/lib/features/foundation/Foundation.svelte
+src/lib/i18n/es.ts:424 | Loading application information… | src/lib/features/foundation/Foundation.svelte
+src/lib/i18n/es.ts:427 | Schema | src/lib/features/foundation/Foundation.svelte
+src/lib/i18n/es.ts:428 | PTY diagnostic — Sprint 1A | src/lib/features/pty-diagnostic/PtyDiagnostic.svelte
+src/lib/i18n/es.ts:429 | Temporary backend smoke test. No terminal renderer. Preview capped at  | src/lib/features/pty-diagnostic/PtyDiagnostic.svelte
+src/lib/i18n/es.ts:431 | Run PTY smoke | src/lib/features/pty-diagnostic/PtyDiagnostic.svelte
+src/lib/i18n/es.ts:432 | Running PTY smoke… | src/lib/features/pty-diagnostic/PtyDiagnostic.svelte
+src/lib/i18n/es.ts:433 | PTY smoke failed; backend cleanup requested. | src/lib/features/pty-diagnostic/PtyDiagnostic.svelte
+src/lib/i18n/es.ts:435 | PTY smoke PASS — create, input, output, resize, close. | src/lib/features/pty-diagnostic/PtyDiagnostic.svelte
+src/lib/i18n/es.ts:437 | No PTY created. | src/lib/features/pty-diagnostic/PtyDiagnostic.svelte
+src/lib/i18n/es.ts:438 | Shell: | src/lib/features/pty-diagnostic/PtyDiagnostic.svelte
+src/lib/i18n/es.ts:439 | Cwd: | src/lib/features/pty-diagnostic/PtyDiagnostic.svelte
+src/lib/i18n/es.ts:440 | PID (observed): | src/lib/features/pty-diagnostic/PtyDiagnostic.svelte
+src/lib/i18n/es.ts:441 | TerminalId: | src/lib/features/pty-diagnostic/PtyDiagnostic.svelte
+src/lib/i18n/es.ts:442 | State: | src/lib/features/pty-diagnostic/PtyDiagnostic.svelte
+src/lib/i18n/es.ts:443 | bytes received: | src/lib/features/pty-diagnostic/PtyDiagnostic.svelte
+src/lib/i18n/es.ts:872 | none listed | src/lib/features/models/present.ts
+src/lib/i18n/es.ts:873 | {effort} (default) | src/lib/features/models/present.ts
+src/lib/i18n/es.ts:874 | {effort} | src/lib/features/models/present.ts
+src/lib/i18n/es.ts:894 | The list could not be read: the authority did not answer. | src/lib/features/models/present.ts
+src/lib/i18n/es.ts:896 | The list could not be read: the authority speaks another version than  | src/lib/features/models/present.ts
+src/lib/i18n/es.ts:898 | The list could not be read: the authority is busy. Try again. | src/lib/features/models/present.ts
+src/lib/i18n/es.ts:900 | The list could not be read. Nothing is shown rather than something unv | src/lib/features/models/present.ts
+src/lib/i18n/es.ts:902 | This is the runtime’s own list. A model being listed does not mean you | src/lib/features/models/present.ts
+src/lib/i18n/es.ts:904 | The managed Codex runtime is not running, so there is no list. A list  | src/lib/features/models/present.ts
+src/lib/i18n/es.ts:906 | Listed once by the managed Codex runtime (version {version}) when it s | src/lib/features/models/present.ts
+src/lib/i18n/es.ts:908 | Listed once by the managed Codex runtime when it started, in {mode}. R | src/lib/features/models/present.ts
+src/lib/i18n/es.ts:910 | The runtime’s list continued past what was taken: this list is partial | src/lib/features/models/present.ts
+src/lib/i18n/es.ts:912 | Whether this list is complete is not reported by this authority versio | src/lib/features/models/present.ts
+src/lib/i18n/es.ts:914 | The runtime marks it for replacement by {by}, retiring {retires}. | src/lib/features/models/present.ts
+src/lib/i18n/es.ts:916 | The runtime marks it for replacement by {by}. | src/lib/features/models/present.ts
+src/lib/i18n/es.ts:918 | Agents you start in a terminal do not report the model they use, and t | src/lib/features/models/present.ts
+## deadWeak
+src/lib/i18n/es.ts:870 | not reported by this authority version | solo en src muerto
+src/lib/i18n/es.ts:963 | 1 launch | aparece en Rust
+## dead by file
+src/lib/i18n/es.ts 101 keys 146 lines
+## dead sample
+es.ts:23 | Last read: {time}
+es.ts:24 | Installed · {version}
+es.ts:25 | Installed · version not reported
+es.ts:27 | Not configured
+es.ts:28 | new model
+es.ts:136 | What the agents are set up with
+es.ts:138 | What is offered, set, selected and in use
+es.ts:156 | Expand the sidebar
+es.ts:157 | Collapse the sidebar
+es.ts:167 | Launches from your files in ~/.config/wyss-console/launch
+es.ts:848 | Four different things, kept apart: what a runtime
+es.ts:851 | , what an agent’s files are
+es.ts:853 | with, what a profile
+es.ts:855 | for a session it starts, and what a runtime
+es.ts:858 | . None is filled from another. A default in a list, a value in a file or a name 
+es.ts:860 | Offered by the managed Codex runtime
+es.ts:862 | Reading the runtime’s list…
+es.ts:863 | The last read failed. What is shown is older.
+es.ts:865 | The runtime listed no model.
+es.ts:866 | Models the runtime offers
+es.ts:867 | default of this runtime
+es.ts:868 | Provider {provider}
+es.ts:869 | Efforts:
+es.ts:875 | Configured in the agents’ own files
+es.ts:877 | Not read yet. The Configuration view reads these files.
+es.ts:879 | No model setting was found in the places read.
+es.ts:881 | Configured models
+es.ts:883 | As the file says; it applies to new sessions, and what a running session does wi
+es.ts:885 | Selected by a profile
+es.ts:886 | No profile names a model or an effort.
+es.ts:888 | Models selected by profiles
+es.ts:890 | Managed sessions have not been read yet.
+es.ts:892 | No managed session is attached.
+es.ts:893 | Models reported by the runtime
+es.ts:957 | Nothing here yet. Add brings what is already on your computer.
+es.ts:959 | What Wyss Console found in your folders and is not in the library yet. It is cop
+es.ts:961 | What Wyss Console found in your folders and is not in the library yet. Before it
+es.ts:964 | Activates when
+es.ts:965 | Bring what you already use
+es.ts:967 | Could not be saved. What was saved before this stays.
+es.ts:969 | Import {n} items
+es.ts:970 | In a launch’s environment
+es.ts:971 | {n} launches
+es.ts:973 | No launch of this agent has this role.
+es.ts:975 | No launch of this agent yet.
+es.ts:977 | Nothing found to bring.
+es.ts:978 | Nothing here.
+es.ts:979 | Nothing matches “{q}”.
+es.ts:981 | Putting it in a role adds it to every launch of that role.
+es.ts:983 | Suggestion: {group}
+es.ts:984 | This is chosen in each launch’s environment, in Workspace.
+es.ts:986 | This launch runs commands before it starts: it is changed in its file.
+es.ts:988 | tokens, estimated
+es.ts:989 | Unplaced
+es.ts:991 | Where it goes
+es.ts:992 | Works in
+es.ts:993 | Wyss Console found this on your computer. It is copied to your library; your ori
+es.ts:2309 | Start agent…
+es.ts:2321 | No terminals open. Create a new terminal to continue.
+es.ts:2455 | Shown, not selectable yet
+es.ts:2456 | Hooks, MCP servers, plugins and commands will be chosen per preset in a later st
+es.ts:2475 | Models and rules
+es.ts:2527 | Rules the agent always follows, and the Codex model profiles (astra, luna, sol) 
+es.ts:2556 | Debugging
+es.ts:2889 | Skill exclusion is not qualified for this exact provider build, so nothing was s
+es.ts:3708 | Which agents are installed, their version and their models.
+es.ts:3710 | What each distributor offers, which model is set and which one a session is usin
+es.ts:3717 | This agent’s own configuration files: hooks, skills, MCP servers.
+es.ts:3719 | The API key this agent uses.
+es.ts:3726 | Added by you
+es.ts:3727 | Other tools
+es.ts:3756 | Nothing added yet.
+es.ts:3757 | Models in detail
+es.ts:3758 | Offered, with the efforts each accepts
+es.ts:3760 | Running now
+es.ts:3761 | Nothing of this tool is running now.
+es.ts:3764 | What this tool offers and what is running with it now.
+es.ts:3766 | A tool you add opens and updates in a terminal of the Console. Arsenal and the c
+es.ts:3805 | The real configuration files of Claude Code and Codex: what an agent starts with
+es.ts:3810 | My skills
+es.ts:3846 | Personal: you can edit it
+es.ts:3852 | Colours
+es.ts:3853 | Yours: you made it
+es.ts:3854 | GSD: updates itself
+es.ts:3855 | Plugin: comes from outside
+es.ts:3856 | Comes with the tool
+es.ts:3858 | A method for planning, building and checking work in phases. Its skills and agen
+es.ts:3860 | A plugin installed for this tool.
+es.ts:3862 | Skills that come with your Claude account.
+es.ts:3864 | Skills one tool installed in a batch.
+es.ts:3866 | Skills Codex installs and replaces itself.
+es.ts:3868 | Skills that are a Git repository of their own.
+es.ts:3884 | What a skill is
+es.ts:3885 | A skill is an instruction for how to do something, kept in a folder with a SKILL
+es.ts:3887 | When it starts, Claude reads only each skill’s name and description; if what you
+es.ts:3889 | You use one by typing /name or by asking for what its “Use it when” says.
+es.ts:3895 | Start with /{name}
+es.ts:3896 | They come from outside and update themselves: they are not edited here.
+es.ts:3903 | How it is used
+es.ts:3915 | Choose a skill to see what it does.
+es.ts:3927 | Choose a preset to change project instructions.
+## css onlyDeadSrc
+## css dynamicMaybe
+profile-template-note(profile-) profile-actions(profile-) profile-actions-gap(profile-)
+## css unused
+new-terminal 930,941,945 TEST
+launch-files 1228 
+native-profiles 3090,3180 
+native-profile-list 3097 
+native-profile-editor 3098,3107 
+native-profile-item 3137,3151,3154 
+native-versions 3158,3167 
+models-view 3191,3195,3199 
+models-row 3207,3215 
+dist-bar 4808 
+dist-read 4814 
+dist-tool 4845,4891,4921,4927 
+dist-models 4864,4893,4922,4930 
+dist-more 4866,4895,5198,5201 
+dist-new 4918,4946 
+dist-model 4941 
+dist-cmd 5158 
+dist-link 5163,5171,5174 
+dist-section 5178 
+dist-sub 5211 
+dist-offered 5219,5227 
+dist-default 5237 
+ars-tools 5254,5257 TEST
+ars-kinds 5258,5264 
+ars-tool 5267,5278,5282,5286 
+ars-kind 5268,5283,5287 
+ars-config 5297,5303 
+ars-body 5306 
+ars-bar 5315 
+ars-group 5319,5347 
+ars-group-head 5322,5339 
+ars-tree-item 5343,5517,5534,5537 
+ars-group-text 5350 
+ars-group-help 5355 
+ars-chevron 5360 
+ars-detail 5395,5401 
+lib-picks 5422,5459,5468,5478 
+lib-file 5430 
+lib-add 5452 
+lib-actions 5471 
+ars-tree 5509,5577,5607 
+nested 5534 TEST
+ars-tree-count 5546 
+ars-tree-label 5551,5582 
+ars-tree-wrap 5587,5607 
+ars-search 5593,5603 
+ars-tree-name 5610 
+ars-tree-sep 5615 
+ars-list 5620,5738,5994,6001 
+ars-close 5665 
+ars-scope 5695 
