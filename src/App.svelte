@@ -20,19 +20,7 @@
   import { CredentialsController } from './lib/features/credentials/controller';
   import CredentialsView from './lib/features/credentials/CredentialsView.svelte';
   import { EventsController } from './lib/features/events/controller';
-  import { F8Controller } from './lib/features/f8/controller';
-  import { linkText } from './lib/features/f8/present';
-  import { M3Controller } from './lib/features/m3/controller';
-  import ProvidersView from './lib/features/m3/ProvidersView.svelte';
-  import PipelinesView from './lib/features/orchestration/PipelinesView.svelte';
-  import RemoteView from './lib/features/remote/RemoteView.svelte';
-  import { desktopM3 } from './lib/desktop/m3-client';
   import DistributorsView from './lib/features/distributors/DistributorsView.svelte';
-  import { ProjectsController } from './lib/features/projects/controller';
-  import ProjectsGate from './lib/features/projects/ProjectsGate.svelte';
-  import ProjectsView from './lib/features/projects/ProjectsView.svelte';
-  import { desktopProjects } from './lib/desktop/projects-client';
-  import RuntimesView from './lib/features/f8/RuntimesView.svelte';
   import { NativeController } from './lib/features/native/controller';
   import WorkspaceView from './lib/features/native/WorkspaceView.svelte';
   import LaunchEditor from './lib/features/workspace/LaunchEditor.svelte';
@@ -69,7 +57,7 @@
   } from './lib/shell/authority';
   import {
     inPersonalization,
-    navItems,
+    NAV_ITEMS,
     PERSONALIZATION,
     type ShownView,
     type ViewId,
@@ -161,32 +149,13 @@
   });
   let settings = $state(settingsController.state());
   const defaultFilter = $derived(settings.preferences.events.default_filter);
-  // Managed runtimes of protocol 2. Whether the interface exists is the desktop's answer,
-  // asked once: the installed desktop answers inactive and shows nothing of it.
-  // Read only while its view is shown; it carries the fixture runtime's few actions where a build hosts one.
-  const m3Controller = new M3Controller(desktopM3, (next) => {
-    m3 = next;
-  });
-  let m3 = $state(m3Controller.state());
-  const f8Controller = new F8Controller((next) => {
-    f8 = next;
-  });
-  let f8 = $state(f8Controller.state());
-  // The project-centered workspace: off until the owner turns it on in Settings. Its state is
-  // read once at start (the gate), and then only while its view is shown.
-  const projectsController = new ProjectsController((next) => {
-    projects = next;
-  });
-  let projects = $state(projectsController.state());
-  const items = $derived(
-    navItems(f8.gate === 'active', projects.overview?.enabled === true, true),
-  );
+  const items = NAV_ITEMS;
   let opened = false;
   let navigated = false;
   const activity = $derived(activeView === 'activity');
   // The name of the view, alone, over Activity and over the views that draw no heading of
   // their own: there it is the only place that says which view is open. No subtitle.
-  const TITLED: readonly ShownView[] = ['workspace', 'agents', 'projects'];
+  const TITLED: readonly ShownView[] = ['workspace', 'agents'];
   const title = $derived(
     activity
       ? msg('Activity')
@@ -198,15 +167,6 @@
   // Sessions are read only while their view is shown.
   $effect(() => {
     agentController.setVisible(activeView === 'agents');
-  });
-  $effect(() => {
-    f8Controller.setVisible(activeView === 'runtimes');
-  });
-  $effect(() => {
-    m3Controller.setVisible(activeView === 'providers');
-  });
-  $effect(() => {
-    projectsController.setVisible(activeView === 'projects');
   });
   // Approvals are read while their view is shown or a turn is being followed: an
   // approval exists only for a turn that runs. Nothing is read for them otherwise.
@@ -246,9 +206,7 @@
   // The overview reads the registry (with resources) while it is shown.
   $effect(() => {
     nativeController.setVisible(
-      activeView === 'workspace' ||
-        activeView === 'launches' ||
-        activeView === 'projects',
+      activeView === 'workspace' || activeView === 'launches',
     );
   });
 
@@ -288,8 +246,6 @@
   onMount(() => {
     let active = true;
     settingsController.start();
-    void f8Controller.start();
-    void projectsController.refresh();
     void getAppInfo().then(
       (info) => {
         if (active) version = info.version;
@@ -322,9 +278,6 @@
       nativeController.dispose();
       credentialsController.dispose();
       settingsController.dispose();
-      f8Controller.dispose();
-      m3Controller.dispose();
-      projectsController.dispose();
     };
   });
 
@@ -430,9 +383,6 @@
   function observeWorkspace(state: WorkspaceState) {
     runtime = summarizeRuntime(state);
   }
-  const f8Link = $derived(
-    f8.gate === 'active' && f8.link ? linkText(f8.link) : null,
-  );
 </script>
 
 <div class="shell">
@@ -499,20 +449,6 @@
       {approvalsController}
       onsessions={() => go('sessions')}
     />
-    <PipelinesView
-      visible={activeView === 'pipelines'}
-      f8Active={f8.gate === 'active'}
-      onruntimes={() => go('runtimes')}
-    />
-    <RemoteView visible={activeView === 'remote'} />
-    {#if projects.overview?.enabled}
-      <ProjectsView
-        visible={activeView === 'projects'}
-        {projects}
-        controller={projectsController}
-        client={desktopProjects}
-      />
-    {/if}
     <!-- Personalization: how the agents start. Its tabs are views of their own, one under another. -->
     <div class="personal" hidden={!inPersonalization(activeView)}>
       <nav
@@ -564,18 +500,6 @@
         />
       </div>
     </div>
-    <ProvidersView
-      visible={activeView === 'providers'}
-      view={m3}
-      controller={m3Controller}
-    />
-    {#if f8.gate === 'active'}
-      <RuntimesView
-        visible={activeView === 'runtimes'}
-        {f8}
-        controller={f8Controller}
-      />
-    {/if}
     <ApprovalsView
       visible={activeView === 'approvals' || activity}
       {approvals}
@@ -603,7 +527,6 @@
       {retrying}
       onretry={retry}
     >
-      <ProjectsGate {projects} controller={projectsController} />
       <LifecycleCard />
     </SettingsView>
   </main>
@@ -613,6 +536,5 @@
     {runtime}
     {authority}
     {lifecycle}
-    f8={f8Link}
   />
 </div>

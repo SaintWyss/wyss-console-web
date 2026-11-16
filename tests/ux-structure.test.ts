@@ -8,7 +8,6 @@ import {
   RAIL_ITEMS,
   PERSONALIZATION,
   moreItems,
-  navItems,
   railOf,
 } from '../src/lib/shell/nav';
 import {
@@ -42,20 +41,15 @@ it('offers six entries on the rail, and every other view under More', () => {
     'More',
   ]);
   // No view is lost: what the rail does not open itself is under More, optional ones included.
-  const all = navItems(true, true, true);
+  const all = NAV_ITEMS;
   const more = moreItems(all).map((i) => i.id);
   expect(more).toEqual([
-    'projects',
     'workspace',
     'sessions',
     'agents',
-    'runtimes',
-    'pipelines',
-    'remote',
     'approvals',
     'events',
     'arsenal-presets',
-    'providers',
     'settings',
   ]);
   for (const item of all)
@@ -65,13 +59,8 @@ it('offers six entries on the rail, and every other view under More', () => {
         PERSONALIZATION.some((tab) => tab.id === item.id),
       item.id,
     ).toBe(true);
-  // Without the optional views, More has no entry for them.
-  expect(moreItems(NAV_ITEMS).map((i) => i.id)).not.toContain('runtimes');
-  expect(moreItems(NAV_ITEMS).map((i) => i.id)).not.toContain('projects');
   // A view only reachable from More lights More.
   expect(railOf('sessions')).toBe('more');
-  // Providers is a view of its own under More; the rail's Distributors opens its own view.
-  expect(railOf('providers')).toBe('more');
   // Personalization holds three views as tabs, in this order; any of them lights its entry.
   expect(PERSONALIZATION.map((tab) => tab.id)).toEqual([
     'distributors',

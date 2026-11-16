@@ -1,7 +1,6 @@
 import { ES_AREA as ES_ARSENAL } from './es-arsenal';
 import { ES_AREA as ES_NATIVE } from './es-native';
 import { ES_AREA as ES_CONFIGURATION } from './es-configuration';
-import { ES_AREA as ES_REST } from './es-rest';
 import { ES_SCREENS } from './screens';
 
 /**
@@ -115,12 +114,7 @@ export const ES: Readonly<Record<string, string>> = {
   'Managed agent sessions': 'Sesiones de agentes Managed',
   Agents: 'Agentes',
   'Work with Codex in a session': 'Trabajar con Codex en una sesión',
-  Pipelines: 'Pipelines',
-  'Structured handoff and finite OL3 coordination':
-    'Traspaso estructurado y coordinación OL3 acotada',
-  'Remote PCs': 'PCs remotas',
-  'Hosts and sessions · transport not selected':
-    'Equipos y sesiones · transporte sin elegir',
+
   Approvals: 'Aprobaciones',
   'Actions waiting for a decision': 'Acciones que esperan una decisión',
   Events: 'Eventos',
@@ -129,20 +123,12 @@ export const ES: Readonly<Record<string, string>> = {
   'Installed capabilities': 'Capacidades instaladas',
   Configuration: 'Configuración',
   Models: 'Modelos',
-  Profiles: 'Perfiles',
+
   Credentials: 'Credenciales',
   'API keys, kept sealed': 'Claves de API, guardadas selladas',
   Settings: 'Ajustes',
   'Preferences and about': 'Preferencias y acerca de',
-  Runtimes: 'Runtimes',
-  'One isolated runtime per managed session':
-    'Un runtime aislado por cada sesión Managed',
-  Providers: 'Proveedores',
-  'What each provider profile can do, and why not':
-    'Qué puede hacer cada perfil de proveedor, y por qué no',
-  Projects: 'Proyectos',
-  'Folders, workspaces and the sessions they show':
-    'Carpetas, workspaces y las sesiones que muestran',
+
   Primary: 'Principal',
   '{count} waiting': '{count} en espera',
 
@@ -162,9 +148,9 @@ export const ES: Readonly<Record<string, string>> = {
   'Local terminal. It runs with or without the authority.':
     'Terminal local. Funciona con o sin la autoridad.',
   'Protocol 1 authority': 'Autoridad de protocolo 1',
-  'Protocol 2 authority': 'Autoridad de protocolo 2',
+
   'Authority P1': 'Autoridad P1',
-  'Authority P2': 'Autoridad P2',
+
   'Authority status': 'Estado de la autoridad',
   Details: 'Detalles',
   'No terminals': 'Sin terminales',
@@ -338,8 +324,8 @@ export const ES: Readonly<Record<string, string>> = {
   'Authority · protocol 1': 'Autoridad · protocolo 1',
   Retry: 'Reintentar',
   'Retrying…': 'Reintentando…',
-  'The protocol 1 authority keeps its sessions, approvals and history, and keeps running when this window is closed. Local terminals and these preferences work without it. Managed runtimes use a separate protocol 2 connection, shown in Runtimes.':
-    'La autoridad de protocolo 1 conserva sus sesiones, aprobaciones e historial, y sigue corriendo cuando se cierra esta ventana. Las terminales locales y estas preferencias funcionan sin ella. Los runtimes Managed usan una conexión aparte de protocolo 2, que se ve en Runtimes.',
+  'The protocol 1 authority keeps its sessions, approvals and history, and keeps running when this window is closed. Local terminals and these preferences work without it. Managed runtimes use a separate protocol 2 connection.':
+    'La autoridad de protocolo 1 conserva sus sesiones, aprobaciones e historial, y sigue corriendo cuando se cierra esta ventana. Las terminales locales y estas preferencias funcionan sin ella. Los runtimes Managed usan una conexión aparte de protocolo 2.',
   About: 'Acerca de',
   'Version {version}': 'Versión {version}',
   'Not available': 'No disponible',
@@ -406,7 +392,6 @@ export const ES: Readonly<Record<string, string>> = {
   'Skip to main content': 'Saltar al contenido principal',
   'Session {id}': 'Sesión {id}',
   Name: 'Nombre',
-  Version: 'Versión',
 
   // Agent: the turn view and the presenter that words its states
   Agent: 'Agente',
@@ -460,8 +445,7 @@ export const ES: Readonly<Record<string, string>> = {
   Objective: 'Objetivo',
   'What should Codex do in this project?':
     '¿Qué debería hacer Codex en este proyecto?',
-  'Enter to run · Shift+Enter for a new line':
-    'Enter para ejecutar · Shift+Enter para una línea nueva',
+
   'Cancel turn': 'Cancelar turno',
   Run: 'Ejecutar',
   Completed: 'Completado',
@@ -814,10 +798,9 @@ export const ES: Readonly<Record<string, string>> = {
   offers: 'ofrece',
   configured: 'configurado',
   selects: 'selecciona',
-  'reported in use': 'informó en uso',
+
   '{effort}': '{effort}',
   'not shown here': 'no se muestra acá',
-  'Reported in use': 'Informados en uso',
 
   // Credentials: the API keys the desktop keeps sealed
   'API credentials': 'Credenciales de API',
@@ -887,47 +870,9 @@ export const ES: Readonly<Record<string, string>> = {
   'The record is damaged: replace the key.':
     'El registro está dañado: reemplazá la clave.',
 
-  // Remote: the view that says what is not connected yet
-  'M7 · REMOTE GATEWAY': 'M7 · PUERTA REMOTA',
-  'Unavailable · OD01 transport choice is open. This view sends no network requests and has no paired hosts.':
-    'No disponible · la elección de transporte OD01 está abierta. Esta vista no envía pedidos de red y no tiene equipos emparejados.',
-  'Remote areas': 'Áreas remotas',
-  Hosts: 'Equipos',
-  Pairing: 'Emparejamiento',
-  Devices: 'Dispositivos',
-  'No remote host is enrolled. Authentication, pairing, connection type and grant expiry are unavailable until a transport is approved and independently reviewed.':
-    'No hay ningún equipo remoto registrado. La autenticación, el emparejamiento, el tipo de conexión y el vencimiento de las concesiones no están disponibles hasta que un transporte se apruebe y lo revise alguien independiente.',
-  'Connect to a host': 'Conectar con un equipo',
-  'Pairing requires two distinct device keys, a pinned host identity, QR transcript proof and explicit host confirmation. No key or enrollment is created from this view.':
-    'El emparejamiento requiere dos claves de dispositivo distintas, una identidad de host fijada, la prueba de la transcripción del QR y la confirmación explícita del host. Desde esta vista no se crea ninguna clave ni registro.',
-  'Begin pairing': 'Empezar el emparejamiento',
-  'Remote projects and workspaces will be listed only from an authenticated host. No local path or cached project is shown here.':
-    'Los proyectos y workspaces remotos se listarán solo desde un host autenticado. Acá no se muestra ninguna ruta local ni proyecto en caché.',
-  'Native and Managed sessions need host identity, plane, generation and observation age. No remote session metadata is cached.':
-    'Las sesiones Native y Managed necesitan identidad de host, plano, generación y antigüedad de la observación. No se guarda en caché ningún metadato de sesiones remotas.',
-  'Disconnected · no output is available. View and input grants are separate; terminal.write grants full host-account control. Locked-host full-account input remains blocked.':
-    'Desconectado · no hay salida disponible. Las concesiones de ver y de escribir son separadas; terminal.write da control total de la cuenta del host. La entrada con cuenta completa en un host bloqueado sigue bloqueada.',
-  'Input must report accepted bytes, partial writes or OUTCOME_UNKNOWN. A lost acknowledgement is never replayed; new user input is required after reconnect.':
-    'La entrada tiene que informar bytes aceptados, escrituras parciales o OUTCOME_UNKNOWN. Una confirmación perdida nunca se reenvía: después de reconectar hace falta una entrada nueva del usuario.',
-  'Attach read-only terminal': 'Adjuntar terminal de solo lectura',
-  'Claim terminal input': 'Reclamar la entrada de la terminal',
-  'Pipeline metadata is unavailable offline. M6 keeps prompts and provider output out of durable journals; a remote view will fetch through the reviewed host protocol.':
-    'Los metadatos de los pipelines no están disponibles sin conexión. M6 mantiene los prompts y la salida de los proveedores fuera de los diarios durables; una vista remota va a traer datos por el protocolo de host revisado.',
-  'Managed approval decisions must pass through the existing wyss-control authority and its per-operation presence check. This view cannot approve while disconnected.':
-    'Las decisiones de aprobación Managed tienen que pasar por la autoridad wyss-control existente y su verificación de presencia por operación. Esta vista no puede aprobar mientras esté desconectada.',
   Approve: 'Aprobar',
   Deny: 'Rechazar',
-  'No paired-device list exists. Revocation, expiry and host-confirmed grant changes will be shown only after authenticated host negotiation.':
-    'No existe una lista de dispositivos emparejados. Las revocaciones, los vencimientos y los cambios de concesión confirmados por el host se mostrarán solo después de una negociación autenticada con el host.',
-  'Transport candidates': 'Candidatos de transporte',
-  'H1 · owner-configured overlay: Android VPN lifecycle and third-party control plane; Tailscale reference pricing is $0 Personal (up to 6 users), $8/user/month Standard, $18/user/month Premium.':
-    'H1 · overlay configurado por el dueño: ciclo de vida de la VPN de Android y plano de control de terceros; el precio de referencia de Tailscale es $0 Personal (hasta 6 usuarios), $8/usuario/mes Standard, $18/usuario/mes Premium.',
-  'H2 · iroh/QUIC: first-party Kotlin/Android bindings and end-to-end TLS; public relays are free/rate-limited/no-SLA, hosted relays start at $19/month, self-hosting transfers infrastructure and operations to Wyss.':
-    'H2 · iroh/QUIC: bindings propios de Kotlin/Android y TLS de extremo a extremo; los relays públicos son gratuitos, con límite de tasa y sin SLA; los relays alojados arrancan en $19/mes; alojarlo uno mismo pasa la infraestructura y la operación a Wyss.',
-  'No CPU, RAM, battery, idle, latency or roaming measurements exist for either candidate. OD01 remains an owner decision. OD02 keeps locked-host full-account input blocked.':
-    'No hay mediciones de CPU, RAM, batería, reposo, latencia ni roaming para ninguno de los dos candidatos. OD01 sigue siendo una decisión del dueño. OD02 mantiene bloqueada la entrada con cuenta completa en un host bloqueado.',
-  'Disconnected · no action is queued or sent.':
-    'Desconectado · no se encola ni se envía ninguna acción.',
+
   // Configuration: the items view, its changes and history, and the sentences of its presenter
   item: 'elemento',
   items: 'elementos',
@@ -1472,279 +1417,35 @@ export const ES: Readonly<Record<string, string>> = {
   'Older events could not be read.':
     'No se pudieron leer los eventos anteriores.',
 
-  // Managed runtimes (F8): the labels, gates, failures and link of the runtime views
-  'The runtime could not be found.': 'No se encontró el runtime.',
-  'The runtime process could not be started.':
-    'No se pudo arrancar el proceso del runtime.',
-  'The connection to the runtime broke.':
-    'Se cortó la conexión con el runtime.',
-  'The runtime did not finish starting in time.':
-    'El runtime no terminó de arrancar a tiempo.',
-  'The runtime answered in a way the authority does not accept.':
-    'El runtime respondió de una forma que la autoridad no acepta.',
-  'The runtime asked for something it may not ask for.':
-    'El runtime pidió algo que no tiene permitido pedir.',
-  'The runtime refused to start.': 'El runtime rechazó arrancar.',
-  'The runtime listed models the authority does not accept.':
-    'El runtime listó modelos que la autoridad no acepta.',
-  'The runtime process exited.': 'El proceso del runtime terminó.',
-  'The authority could not record what the runtime did.':
-    'La autoridad no pudo registrar lo que hizo el runtime.',
-  'The runtime tried to act outside what its session allows, and the authority stopped it.':
-    'El runtime intentó actuar fuera de lo que permite su sesión, y la autoridad lo detuvo.',
-  'The authority could not prove the runtime was isolated, so it did not use it.':
-    'La autoridad no pudo comprobar que el runtime estaba aislado, así que no lo usó.',
-  'A resource limit ended it: {key}.':
-    'Un límite de recursos lo terminó: {key}.',
-  'Binding…': 'Vinculando…',
   'Outcome unknown': 'Resultado desconocido',
-  'Workspace bound': 'Workspace vinculado',
-  Attached: 'Conectada',
-  'Bind a workspace': 'Vincular un workspace',
-  'Resume a binding': 'Retomar un vínculo',
-  'Start turns': 'Iniciar turnos',
-  'Run commands': 'Correr comandos',
-  'Change files': 'Cambiar archivos',
-  'Lets the session be bound to a workspace folder.':
-    'Permite vincular la sesión a una carpeta de workspace.',
-  'Lets a bound session be attached to a running runtime again.':
-    'Permite volver a conectar una sesión vinculada a un runtime que corre.',
-  'Lets a turn start. Without it nothing runs.':
-    'Permite iniciar un turno. Sin esto no corre nada.',
-  'Lets Codex ask to run a command. Each one still waits for you.':
-    'Permite que Codex pida correr un comando. Cada uno igual espera tu aprobación.',
-  'Lets Codex ask to change files. Each change still waits for you.':
-    'Permite que Codex pida cambiar archivos. Cada cambio igual espera tu aprobación.',
-  '{minutes} min': '{minutes} min',
-  '{hours} h': '{hours} h',
-  'Allowed.': 'Permitido.',
-  'The session has no workspace.': 'La sesión no tiene workspace.',
-  'The session is not attached to a running runtime.':
-    'La sesión no está conectada a un runtime que corre.',
-  'The session is attached to a different runtime launch.':
-    'La sesión está conectada a otro arranque de runtime.',
-  'The session is not attached in a mode that allows this.':
-    'La sesión no está conectada en un modo que permita esto.',
-  'The session is not attached in Local Tools.':
-    'La sesión no está conectada en Local Tools.',
-  'The runtime has no safety profile.':
-    'El runtime no tiene perfil de seguridad.',
-  'A turn is already running.': 'Ya hay un turno corriendo.',
-  'The authority has no such session.': 'La autoridad no tiene esa sesión.',
-  'The session is closed.': 'La sesión está cerrada.',
-  'There is no execution lease.': 'No hay concesión de ejecución.',
-  'The execution lease is not active.':
-    'La concesión de ejecución no está activa.',
-  'The execution lease expired.': 'La concesión de ejecución venció.',
-  'The execution lease does not grant this.':
-    'La concesión de ejecución no permite esto.',
-  'The runtime is not the session’s.': 'El runtime no es el de la sesión.',
-  'The runtime is not running.': 'El runtime no está corriendo.',
-  'The runtime is not ready.': 'El runtime no está listo.',
-  'The runtime has not been attested yet.':
-    'Todavía no se verificó el runtime.',
-  'The runtime is not a version the authority accepts.':
-    'El runtime no es una versión que la autoridad acepta.',
-  'The authority is unavailable.': 'La autoridad no está disponible.',
-  'This console is not connected to managed runtimes.':
-    'Esta consola no está conectada a los runtimes Managed.',
-  'The authority did not answer, so the outcome is not known. Nothing was canceled and it may still have happened. The console reads the authority again; check what it holds before sending this again.':
-    'La autoridad no respondió, así que no se sabe el resultado. No se canceló nada y puede que haya pasado igual. La consola vuelve a leer la autoridad; revisá qué tiene antes de mandar esto de nuevo.',
-  'This authority does not offer that. Nothing changed; try another mode.':
-    'Esta autoridad no ofrece eso. No cambió nada; probá otro modo.',
-  'What was shown is no longer what the authority holds. It has been read again.':
-    'Lo que se mostraba ya no es lo que tiene la autoridad. Se volvió a leer.',
-  'The session has no workspace yet.': 'La sesión todavía no tiene workspace.',
-  'The session has no ready runtime for this.':
-    'La sesión no tiene un runtime listo para esto.',
-  'A turn is running. Nothing is stopped under it.':
-    'Hay un turno corriendo. No se detiene nada por debajo.',
-  'The authority did not accept the folder as a workspace.':
-    'La autoridad no aceptó la carpeta como workspace.',
-  'The session already has a workspace.': 'La sesión ya tiene un workspace.',
-  'The authority denied it: no execution lease allows this action.':
-    'La autoridad lo denegó: ninguna concesión de ejecución permite esta acción.',
-  'The session already has an active execution lease.':
-    'La sesión ya tiene una concesión de ejecución activa.',
-  'The authority is at its limit for this and did not take it. Nothing changed. Only one runtime runs at a time: stop the one that is running, then start this one.':
-    'La autoridad llegó a su límite para esto y no lo tomó. No cambió nada. Solo corre un runtime a la vez: detené el que corre y después arrancá este.',
-  'The agent runtime refused.': 'El runtime del agente rechazó.',
-  'The authority could not confirm what the runtime did. Nothing is sent again by itself.':
-    'La autoridad no pudo confirmar lo que hizo el runtime. No se vuelve a mandar nada por sí solo.',
-  'It was not allowed in the confirmation window, so nothing was sent.':
-    'No se permitió en la ventana de confirmación, así que no se mandó nada.',
-  'No managed-runtime authority is listening.':
-    'No hay ninguna autoridad de runtimes Managed escuchando.',
-  'The authority stopped answering.': 'La autoridad dejó de responder.',
-  'The authority broke the protocol, so the connection was dropped.':
-    'La autoridad rompió el protocolo, así que se cortó la conexión.',
-  'The authority’s socket is not this user’s private one.':
-    'El socket de la autoridad no es el privado de este usuario.',
-  Revoked: 'Revocada',
+
   Expired: 'Vencida',
-  'Expires in {n} s': 'Vence en {n} s',
-  'Expires in {n} min': 'Vence en {n} min',
-  'Expires in {n} h': 'Vence en {n} h',
-  'No runtime yet': 'Todavía no hay runtime',
-  '{state} · generation {generation}{profile}':
-    '{state} · generación {generation}{profile}',
 
-  // History (F8): the session history panel
-  'This session only': 'Solo esta sesión',
-  'Narrows the window loaded here, not all of history.':
-    'Acota la ventana cargada acá, no todo el historial.',
-  'Every session.': 'Todas las sesiones.',
-  Newest: 'Más reciente',
-  'History is unavailable': 'El historial no está disponible',
-  'Reading history…': 'Leyendo el historial…',
-  'The authority records every state change it commits.':
-    'La autoridad registra cada cambio de estado que confirma.',
-  'History before the oldest event shown is not available.':
-    'El historial anterior al evento más viejo mostrado no está disponible.',
-  'No event in this window belongs to this session.':
-    'Ningún evento de esta ventana pertenece a esta sesión.',
-  'Newest first': 'Más recientes primero',
-  '· {count} window back': '· {count} ventana atrás',
-  '· {count} windows back': '· {count} ventanas atrás',
-
-  // Overview (F8): the session overview panel
-  Conversation: 'Conversación',
-  'The runtime is changing state.': 'El runtime está cambiando de estado.',
-  'Start the runtime to work in this session.':
-    'Iniciá el runtime para trabajar en esta sesión.',
-  'Grant an execution lease so the session may bind a workspace and run turns.':
-    'Otorgá una concesión de ejecución para que la sesión pueda asociar un workspace y correr turnos.',
-  'Bind a project folder to this session.':
-    'Asociá una carpeta de proyecto a esta sesión.',
-  'Attach the session to the running runtime.':
-    'Conectá la sesión al runtime en ejecución.',
-  'The authority could not confirm the last binding attempt. Nothing asks again by itself.':
-    'La autoridad no pudo confirmar el último intento de asociación. Nada vuelve a preguntar por sí solo.',
-  'The authority is binding the workspace.':
-    'La autoridad está asociando el workspace.',
-  'Ready. Open the Conversation tab to give Codex an objective.':
-    'Listo. Abrí la pestaña Conversación para darle un objetivo a Codex.',
-  'Provider support': 'Soporte del proveedor',
-  'Claude Code Managed is not implemented in this authority. This session remains Codex; Native use requires a separate, explicit launch.':
-    'Claude Code Managed no está implementado en esta autoridad. Esta sesión sigue siendo Codex; el uso Native requiere un lanzamiento aparte y explícito.',
-  Generation: 'Generación',
-  'None yet': 'Todavía ninguna',
-  'Each start is a new generation; an earlier one never comes back.':
-    'Cada inicio es una generación nueva; una anterior nunca vuelve.',
-  'Isolated for': 'Aislado para',
-  Wanted: 'Pedido',
-  revision: 'revisión',
-  'This session has used every launch the authority allows it. No further runtime is started for it; a new session can be created.':
-    'Esta sesión usó todos los lanzamientos que la autoridad permite. No se inicia más runtime para ella; se puede crear una sesión nueva.',
-  'Confirm stop': 'Confirmar detención',
-  'Stop this runtime? Its process is ended and reaped. A turn that runs is not stopped under it: the authority refuses until that turn ends.':
-    '¿Detener este runtime? Su proceso se termina y se libera. Un turno en curso no se corta por debajo: la autoridad lo rechaza hasta que ese turno termine.',
-  'Stop runtime': 'Detener runtime',
   'Keep running': 'Seguir corriendo',
-  'Local Tools gives Codex more to work with, not more authority: every command and file change waits for your approval. The runtime is isolated for one folder.':
-    'Local Tools le da a Codex más con qué trabajar, no más autoridad: cada comando y cada cambio de archivo espera tu aprobación. El runtime queda aislado para una sola carpeta.',
-  'Start runtime': 'Iniciar runtime',
-  'The runtime is not running but is still wanted, for example after the authority restarted. Stop it to close this session.':
-    'El runtime no está corriendo, pero sigue pedido; por ejemplo, después de que la autoridad se reinició. Detenelo para cerrar esta sesión.',
-  Folder: 'Carpeta',
-  'Folder:': 'Carpeta:',
-  'none selected': 'ninguna seleccionada',
-  'Execution lease': 'Concesión de ejecución',
-  Granted: 'Otorgadas',
-  'Valid until': 'Válida hasta',
-  '. When it ends or is revoked, a turn that runs under it ends, and so does the approval it waits on.':
-    '. Cuando termina o se revoca, el turno que corre bajo ella termina, y también la aprobación que espera.',
-  'Confirm revoke': 'Confirmar revocación',
-  'Revoke the lease? The turn that runs under it ends and its pending approval is invalidated, in the same commit.':
-    '¿Revocar la concesión? El turno que corre bajo ella termina y su aprobación pendiente se invalida, en el mismo paso.',
-  'Revoke lease': 'Revocar concesión',
-  'Renew for': 'Renovar por',
-  Renew: 'Renovar',
-  Revoke: 'Revocar',
-  Allow: 'Permitir',
-  For: 'Por',
-  'Grant lease': 'Otorgar concesión',
-  'A lease is a permission with an end, never a standing one. It needs a ready runtime':
-    'Una concesión es un permiso con fin, nunca permanente. Necesita un runtime listo',
-  'start it first': 'iniciarlo primero',
-  'Attached as': 'Conectada como',
-  'Model in use': 'Modelo en uso',
-  'Binding outcome uncertain': 'Resultado de la asociación incierto',
-  'The authority asked Codex to create a thread and could not confirm what Codex did. A second request could create a second thread, so nothing asks again by itself.':
-    'La autoridad le pidió a Codex que creara un hilo y no pudo confirmar qué hizo Codex. Un segundo pedido podría crear un segundo hilo, así que nada vuelve a pedirlo por sí solo.',
-  'Discard the uncertain attempt? The authority records that it was abandoned. If Codex did create a thread for it, the empty thread is left behind. The session can then be bound again.':
-    '¿Descartar el intento incierto? La autoridad registra que se abandonó. Si Codex sí creó un hilo para él, el hilo vacío queda. Después la sesión se puede volver a asociar.',
-  'Bind workspace': 'Asociar workspace',
-  'Attach to runtime': 'Conectar al runtime',
-  'The authority decides whether it can be a workspace.':
-    'La autoridad decide si puede ser un workspace.',
-  'What the authority would allow now': 'Lo que la autoridad permitiría ahora',
-  Allowed: 'Permitido',
-  'Not now': 'Ahora no',
-  'This is a reading, not a permission: the authority checks again at the moment of every action.':
-    'Esto es una lectura, no un permiso: la autoridad vuelve a verificar en el momento de cada acción.',
-  'Close this session? It cannot be reopened, and its execution lease is revoked. The authority refuses while its runtime runs or a turn is active.':
-    '¿Cerrar esta sesión? No se puede reabrir, y su concesión de ejecución se revoca. La autoridad rechaza el cierre mientras su runtime corre o hay un turno activo.',
-  'Close…': 'Cerrar…',
-  'Stop the runtime first.': 'Detené el runtime primero.',
 
-  // Conversation and approval (F8): the turn transcript and the approval card
-  'Recent turns': 'Turnos recientes',
-  'Older turns are in History.': 'Los turnos anteriores están en Historial.',
-  'No turn is open.': 'No hay ningún turno abierto.',
-  'The input of a turn is not shown: Wyss keeps no conversation text.':
-    'No se muestra la entrada de un turno: Wyss no guarda texto de conversación.',
-  Thinking: 'Pensando',
-  'Following the turn…': 'Siguiendo el turno…',
-  'The authority stopped answering; reading the turn again…':
-    'La autoridad dejó de responder; leyendo el turno de nuevo…',
-  'This turn can no longer be followed: the authority does not have it or did not answer. What it did is read from History.':
-    'Este turno ya no se puede seguir: la autoridad no lo tiene o no respondió. Lo que hizo se lee desde Historial.',
-  'Reading what Codex asked for…': 'Leyendo lo que pidió Codex…',
-  'The authority is not connected.': 'La autoridad no está conectada.',
-  'A turn is running. Cancel it to start another.':
-    'Hay un turno en curso. Cancelalo para iniciar otro.',
-  'The objective is too long.': 'El objetivo es demasiado largo.',
-  '· gen {generation}': '· gen. {generation}',
-  'generation {generation}': 'generación {generation}',
+  Folder: 'Carpeta',
+
   Command: 'Comando',
   Directory: 'Directorio',
-  '· turn': '· turno',
+
   'Preview truncated:': 'Vista previa truncada:',
   'Show the rest': 'Mostrar el resto',
   'The rest of this change could not be read.':
     'No se pudo leer el resto de este cambio.',
   '{shown} of {total} files shown.': '{shown} de {total} archivos mostrados.',
   'Show more files': 'Mostrar más archivos',
-  'The authority no longer holds what this approval was about. It cannot be accepted.':
-    'La autoridad ya no tiene aquello a lo que se refería esta aprobación. No se puede aceptar.',
-  'Its time ran out at': 'Su plazo venció a las',
+
   'Waits until': 'Espera hasta',
-  '— the authority checks the action again before anything runs.':
-    '— la autoridad vuelve a verificar la acción antes de que se ejecute nada.',
-  'The runtime this approval was asked on is no longer the live one, so it cannot be decided.':
-    'El runtime en el que se pidió esta aprobación ya no es el activo, así que no se puede decidir.',
+
   'The authority did not answer, so it is not known whether the decision was taken. Retrying repeats the same decision: it cannot decide twice.':
     'La autoridad no respondió, así que no se sabe si la decisión se tomó. Reintentar repite la misma decisión: no puede decidir dos veces.',
-  Accept: 'Aceptar',
-  Decline: 'Rechazar',
-  'Cancel action': 'Cancelar acción',
-  'Read the whole change to accept it.':
-    'Leé el cambio completo para aceptarlo.',
+
   'Codex wants to run a command': 'Codex quiere ejecutar un comando',
   'Codex wants to change a file': 'Codex quiere cambiar un archivo',
   'Codex wants to change {count} files':
     'Codex quiere cambiar {count} archivos',
   'Codex wants to change files': 'Codex quiere cambiar archivos',
-  'Waiting for your Allow in the confirmation window, then asking the authority…':
-    'Esperando tu Permitir en la ventana de confirmación; después se lo pide a la autoridad…',
-  'Asking the authority to decline it…':
-    'Pidiéndole a la autoridad que la rechace…',
-  'Asking the authority to cancel it…':
-    'Pidiéndole a la autoridad que la cancele…',
-  'It was not accepted.': 'No se aceptó.',
-  'It was not declined.': 'No se rechazó.',
-  'It was not cancelled.': 'No se canceló.',
+
   Pending: 'Pendiente',
   Approved: 'Aprobada',
   Denied: 'Rechazada',
@@ -1775,68 +1476,6 @@ export const ES: Readonly<Record<string, string>> = {
   'Codex acted outside what the session allows.':
     'Codex actuó fuera de lo que la sesión permite.',
 
-  // Models (F8): the models view
-  'No models to show': 'No hay modelos para mostrar',
-  'The models are what a running runtime listed when it started. A runtime that has stopped has no list, and an earlier one is never shown for a later one.':
-    'Los modelos son lo que un runtime en ejecución listó al arrancar. Un runtime que se detuvo no tiene lista, y una anterior nunca se muestra para uno posterior.',
-  'Reading the models…': 'Leyendo los modelos…',
-  'Runtime {version} · generation {generation}.':
-    'Runtime {version} · generación {generation}.',
-  'The runtime listed more models than the authority took.':
-    'El runtime listó más modelos de los que la autoridad tomó.',
-  'A listed model is offered, not entitled: nothing here says the account may use it. Protocol 2 has no request that selects a model or a reasoning effort, so a turn uses what the runtime defaults to, and this view only reports what is offered and what the runtime says it uses.':
-    'Un modelo listado se ofrece, no está habilitado: nada acá dice que la cuenta pueda usarlo. El protocolo 2 no tiene un pedido que elija un modelo ni un esfuerzo de razonamiento, así que un turno usa el que el runtime tiene por defecto, y esta vista solo informa lo que se ofrece y lo que el runtime dice que usa.',
-  'The runtime listed no models.': 'El runtime no listó modelos.',
-  'Models offered by the runtime': 'Modelos ofrecidos por el runtime',
-  'Runtime default': 'Predeterminado del runtime',
-  'Supported reasoning efforts': 'Esfuerzos de razonamiento soportados',
-  default: 'predeterminado',
-  'no efforts listed': 'no hay esfuerzos listados',
-  'The runtime marks': 'El runtime marca',
-  'as its replacement': 'como su reemplazo',
-  ', retiring {date}': ', que se retira el {date}',
-
-  // Runtimes (F8): the managed runtimes view
-  'Managed runtimes': 'Runtimes Managed',
-  'Managed runtimes · protocol 2': 'Runtimes Managed · protocolo 2',
-  '{prepared} prepared · {closed} closed · protocol 2':
-    '{prepared} preparadas · {closed} cerradas · protocolo 2',
-  Overview: 'Resumen',
-  'Creating the session…': 'Creando la sesión…',
-  'Closing the session…': 'Cerrando la sesión…',
-  'Starting the runtime…': 'Iniciando el runtime…',
-  'Stopping the runtime…': 'Deteniendo el runtime…',
-  'Granting the execution lease…': 'Otorgando la concesión de ejecución…',
-  'Renewing the execution lease…': 'Renovando la concesión de ejecución…',
-  'Revoking the execution lease…': 'Revocando la concesión de ejecución…',
-  'Binding the workspace…': 'Asociando el workspace…',
-  'Attaching the session…': 'Conectando la sesión…',
-  'Discarding the attempt…': 'Descartando el intento…',
-  'Asking the authority to cancel the turn…':
-    'Pidiéndole a la autoridad que cancele el turno…',
-  'Waiting for the runtime to be ready…':
-    'Esperando a que el runtime esté listo…',
-  'Waiting for the runtime to stop…': 'Esperando a que el runtime se detenga…',
-  'The authority is binding the workspace…':
-    'La autoridad está asociando el workspace…',
-  'Waiting for your answer in the confirmation window. Nothing is allowed until you choose Allow. If you cannot see it, it may be behind another window.':
-    'Esperando tu respuesta en la ventana de confirmación. No se permite nada hasta que elijas Permitir. Si no la ves, puede estar detrás de otra ventana.',
-  'The authority is not answering.': 'La autoridad no responde.',
-  'The console asks again by itself.': 'La consola vuelve a preguntar sola.',
-  'What is shown was read before the connection was lost; no action is offered.':
-    'Lo que se muestra se leyó antes de perder la conexión; no se ofrece ninguna acción.',
-  'Reconnect now': 'Reconectar ahora',
-  'The authority restarted or was replaced. Its runtimes, leases and turns are not the ones shown before, so everything was read again and nothing from before is acted on.':
-    'La autoridad se reinició o la reemplazaron. Sus runtimes, concesiones y turnos no son los que se mostraban antes, así que se volvió a leer todo y no se actúa sobre nada de antes.',
-  'Managed runtimes are read from the authority and cannot be created, started or stopped until it is connected. The Console keeps working.':
-    'Los runtimes Managed se leen de la autoridad y no se pueden crear, iniciar ni detener hasta que esté conectada. La consola sigue funcionando.',
-  'Reading managed sessions…': 'Leyendo las sesiones Managed…',
-  'A session gets a runtime of its own. Create one, start its runtime, give it an execution lease and bind a project folder to work in.':
-    'Cada sesión tiene un runtime propio. Creá uno, iniciá su runtime, dale una concesión de ejecución y asociale una carpeta de proyecto donde trabajar.',
-  'Select a session': 'Seleccioná una sesión',
-  'Its runtime, workspace, execution lease, conversation, models and history are shown here, exactly as the authority holds them.':
-    'Su runtime, workspace, concesión de ejecución, conversación, modelos e historial se muestran acá, tal como los tiene la autoridad.',
-  'Session sections': 'Secciones de la sesión',
   // ---- arsenal-d ----
   turn: 'turno',
   'Preview truncated: {shown} of {total} bytes shown.':
@@ -1884,243 +1523,9 @@ export const ES: Readonly<Record<string, string>> = {
   'Approvals could not be read. Nothing is shown rather than something unverified.':
     'No se pudieron leer las aprobaciones. No se muestra nada antes que algo sin verificar.',
   Start: 'Iniciar',
-  'What to start': 'Qué iniciar',
-  'A shell': 'Un shell',
-  How: 'Cómo',
-  "Native (the agent's own permissions)":
-    'Nativo (los permisos propios del agente)',
-  'Managed (mediated by the authority) — not available for Claude yet':
-    'Managed (mediado por la autoridad): todavía no disponible para Claude',
-  'Managed (mediated by the authority)': 'Managed (mediado por la autoridad)',
-  'Managed profile — choose one': 'Perfil de Managed: elegí uno',
-  'Inference (text only, no tools)': 'Inference (solo texto, sin herramientas)',
-  'Local tools (commands and file changes, each waiting for approval)':
-    'Local tools (comandos y cambios de archivo, cada uno esperando aprobación)',
-  'This is a request. It grants nothing; the authority attaches the session in the profile it allows.':
-    'Esto es un pedido. No otorga nada: la autoridad adjunta la sesión con el perfil que permite.',
-  'Native profile': 'Perfil nativo',
-  Default: 'Por defecto',
-  'A file of the older state cannot be read as the schema it claims':
-    'Un archivo del estado anterior no se puede leer con el esquema que declara',
-  'A file of the older state kept changing while it was read':
-    'Un archivo del estado anterior siguió cambiando mientras se leía',
-  'A file of the older state is bigger than its bound':
-    'Un archivo del estado anterior supera su límite',
-  'A registered folder is another spelling of a registered root':
-    'Una carpeta registrada es otra forma de escribir una raíz ya registrada',
-  'A registered folder is missing or cannot be used (not imported)':
-    'Falta una carpeta registrada o no se puede usar (no se importó)',
-  'Another account can write in a registered folder, or that could not be checked (not imported)':
-    'Otra cuenta puede escribir en una carpeta registrada, o no se pudo comprobar (no se importó)',
-  'No terminal host answered: no live session is imported':
-    'No respondió ningún host de terminales: no se importa ninguna sesión activa',
-  'Something does not fit the limits; nothing is cut to fit':
-    'Algo no entra en los límites; no se recorta nada para que entre',
-  'An identity from the older state cannot be kept (not imported)':
-    'Una identidad del estado anterior no se puede conservar (no se importó)',
-  'The result would not be valid': 'El resultado no sería válido',
-  'Import from the older windows': 'Importar desde las ventanas anteriores',
-  'Projects and workspaces are built from the folders, agents and tabs the older windows already know. The preview reads them and changes nothing; the older windows keep working.':
-    'Los proyectos y workspaces se arman con las carpetas, agentes y pestañas que ya conocen las ventanas anteriores. La vista previa los lee y no cambia nada; las ventanas anteriores siguen funcionando.',
-  'The older windows changed since the last import. A new preview adds only what is new; nothing already here is changed.':
-    'Las ventanas anteriores cambiaron desde la última importación. Una vista previa nueva agrega solo lo nuevo; no se cambia nada de lo que ya está acá.',
-  'Preview the import': 'Ver vista previa de la importación',
-  'Start empty instead': 'Empezar vacío',
-  'Import preview': 'Vista previa de la importación',
-  'Update preview': 'Vista previa de la actualización',
-  '{count} projects': '{count} proyectos',
-  '{count} workspaces': '{count} workspaces',
-  '{count} live sessions': '{count} sesiones activas',
-  '{placed} panes with a session, {empty} empty':
-    '{placed} paneles con sesión, {empty} vacíos',
-  '{count} tabs with nothing alive (skipped)':
-    '{count} pestañas sin nada activo (se omiten)',
-  'Things to know': 'Cosas que conviene saber',
-  'I accept that spellings of the same folder become one project':
-    'Acepto que distintas formas de escribir la misma carpeta se conviertan en un solo proyecto',
-  'The exact older files are kept in a private snapshot first. The older state is never overwritten, and no session is started, stopped or restarted.':
-    'Antes se guardan los archivos anteriores exactos en una copia privada. El estado anterior nunca se sobrescribe, y no se inicia, detiene ni reinicia ninguna sesión.',
+
   Import: 'Importar',
-  'Folder missing': 'Falta la carpeta',
-  'Folder replaced': 'La carpeta fue reemplazada',
-  'Folder not usable': 'La carpeta no se puede usar',
-  'Another account can write here': 'Otra cuenta puede escribir acá',
-  'Add a folder…': 'Agregar una carpeta…',
-  'New folder name': 'Nombre de la carpeta nueva',
-  'Create…': 'Crear…',
-  Scratch: 'Temporal',
-  'no folder': 'sin carpeta',
-  '{name} (archived)': '{name} (archivado)',
-  'Show archived': 'Mostrar archivados',
-  'Actions for {name}': 'Acciones para {name}',
-  'Project name': 'Nombre del proyecto',
-  Unarchive: 'Desarchivar',
-  Archive: 'Archivar',
-  'Relink folder…': 'Volver a vincular carpeta…',
-  'New workspace': 'Nuevo workspace',
-  'Remove, keep history': 'Quitar y conservar el historial',
-  'Remove completely': 'Quitar por completo',
-  "Removing a project never deletes its folder, a provider's history or a session; it is refused while any of its sessions may still be running.":
-    'Quitar un proyecto nunca borra su carpeta, el historial de un proveedor ni una sesión; se rechaza mientras alguna de sus sesiones pueda seguir corriendo.',
-  Workspaces: 'Workspaces',
-  'Workspace {count}': 'Workspace {count}',
-  'Projects and workspaces': 'Proyectos y workspaces',
-  'On. Projects and workspaces are shown in their own view. Turning them off goes back to the older windows; nothing running is stopped and the project data is kept.':
-    'Activado. Los proyectos y workspaces se muestran en su propia vista. Desactivarlos vuelve a las ventanas anteriores; no se detiene nada que esté corriendo y se conservan los datos de los proyectos.',
-  'Off. When turned on, a project is a folder with its own workspaces and sessions. Your sessions and the older windows are not changed, and nothing is started or stopped. Turning it on is confirmed in a window of its own.':
-    'Desactivado. Al activarlo, un proyecto es una carpeta con sus propios workspaces y sesiones. Tus sesiones y las ventanas anteriores no cambian, y no se inicia ni detiene nada. Activarlo se confirma en una ventana propia.',
-  'Turn off…': 'Desactivar…',
-  'Turn on…': 'Activar…',
-  Shell: 'Shell',
-  Managed: 'Managed',
-  'This store was written by a newer version of the Console. It is shown as it is, read-only, and nothing was changed.':
-    'Este almacén lo escribió una versión más nueva de la Consola. Se muestra tal cual, en solo lectura, y no se cambió nada.',
-  'The store cannot be read as the format it claims. Its exact bytes are kept untouched and nothing was replaced by an empty one.':
-    'El almacén no se puede leer con el formato que declara. Sus bytes exactos se conservan sin tocar y no se reemplazó nada por uno vacío.',
-  'The store is bigger than the limit. Its exact bytes are kept untouched.':
-    'El almacén supera el límite. Sus bytes exactos se conservan sin tocar.',
-  'Managed {id}': 'Managed {id}',
-  'Agent {id}': 'Agente {id}',
-  'Shell {id}': 'Shell {id}',
-  'Projects could not be read': 'No se pudieron leer los proyectos',
-  'Projects and workspaces are off':
-    'Los proyectos y workspaces están desactivados',
-  'They can be turned on in Settings. Until then nothing about them is read or run, and your sessions and the older windows are untouched.':
-    'Se pueden activar en Ajustes. Hasta entonces no se lee ni se ejecuta nada de ellos, y tus sesiones y las ventanas anteriores no se tocan.',
-  'The projects store is read-only':
-    'El almacén de proyectos es de solo lectura',
-  'Reason: {reason} ({field}). Your sessions and the older windows are not affected.':
-    'Motivo: {reason} ({field}). Tus sesiones y las ventanas anteriores no se ven afectadas.',
-  'No place to keep projects': 'No hay dónde guardar los proyectos',
-  'The Console has no state directory to keep them in.':
-    'La Consola no tiene una carpeta de estado donde guardarlos.',
-  'No terminal host answers. Sessions are shown as unknown, and nothing is started or recreated.':
-    'No responde ningún host de terminales. Las sesiones se muestran como desconocidas, y no se inicia ni se recrea nada.',
-  'Unassigned sessions': 'Sesiones sin asignar',
-  'Sessions of {name}': 'Sesiones de {name}',
-  '{name} is in {folder}.': '{name} está en {folder}.',
-  'That is inside {project}.': 'Eso está dentro de {project}.',
-  'That is outside the folder of {project}.':
-    'Eso está fuera de la carpeta de {project}.',
-  'Move it into {project}? It keeps running where it is; only the project it is listed under changes.':
-    '¿Moverla a {project}? Sigue corriendo donde está; solo cambia el proyecto bajo el que aparece.',
-  'None. History that is not shown in a pane stays here.':
-    'Ninguna. El historial que no se muestra en un panel queda acá.',
-  'Show in an empty pane': 'Mostrar en un panel vacío',
-  'Adopt {name} into a project': 'Incorporar {name} a un proyecto',
-  'Adopt into a project…': 'Incorporar a un proyecto…',
-  'Import, receipts and going back': 'Importación, comprobantes y cómo volver',
-  'Compact finished launch receipts':
-    'Compactar los comprobantes de lanzamientos terminados',
-  'What going back needs': 'Qué necesita volver atrás',
-  'Open another window': 'Abrir otra ventana',
-  'Nothing is unaccounted for; projects can be turned off in Settings.':
-    'No queda nada sin registrar; los proyectos se pueden desactivar en Ajustes.',
-  '{count} launch(es) of unknown outcome must be resolved first.':
-    'Primero hay que resolver {count} lanzamiento(s) de resultado desconocido.',
-  'Workspace {name}': 'Workspace {name}',
-  'Add a pane': 'Agregar un panel',
-  'Split top and bottom': 'Dividir arriba y abajo',
-  'A launch is in progress': 'Hay un lanzamiento en curso',
-  'A launch has an unknown outcome':
-    'Un lanzamiento tiene resultado desconocido',
-  'Nothing was started again. If it started something, pick it from what is running and not shown anywhere; if nothing started, say so. Nothing here retries.':
-    'No se volvió a iniciar nada. Si inició algo, elegilo entre lo que corre y no se muestra en ningún lado; si no inició nada, decilo. Acá no se reintenta nada.',
-  'Look for what it started': 'Buscar lo que inició',
-  'Nothing is running that is not already shown.':
-    'No hay nada corriendo que no esté ya mostrado.',
-  'unknown folder': 'carpeta desconocida',
-  'This one': 'Este',
-  'Nothing started': 'No se inició nada',
-  'Ask the Managed owner again': 'Volver a preguntarle al dueño de Managed',
-  'Empty pane. Nothing runs here.': 'Panel vacío. Acá no corre nada.',
-  'Start…': 'Iniciar…',
-  'Remove pane': 'Quitar panel',
-  'Resize panes': 'Redimensionar paneles',
-  'This workspace has no panes. Add one to start something in it.':
-    'Este workspace no tiene paneles. Agregá uno para iniciar algo en él.',
-  'Changed somewhere else. The view was refreshed; try again.':
-    'Cambió en otro lado. Se actualizó la vista; probá de nuevo.',
-  'That no longer matches what is shown. The view was refreshed; nothing was changed.':
-    'Eso ya no coincide con lo que se muestra. Se actualizó la vista; no se cambió nada.',
-  'This pane is busy with a launch.':
-    'Este panel está ocupado con un lanzamiento.',
-  'The folder is missing.': 'Falta la carpeta.',
-  'The folder was replaced by another one.':
-    'La carpeta fue reemplazada por otra.',
-  'That folder cannot be used.': 'Esa carpeta no se puede usar.',
-  'No terminal host answers. Nothing was started.':
-    'No responde ningún host de terminales. No se inició nada.',
-  'The terminal host is not the one this session lived in. Nothing was sent.':
-    'El host de terminales no es el que alojaba esta sesión. No se envió nada.',
-  'Not available in this version or for this choice.':
-    'No disponible en esta versión o para esta elección.',
-  'That profile is no longer available.': 'Ese perfil ya no está disponible.',
-  'The owner of that session refused. Nothing was changed.':
-    'El dueño de esa sesión lo rechazó. No se cambió nada.',
-  'The outcome is unknown. Nothing was started again; resolve it below.':
-    'El resultado es desconocido. No se volvió a iniciar nada; resolvelo abajo.',
-  'The store could not be written.': 'No se pudo escribir el almacén.',
-  'A limit was reached. Nothing was changed.':
-    'Se alcanzó un límite. No se cambió nada.',
-  'That change is not valid.': 'Ese cambio no es válido.',
-  'The store is from a newer version and is read-only.':
-    'El almacén es de una versión más nueva y es de solo lectura.',
-  'Another account can write in that folder, or that could not be checked. It is not used.':
-    'Otra cuenta puede escribir en esa carpeta, o no se pudo comprobar. No se usa.',
-  'That shell was not shown to you, or it is not where it was shown. Nothing was moved.':
-    'Ese shell no se te mostró, o no está donde se mostró. No se movió nada.',
-  'Where that shell is cannot be read, so nothing was moved.':
-    'No se puede leer dónde está ese shell, así que no se movió nada.',
-  'That Managed authority has not shown it serves that profile. Nothing was started.':
-    'Esa autoridad Managed no mostró que atienda ese perfil. No se inició nada.',
-  'The Managed authority is not the one that was asked first. Nothing was sent to this one; the first attempt is still unknown.':
-    'La autoridad Managed no es la que se consultó primero. No se envió nada a esta; el primer intento sigue siendo desconocido.',
-  'Not done.': 'No se hizo.',
-  'Another change is still being sent.':
-    'Otro cambio todavía se está enviando.',
-  'this host keeps no screen': 'este host no guarda pantalla',
-  'the screen helper is not running':
-    'el auxiliar de pantalla no está corriendo',
-  'the screen was too large to send':
-    'la pantalla era demasiado grande para enviarla',
-  'the screen helper did not answer in time':
-    'el auxiliar de pantalla no respondió a tiempo',
-  'the host did not answer': 'el host no respondió',
-  'the screen could not be used': 'no se pudo usar la pantalla',
-  'the screen could not be drawn here': 'no se pudo dibujar la pantalla acá',
-  'the host or session changed while it was drawn':
-    'el host o la sesión cambiaron mientras se dibujaba',
-  'the screen could not be asked for': 'no se pudo pedir la pantalla',
-  'The terminal host is not the one this session lived in.':
-    'El host de terminales no es el que alojaba esta sesión.',
-  'No terminal host answers.': 'No responde ningún host de terminales.',
-  'The terminal host refused that.': 'El host de terminales rechazó eso.',
-  'Not available for this session.': 'No disponible para esta sesión.',
-  'The terminal could not be drawn.': 'No se pudo dibujar la terminal.',
-  'Another window holds input.': 'Otra ventana tiene la entrada.',
-  'Reading stopped.': 'Se dejó de leer.',
-  'Input was not sent.': 'No se envió la entrada.',
-  'Replayed from the output the host kept ({reason}). A full-screen program may look incomplete until it redraws.':
-    'Reproducido desde la salida que guardó el host ({reason}). Un programa a pantalla completa puede verse incompleto hasta que vuelva a dibujarse.',
-  'Release input': 'Soltar la entrada',
-  'Another window has input': 'Otra ventana tiene la entrada',
-  'Take input': 'Tomar la entrada',
-  Detach: 'Desconectar',
-  '{name} terminal': 'Terminal de {name}',
-  'Earlier output is no longer held.': 'La salida anterior ya no se guarda.',
-  'Read-only view. Input is exclusive; take it to type.':
-    'Vista de solo lectura. La entrada es exclusiva; tomala para escribir.',
-  'Read-only.': 'Solo lectura.',
-  'Protocol {protocol} · stream': 'Protocolo {protocol} · stream',
-  'Requested profile': 'Perfil pedido',
-  'not recorded': 'no registrado',
-  'Attached profile': 'Perfil adjunto',
-  'not attached or unknown': 'no adjunto o desconocido',
-  'The authority attached a different profile than the one requested. The request grants nothing; open the Managed screens to decide.':
-    'La autoridad adjuntó un perfil distinto al pedido. El pedido no otorga nada; abrí las pantallas de Managed para decidir.',
-  'A Managed session is opened and run in Sessions, Agents and Runtimes. Showing it here starts nothing and grants nothing.':
-    'Una sesión de Managed se abre y corre en Sesiones, Agentes y Runtimes. Mostrarla acá no inicia nada y no otorga nada.',
+
   'Closing this window': 'Cerrar esta ventana',
   'Leaving a terminal (detach)': 'Salir de una terminal (desconectar)',
   'Locking the screen': 'Bloquear la pantalla',
@@ -2471,247 +1876,15 @@ export const ES: Readonly<Record<string, string>> = {
   Preset: 'Preset',
   'Edit in Arsenal': 'Editar en Arsenal',
   'No presets for {agent}.': 'No hay presets para {agent}.',
-  // ---- m3 ----
-  Available: 'Disponible',
+
   Blocked: 'Bloqueado',
-  'final figures from the provider': 'cifras finales del proveedor',
-  'the provider reported an error': 'el proveedor informó un error',
-  'interrupted: streaming figures only':
-    'interrumpido: solo cifras de streaming',
-  'the provider reported nothing': 'el proveedor no informó nada',
-  '5-hour window': 'Ventana de 5 horas',
-  '7-day window': 'Ventana de 7 días',
-  '7-day window (Opus)': 'Ventana de 7 días (Opus)',
-  '7-day window (Sonnet)': 'Ventana de 7 días (Sonnet)',
-  Overage: 'Excedente',
-  'Waiting for your decision': 'Esperando tu decisión',
-  'Accepted — running': 'Aceptada — en ejecución',
-  'Declined — nothing ran': 'Rechazada — no se ejecutó nada',
-  'Cancelled — nothing ran': 'Cancelada — no se ejecutó nada',
-  'Could not be done — nothing changed': 'No se pudo hacer — no cambió nada',
-  'Unknown whether it happened — it will not be repeated':
-    'No se sabe si pasó — no se va a repetir',
-  'Refused before asking you': 'Rechazada antes de consultarte',
-  'A fixture runtime is already running.':
-    'Ya hay un runtime simulado corriendo.',
-  'There is no running fixture runtime.':
-    'No hay ningún runtime simulado corriendo.',
-  'The runtime is not ready for a prompt.':
-    'El runtime todavía no está listo para un mensaje.',
-  'The prompt is empty or too long.':
-    'El mensaje está vacío o es demasiado largo.',
-  'No turn is running.': 'No hay ningún turno en curso.',
-  'That action is not waiting for a decision.':
-    'Esa acción no está esperando una decisión.',
-  'That is not a decision.': 'Eso no es una decisión.',
-  'The worker refused the decision; it is not retried.':
-    'El worker rechazó la decisión; no se reintenta.',
-  'The runtime refused the turn.': 'El runtime rechazó el turno.',
-  'The runtime could not be started.': 'No se pudo iniciar el runtime.',
-  'That profile does not exist.': 'Ese perfil no existe.',
-  'The decision this needs has not been accepted.':
-    'La decisión que hace falta no se aceptó.',
-  'The window could not reach the service.':
-    'La ventana no pudo llegar al servicio.',
-  'The decision on Claude Managed security and authentication has not been accepted.':
-    'No se aceptó la decisión sobre seguridad y autenticación de Claude Managed.',
-  'The authority’s store only accepts Codex runtimes; holding a Claude runtime needs a store change the owner has not approved.':
-    'El almacén de la autoridad solo acepta runtimes de Codex; tener un runtime de Claude necesita un cambio de almacén que el dueño no aprobó.',
-  'No authorized run against the real provider has been recorded for this profile.':
-    'No hay registro de una corrida autorizada contra el proveedor real para este perfil.',
-  'How a provider key would reach a Claude runtime has not been decided; keys stay sealed and none is delivered.':
-    'Todavía no se decidió cómo llegaría la clave del proveedor a un runtime de Claude; las claves siguen selladas y no se entrega ninguna.',
-  'No reviewer other than the author has inspected this runtime and its network confinement.':
-    'Ningún revisor distinto del autor revisó este runtime ni su aislamiento de red.',
-  'Choosing a model or reasoning effort for a Managed turn needs a decision the owner has not accepted.':
-    'Elegir un modelo o un esfuerzo de razonamiento para un turno Managed necesita una decisión que el dueño no aceptó.',
-  'The privacy and retention policy for a usage history has not been accepted.':
-    'No se aceptó la política de privacidad y retención del historial de uso.',
-  'No Claude Agent SDK installation was named for this Console.':
-    'No se indicó ninguna instalación del Claude Agent SDK para esta Consola.',
-  'The protocol-2 authority is not connected.':
-    'La autoridad de protocolo 2 no está conectada.',
-  'This platform has no accepted evidence.':
-    'Esta plataforma no tiene evidencia aceptada.',
-  'The installation is being checked.': 'Se está verificando la instalación.',
-  'The SDK version is not the one this build was qualified against.':
-    'La versión del SDK no es la que se calificó para esta build.',
-  'The bundled Claude Code version is not the qualified one.':
-    'La versión de Claude Code incluida no es la calificada.',
-  'The bundled Claude Code executable is not the pinned one.':
-    'El ejecutable de Claude Code incluido no es el fijado.',
-  'A file of the SDK installation does not match what pip recorded.':
-    'Un archivo de la instalación del SDK no coincide con lo que registró pip.',
-  'The SDK installation holds a file no package vouches for.':
-    'La instalación del SDK tiene un archivo que ningún paquete respalda.',
-  'An administrator’s Claude Code policy exists on this machine; it can add hooks and tools no option turns off.':
-    'Hay una política de Claude Code del administrador en esta máquina; puede agregar hooks y herramientas que ninguna opción apaga.',
-  'The credential file is not private, plain and non-empty.':
-    'El archivo de credenciales no es privado, plano ni vacío.',
-  'A path of the installation is not safe to use.':
-    'Una ruta de la instalación no es segura para usar.',
-  'The named folder is not an isolated Python virtual environment.':
-    'La carpeta indicada no es un entorno virtual de Python aislado.',
-  'Keep a local usage history': 'Guardar un historial de uso local',
-  'Why it cannot be turned on': 'Por qué no se puede activar',
-  Off: 'Desactivado',
-  Recording: 'Guardando',
-  'Partial: a storage problem stopped it':
-    'Parcial: un problema de almacenamiento lo detuvo',
-  'It is off by default and nothing is stored while it is off. If you turn it on it keeps provider-reported counters and limits only: no prompts, no answers, no reasoning, no commands, no paths and no account names. At most {records} records or {days} days, whichever comes first, and what it removes is counted. It is a separate file; it never touches the audit trail or the vault.':
-    'Está desactivado por defecto y, mientras esté desactivado, no se guarda nada. Si lo activás, guarda solo contadores y límites que informa el proveedor: nada de mensajes, respuestas, razonamiento, comandos, rutas ni nombres de cuenta. Como máximo {records} registros o {days} días, lo que pase antes, y lo que se quita se cuenta. Es un archivo aparte; nunca toca el registro de auditoría ni la bóveda.',
-  Export: 'Exportar',
-  'Delete the history': 'Borrar el historial',
-  'Provider profiles': 'Perfiles del proveedor',
-  'No build verified on this machine.':
-    'No hay build verificado en esta máquina.',
-  'Why it is not available': 'Por qué no está disponible',
-  Evidence: 'Evidencia',
-  'Fixtures:': 'Simulado:',
-  'Real provider:': 'Proveedor real:',
-  'Start it from Runtimes; this view does not start anything.':
-    'Iniciala desde Runtimes; esta vista no inicia nada.',
-  passed: 'aprobado',
-  'not run': 'sin correr',
-  'not applicable': 'no aplica',
-  'Managed profiles': 'Perfiles Managed',
-  'Claude Agent SDK {sdk} (Claude Code {cli}) verified':
-    'Claude Agent SDK {sdk} (Claude Code {cli}) verificado',
-  'checking the Claude installation…': 'revisando la instalación de Claude…',
-  'Claude installation refused: {reason}':
-    'instalación de Claude rechazada: {reason}',
-  'no Claude installation named': 'no se indicó ninguna instalación de Claude',
-  'Reading the providers…': 'Leyendo los proveedores…',
-  'What is shown was read earlier and may have changed; no action is offered from it.':
-    'Lo que se muestra se leyó antes y puede haber cambiado; desde acá no se ofrece ninguna acción.',
-  'The provider state could not be read.':
-    'No se pudo leer el estado del proveedor.',
-  'Claude runtime (fixture)': 'Runtime de Claude (simulado)',
-  'A profile can start only when it is available. “Blocked” names the decision or evidence that is missing; fixtures never stand in for a run against the real provider.':
-    'Un perfil solo puede iniciarse cuando está disponible. “Bloqueado” indica la decisión o la evidencia que falta; los simulados nunca reemplazan una corrida contra el proveedor real.',
-  'Model and effort': 'Modelo y esfuerzo',
-  'Usage and limits': 'Uso y límites',
-  'Usage history': 'Historial de uso',
-  'No Claude runtime is running, so there are no model facts to show. A listed model is offered, not entitled, and a request is not proof of use: when a runtime runs, this view keeps what is offered, configured, requested and reported in use apart.':
-    'No hay ningún runtime de Claude corriendo, así que no hay datos del modelo para mostrar. Un modelo listado se ofrece, no está habilitado, y un pedido no prueba que se use: cuando un runtime corre, esta vista mantiene separados lo ofrecido, lo configurado, lo pedido y lo informado en uso.',
-  Offered: 'Ofrecidos',
-  Configured: 'Configurado',
-  Requested: 'Pedido',
-  'The provider’s own list · revision {revision} · {freshness} · taken {time}':
-    'Lista propia del proveedor · revisión {revision} · {freshness} · tomada {time}',
-  fresh: 'fresca',
-  stale: 'vieja',
-  incomplete: 'incompleta',
-  'Models offered': 'Modelos ofrecidos',
-  'Efforts it lists: {efforts}': 'Esfuerzos que lista: {efforts}',
-  'Offered is not entitled: nothing here says this account may use a model.':
-    'Lo ofrecido no es habilitación: nada de acá dice que esta cuenta pueda usar un modelo.',
-  'Not listed yet.': 'Todavía no hay lista.',
-  'Effort: {effort}': 'Esfuerzo: {effort}',
-  'the provider default': 'el predeterminado del proveedor',
-  'Nothing was pinned when the runtime started: the provider’s default.':
-    'No se fijó nada al arrancar el runtime: el predeterminado del proveedor.',
-  'For turn {turn} · generation {generation}':
-    'Para el turno {turn} · generación {generation}',
-  'No model was requested for the latest turn.':
-    'No se pidió ningún modelo para el último turno.',
-  'The provider has not named a model yet.':
-    'El proveedor todavía no nombró ningún modelo.',
-  'Model for the next turn': 'Modelo para el próximo turno',
-  'The provider’s default': 'El predeterminado del proveedor',
-  'Reasoning effort': 'Esfuerzo de razonamiento',
-  'Fixed when the runtime starts': 'Fijo al arrancar el runtime',
-  'Why model selection is off':
-    'Por qué la selección de modelo está desactivada',
-  'Claude’s SDK can change the model for a turn, but reads the effort once, when its runtime starts. A request that cannot be honored is refused; it is never replaced by another model.':
-    'El SDK de Claude puede cambiar el modelo de un turno, pero lee el esfuerzo una sola vez, al arrancar su runtime. Un pedido que no se puede cumplir se rechaza; nunca se reemplaza por otro modelo.',
-  'No model was requested for this turn.':
-    'No se pidió ningún modelo para este turno.',
-  'The provider has not named the model that answered.':
-    'El proveedor no nombró el modelo que respondió.',
-  'The provider named the model that was requested.':
-    'El proveedor nombró el modelo que se pidió.',
-  'Requested {requested}; the provider named {reported}.':
-    'Se pidió {requested}; el proveedor nombró {reported}.',
-  'No effort was requested.': 'No se pidió ningún esfuerzo.',
-  'Requested {value}. Nothing shows the provider received it.':
-    'Se pidió {value}. Nada muestra que el proveedor lo haya recibido.',
-  '{value} was in the request the provider received. That is not proof it took effect.':
-    '{value} estaba en el pedido que recibió el proveedor. Eso no prueba que haya tenido efecto.',
-  'The provider reported {value}.': 'El proveedor informó {value}.',
-  Input: 'Entrada',
-  Output: 'Salida',
-  'Cache write': 'Escritura de caché',
-  'Cache read': 'Lectura de caché',
-  Reasoning: 'Razonamiento',
-  allowed: 'permitido',
-  'allowed warning': 'permitido con advertencia',
+
   rejected: 'rechazado',
-  'not reported': 'sin dato',
-  'in {count}': 'entrada {count}',
-  'out {count}': 'salida {count}',
-  'cache write {count}': 'escritura de caché {count}',
-  'cache read {count}': 'lectura de caché {count}',
-  'reasoning {count}': 'razonamiento {count}',
-  'at least {sum} ({count} turn did not report)':
-    'al menos {sum} ({count} turno no informó)',
-  'at least {sum} ({count} turns did not report)':
-    'al menos {sum} ({count} turnos no informaron)',
-  'No usage reported yet. A figure appears only when the provider reports it; one it did not report is shown as “not reported”, never as zero.':
-    'Todavía no se informó uso. Una cifra aparece solo cuando el proveedor la informa; una que no informó se muestra como “sin dato”, nunca como cero.',
-  'Running totals': 'Totales acumulados',
-  'Running totals over {count} turn, as Claude reported them. Nothing is added across providers or sessions.':
-    'Totales acumulados de {count} turno, tal como los informó Claude. No se suma nada entre proveedores ni sesiones.',
-  'Running totals over {count} turns, as Claude reported them. Nothing is added across providers or sessions.':
-    'Totales acumulados de {count} turnos, tal como los informó Claude. No se suma nada entre proveedores ni sesiones.',
-  'Usage per turn': 'Uso por turno',
-  'Answered by {models} (named by the provider)':
-    'Respondió {models} (nombrado por el proveedor)',
-  'Limits the provider reported': 'Límites que informó el proveedor',
-  'Utilization not reported': 'Uso sin dato',
-  '{percent} % used': '{percent} % usado',
-  'reset time not reported': 'hora de reinicio sin dato',
-  'resets {time}': 'se reinicia {time}',
-  'An allowance, not a price. Reported {time}.':
-    'Es un cupo, no un precio. Informado {time}.',
-  'Estimate computed by the SDK': 'Estimación calculada por el SDK',
-  'The Agent SDK adds a price estimate of its own to each result. It is not billing and not your subscription’s allowance, and this Console holds no price table to check it.':
-    'El Agent SDK agrega una estimación de precio propia a cada resultado. No es facturación ni el cupo de tu suscripción, y esta Consola no tiene una tabla de precios para verificarla.',
-  '{count} provider request checked · tools offered: {tools}':
-    '{count} pedido al proveedor revisado · herramientas ofrecidas: {tools}',
-  '{count} provider requests checked · tools offered: {tools}':
-    '{count} pedidos al proveedor revisados · herramientas ofrecidas: {tools}',
+
   Refused: 'Rechazado',
-  completed: 'completado',
+
   interrupted: 'interrumpido',
-  '{label}. It drives the real Claude Agent SDK against a mock provider on this machine. Nothing here is leased, fenced or recorded by the authority, and no real provider is contacted.':
-    '{label}. Maneja el Claude Agent SDK real contra un proveedor simulado en esta máquina. Nada de acá tiene concesión, fencing ni lo registra la autoridad, y no se contacta ningún proveedor real.',
-  'Start Claude Inference': 'Iniciar Claude Inference',
-  'Start Claude Local tools': 'Iniciar Claude Local tools',
-  'Stop the runtime': 'Detener el runtime',
-  'The runtime was refused and stopped before it could be used':
-    'El runtime fue rechazado y se detuvo antes de poder usarse',
-  'The runtime failed and was stopped': 'El runtime falló y se detuvo',
-  ': {detail}': ': {detail}',
-  'Send a prompt to the runtime.': 'Mandá un mensaje al runtime.',
-  'Start a runtime to talk to it.': 'Iniciá un runtime para hablar con él.',
-  'File change proposed by Claude': 'Cambio de archivo propuesto por Claude',
-  'Command proposed by Claude': 'Comando propuesto por Claude',
-  'Runs in': 'Corre en',
-  ', with no network.': ', sin red.',
-  'This action is not one this window can show completely, so it cannot be accepted.':
-    'Esta ventana no puede mostrar esta acción completa, así que no se puede aceptar.',
-  'The fingerprint the decision is bound to':
-    'La huella a la que queda atada la decisión',
-  'fingerprint {fingerprint}…': 'huella {fingerprint}…',
-  'Nobody can say whether this happened. It will not be run again; check the workspace before asking for anything similar.':
-    'Nadie puede decir si esto pasó. No se va a volver a ejecutar; revisá el workspace antes de pedir algo parecido.',
-  Prompt: 'Mensaje',
-  'Ask Claude something': 'Preguntale algo a Claude',
-  'Start a runtime first': 'Iniciá un runtime primero',
-  Send: 'Enviar',
-  'Cancel the turn': 'Cancelar el turno',
-  'Turn {state}': 'Turno {state}',
+
   // ---- native ----
   Restarting: 'Reiniciando',
   Active: 'Activa',
@@ -2829,256 +2002,16 @@ export const ES: Readonly<Record<string, string>> = {
   'Stop agent': 'Detener agente',
   'Stopping…': 'Deteniendo…',
   Result: 'Resultado',
-  // ---- orchestration ----
-  'Pipelines and handoff': 'Pipelines y traspaso',
-  'Structured handoff': 'Traspaso estructurado',
-  'Managed Codex · F8 authority': 'Managed Codex · autoridad F8',
-  'Human entered': 'Ingresado por humano',
-  'Provider reported': 'Reportado por el proveedor',
-  'Provider output · untrusted': 'Salida del proveedor · no confiable',
-  'OL3 supervised · finite DAG · Managed concurrency pinned at 1':
-    'OL3 supervisado · DAG finito · concurrencia Managed fijada en 1',
-  Coordination: 'Coordinación',
-  'Plan and runs': 'Plan y ejecuciones',
-  'Create a reviewable plan': 'Crear un plan revisable',
-  'Prompts stay in volatile memory until the owner reviews and confirms the digest.':
-    'Los prompts permanecen en memoria volátil hasta que el dueño revisa y confirma el digest.',
-  'Choose a folder': 'Elige una carpeta',
+
   'Choose…': 'Elegir…',
-  'Project ID (label, not path)': 'Project ID (etiqueta, no ruta)',
-  Goal: 'Objetivo',
-  'Total budget in minutes': 'Presupuesto total en minutos',
-  'The budget must be a whole number between 1 and 60 minutes.':
-    'El presupuesto debe ser un número entero entre 1 y 60 minutos.',
-  'Steps · maximum 16': 'Pasos · máximo 16',
-  'Add step': 'Añadir paso',
-  'Step {number}': 'Paso {number}',
+
   Remove: 'Quitar',
   Provider: 'Proveedor',
-  'Managed Claude · adapter blocked': 'Managed Claude · adapter bloqueado',
-  'Native Codex · blocked by trust boundary':
-    'Native Codex · bloqueado por frontera',
-  'Native Claude · blocked by trust boundary':
-    'Native Claude · bloqueado por frontera',
-  'Hermes planner · blocked': 'Hermes planner · bloqueado',
-  'Managed session': 'Sesión Managed',
-  'Select a ready session': 'Selecciona una sesión lista',
-  'profile not reported': 'perfil no reportado',
-  'binding workspace': 'workspace del binding',
-  Effect: 'Efecto',
-  'Managed inference': 'Managed inference',
-  'Managed local tools · F8 approval per action':
-    'Managed local tools · aprobación F8 por acción',
-  'BLOCKED_TRUST_BOUNDARY · no Native process will be launched from OL3.':
-    'BLOCKED_TRUST_BOUNDARY · no se lanzará un proceso Native desde OL3.',
-  'BLOCKED_PROVIDER · the planner has no execution authority.':
-    'BLOCKED_PROVIDER · el planner no tiene autoridad de ejecución.',
+
   Dependencies: 'Dependencias',
-  '(required)': '(obligatorio)',
-  '(optional)': '(opcional)',
-  'Required step': 'Paso obligatorio',
-  'Exact step input': 'Entrada exacta del paso',
-  "Describe this step's work. The text grants no authority or approvals.":
-    'Describe el trabajo de este paso. El texto no concede autoridad ni aprobaciones.',
-  'M6 keeps one Managed turn running globally at a time. Native full-account, Claude adapter and Hermes planner stay visible but blocked.':
-    'M6 fija un turno Managed global a la vez. Native full-account, Claude adapter y Hermes planner permanecen visibles pero bloqueados.',
-  'Review the full plan': 'Revisar el plan completo',
-  'Reviewed plan': 'Plan revisado',
-  'Explicit review · digest': 'Revisión explícita · digest',
-  'Review goal, workspace, DAG order, provider, effects, prompts, budget and expiry. Confirming allows only the exact plan shown above.':
-    'Revisa objetivo, workspace, orden DAG, proveedor, efectos, prompts, presupuesto y vencimiento. Confirmar permite solo el plan exacto anterior.',
-  'See the full plan and exact inputs': 'Ver plan completo y entradas exactas',
-  'Confirm and send to the coordinator': 'Confirmar y enviar al coordinador',
-  'Prepare structured handoff v1': 'Preparar handoff estructurado v1',
-  'Source content is selected explicitly; conversation, credentials, permissions and approvals are never inherited.':
-    'El contenido del origen se selecciona explícitamente; nunca se heredan conversación, credenciales, permisos ni aprobaciones.',
+
   Source: 'Origen',
-  'Source plane': 'Plano de origen',
-  'Managed source session': 'Sesión Managed de origen',
-  'Select a session to observe generation and workspace':
-    'Selecciona sesión para observar generación y workspace',
-  generation: 'generation',
-  'generation observed {generation}': 'generation observada {generation}',
-  'Native source session': 'Sesión Native de origen',
-  'Select an active Native session': 'Selecciona sesión Native activa',
-  restarts: 'reinicios',
-  'Source workspace': 'Workspace de origen',
-  'Taken from the observed session': 'Se toma de la sesión observada',
-  'Source revision': 'Revisión de origen',
-  'Session ID': 'Session',
-  'Target workspace': 'Workspace de destino',
-  'Choose the receiving folder': 'Elige la carpeta receptora',
-  'Target revision': 'Revisión de destino',
-  'Receiving provider': 'Proveedor receptor',
-  'Managed Codex · admitted by F8': 'Managed Codex · admitido por F8',
-  'Managed Claude · blocked': 'Managed Claude · bloqueado',
-  'Native Codex · blocked, manual copy only':
-    'Native Codex · bloqueado, solo copia manual',
-  'Native Claude · blocked, manual copy only':
-    'Native Claude · bloqueado, solo copia manual',
-  'Each handoff requires a new Managed receiver, with no earlier turns or context. The receiver inherits no permissions.':
-    'Cada handoff requiere un receptor Managed nuevo, sin turnos ni contexto previo. El receptor no hereda permisos.',
-  'Prepare new Managed receiver through F8':
-    'Preparar receptor Managed nuevo mediante F8',
-  'Configure receiver in Runtimes': 'Configurar receptor en Runtimes',
-  'Managed local tools with F8 approval':
-    'Managed local tools con aprobación F8',
-  'BLOCKED_PROVIDER · no Managed Claude adapter admitted by the F8 authority in this M6.':
-    'BLOCKED_PROVIDER · no hay adaptador Managed Claude admitido por la autoridad F8 de este M6.',
-  'Native profile (reference)': 'Perfil Native (referencia)',
-  'BLOCKED_TRUST_BOUNDARY · no Native target will be started automatically. The existing manual flow remains available.':
-    'BLOCKED_TRUST_BOUNDARY · no se iniciará automáticamente un destino Native. El flujo manual existente sigue disponible.',
-  'BLOCKED_PROVIDER · Hermes receives no authority to execute.':
-    'BLOCKED_PROVIDER · Hermes no recibe autoridad para ejecutar.',
-  'Selected content': 'Contenido seleccionado',
-  'Goal confirmed by the owner': 'Objetivo confirmado por el dueño',
-  Provenance: 'Procedencia',
-  'Chosen excerpts (one line per item)':
-    'Extractos elegidos (una línea por elemento)',
-  'File references as relative labels (one per line)':
-    'Referencias de archivo como etiquetas relativas (una por línea)',
-  'Open questions (one per line)': 'Preguntas abiertas (una por línea)',
-  'Seal and review exact bytes': 'Sellar y revisar bytes exactos',
-  Target: 'Destino',
-  target: 'destino',
-  workspace: 'workspace',
-  'Review and delivery': 'Revisión y entrega',
-  'Every quoted text is untrusted input. The digest is confirmed against source, target, revisions and selection.':
-    'Todo texto citado es entrada no confiable. El digest se confirma contra origen, destino, revisiones y selección.',
-  'M5/F8 is inactive. Managed handoff cannot start until the approved authority is active.':
-    'M5/F8 está inactivo. Handoff Managed no puede iniciar hasta que la autoridad aprobada esté activa.',
-  'Confirmed digest': 'Digest confirmado',
-  Handoff: 'Handoff',
-  'Session target': 'Destino de sesión',
-  'proposal without session': 'propuesta sin sesión',
-  'Exact first message, delimited as untrusted context':
-    'Primer mensaje exacto, delimitado como contexto no confiable',
-  'Review the full envelope': 'Revisar sobre completo',
-  Copied: 'Copiado',
-  'Copy reviewed message': 'Copiar mensaje revisado',
-  'BLOCKED_TRUST_BOUNDARY · the digest does not authorize a Native launch; use the manual flow and its local confirmation.':
-    'BLOCKED_TRUST_BOUNDARY · el digest no autoriza el lanzamiento Native; usa el flujo manual y su confirmación local.',
-  'BLOCKED_PROVIDER · the target adapter is not admitted for sending.':
-    'BLOCKED_PROVIDER · el adaptador del destino no está admitido para envío.',
-  'Confirm digest and deliver to the new Managed':
-    'Confirmar digest y entregar al Managed nuevo',
-  'Handoff content is volatile. Complete the selection and workspace to generate the review.':
-    'El contenido del handoff es volátil. Completa selección y workspace para generar la revisión.',
-  Execution: 'Ejecución',
-  'Delivery does not mean the recipient finished correctly.':
-    'La entrega no implica que el destinatario haya terminado correctamente.',
-  'Local runs': 'Ejecuciones locales',
-  'Durable metadata only. No prompts or provider output in the local log.':
-    'Solo metadatos durables. Sin prompts ni salida de proveedor en el registro local.',
-  'Reading local log…': 'Leyendo registro local…',
-  'No runs recorded.': 'No hay ejecuciones registradas.',
-  digest: 'digest',
-  '{provider} · {effect} · attempts {count}':
-    '{provider} · {effect} · intentos {count}',
-  'The turn ended. Inspect the workspace before marking the step completed.':
-    'El turno terminó. Inspecciona el workspace antes de marcar el paso completado.',
-  'Uncertain result or coordinator restarted. The turn is not resent. Confirm evidence before closing this step.':
-    'Resultado incierto o coordinador reiniciado. No se reenvía el turno. Confirma evidencia antes de cerrar este paso.',
-  'Choose and observe workspace': 'Elegir y observar workspace',
-  'Confirm output after reviewing the current revision':
-    'Confirmar salida tras revisar la revisión actual',
-  'Observed revision': 'Revisión observada',
-  'Observed workspace': 'Workspace observado',
-  'I confirm it completed · review current revision':
-    'Confirmo que completó · revisar revisión actual',
-  'I confirm it had no effect · close as failed':
-    'Confirmo que no tuvo efecto · cerrar como fallido',
-  'I confirm cancellation': 'Confirmo cancelación',
-  Pause: 'Pausar',
-  'Stop/cancel': 'Detener/cancelar',
-  'The local coordinator is not available.':
-    'El coordinador local no está disponible.',
-  'The request does not match the M6 contract.':
-    'La solicitud no coincide con el contrato M6.',
-  'The plan is not valid or exceeds the finite limits.':
-    'El plan no es válido o supera los límites finitos.',
-  'The handoff is incomplete, expired or changed.':
-    'El handoff está incompleto, vencido o cambió.',
-  'The objective exceeds 2,048 bytes; shorten the text before sealing it.':
-    'El objetivo supera 2.048 bytes; reduce el texto antes de sellarlo.',
-  'The generated message exceeds 8 KiB; shorten the excerpts or questions before sealing it.':
-    'El mensaje generado supera 8 KiB; reduce los extractos o preguntas antes de sellarlo.',
-  'The content changed after the review; review it again.':
-    'El contenido cambió después de la revisión; vuelve a revisarlo.',
-  'Blocked: the Native trust boundary is not proven.':
-    'Bloqueado: la frontera de confianza de Native no está demostrada.',
-  'The provider or host is not allowed for this handoff.':
-    'El proveedor o el host no está admitido para este handoff.',
-  'F8 confirmed the receiver has earlier work or is not prepared as a new session.':
-    'F8 confirmó que el receptor tiene trabajo previo o no está preparado como sesión nueva.',
-  'The F8 evidence cannot prove the receiver is new and has no history.':
-    'No se pudo probar desde la evidencia F8 que el receptor esté nuevo y sin historial.',
-  'The current identity or generation of the source Managed session could not be proven.':
-    'No se pudo probar la identidad o generación actual de la sesión Managed de origen.',
-  'The Managed authority denied the start.':
-    'La autoridad Managed denegó el inicio.',
-  'The Managed resource is busy; no other turn was started.':
-    'El recurso Managed está ocupado; no se inició otro turno.',
-  'The workspace changed or does not match the approved revision.':
-    'El workspace cambió o no coincide con la revisión aprobada.',
-  'The local journal could not save the state.':
-    'El registro local no pudo guardar el estado.',
-  'The Managed authority did not respond; the result may need review.':
-    'La autoridad Managed no respondió; el resultado puede requerir revisión.',
-  'That run was not found.': 'No se encontró esa ejecución.',
-  'The action is not available in the current state.':
-    'La acción no está disponible para el estado actual.',
-  'The review or the run expired.': 'La revisión o la ejecución venció.',
-  'The effect is uncertain and stays stopped for human review.':
-    'El efecto es incierto y queda detenido para revisión humana.',
-  'Operation M6 failed.': 'Falló la operación M6.',
-  'The M6 operation could not be completed.':
-    'No se pudo completar la operación M6.',
-  'Could not read Managed sessions from F8.':
-    'No se pudieron leer sesiones Managed desde F8.',
-  'The Managed authority is inactive; only the observed Native sessions are shown.':
-    'La autoridad Managed está inactiva; se muestran solo las sesiones Native observadas.',
-  'The budget must be a whole number from 1 to 60 minutes.':
-    'El presupuesto debe ser un número entero entre 1 y 60 minutos.',
-  'Complete the workspace, objective, steps, dependencies and sessions before reviewing.':
-    'Completa el workspace, objetivo, pasos, dependencias y sesiones antes de revisar.',
-  'The Native session is no longer active; refresh and select a running session.':
-    'La sesión Native ya no está activa; actualiza y selecciona una sesión en ejecución.',
-  'Select the workspace and confirm the current revision before declaring an effect completed.':
-    'Selecciona el workspace y confirma la revisión actual antes de declarar un efecto completado.',
-  'First prepare a new Managed session for this handoff.':
-    'Primero prepara una sesión nueva Managed para este handoff.',
-  'Select a target workspace and enable F8 Managed before preparing the receiver.':
-    'Selecciona workspace de destino y habilita F8 Managed antes de preparar el receptor.',
-  'New Managed session prepared. Authorize its binding, runtime and lease from Runtimes.':
-    'Sesión Managed nueva preparada. Autoriza su binding, runtime y lease desde Runtimes.',
-  'New receiver {id}': 'Receptor nuevo {id}',
-  'F8 did not confirm the preparation. No other session is created with a different intent; retry the same request.':
-    'F8 no confirmó la preparación. No se crea otra sesión con un intent diferente; vuelve a intentar el mismo pedido.',
-  'Could not prepare the Managed receiver through F8.':
-    'No se pudo preparar el receptor Managed mediante F8.',
-  'A new Managed session, active F8 or a target workspace is missing.':
-    'Falta una sesión nueva Managed, F8 activo o workspace destino.',
-  'The receiver was not created for this handoff. Prepare a new Managed session.':
-    'El receptor no fue creado para este handoff. Prepara una sesión Managed nueva.',
-  '{id} · generation {generation} · {profile} · lease {lease}':
-    '{id} · generation {generation} · {profile} · lease {lease}',
-  'unknown profile': 'perfil desconocido',
-  absent: 'ausente',
-  'New receiver, without history, attached to the workspace and enabled by the F8 turn_start lease.':
-    'Receptor nuevo, sin historial, adjunto al workspace y habilitado por la lease F8 turn_start.',
-  'Receiver not admitted yet. In Runtimes, configure the requested profile, bind the target workspace and grant a turn_start lease; the handoff will not be sent until everything is confirmed.':
-    'Receptor aún no admitido. En Runtimes, configura el perfil solicitado, enlaza el workspace destino y concede una lease turn_start; no se enviará el handoff hasta confirmar todo.',
-  'The receiver could not be observed through F8; it is not assumed to be prepared.':
-    'No se pudo observar el receptor desde F8; no se asume que esté preparado.',
-  'Prepare a new Managed receiver for this handoff first.':
-    'Prepara primero un receptor Managed nuevo para este handoff.',
-  'Complete source, target, session, objective and review both workspace revisions.':
-    'Completa origen, destino, sesión, objetivo y revisa ambas revisiones de workspace.',
-  'BLOCKED: the Native target requires an accepted trust boundary. The text can be copied for the existing manual flow.':
-    'BLOCKED: el destino Native requiere una frontera de confianza aceptada. El texto se puede copiar para el flujo manual existente.',
-  'The clipboard is not available; select and copy the reviewed text.':
-    'El portapapeles no está disponible; selecciona y copia el texto revisado.',
+
   // ---- final ----
   'Failed ({code})': 'Falló ({code})',
   'not read yet (open Configuration)': 'todavía sin leer (abre Configuración)',
@@ -3230,9 +2163,7 @@ export const ES: Readonly<Record<string, string>> = {
   'Same content twice': 'Mismo contenido dos veces',
   'Several rules': 'Varias reglas',
   'Two methodologies kept': 'Dos metodologías conservadas',
-  'The session ended.': 'La sesión terminó.',
-  'The terminal host refused the input.':
-    'El host de la terminal rechazó la entrada.',
+
   'Sync error': 'Error de sincronización',
   'The last run failed: {error}.': 'La última corrida falló: {error}.',
   Receiving: 'Recibiendo',
@@ -3765,6 +2696,5 @@ export const ES: Readonly<Record<string, string>> = {
   ...ES_ARSENAL,
   ...ES_NATIVE,
   ...ES_CONFIGURATION,
-  ...ES_REST,
   ...ES_SCREENS,
 };

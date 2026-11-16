@@ -7,11 +7,6 @@ export type ViewId =
   | 'workspace'
   | 'sessions'
   | 'agents'
-  | 'pipelines'
-  | 'runtimes'
-  | 'providers'
-  | 'projects'
-  | 'remote'
   | 'approvals'
   | 'events'
   | 'arsenal'
@@ -56,18 +51,6 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: 'M5 8h14v11H5zM12 4v4M9.5 13h.01M14.5 13h.01',
   },
   {
-    id: 'pipelines',
-    label: msg('Pipelines'),
-    subtitle: msg('Structured handoff and finite OL3 coordination'),
-    icon: 'M5 5h5v5H5zM14 14h5v5h-5zM10 7.5h3a3 3 0 0 1 3 3V14M7.5 10v5a2 2 0 0 0 2 2H14',
-  },
-  {
-    id: 'remote',
-    label: msg('Remote PCs'),
-    subtitle: msg('Hosts and sessions · transport not selected'),
-    icon: 'M3 5h18v12H3zM8 21h8M12 17v4M7 9h4M7 12h7M17 9h.01',
-  },
-  {
     id: 'approvals',
     label: msg('Approvals'),
     subtitle: msg('Actions waiting for a decision'),
@@ -104,64 +87,6 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: 'M4 7h9M17 7h3M4 17h3M11 17h9M13 7a2 2 0 1 0 4 0 2 2 0 1 0-4 0M7 17a2 2 0 1 0 4 0 2 2 0 1 0-4 0',
   },
 ];
-
-/**
- * Managed runtimes of protocol 2. Offered only when the desktop says the interface is
- * active; the installed desktop never does, so the item does not exist there.
- */
-export const RUNTIMES_NAV_ITEM: NavItem = {
-  id: 'runtimes',
-  label: msg('Runtimes'),
-  subtitle: msg('One isolated runtime per managed session'),
-  icon: 'M4 6h16v5H4zM4 13h16v5H4zM7.5 8.5h.01M7.5 15.5h.01M11 8.5h6M11 15.5h6',
-};
-
-/**
- * Which provider profiles can start and why not, the model facts, usage and the optional history.
- * Always offered: it only reads, and it is where "Claude is blocked, and why" is told.
- */
-export const PROVIDERS_NAV_ITEM: NavItem = {
-  id: 'providers',
-  label: msg('Providers'),
-  subtitle: msg('What each provider profile can do, and why not'),
-  icon: 'M4 5h7v6H4zM13 5h7v6h-7zM4 13h7v6H4zM13 16h7M16.5 13v6',
-};
-
-/**
- * The project-centered workspace. Offered only after the owner turned it on, so that the
- * navigation of a Console that has not adopted it is the one it always was.
- */
-export const PROJECTS_NAV_ITEM: NavItem = {
-  id: 'projects',
-  label: msg('Projects'),
-  subtitle: msg('Folders, workspaces and the sessions they show'),
-  icon: 'M3 7h6l2 2h10v10H3zM3 7V5h6l2 2',
-};
-
-/**
- * The navigation, with Runtimes after Agents when the interface is active and Projects after
- * the Console when the project workspace is on.
- */
-export function navItems(
-  runtimes: boolean,
-  projects = false,
-  providers = false,
-): readonly NavItem[] {
-  let items: NavItem[] = [...NAV_ITEMS];
-  if (providers) {
-    const at = items.findIndex((item) => item.id === 'credentials') + 1;
-    items = [...items.slice(0, at), PROVIDERS_NAV_ITEM, ...items.slice(at)];
-  }
-  if (runtimes) {
-    const at = items.findIndex((item) => item.id === 'agents') + 1;
-    items = [...items.slice(0, at), RUNTIMES_NAV_ITEM, ...items.slice(at)];
-  }
-  if (projects) {
-    const at = items.findIndex((item) => item.id === 'console') + 1;
-    items = [...items.slice(0, at), PROJECTS_NAV_ITEM, ...items.slice(at)];
-  }
-  return runtimes || projects || providers ? items : NAV_ITEMS;
-}
 
 /** The rail: six entries. Each opens a view of its own; Activity shows two, Personalization six as tabs. */
 export type RailId =
@@ -269,8 +194,8 @@ export function railOf(shown: ShownView): RailId {
   return RAIL_ITEMS.find((r) => r.view === shown)?.id ?? 'more';
 }
 
-/** Views offered under More: every view of `navItems()` that the rail does not open itself,
- * plus Approvals, Events, Providers and Settings, which keep their own page there. The
+/** Views offered under More: every view of `NAV_ITEMS` that the rail does not open itself,
+ * plus Approvals, Events and Settings, which keep their own page there. The
  * Workspace of agents in terminals is there too, by that name: the rail's Workspace is the
  * launch editor. */
 export function moreItems(items: readonly NavItem[]): readonly NavItem[] {

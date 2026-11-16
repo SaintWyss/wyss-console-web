@@ -140,8 +140,6 @@ it('lists every view, and every one of them exists', () => {
     'Terminal agents',
     'Sessions',
     'Agents',
-    'Pipelines',
-    'Remote PCs',
     'Approvals',
     'Events',
     'Arsenal',
@@ -154,8 +152,6 @@ it('lists every view, and every one of them exists', () => {
     'workspace',
     'sessions',
     'agents',
-    'pipelines',
-    'remote',
     'approvals',
     'events',
     'arsenal',
@@ -169,9 +165,15 @@ it('lists every view, and every one of them exists', () => {
 });
 
 it('renders the shell with brand, every view enabled and Console selected', async () => {
+  const commands = ipc(never);
   component = mount(App, { target: document.body });
   await flush();
   expect(document.querySelector('h1')?.textContent).toBe('Wyss Console');
+  expect(
+    commands.filter((command) =>
+      /^(f8_|m3_|projects_|orchestration_)/.test(command),
+    ),
+  ).toEqual([]);
   const rail = Array.from(
     document.querySelectorAll<HTMLButtonElement>(
       '.sidebar .rail-list .nav-item',
@@ -199,12 +201,9 @@ it('renders the shell with brand, every view enabled and Console selected', asyn
     'Terminal agents',
     'Sessions',
     'Agents',
-    'Pipelines',
-    'Remote PCs',
     'Approvals',
     'Events',
     'Arsenal presets',
-    'Providers',
     'Settings',
   ]);
   // No item is a placeholder.
@@ -220,22 +219,13 @@ it('renders the shell with brand, every view enabled and Console selected', asyn
   expect(pill('authority')?.textContent).toContain('Connecting');
   expect(pill('agent')?.textContent).toContain('Unknown');
 
-  // The rail's Personalization opens Distributors first; Providers is still a view, under More.
+  // The rail's Personalization opens Distributors first.
   const shown = (name: string) =>
     !document.querySelector<HTMLElement>(`.${name}-feature`)!.hidden;
   rail[2].click();
   await flush();
   expect(rail[2].getAttribute('aria-current')).toBe('page');
   expect(shown('distributors')).toBe(true);
-  expect(shown('providers')).toBe(false);
-  more.find((b) => b.textContent?.trim() === 'Providers')!.click();
-  await flush();
-  expect(shown('providers')).toBe(true);
-  expect(shown('distributors')).toBe(false);
-  expect(rail[3].getAttribute('aria-current')).toBeNull();
-  expect(
-    document.querySelector('.rail-more')?.getAttribute('aria-current'),
-  ).toBe('page');
 });
 
 it('provides a keyboard skip link to the focusable main content landmark', async () => {
@@ -267,9 +257,7 @@ it('reports a failed terminal in the top-bar runtime status', async () => {
   await flush();
   expect(pill('terminal')?.getAttribute('data-tone')).toBe('error');
   expect(pill('terminal')?.textContent).toContain('Failed');
-  expect(document.querySelector('header')?.textContent).not.toContain(
-    'private',
-  );
+  expect(document.body.textContent).not.toContain('private');
   // A terminal that failed says nothing about the authority.
   expect(pill('authority')?.textContent).toContain('Connected');
 });
