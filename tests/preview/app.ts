@@ -13,12 +13,7 @@ import { mount } from 'svelte';
 import App from '../../src/App.svelte';
 import '../../src/app.css';
 import { DEFAULT_PREFERENCES } from '../../src/lib/contracts/settings';
-import {
-  NAV_ITEMS,
-  PROJECTS_NAV_ITEM,
-  PROVIDERS_NAV_ITEM,
-  RUNTIMES_NAV_ITEM,
-} from '../../src/lib/shell/nav';
+import { NAV_ITEMS } from '../../src/lib/shell/nav';
 import approvals from '../fixtures/approval-list-v1.json';
 import inventory from '../fixtures/configuration-inventory-v1.json';
 import views from '../fixtures/authority-view-v1.json';
@@ -347,8 +342,6 @@ mockIPC((command, payload) => {
       return request.after === null ? connected : never();
     case 'authority_lifecycle':
       return never();
-    case 'f8_state':
-      return { schema_version: 1, gate: 'inactive' };
     case 'configuration_inventory':
       if (failed) fail();
       return inventory;
@@ -570,8 +563,6 @@ mockIPC((command, payload) => {
         ahead: 2,
         truncated: false,
       };
-    case 'm3_state':
-      return { schema_version: 1, state: 'inactive' };
     default:
       return terminal;
   }
@@ -589,9 +580,8 @@ mount(App, { target });
 
 // Opens the view as a person does: by its item in the sidebar.
 const label =
-  [...NAV_ITEMS, RUNTIMES_NAV_ITEM, PROVIDERS_NAV_ITEM, PROJECTS_NAV_ITEM].find(
-    (item) => item.id === view,
-  )?.label ?? { activity: 'Activity', launches: 'Workspace' }[view];
+  [...NAV_ITEMS].find((item) => item.id === view)?.label ??
+  { activity: 'Activity', launches: 'Workspace' }[view];
 setTimeout(() => {
   [...document.querySelectorAll<HTMLButtonElement>('.sidebar .nav-item')]
     .find((b) => b.textContent?.trim() === label)

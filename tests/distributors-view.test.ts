@@ -156,10 +156,7 @@ it('opens from the rail and draws what the desktop answered', async () => {
   await flush();
   expect(view().hidden).toBe(false);
   expect(rail('Personalization').getAttribute('aria-current')).toBe('page');
-  // Providers is a view of its own, under More: the rail no longer opens it.
-  expect(
-    document.querySelector<HTMLElement>('.providers-feature')!.hidden,
-  ).toBe(true);
+  expect(document.querySelector('.providers-feature')).toBeNull();
   // The cards say what the view is: no title is drawn over them.
   expect(document.querySelector('.context-title')).toBeNull();
   // Showing the view reads launcher status and the owner-added distributors.
