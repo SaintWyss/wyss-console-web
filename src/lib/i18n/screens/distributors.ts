@@ -22,7 +22,6 @@ export const ES_SCREEN: Readonly<Record<string, string>> = {
     'Agregá una herramienta que la Consola no conoce con su nombre y los comandos para abrirla y actualizarla.',
   'Fills in its name, maker and the command that opens it. Its update command depends on how you installed it.':
     'Completa el nombre, el desarrollador y el comando para abrirla. El comando para actualizarla depende de cómo se instaló la herramienta.',
-  'How the card is called.': 'Nombre que se muestra en la tarjeta.',
   'Who makes it.': 'Quién desarrolla la herramienta.',
   'Made by': 'Desarrollador',
   'Typed in a new terminal to open it. Its first word is the command looked for to say whether it is installed.':

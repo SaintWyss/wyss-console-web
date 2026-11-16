@@ -3241,7 +3241,7 @@ export const ES: Readonly<Record<string, string>> = {
   'this agent': 'este agente',
   'Home · {path}': 'Inicio · {path}',
   'Start {agent}': 'Iniciar {agent}',
-  'Agents started from the Console': 'Agentes iniciados desde la Console',
+  'Agents started from the Console': 'Agentes iniciados desde la Consola',
   'Hermes Native is a full-account provider session. Its approval prompts and hooks are not a Wyss security boundary. Hermes planner admission is separately blocked pending tested OS isolation. The installed version is not probed because Hermes version output performs an update check.':
     'Hermes Native es una sesión de proveedor con toda la cuenta. Sus avisos de aprobación y sus hooks no son una frontera de seguridad de Wyss. La admisión del planificador de Hermes está bloqueada aparte hasta probar un aislamiento del sistema. La versión instalada no se sondea, porque la salida de versión de Hermes hace una comprobación de actualización.',
   'Looking for your agents…': 'Buscando tus agentes…',
@@ -3249,10 +3249,10 @@ export const ES: Readonly<Record<string, string>> = {
   'The desktop did not answer. Nothing was started.':
     'El escritorio no respondió. No se inició nada.',
   'OpenCode and Hermes wait until the Console confirms its private M9 session store again.':
-    'OpenCode y Hermes esperan a que la Console vuelva a confirmar su almacén privado de sesiones M9.',
+    'OpenCode y Hermes esperan a que la Consola vuelva a confirmar su almacén privado de sesiones M9.',
   'Check again': 'Revisar de nuevo',
   'OpenCode and Hermes are blocked: the Console could not confirm its private M9 session store, because a read or a write failed. Claude Code and Codex stay available where the Console allows them.':
-    'OpenCode y Hermes están bloqueados: la Console no pudo confirmar su almacén privado de sesiones M9, porque falló una lectura o una escritura. Claude Code y Codex siguen disponibles donde la Console los permite.',
+    'OpenCode y Hermes están bloqueados: la Consola no pudo confirmar su almacén privado de sesiones M9, porque falló una lectura o una escritura. Claude Code y Codex siguen disponibles donde la Consola los permite.',
   'This terminal host predates M9. OpenCode and Hermes Native require a matching M9 host; existing Native sessions remain available.':
     'Este host de terminal es anterior a M9. OpenCode y Hermes Native requieren un host M9 compatible; las sesiones Native existentes siguen disponibles.',
   'Start an agent': 'Iniciar un agente',
@@ -3275,9 +3275,9 @@ export const ES: Readonly<Record<string, string>> = {
   'Starts through your shell ({family}): same environment as typing the command yourself.':
     'Inicia a través de tu shell ({family}): mismo entorno que si escribieras el comando vos mismo.',
   'Starts directly with the Console’s own environment.':
-    'Inicia directamente con el entorno propio de la Console.',
+    'Inicia directamente con el entorno propio de la Consola.',
   "Native sessions: the provider's own tools, configuration and privileges stay active. The Console does not mediate, contain or approve their effects.":
-    'Sesiones Native: las herramientas, la configuración y los privilegios del proveedor siguen activos. La Console no media, contiene ni aprueba sus efectos.',
+    'Sesiones Native: las herramientas, la configuración y los privilegios del proveedor siguen activos. La Consola no media, contiene ni aprueba sus efectos.',
   'Native plane': 'Plano Native',
   'Start the lost session again': 'Iniciar de nuevo la sesión perdida',
   'Start {count} lost sessions again':
@@ -3285,7 +3285,7 @@ export const ES: Readonly<Record<string, string>> = {
   'Remove finished': 'Quitar terminadas',
   'No agent sessions yet': 'Todavía no hay sesiones de agentes',
   'Start one above. It opens in the Console as a terminal tab.':
-    'Inicia una arriba. Se abre en la Console como una pestaña de terminal.',
+    'Inicia una arriba. Se abre en la Consola como una pestaña de terminal.',
   'Two sessions run here and can write the same files. Nothing coordinates them.':
     'Dos sesiones corren aquí y pueden escribir los mismos archivos. Nada las coordina.',
   'Sessions in {folder}': 'Sesiones en {folder}',
@@ -3687,7 +3687,7 @@ export const ES: Readonly<Record<string, string>> = {
   'Only for ordering this list: launches are grouped by role. It does not change what the agent does.':
     'Solo para ordenar esta lista: los lanzamientos se agrupan por rol. No cambia lo que hace el agente.',
   'Native: the agent runs as its own program in a terminal of the Console, as when you type claude or codex. The other mode, Managed (the Console drives the session), starts from Sessions, not from a launch; that is why it is fixed here.':
-    'Native: el agente corre como su propio programa en una terminal de la Console, igual que si escribieras claude o codex. El otro modo, Managed (la Console maneja la sesión), se arranca desde Sesiones, no desde un lanzamiento; por eso acá está fijo.',
+    'Native: el agente corre como su propio programa en una terminal de la Consola, igual que si escribieras claude o codex. El otro modo, Managed (la Consola maneja la sesión), se arranca desde Sesiones, no desde un lanzamiento; por eso acá está fijo.',
   'Where the agent works: it reads and edits the files of this folder, and its project settings are this folder’s.':
     'Dónde trabaja el agente: lee y edita los archivos de esta carpeta, y usa la configuración de proyecto de esta carpeta.',
   'About how much context the agent loads before you write anything, from what is switched on below. The bar compares it with everything switched on. MCP servers are not counted.':
@@ -3722,23 +3722,22 @@ export const ES: Readonly<Record<string, string>> = {
   'It could not be deleted.': 'No se pudo borrar.',
   'The launch could not be made.': 'No se pudo crear el lanzamiento.',
   'Types “{command}” in a new terminal of the Console, where you see it run.':
-    'Escribe «{command}» en una terminal nueva de la Console, donde lo ves correr.',
+    'Escribe «{command}» en una terminal nueva de la Consola, donde lo ves correr.',
   'Added by you': 'Agregados por vos',
   'Other tools': 'Otras herramientas',
   'Add a tool': 'Agregar herramienta',
   'Confirm delete': 'Confirmar borrado',
   'Comes with the Console: it cannot be edited or deleted.':
-    'Viene con la Console: no se puede editar ni borrar.',
+    'Viene con la Consola: no se puede editar ni borrar.',
   'It has no update command yet: set one in Edit.':
     'Todavía no tiene comando para actualizar: cargalo en Editar.',
   'It was added, but its launch could not be made: {why}':
     'Se agregó, pero no se pudo crear su lanzamiento: {why}',
   'Add a tool the Console does not know: by its name and the commands that open and update it.':
-    'Agregá una herramienta que la Console no conoce: con su nombre y los comandos que la abren y la actualizan.',
+    'Agregá una herramienta que la Consola no conoce: con su nombre y los comandos que la abren y la actualizan.',
   'Edit distributor': 'Editar distribuidor',
   'Add distributor': 'Agregar distribuidor',
   'Suggestions:': 'Sugerencias:',
-  'How the card is called.': 'Cómo se llama la tarjeta.',
   'Made by': 'Hecho por',
   'Typed in a new terminal to open it. Its first word is the command looked for to say whether it is installed.':
     'Se escribe en una terminal nueva para abrirla. Su primera palabra es el comando que se busca para saber si está instalada.',
@@ -3748,7 +3747,7 @@ export const ES: Readonly<Record<string, string>> = {
   Note: 'Nota',
   'Found at {path}.': 'Encontrada en {path}.',
   'Types “{command}” in a new terminal of the Console.':
-    'Escribe «{command}» en una terminal nueva de la Console.',
+    'Escribe «{command}» en una terminal nueva de la Consola.',
   'Makes a launch in Workspace that opens it, so it starts from + Launch like the others.':
     'Crea en Workspace un lanzamiento que la abre, así arranca desde + Lanzar como los demás.',
   'Make launch': 'Crear lanzamiento',
@@ -3765,7 +3764,7 @@ export const ES: Readonly<Record<string, string>> = {
   'What this tool offers and what is running with it now.':
     'Qué ofrece esta herramienta y qué está corriendo con ella ahora.',
   'A tool you add opens and updates in a terminal of the Console. Arsenal and the context estimate are only for the tools the Console knows.':
-    'Una herramienta que agregás se abre y se actualiza en una terminal de la Console. Arsenal y la estimación de contexto son solo para las herramientas que la Console conoce.',
+    'Una herramienta que agregás se abre y se actualiza en una terminal de la Consola. Arsenal y la estimación de contexto son solo para las herramientas que la Consola conoce.',
   'Could not check what this permission would pass. Refresh Native before starting.':
     'No se pudo comprobar qué pasaría este permiso. Actualizá Native antes de iniciar.',
   'What the permission passes': 'Qué pasa el permiso',

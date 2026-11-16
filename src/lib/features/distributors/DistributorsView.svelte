@@ -247,13 +247,7 @@
             title={t('Comes with the Console: it cannot be edited or deleted.')}
             >{t('Edit')}</button
           >
-          <button
-            type="button"
-            class="action"
-            disabled
-            title={t('Comes with the Console: it cannot be edited or deleted.')}
-            >{t('Delete')}</button
-          >
+          <button type="button" class="action" disabled>{t('Delete')}</button>
         </div>
       </article>
     {/each}
@@ -409,7 +403,7 @@
               {/each}
             </div>
           {/if}
-          <label class="le-field" title={t('How the card is called.')}
+          <label class="le-field"
             ><span>{t('Name')}</span>
             <input
               class="le-input"
