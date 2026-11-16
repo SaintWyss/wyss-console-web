@@ -3744,17 +3744,12 @@ export const ES: Readonly<Record<string, string>> = {
   'Add distributor': 'Agregar distribuidor',
   'Suggestions:': 'Sugerencias:',
   'How the card is called.': 'Cómo se llama la tarjeta.',
-  'Who makes it. Optional.': 'Quién la hace. Opcional.',
   'Made by': 'Hecho por',
   'Typed in a new terminal to open it. Its first word is the command looked for to say whether it is installed.':
     'Se escribe en una terminal nueva para abrirla. Su primera palabra es el comando que se busca para saber si está instalada.',
   'Command to open': 'Comando para abrir',
-  'Typed in a new terminal by Update. Optional: it depends on how you installed the tool.':
-    'Lo escribe Actualizar en una terminal nueva. Opcional: depende de cómo instalaste la herramienta.',
   'Command to update': 'Comando para actualizar',
   optional: 'opcional',
-  'Anything to remember about it. Optional.':
-    'Lo que quieras recordar de ella. Opcional.',
   Note: 'Nota',
   'Found at {path}.': 'Encontrada en {path}.',
   'Types “{command}” in a new terminal of the Console.':
