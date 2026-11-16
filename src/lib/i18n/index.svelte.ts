@@ -1,5 +1,9 @@
 import type { Language } from '../contracts/settings';
 import { ES } from './es';
+import { INCOMING as IN_ARSENAL } from './incoming/arsenal';
+import { INCOMING as IN_NATIVE } from './incoming/native';
+import { INCOMING as IN_CONFIGURATION } from './incoming/configuration';
+import { INCOMING as IN_REST } from './incoming/rest';
 import type { Phrase } from './msg';
 
 export { msg, type Phrase } from './msg';
@@ -54,4 +58,61 @@ export function tPhrase(phrase: Phrase): string {
 /** Several phrases drawn as one sentence, joined the way the window joins its parts. */
 export function tJoin(parts: readonly Phrase[]): string {
   return parts.map(tPhrase).join(' · ');
+}
+
+/** Every sentence the desktop may send, in Spanish, by area. */
+export const INCOMING_ES: Readonly<Record<string, string>> = {
+  ...IN_ARSENAL,
+  ...IN_NATIVE,
+  ...IN_CONFIGURATION,
+  ...IN_REST,
+};
+
+/**
+ * `en` with `{name}` parts against `text`: the Spanish `es` with the same parts filled in, or
+ * `null` when `text` is not that sentence.
+ */
+export function fillTemplate(
+  en: string,
+  es: string,
+  text: string,
+): string | null {
+  const names: string[] = [];
+  const source = en
+    .split(/(\{\w+\})/)
+    .map((part) => {
+      const name = /^\{(\w+)\}$/.exec(part);
+      if (name) {
+        names.push(name[1]);
+        return '([\\s\\S]+?)';
+      }
+      return part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    })
+    .join('');
+  const match = new RegExp(`^${source}$`).exec(text);
+  if (!match) return null;
+  return es.replace(/\{(\w+)\}/g, (whole, name: string) => {
+    const at = names.indexOf(name);
+    return at >= 0 ? match[at + 1] : whole;
+  });
+}
+
+const WITH_PARTS = Object.entries(INCOMING_ES).filter(([en]) =>
+  /\{\w+\}/.test(en),
+);
+
+/**
+ * Text the desktop wrote (a reason, a plan line, a refusal), in the language in force. An exact
+ * sentence is looked up first; then a sentence with parts the desktop filled in. What matches
+ * nothing is shown as it arrived: never an empty screen, never a guess.
+ */
+export function tIncoming(text: string): string {
+  if (language !== 'es') return text;
+  const exact = INCOMING_ES[text];
+  if (exact !== undefined) return exact;
+  for (const [en, es] of WITH_PARTS) {
+    const filled = fillTemplate(en, es, text);
+    if (filled !== null) return filled;
+  }
+  return text;
 }

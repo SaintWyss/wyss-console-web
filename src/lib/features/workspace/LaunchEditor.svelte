@@ -1071,7 +1071,6 @@
           <div class="le-ghead">{t('Project instructions')}</div>
           <div class="le-fields">
             <label class="le-field">
-              <span>{t('Project instructions')}</span>
               <select
                 class="le-input"
                 aria-label={t('Project instructions')}
@@ -1095,13 +1094,17 @@
                 <option value="exclude">{t("Without the project's")}</option>
                 <option value="role">{t('Own role')}</option>
               </select>
-              {#if d.instructions?.project === 'role'}
+            </label>
+            {#if d.instructions?.project === 'role'}
+              <label class="le-field">
                 <textarea
                   class="le-input"
                   rows="6"
                   aria-label={t('Own role')}
                   bind:value={d.instructions.role}></textarea>
-              {/if}
+              </label>
+            {/if}
+            <div class="le-field">
               <span
                 >{t(
                   d.instructions?.project === 'load'
@@ -1123,7 +1126,7 @@
                   )}</span
                 >
               {/if}
-            </label>
+            </div>
           </div>
         </fieldset>
         {#if itemPlanState === 'failed'}

@@ -1,3 +1,8 @@
+import { ES_AREA as ES_ARSENAL } from './es-arsenal';
+import { ES_AREA as ES_NATIVE } from './es-native';
+import { ES_AREA as ES_CONFIGURATION } from './es-configuration';
+import { ES_AREA as ES_REST } from './es-rest';
+
 /**
  * Spanish for the window's own text. The key is the English sentence exactly as it is written
  * where it is used; `tests/i18n.test.ts` fails when a sentence in `src/` has no entry here, when
@@ -3965,4 +3970,8 @@ export const ES: Readonly<Record<string, string>> = {
     'El preset «{name}» no se puede aplicar porque estos ítems faltan o fueron rechazados: {items}. Destildalos o restauralos en el Arsenal. No se inició nada.',
   'The launch was deleted, but its instructions or role could not be cleared.':
     'Se borró el lanzamiento, pero no se pudieron borrar sus instrucciones o su rol de la lista.',
+  ...ES_ARSENAL,
+  ...ES_NATIVE,
+  ...ES_CONFIGURATION,
+  ...ES_REST,
 };
