@@ -3,6 +3,8 @@
  * Spanish for new sentences and corrections of existing ones; folded into es.ts / incoming/ and emptied at integration.
  */
 export const ES_SCREEN: Readonly<Record<string, string>> = {
+  'Which agents are installed and their version, and how to open and update them.':
+    'Qué agentes están instalados y su versión, y cómo abrirlos y actualizarlos.',
   'The desktop could not complete the request.':
     'La aplicación no pudo completar la solicitud.',
   'Types “{command}” in a new terminal of the Console.':

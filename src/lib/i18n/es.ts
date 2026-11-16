@@ -3803,8 +3803,6 @@ export const ES: Readonly<Record<string, string>> = {
     'El agente lee y planifica; no cambia nada.',
   'The agent edits files without asking; it still asks before running commands. Claude Code only.':
     'El agente edita archivos sin preguntar; igual pregunta antes de ejecutar comandos. Solo Claude Code.',
-  'Which agents are installed and their version, how to update them, the models each offers, and what runs now.':
-    'Qué agentes hay instalados y su versión, cómo actualizarlos, los modelos que ofrece cada uno y qué corre ahora.',
   'The real configuration files of Claude Code and Codex: what an agent starts with when a launch names no permission.':
     'Los archivos de configuración reales de Claude Code y Codex: con lo que arranca un agente cuando un lanzamiento no nombra un permiso.',
   'Claude account': 'Cuenta de Claude',

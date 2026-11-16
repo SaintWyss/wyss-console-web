@@ -426,6 +426,7 @@ it('keeps a save error inside the dialog and clears the error and notice on clos
 });
 
 it('shows distributor labels and status in Spanish', async () => {
+  desktop();
   component = mount(App, { target: document.body });
   await flush();
   setLanguage('es');
@@ -436,4 +437,46 @@ it('shows distributor labels and status in Spanish', async () => {
   expect(
     Array.from(view().querySelectorAll<HTMLButtonElement>('button')).map(text),
   ).toContain('Agregar herramienta');
+  expect(status('anthropic')).toBe('2.1.303');
+  expect(status('openai')).toBe('No instalado');
+  expect(status('opencode')).toBe('Desconocido');
+});
+
+it('drops the answer of a save whose dialog was closed before it came', async () => {
+  const ipc = desktop();
+  let reject: (e: unknown) => void = () => {};
+  ipc.answers.extra = (command) => {
+    if (command === 'distributor_save')
+      return new Promise((_, no) => {
+        reject = no;
+      });
+    return undefined;
+  };
+  component = mount(App, { target: document.body });
+  await flush();
+  tab('Distributors').click();
+  await flush();
+  const button = (label: string) =>
+    Array.from(view().querySelectorAll<HTMLButtonElement>('button')).find(
+      (b) => text(b) === label,
+    )!;
+  button('Add a tool').click();
+  await flush();
+  const form = view().querySelector<HTMLFormElement>('.dist-form')!;
+  const fields = form.querySelectorAll<HTMLInputElement>('input');
+  fields[0].value = 'Kimi CLI';
+  fields[0].dispatchEvent(new Event('input', { bubbles: true }));
+  fields[2].value = 'kimi';
+  fields[2].dispatchEvent(new Event('input', { bubbles: true }));
+  form.requestSubmit();
+  await flush();
+  button('Cancel').click();
+  await flush();
+  button('Add a tool').click();
+  await flush();
+  reject({ code: 'distributor_invalid', reasons: ['too long'] });
+  await flush();
+  // The new dialog is still open and carries nothing of the save before it.
+  expect(view().querySelector('.dist-form')).not.toBeNull();
+  expect(view().querySelector('[role="alert"]')).toBeNull();
 });

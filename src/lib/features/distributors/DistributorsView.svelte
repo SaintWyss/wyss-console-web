@@ -110,6 +110,9 @@
     working = true;
     addedError = null;
     notice = null;
+    // The dialog this save belongs to: if it was closed or replaced before the answer, the
+    // answer does not touch the one shown now.
+    const mine = form;
     try {
       const clean = (v: string | null) => (v && v.trim() ? v.trim() : null);
       const isNew = form.id === null;
@@ -137,10 +140,11 @@
             );
           }
         }
-      form = null;
+      if (form === mine) form = null;
       await readAdded();
     } catch (e) {
-      addedError = failureMessage(e, 'It could not be saved.');
+      if (form === mine)
+        addedError = failureMessage(e, 'It could not be saved.');
     } finally {
       working = false;
     }

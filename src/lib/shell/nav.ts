@@ -242,7 +242,7 @@ export const PERSONALIZATION: readonly PersonalizationTab[] = [
     label: msg('Distributors'),
     icon: 'M3 7l9-4 9 4-9 4-9-4zM3 7v10l9 4 9-4V7M12 11v10',
     hint: msg(
-      'Which agents are installed and their version, how to update them, the models each offers, and what runs now.',
+      'Which agents are installed and their version, and how to open and update them.',
     ),
   },
   {
