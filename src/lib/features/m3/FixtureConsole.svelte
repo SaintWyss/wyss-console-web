@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Decision, FixtureInfo } from '../../contracts/m3';
   import type { M3Controller, M3ViewState } from './controller';
-  import { msg, t } from '../../i18n/index.svelte';
+  import { msg, t, tIncoming } from '../../i18n/index.svelte';
   import {
     APPROVAL_STATE_LABEL,
     describeAction,
@@ -117,7 +117,7 @@
         {fixture.phase === 'refused'
           ? t('The runtime was refused and stopped before it could be used')
           : t('The runtime failed and was stopped')}{fixture.detail
-          ? t(': {detail}', { detail: fixture.detail })
+          ? t(': {detail}', { detail: tIncoming(fixture.detail) })
           : '.'}
       </p>
     </div>

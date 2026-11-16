@@ -2,6 +2,7 @@
   import { onMount, untrack } from 'svelte';
   import type {
     CoordinatorSnapshot,
+    EffectClass,
     HandoffConfirmationV1,
     HandoffEnvelopeV1,
     HandoffItemV1,
@@ -967,8 +968,67 @@
     }
   }
 
+  const STATUS_TEXT: Readonly<Record<string, string>> = {
+    ready: msg('ready'),
+    running: msg('running'),
+    pausing: msg('pausing'),
+    paused: msg('paused'),
+    cancelling: msg('cancelling'),
+    completed: msg('completed'),
+    failed: msg('failed'),
+    cancelled: msg('cancelled'),
+    expired: msg('expired'),
+    needs_review: msg('needs review'),
+    blocked: msg('blocked'),
+    proposed: msg('proposed'),
+    waiting_dependencies: msg('waiting dependencies'),
+    eligible: msg('eligible'),
+    waiting_resource: msg('waiting resource'),
+    awaiting_permission: msg('awaiting permission'),
+    queued: msg('queued'),
+    starting: msg('starting'),
+    verifying: msg('verifying'),
+    succeeded: msg('succeeded'),
+    skipped: msg('skipped'),
+    invalid_plan: msg('invalid plan'),
+    plan_changed: msg('plan changed'),
+    plan_expired: msg('plan expired'),
+    dependency_failed: msg('dependency failed'),
+    trust_boundary_blocked: msg('trust boundary blocked'),
+    provider_not_admitted: msg('provider not admitted'),
+    managed_session_unavailable: msg('managed session unavailable'),
+    permission_denied: msg('permission denied'),
+    resource_busy: msg('resource busy'),
+    workspace_conflict: msg('workspace conflict'),
+    authority_unavailable: msg('authority unavailable'),
+    dispatch_unknown: msg('dispatch unknown'),
+    provider_failed: msg('provider failed'),
+    cancel_unconfirmed: msg('cancel unconfirmed'),
+    owner_review_required: msg('owner review required'),
+    coordinator_restarted: msg('coordinator restarted'),
+    prepared: msg('prepared'),
+    closed: msg('closed'),
+  };
+  const PROVIDER_LABEL: Readonly<Record<ProviderLane, string>> = {
+    managed_codex: msg('managed_codex'),
+    managed_claude: msg('managed_claude'),
+    native_codex: msg('native_codex'),
+    native_claude: msg('native_claude'),
+    hermes_planner: msg('hermes_planner'),
+  };
+  const EFFECT_LABEL: Readonly<Record<EffectClass, string>> = {
+    proposal_only: msg('proposal_only'),
+    managed_inference: msg('managed_inference'),
+    managed_local_tools: msg('managed_local_tools'),
+    native_full_account: msg('native_full_account'),
+  };
+  const PLANE_LABEL = {
+    native: msg('native'),
+    managed: msg('managed'),
+  } as const;
+
   function statusText(state: string): string {
-    return state.replaceAll('_', ' ');
+    return STATUS_TEXT[state] ?? msg('unknown state');
   }
 
   onMount(() => {
@@ -1334,7 +1394,7 @@
                 <header>
                   <div>
                     <strong class="m6-status" data-state={run.state}
-                      >{statusText(run.state)}</strong
+                      >{t(statusText(run.state))}</strong
                     >
                     <p><code>{run.run_id}</code></p>
                   </div>
@@ -1344,20 +1404,20 @@
                   >
                 </header>
                 {#if run.failure}<p class="m6-alert compact">
-                    {statusText(run.failure)}
+                    {t(statusText(run.failure))}
                   </p>{/if}
                 <ul class="m6-step-list">
                   {#each run.steps as step (step.step_id)}
                     <li>
                       <div>
-                        <strong>{statusText(step.state)}</strong><span>
+                        <strong>{t(statusText(step.state))}</strong><span>
                           {t('{provider} · {effect} · attempts {count}', {
-                            provider: step.provider,
-                            effect: step.effect,
+                            provider: t(PROVIDER_LABEL[step.provider]),
+                            effect: t(EFFECT_LABEL[step.effect]),
                             count: step.attempt_count,
                           })}</span
                         >{#if step.failure}<small
-                            >{statusText(step.failure)}</small
+                            >{t(statusText(step.failure))}</small
                           >{/if}
                       </div>
                       {#if step.state === 'verifying'}
@@ -1545,9 +1605,8 @@
                     )}</option
                   >{#each managedSessions as session (session.id)}<option
                       value={session.id}
-                      >{session.id.slice(0, 8)} · {session.state} · {t(
-                        'generation',
-                      )}
+                      >{session.id.slice(0, 8)} · {t(statusText(session.state))} ·
+                      {t('generation')}
                       {session.runtime.generation}</option
                     >{/each}</select
                 ></label
@@ -1808,8 +1867,12 @@
             </p>
             <p>
               {t('Source')}
-              {handoffPreview.envelope.source.plane} · {t('target')}
-              {handoffPreview.envelope.target.provider} · {t('workspace')}
+              {t(PLANE_LABEL[handoffPreview.envelope.source.plane])} · {t(
+                'target',
+              )}
+              {t(PROVIDER_LABEL[handoffPreview.envelope.target.provider])} · {t(
+                'workspace',
+              )}
               <code
                 >{handoffPreview.envelope.target.workspace_id.slice(
                   0,
@@ -1875,8 +1938,8 @@
         {/if}
         {#if handoffRun}
           <div class="m6-alert" role="status">
-            {t('Execution')} <code>{handoffRun.run_id}</code> · {statusText(
-              handoffRun.state,
+            {t('Execution')} <code>{handoffRun.run_id}</code> · {t(
+              statusText(handoffRun.state),
             )}. {t('Delivery does not mean the recipient finished correctly.')}
           </div>
         {/if}

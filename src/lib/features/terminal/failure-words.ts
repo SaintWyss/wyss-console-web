@@ -1,3 +1,4 @@
+import { t, tIncoming } from '../../i18n/index.svelte';
 import { msg } from '../../i18n/msg';
 
 /**
@@ -31,6 +32,28 @@ const FAILURES: Readonly<Record<string, string>> = {
 
 export function failureWords(code: string | undefined): string {
   return FAILURES[code ?? 'terminal_error'] ?? FAILURES.terminal_error;
+}
+
+/** Translates the terminal workspace's own limit notices while preserving unknown host text. */
+export function workspaceErrorText(error: string): string {
+  const terminalLimit =
+    /^Terminal limit reached \((\d+)\)\. Close a terminal to (create|open) another\.$/.exec(
+      error,
+    );
+  if (terminalLimit?.[2] === 'create')
+    return t(
+      'Terminal limit reached ({count}). Close a terminal to create another.',
+      { count: terminalLimit[1] },
+    );
+  if (terminalLimit?.[2] === 'open')
+    return t(
+      'Terminal limit reached ({count}). Close a terminal to open another.',
+      { count: terminalLimit[1] },
+    );
+  const paneLimit = /^A tab holds at most (\d+) panes\.$/.exec(error);
+  if (paneLimit)
+    return t('A tab holds at most {count} panes.', { count: paneLimit[1] });
+  return tIncoming(error);
 }
 
 /** A notice about input on a terminal that keeps running. */

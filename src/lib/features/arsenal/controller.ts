@@ -18,8 +18,8 @@ import {
   type ArsenalClient,
   type CategoryChange,
 } from '../../desktop/arsenal-client';
-import { msg } from '../../i18n/msg';
-import { failureMessage, importMessage } from './messages';
+import { msg, type Phrase } from '../../i18n/msg';
+import { failureMessage, importMessage, phrase } from './messages';
 import { planKey, type CustomCategory } from './presets';
 
 /** The sentence a refused group move shows on its row. */
@@ -30,7 +30,7 @@ export type ArsenalTab =
 
 export interface Notice {
   tone: 'ok' | 'error';
-  text: string;
+  text: Phrase;
 }
 
 /**
@@ -246,7 +246,9 @@ export class ArsenalController {
         phase:
           failureOf(error) === 'storage_unavailable' ? 'unavailable' : 'failed',
       });
-      this.set({ notice: { tone: 'error', text: failureMessage(error) } });
+      this.set({
+        notice: { tone: 'error', text: phrase(failureMessage(error)) },
+      });
     }
   }
 
@@ -255,7 +257,9 @@ export class ArsenalController {
       const opened = await this.client.capability(capability, revision);
       this.set({ opened, file: null, notice: null });
     } catch (error) {
-      this.set({ notice: { tone: 'error', text: failureMessage(error) } });
+      this.set({
+        notice: { tone: 'error', text: phrase(failureMessage(error)) },
+      });
     }
   }
 
@@ -272,7 +276,7 @@ export class ArsenalController {
     } catch (error) {
       this.set({
         file: null,
-        notice: { tone: 'error', text: failureMessage(error) },
+        notice: { tone: 'error', text: phrase(failureMessage(error)) },
       });
     }
   }
@@ -289,14 +293,22 @@ export class ArsenalController {
         busy: null,
         notice: {
           tone: 'ok',
-          text: `Revision ${revision} is current again. No new revision was made.`,
+          text: {
+            text: msg(
+              'Revision {revision} is current again. No new revision was made.',
+            ),
+            values: { revision },
+          },
         },
       });
       void this.refresh();
     } catch (error) {
       this.set({
         busy: null,
-        notice: { tone: 'error', text: failureMessage(error) },
+        notice: {
+          tone: 'error',
+          text: phrase(failureMessage(error)),
+        },
       });
     }
   }
@@ -314,7 +326,10 @@ export class ArsenalController {
     } catch (error) {
       this.set({
         discovering: false,
-        notice: { tone: 'error', text: failureMessage(error) },
+        notice: {
+          tone: 'error',
+          text: phrase(failureMessage(error)),
+        },
       });
     }
   }
@@ -327,7 +342,9 @@ export class ArsenalController {
       const chosenDetail = await this.client.candidateDetail(id);
       if (this.state.chosen === id) this.set({ chosenDetail });
     } catch (error) {
-      this.set({ notice: { tone: 'error', text: failureMessage(error) } });
+      this.set({
+        notice: { tone: 'error', text: phrase(failureMessage(error)) },
+      });
     }
   }
 
@@ -360,7 +377,10 @@ export class ArsenalController {
     } catch (error) {
       this.set({
         busy: null,
-        notice: { tone: 'error', text: failureMessage(error) },
+        notice: {
+          tone: 'error',
+          text: phrase(failureMessage(error)),
+        },
       });
     }
   }
@@ -382,7 +402,11 @@ export class ArsenalController {
       this.set({
         notice: {
           tone: 'ok',
-          text: 'Nothing to import: every eligible skill is already in the library.',
+          text: phrase(
+            msg(
+              'Nothing to import: every eligible skill is already in the library.',
+            ),
+          ),
         },
       });
       return;
@@ -440,7 +464,9 @@ export class ArsenalController {
     try {
       this.set({ presets: await this.client.presets() });
     } catch (error) {
-      this.set({ notice: { tone: 'error', text: failureMessage(error) } });
+      this.set({
+        notice: { tone: 'error', text: phrase(failureMessage(error)) },
+      });
     }
     // The chooser places capabilities by the owner's corrections and categories: read them too.
     await Promise.all([this.loadGroups(), this.loadCategories()]);
@@ -451,7 +477,9 @@ export class ArsenalController {
     try {
       this.set({ categories: await this.client.categories() });
     } catch (error) {
-      this.set({ notice: { tone: 'error', text: failureMessage(error) } });
+      this.set({
+        notice: { tone: 'error', text: phrase(failureMessage(error)) },
+      });
     }
   }
 
@@ -490,14 +518,23 @@ export class ArsenalController {
       await this.client.savePreset(input);
       this.set({
         busy: null,
-        notice: { tone: 'ok', text: `Saved preset ${input.name.trim()}.` },
+        notice: {
+          tone: 'ok',
+          text: {
+            text: msg('Saved preset {name}.'),
+            values: { name: input.name.trim() },
+          },
+        },
       });
       await this.loadPresets();
       return true;
     } catch (error) {
       this.set({
         busy: null,
-        notice: { tone: 'error', text: failureMessage(error) },
+        notice: {
+          tone: 'error',
+          text: phrase(failureMessage(error)),
+        },
       });
       return false;
     }
@@ -506,10 +543,14 @@ export class ArsenalController {
   async deletePreset(id: string) {
     try {
       await this.client.deletePreset(id);
-      this.set({ notice: { tone: 'ok', text: 'Preset deleted.' } });
+      this.set({
+        notice: { tone: 'ok', text: phrase(msg('Preset deleted.')) },
+      });
       await this.loadPresets();
     } catch (error) {
-      this.set({ notice: { tone: 'error', text: failureMessage(error) } });
+      this.set({
+        notice: { tone: 'error', text: phrase(failureMessage(error)) },
+      });
     }
   }
 
@@ -543,14 +584,17 @@ export class ArsenalController {
       this.set({
         busy: null,
         preview,
-        notice: { tone: 'ok', text: msg('Preset saved') },
+        notice: { tone: 'ok', text: phrase(msg('Preset saved')) },
       });
       await this.loadSelections();
       return saved;
     } catch (error) {
       this.set({
         busy: null,
-        notice: { tone: 'error', text: failureMessage(error) },
+        notice: {
+          tone: 'error',
+          text: phrase(failureMessage(error)),
+        },
       });
       return null;
     }
@@ -561,11 +605,13 @@ export class ArsenalController {
     try {
       await this.client.deleteSelection(id);
     } catch (error) {
-      this.set({ notice: { tone: 'error', text: failureMessage(error) } });
+      this.set({
+        notice: { tone: 'error', text: phrase(failureMessage(error)) },
+      });
       return false;
     }
     this.set({
-      notice: { tone: 'ok', text: 'Selection deleted.' },
+      notice: { tone: 'ok', text: phrase(msg('Selection deleted.')) },
       preview: null,
     });
     await this.loadSelections();
@@ -578,7 +624,10 @@ export class ArsenalController {
     } catch (error) {
       this.set({
         preview: null,
-        notice: { tone: 'error', text: failureMessage(error) },
+        notice: {
+          tone: 'error',
+          text: phrase(failureMessage(error)),
+        },
       });
     }
   }
@@ -587,7 +636,9 @@ export class ArsenalController {
     try {
       this.set({ bindings: await this.client.bindings() });
     } catch (error) {
-      this.set({ notice: { tone: 'error', text: failureMessage(error) } });
+      this.set({
+        notice: { tone: 'error', text: phrase(failureMessage(error)) },
+      });
     }
   }
 
@@ -596,7 +647,9 @@ export class ArsenalController {
     try {
       this.set({ groups: await this.client.groups() });
     } catch (error) {
-      this.set({ notice: { tone: 'error', text: failureMessage(error) } });
+      this.set({
+        notice: { tone: 'error', text: phrase(failureMessage(error)) },
+      });
     }
   }
 
@@ -655,13 +708,39 @@ function failureOf(error: unknown): string {
 }
 
 /** The result a run leaves on screen: counts first, then what did not import and why. */
-export function bulkSummary(run: BulkRun): string {
-  const parts = [
-    `${run.created} imported`,
-    `${run.newRevision} updated to a new revision`,
-    `${run.unchanged} already in the library, unchanged`,
+export function bulkSummary(run: BulkRun): Phrase {
+  const parts: Phrase[] = [
+    { text: msg('{count} imported'), values: { count: run.created } },
+    {
+      text: msg('{count} updated to a new revision'),
+      values: { count: run.newRevision },
+    },
+    {
+      text: msg('{count} already in the library, unchanged'),
+      values: { count: run.unchanged },
+    },
   ];
-  if (run.failures.length > 0) parts.push(`${run.failures.length} failed`);
-  const text = `Bulk import: ${parts.join(', ')}.`;
-  return run.stopped ? `${text} Stopped: ${run.stopped}` : text;
+  if (run.failures.length > 0) {
+    parts.push({
+      text: msg('{count} failed'),
+      values: { count: run.failures.length },
+    });
+  }
+  const joined = parts.slice(1).reduce<Phrase>(
+    (first, rest) => ({
+      text: msg('{first}, {rest}'),
+      values: { first, rest },
+    }),
+    parts[0],
+  );
+  const summary: Phrase = {
+    text: msg('Bulk import: {parts}.'),
+    values: { parts: joined },
+  };
+  return run.stopped
+    ? {
+        text: msg('{summary} Stopped: {reason}'),
+        values: { summary, reason: phrase(run.stopped) },
+      }
+    : summary;
 }

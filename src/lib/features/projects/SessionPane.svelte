@@ -6,8 +6,14 @@
     type ProjectsClient,
   } from '../../desktop/projects-client';
   import { createRenderer, type TerminalRenderer } from '../terminal/renderer';
-  import { InputQueue, inputReportWords } from './input-queue';
-  import { msg, t } from '../../i18n/index.svelte';
+  import { InputQueue, inputReportPhrase } from './input-queue';
+  import { msg, t, tPhrase, type Phrase } from '../../i18n/index.svelte';
+  import {
+    SESSION_AVAILABILITY,
+    SESSION_KIND,
+    SESSION_REASON,
+    SAFETY_PROFILE_LABEL,
+  } from './present';
 
   let {
     session,
@@ -29,7 +35,7 @@
   let host = $state<HTMLDivElement>();
   // What reading says, and what taking input says: a good read never hides a refusal.
   let note = $state('');
-  let inputNote = $state('');
+  let inputNote = $state<Phrase | null>(null);
   let truncated = $state(false);
   let holding = $state(false);
   // How this pane came to show a session that was already running: its screen, or a replay of
@@ -100,7 +106,7 @@
       note = words(error, msg('Reading stopped.'));
     };
     const sayInput = (error: unknown) => {
-      inputNote = words(error, msg('Input was not sent.'));
+      inputNote = { text: words(error, msg('Input was not sent.')) };
     };
 
     // The screen is drawn before reading on, through the checked owner. The read position moves
@@ -196,7 +202,7 @@
       (piece) => client.writeInput(session.id, piece),
       (report) => {
         if (stopped) return;
-        inputNote = inputReportWords(
+        inputNote = inputReportPhrase(
           report,
           report.kind === 'not_sent'
             ? words(report.error, msg('The terminal host refused the input.'))
@@ -230,7 +236,7 @@
         return;
       }
       holding = true;
-      inputNote = '';
+      inputNote = null;
       renderer.setInput(true);
       unlisten = renderer.input(
         (text) => send(encoder.encode(text)),
@@ -269,11 +275,6 @@
   });
   let holdInput: () => Promise<void> = async () => undefined;
   let letGo: () => Promise<void> = async () => undefined;
-  const KIND: Record<string, string> = {
-    native: msg('Agent'),
-    shell: msg('Shell'),
-    managed: msg('Managed'),
-  };
 </script>
 
 <div
@@ -284,9 +285,15 @@
   <div class="projects-session-bar">
     <span class="projects-session-title">{title}</span>
     <span class="pill compact" data-tone={live ? 'ok' : 'idle'}>
-      <span class="dot" aria-hidden="true"></span>{t(KIND[session.kind])} ·
-      {session.availability}{session.reason
-        ? ` (${session.reason.replace('_', ' ')})`
+      <span class="dot" aria-hidden="true"></span>{t(
+        SESSION_KIND[session.kind],
+      )} ·
+      {t(SESSION_AVAILABILITY[session.availability])}{session.reason
+        ? ` (${
+            SESSION_REASON[session.reason]
+              ? t(SESSION_REASON[session.reason])
+              : session.reason.replace('_', ' ')
+          })`
         : ''}
     </span>
     {#if terminal && live}
@@ -335,9 +342,17 @@
       <dt>{t('Session')}</dt>
       <dd class="mono">{session.managedSessionId?.slice(0, 8)}</dd>
       <dt>{t('Requested profile')}</dt>
-      <dd>{session.requestedSafetyProfile ?? t('not recorded')}</dd>
+      <dd>
+        {session.requestedSafetyProfile
+          ? t(SAFETY_PROFILE_LABEL[session.requestedSafetyProfile])
+          : t('not recorded')}
+      </dd>
       <dt>{t('Attached profile')}</dt>
-      <dd>{session.effectiveSafetyProfile ?? t('not attached or unknown')}</dd>
+      <dd>
+        {session.effectiveSafetyProfile
+          ? t(SAFETY_PROFILE_LABEL[session.effectiveSafetyProfile])
+          : t('not attached or unknown')}
+      </dd>
     </dl>
     {#if session.profileMismatch}
       <p class="projects-warn" role="alert">
@@ -353,5 +368,7 @@
     </p>
   {/if}
   {#if note}<p class="projects-note" role="status">{t(note)}</p>{/if}
-  {#if inputNote}<p class="projects-note" role="alert">{t(inputNote)}</p>{/if}
+  {#if inputNote}<p class="projects-note" role="alert">
+      {tPhrase(inputNote)}
+    </p>{/if}
 </div>

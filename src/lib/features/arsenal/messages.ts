@@ -1,6 +1,7 @@
 import type { Imported } from '../../contracts/arsenal';
 import { ArsenalCallError } from '../../desktop/arsenal-client';
-import { msg } from '../../i18n/msg';
+import { currentLanguage, tIncoming } from '../../i18n/index.svelte';
+import { msg, type Phrase } from '../../i18n/msg';
 
 /** What the owner reads for each failure code. Errors say what happened and what to do. */
 const CODE_TEXT: Record<string, string> = {
@@ -88,13 +89,56 @@ export function blockedText(reason: string): string {
   return BLOCK_TEXT[reason] ?? SKILL_NOT_IMPORTABLE;
 }
 
-export function importMessage(name: string, imported: Imported): string {
+/** Wraps a sentence selected outside the component so the view can translate it when drawn. */
+export function phrase(text: string): Phrase {
+  return { text: msg(text) };
+}
+
+/** Translates Arsenal desktop text, normalizing Rust-escaped quoted values for Spanish lookup. */
+export function incomingMessage(text: string): string {
+  if (currentLanguage() !== 'es') return tIncoming(text);
+
+  const suffix =
+    'The configuration changed between the preview and this record.';
+  const hasSuffix = text.endsWith(` ${suffix}`);
+  const base = hasSuffix ? text.slice(0, -suffix.length - 1) : text;
+  const kept =
+    /^The selection keeps "(.+)", which is not installed for this provider\.$/.exec(
+      base,
+    );
+  const applied =
+    /^Arsenal selection "(.+)": (\d+) installed skill\(s\) switched off for this session(, which runs without the shared Codex server)?\.$/.exec(
+      base,
+    );
+  const normalized = kept
+    ? `The selection keeps ${kept[1]}, which is not installed for this provider.`
+    : applied
+      ? `Arsenal selection ${applied[1]}: ${applied[2]} installed skill(s) switched off for this session${applied[3] ?? ''}.`
+      : base;
+  const translated = tIncoming(normalized);
+  return hasSuffix ? `${translated} ${tIncoming(suffix)}` : translated;
+}
+
+export function importMessage(name: string, imported: Imported): Phrase {
   switch (imported.outcome) {
     case 'created':
-      return `Imported ${name} as revision ${imported.revision}.`;
+      return {
+        text: msg('Imported {name} as revision {revision}.'),
+        values: { name, revision: imported.revision },
+      };
     case 'new_revision':
-      return `Imported ${name} as revision ${imported.revision}. The source had changed.`;
+      return {
+        text: msg(
+          'Imported {name} as revision {revision}. The source had changed.',
+        ),
+        values: { name, revision: imported.revision },
+      };
     case 'unchanged':
-      return `${name} is already imported at revision ${imported.revision}. Nothing changed.`;
+      return {
+        text: msg(
+          '{name} is already imported at revision {revision}. Nothing changed.',
+        ),
+        values: { name, revision: imported.revision },
+      };
   }
 }

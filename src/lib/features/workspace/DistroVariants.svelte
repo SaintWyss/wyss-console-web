@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { t } from '../../i18n/index.svelte';
+  import { t, tIncoming } from '../../i18n/index.svelte';
   import {
     saveVariants,
     type Launch,
@@ -161,7 +161,8 @@
       notice = t('Saved.');
       return true;
     } catch (e) {
-      error = e instanceof Error ? e.message : t('It could not be saved.');
+      error =
+        e instanceof Error ? tIncoming(e.message) : t('It could not be saved.');
       return false;
     } finally {
       busy = false;

@@ -6,7 +6,7 @@
     LibraryItem,
     Selection,
   } from '../../contracts/arsenal';
-  import { t } from '../../i18n/index.svelte';
+  import { t, tIncoming, tPhrase } from '../../i18n/index.svelte';
   import { msg } from '../../i18n/msg';
   import { compatibilityMark } from './catalogue';
   import EnvironmentPanel from './EnvironmentPanel.svelte';
@@ -670,7 +670,9 @@
                       {summary(item)}
                     </p>
                     {#if !selectable(item)}
-                      <p class="capability-why">{item.compatibility.reason}</p>
+                      <p class="capability-why">
+                        {tIncoming(item.compatibility.reason)}
+                      </p>
                     {/if}
                     <div class="capability-tools">
                       {#if arsenal.movingGroup === item.id}
@@ -940,7 +942,7 @@
       <p class="muted">{t('Unsaved changes')}</p>
     {/if}
     {#if arsenal.notice && arsenal.notice.tone === 'error'}
-      <p class="error" role="alert">{t(arsenal.notice.text)}</p>
+      <p class="error" role="alert">{tPhrase(arsenal.notice.text)}</p>
     {/if}
   </aside>
 </div>

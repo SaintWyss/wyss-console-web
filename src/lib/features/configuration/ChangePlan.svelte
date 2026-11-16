@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { t } from '../../i18n/index.svelte';
+  import { t, tIncoming } from '../../i18n/index.svelte';
   import type { ChangesController, ChangesState } from './changes-controller';
   import {
     CHANGE_FAILURE_TEXT,
@@ -25,7 +25,7 @@
 {#if changes.plan}
   {@const plan = changes.plan}
   <section class="configuration-plan" aria-label={t('Change to confirm')}>
-    <h3>{t(OPERATION_LABEL[plan.operation])}: {plan.name}</h3>
+    <h3>{t(OPERATION_LABEL[plan.operation])}: {tIncoming(plan.name)}</h3>
     <p class="event-meta">
       {PROVIDER_LABEL[plan.provider]} · {t(SOURCE_LABEL[plan.source])}
     </p>
@@ -40,7 +40,7 @@
                   ? '+'
                   : ''}</span
             >
-            <span class="mono">{line.text}</span>
+            <span class="mono">{tIncoming(line.text)}</span>
           </li>
         {/each}
       </ul>

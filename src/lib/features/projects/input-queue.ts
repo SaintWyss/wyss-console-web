@@ -11,6 +11,8 @@
  * - Nothing is ever sent twice. A piece the host took only part of, or did not confirm, ends
  *   the batch: what waited behind it is dropped and the report says what is known.
  */
+import { msg, type Phrase } from '../../i18n/msg';
+
 export const INPUT_CAPACITY = 64 * 1024;
 export const PIECE = 4096;
 
@@ -155,22 +157,93 @@ export class InputQueue {
   }
 }
 
-const bytes = (n: number) => `${n} byte${n === 1 ? '' : 's'}`;
+const bytesPhrase = (n: number): Phrase => ({
+  text: msg(n === 1 ? '{count} byte' : '{count} bytes'),
+  values: { count: n },
+});
+
+const phrase = (
+  text: string,
+  values?: Record<string, string | number | Phrase>,
+): Phrase => ({ text: msg(text), ...(values ? { values } : {}) });
+
+function english(phrase: Phrase): string {
+  return phrase.text.replace(/\{(\w+)\}/g, (whole, name: string) => {
+    const value = phrase.values?.[name];
+    if (value === undefined) return whole;
+    return typeof value === 'object' ? english(value) : String(value);
+  });
+}
+
+/** A translated sentence for a report; byte counts stay separate until the view draws it. */
+export function inputReportPhrase(report: InputReport, reason = ''): Phrase {
+  const arrived = (n: number) =>
+    n
+      ? phrase('{bytes} before it reached the terminal.', {
+          bytes: bytesPhrase(n),
+        })
+      : null;
+  const waiting = (n: number) =>
+    n
+      ? phrase('{bytes} still waiting were dropped.', {
+          bytes: bytesPhrase(n),
+        })
+      : null;
+  switch (report.kind) {
+    case 'refused_full':
+      return phrase(
+        'That input ({bytes}) was not taken: more than 64 KiB would be waiting. None of it was sent.',
+        { bytes: bytesPhrase(report.bytes) },
+      );
+    case 'partial':
+      return phrase(
+        'The terminal took only part of the input: {delivered} arrived, {dropped} were not sent and are not sent again.',
+        {
+          delivered: bytesPhrase(report.delivered),
+          dropped: bytesPhrase(report.dropped),
+        },
+      );
+    case 'unknown': {
+      const received = arrived(report.delivered);
+      const remaining = waiting(report.dropped);
+      const text =
+        received && remaining
+          ? 'The host did not confirm {uncertain} of input: they may or may not have reached the terminal and were not sent again. {arrived} {waiting} Check the screen before typing on.'
+          : received
+            ? 'The host did not confirm {uncertain} of input: they may or may not have reached the terminal and were not sent again. {arrived} Check the screen before typing on.'
+            : remaining
+              ? 'The host did not confirm {uncertain} of input: they may or may not have reached the terminal and were not sent again. {waiting} Check the screen before typing on.'
+              : 'The host did not confirm {uncertain} of input: they may or may not have reached the terminal and were not sent again. Check the screen before typing on.';
+      return phrase(text, {
+        uncertain: bytesPhrase(report.uncertain),
+        arrived: received ?? phrase(''),
+        waiting: remaining ?? phrase(''),
+      });
+    }
+    case 'not_sent': {
+      const received = arrived(report.delivered);
+      return phrase(
+        received
+          ? '{reason} {dropped} were not sent. {arrived}'
+          : '{reason} {dropped} were not sent.',
+        {
+          reason: {
+            text: reason || msg('The terminal host refused the input.'),
+          },
+          dropped: bytesPhrase(report.dropped),
+          arrived: received ?? phrase(''),
+        },
+      );
+    }
+    case 'discarded':
+      return phrase(
+        'Input was released with {dropped} still waiting; they were not sent.',
+        { dropped: bytesPhrase(report.dropped) },
+      );
+  }
+}
 
 /** What a report means, for the person typing. `reason` words a refusal before writing. */
 export function inputReportWords(report: InputReport, reason = ''): string {
-  const arrived = (n: number) =>
-    n ? ` ${bytes(n)} before it reached the terminal.` : '';
-  switch (report.kind) {
-    case 'refused_full':
-      return `That input (${bytes(report.bytes)}) was not taken: more than 64 KiB would be waiting. None of it was sent.`;
-    case 'partial':
-      return `The terminal took only part of the input: ${bytes(report.delivered)} arrived, ${bytes(report.dropped)} were not sent and are not sent again.`;
-    case 'unknown':
-      return `The host did not confirm ${bytes(report.uncertain)} of input: they may or may not have reached the terminal and were not sent again.${arrived(report.delivered)}${report.dropped ? ` ${bytes(report.dropped)} still waiting were dropped.` : ''} Check the screen before typing on.`;
-    case 'not_sent':
-      return `${reason || 'The terminal host refused the input.'} ${bytes(report.dropped)} were not sent.${arrived(report.delivered)}`;
-    case 'discarded':
-      return `Input was released with ${bytes(report.dropped)} still waiting; they were not sent.`;
-  }
+  return english(inputReportPhrase(report, reason));
 }

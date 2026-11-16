@@ -1,12 +1,13 @@
 <script lang="ts">
   import type { ConfigItem } from '../../contracts/configuration';
-  import { t, tPhrase } from '../../i18n/index.svelte';
+  import { t, tIncoming, tPhrase } from '../../i18n/index.svelte';
   import type { ModelsState } from '../models/controller';
   import type { NativeState } from '../native/controller';
   import { distributorCards, SUGGESTED } from './present';
   import type { SessionSummary } from '../../contracts/sessions';
   import {
     distributorsClient,
+    DistributorError,
     type AddedDistributor,
     type DistributorsClient,
     type SaveDistributorInput,
@@ -73,6 +74,20 @@
   }
   let notice = $state<string | null>(null);
 
+  function hostMessage(error: unknown): string | null {
+    if (error instanceof DistributorError) {
+      if (error.reasons[0]) return tIncoming(error.reasons[0]);
+      return error.code === 'distributor_unavailable'
+        ? t('The distributors could not be reached.')
+        : t('The desktop could not complete the request.');
+    }
+    return error instanceof Error ? tIncoming(error.message) : null;
+  }
+
+  function failureMessage(error: unknown, fallback: string): string {
+    return hostMessage(error) ?? t(fallback);
+  }
+
   async function readAdded() {
     try {
       const list = await client.list();
@@ -130,19 +145,21 @@
         try {
           await client.makeLaunch(saved.id);
         } catch (e) {
-          const why = e instanceof Error ? e.message : '';
-          if (!why.includes('exists'))
+          const original = e instanceof Error ? e.message : '';
+          if (!original.includes('exists')) {
+            const why = hostMessage(e) ?? '';
             notice = t(
               'It was added, but its launch could not be made: {why}',
               {
                 why,
               },
             );
+          }
         }
       form = null;
       await readAdded();
     } catch (e) {
-      addedError = e instanceof Error ? e.message : t('It could not be saved.');
+      addedError = failureMessage(e, 'It could not be saved.');
     } finally {
       working = false;
     }
@@ -154,8 +171,7 @@
       confirmDelete = null;
       await readAdded();
     } catch (e) {
-      addedError =
-        e instanceof Error ? e.message : t('It could not be deleted.');
+      addedError = failureMessage(e, 'It could not be deleted.');
     } finally {
       working = false;
     }
@@ -167,7 +183,7 @@
       const command = what === 'open' ? d.open : d.update;
       if (command) onrun(d.name, home, `${command}\r`);
     } catch (e) {
-      addedError = e instanceof Error ? e.message : t('It could not be read.');
+      addedError = failureMessage(e, 'It could not be read.');
     }
   }
   async function makeLaunch(id: string) {
@@ -177,8 +193,7 @@
       const launch = await client.makeLaunch(id);
       onlaunch(launch);
     } catch (e) {
-      addedError =
-        e instanceof Error ? e.message : t('The launch could not be made.');
+      addedError = failureMessage(e, 'The launch could not be made.');
     } finally {
       working = false;
     }
@@ -392,7 +407,7 @@
     {/each}
   </div>
   {#each refusedFiles as r (r.id)}
-    <p class="notice" data-tone="warn">{r.id}.toml: {r.error}</p>
+    <p class="notice" data-tone="warn">{r.id}.toml: {tIncoming(r.error)}</p>
   {/each}
   <div class="dist-foot">
     <button

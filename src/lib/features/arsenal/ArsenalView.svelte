@@ -11,9 +11,9 @@
     Summary,
   } from '../../contracts/arsenal';
   import { PROVIDERS } from '../../contracts/arsenal';
-  import { t } from '../../i18n/index.svelte';
+  import { t, tIncoming, tPhrase } from '../../i18n/index.svelte';
   import { msg } from '../../i18n/msg';
-  import { blockedText } from './messages';
+  import { blockedText, incomingMessage } from './messages';
   import PresetsTab from './PresetsTab.svelte';
   import SyncLine from './SyncLine.svelte';
   import {
@@ -332,7 +332,7 @@
         role={arsenal.notice.tone === 'error' ? 'alert' : 'status'}
         aria-live={arsenal.notice.tone === 'error' ? 'assertive' : 'polite'}
       >
-        {t(arsenal.notice.text)}
+        {tPhrase(arsenal.notice.text)}
       </p>
     {/if}
 
@@ -505,7 +505,7 @@
                   >
                   {t(COMPATIBILITY_LABEL[opened.compatibility.status])}</span
                 >
-                {opened.compatibility.reason}
+                {tIncoming(opened.compatibility.reason)}
               </dd>
               <dt>{t('Use in a session')}</dt>
               <dd>
@@ -1021,7 +1021,9 @@
             {/if}
             <h4>{t('Limits')}</h4>
             <ul class="arsenal-files">
-              {#each composite.limitations as line (line)}<li>{line}</li>{/each}
+              {#each composite.limitations as line (line)}<li>
+                  {tIncoming(line)}
+                </li>{/each}
             </ul>
             {#if composite.skills.length > 0}
               <details>
@@ -1102,7 +1104,7 @@
                     >{binding.provider_version}</span
                   >{/if}
               </p>
-              <p>{binding.reason}</p>
+              <p>{incomingMessage(binding.reason)}</p>
               <p class="arsenal-muted">
                 <code>{binding.project}</code> · {when(binding.created_at)} · {t(
                   'session',

@@ -15,7 +15,7 @@
     BYPASS_WARNING,
     PERMISSION_LABEL,
   } from './present';
-  import { t } from '../../i18n/index.svelte';
+  import { t, tIncoming } from '../../i18n/index.svelte';
 
   let {
     session,
@@ -169,15 +169,15 @@
       </p>
     {:else if preview}
       <ul class="native-preview" aria-label={t('What the permission passes')}>
-        {#each preview.applied as line (line)}<li>{line}</li>{/each}
+        {#each preview.applied as line (line)}<li>{tIncoming(line)}</li>{/each}
         {#each preview.with_cost as line (line)}<li class="cost">
-            {line}
+            {tIncoming(line)}
           </li>{/each}
         {#each preview.not_applicable as line (line)}<li class="refused">
-            {line}
+            {tIncoming(line)}
           </li>{/each}
         {#each preview.warnings as line (line)}<li class="evidence">
-            {line}
+            {tIncoming(line)}
           </li>{/each}
       </ul>
     {/if}

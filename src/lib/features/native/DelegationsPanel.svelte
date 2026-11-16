@@ -9,7 +9,7 @@
     delegationMark,
     delegationTally,
   } from './delegations';
-  import { t } from '../../i18n/index.svelte';
+  import { t, tIncoming } from '../../i18n/index.svelte';
   import { msg } from '../../i18n/msg';
 
   /** Agents that orchestrator sessions delegated work to, read from the terminal host. */
@@ -196,10 +196,12 @@
             </dl>
             {#if d.verification.problems.length > 0}
               <p class="native-warning">
-                {d.verification.problems.join('; ')}
+                {d.verification.problems
+                  .map((problem) => tIncoming(problem))
+                  .join('; ')}
               </p>
             {/if}
-            {#if d.error}<p class="native-warning">{d.error}</p>{/if}
+            {#if d.error}<p class="native-warning">{tIncoming(d.error)}</p>{/if}
             {#if d.result}
               <details class="delegation-details">
                 <summary>{t('Result')}</summary>

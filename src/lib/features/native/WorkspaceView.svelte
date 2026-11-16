@@ -25,7 +25,7 @@
     type SelectionName,
   } from '../terminal/launch';
   import { whenWorkspaceReady } from './bridge';
-  import { msg, t, tPhrase } from '../../i18n/index.svelte';
+  import { msg, t, tIncoming, tPhrase } from '../../i18n/index.svelte';
   import type { Binding } from '../../contracts/arsenal';
   import {
     permissionProfileId,
@@ -399,6 +399,7 @@
   type Shown = {
     text: string;
     translatable: boolean;
+    incoming?: boolean;
     values?: Record<string, string>;
   };
   type RowShown = Shown & { id: string };
@@ -422,17 +423,21 @@
     if (error instanceof LaunchRefusal)
       return { text: error.template, translatable: true, values: error.values };
     if (error instanceof LaunchError && error.reasons[0])
-      return { text: error.reasons[0], translatable: false };
+      return { text: error.reasons[0], translatable: false, incoming: true };
     if (
       error instanceof Error &&
       !(error instanceof LaunchError) &&
       error.message
     )
-      return { text: error.message, translatable: false };
+      return { text: error.message, translatable: false, incoming: true };
     return { text: fallback, translatable: true };
   }
   const shownText = (shown: Shown) =>
-    shown.translatable ? t(shown.text, shown.values) : shown.text;
+    shown.translatable
+      ? t(shown.text, shown.values)
+      : shown.incoming
+        ? tIncoming(shown.text)
+        : shown.text;
   async function readSaved() {
     try {
       savedLaunches = await listLaunches();
@@ -539,7 +544,7 @@
     <p class="sessions-status failed" role="alert">
       {t(failureText(native.failure.code))}
       {#each native.failure.reasons as reason (reason)}
-        <br />{t(reason)}
+        <br />{tIncoming(reason)}
       {/each}
     </p>
   {/if}
@@ -711,17 +716,19 @@
                   class="native-preview"
                   aria-label={t('What the permission passes')}
                 >
-                  {#each preview.applied as line (line)}<li>{line}</li>{/each}
+                  {#each preview.applied as line (line)}<li>
+                      {tIncoming(line)}
+                    </li>{/each}
                   {#each preview.with_cost as line (line)}<li class="cost">
-                      {line}
+                      {tIncoming(line)}
                     </li>{/each}
                   {#each preview.not_applicable as line (line)}<li
                       class="refused"
                     >
-                      {line}
+                      {tIncoming(line)}
                     </li>{/each}
                   {#each preview.warnings as line (line)}<li class="evidence">
-                      {line}
+                      {tIncoming(line)}
                     </li>{/each}
                 </ul>
                 {#if !preview.can_start}
@@ -824,36 +831,40 @@
               </p>
               <ul>
                 {#each chosen.profile_capability.operations as operation (operation)}
-                  <li>{operation}</li>
+                  <li>{tIncoming(operation)}</li>
                 {/each}
               </ul>
               <p>
                 {t(
                   'Interface: {interface}. Format: {format}. Scope: {scope}.',
                   {
-                    interface: chosen.profile_capability.interface ?? '',
-                    format: chosen.profile_capability.format ?? '',
-                    scope: chosen.profile_capability.scope ?? '',
+                    interface: tIncoming(
+                      chosen.profile_capability.interface ?? '',
+                    ),
+                    format: tIncoming(chosen.profile_capability.format ?? ''),
+                    scope: tIncoming(chosen.profile_capability.scope ?? ''),
                   },
                 )}
               </p>
               <p>
                 {t('Reload: {reload}.', {
-                  reload: chosen.profile_capability.reload_semantics ?? '',
+                  reload: tIncoming(
+                    chosen.profile_capability.reload_semantics ?? '',
+                  ),
                 })}
               </p>
               <p>
                 {t('Source: {source}.', {
-                  source: chosen.profile_capability.source ?? '',
+                  source: tIncoming(chosen.profile_capability.source ?? ''),
                 })}
               </p>
               <p>
                 {t('Limit: {limit}.', {
-                  limit: chosen.profile_capability.limitation ?? '',
+                  limit: tIncoming(chosen.profile_capability.limitation ?? ''),
                 })}
               </p>
             {:else}
-              <p>{chosen.profile_capability.limitation}</p>
+              <p>{tIncoming(chosen.profile_capability.limitation)}</p>
             {/if}
           </div>
         {/if}

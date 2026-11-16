@@ -12,7 +12,14 @@
   import VirtualList from './VirtualList.svelte';
   import WorkspaceCanvas from './WorkspaceCanvas.svelte';
   import type { ProjectsController, ProjectsState } from './controller';
-  import { msg, t } from '../../i18n/index.svelte';
+  import { msg, t, tIncoming } from '../../i18n/index.svelte';
+  import {
+    SESSION_AVAILABILITY,
+    SESSION_KIND,
+    SESSION_REASON,
+    SESSION_STATE,
+    PROJECT_ERROR_CODE,
+  } from './present';
 
   let {
     projects,
@@ -62,11 +69,6 @@
     const shown = await controller.previewAdoption(session.id, project.id);
     if (shown) adopting = { session, project, shown };
   }
-  const SESSION_KIND: Record<string, string> = {
-    native: msg('Agent'),
-    shell: msg('Shell'),
-    managed: msg('Managed'),
-  };
   const RECOVERY: Record<string, string> = {
     unsupported_schema: msg(
       'This store was written by a newer version of the Console. It is shown as it is, read-only, and nothing was changed.',
@@ -150,7 +152,7 @@
         {t(
           'Reason: {reason} ({field}). Your sessions and the older windows are not affected.',
           {
-            reason: store.code.replace(/_/g, ' '),
+            reason: t(PROJECT_ERROR_CODE[store.code]),
             field: store.field,
           },
         )}
@@ -265,9 +267,14 @@
               {#snippet row(session)}
                 <span>{label(session)}</span>
                 <span class="projects-note">
-                  {t(SESSION_KIND[session.kind])} · {session.availability}{session.reason
-                    ? ` (${session.reason.replace('_', ' ')})`
-                    : ''} · {session.state}
+                  {t(SESSION_KIND[session.kind])} ·
+                  {t(SESSION_AVAILABILITY[session.availability])}{session.reason
+                    ? ` (${
+                        SESSION_REASON[session.reason]
+                          ? t(SESSION_REASON[session.reason])
+                          : session.reason.replace('_', ' ')
+                      })`
+                    : ''} · {t(SESSION_STATE[session.state])}
                 </span>
                 {#if session.availability === 'live' && session.state !== 'attached' && emptyLeaf}
                   <button
@@ -347,7 +354,7 @@
                         count: projects.rollback.unfinishedLaunches,
                       },
                     )}
-                {projects.rollback.note}
+                {tIncoming(projects.rollback.note)}
               </p>
             {/if}
           </details>

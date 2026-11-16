@@ -11,10 +11,10 @@
     arsenalClient,
     type ArsenalClient,
   } from '../../desktop/arsenal-client';
-  import { failureMessage } from './messages';
+  import { failureMessage, incomingMessage } from './messages';
   import { FAILURE_TEXT, HOME_FOLDER_REFUSED } from '../native/present';
   import { isDefault } from './environment';
-  import { msg, t } from '../../i18n/index.svelte';
+  import { msg, t, tIncoming } from '../../i18n/index.svelte';
   import {
     ENFORCEMENT_LABEL,
     ITEM_STATE_LABEL,
@@ -327,7 +327,7 @@
               : ` · ${t('no project')}`}</span
           >
         </p>
-        <p class="event-meta">{plan.enforcement.reason}</p>
+        <p class="event-meta">{tIncoming(plan.enforcement.reason)}</p>
         <p class="event-meta">
           {t('{count} prepared', { count: counts.prepared })} · {t(
             '{count} rejected',
@@ -348,7 +348,7 @@
           </p>
         {/each}
         {#each plan.warnings as warning (warning)}
-          <p class="event-meta">{warning}</p>
+          <p class="event-meta">{incomingMessage(warning)}</p>
         {/each}
         <details>
           <summary>{t('Items ({count})', { count: plan.items.length })}</summary
@@ -359,7 +359,7 @@
                 <strong>{item.name || t('Missing capability')}</strong>
                 · {t(ITEM_STATE_LABEL[item.state])}{item.revision !== null
                   ? ` · ${t('revision {rev}', { rev: item.revision })}${item.pinned ? ` (${t('pinned')})` : ''}`
-                  : ''} — {item.reason}
+                  : ''} — {tIncoming(item.reason)}
               </li>
             {/each}
           </ul>
@@ -377,7 +377,9 @@
         <details>
           <summary>{t('Not changed')}</summary>
           <ul class="native-preview">
-            {#each plan.untouched as line (line)}<li>{line}</li>{/each}
+            {#each plan.untouched as line (line)}<li>
+                {tIncoming(line)}
+              </li>{/each}
           </ul>
         </details>
         {#if plan.overlay}
@@ -412,7 +414,7 @@
           {:else if preview && !preview.can_start}
             <p class="native-warning" role="alert">
               {t('The launch preview refuses this combination:')}
-              {preview.not_applicable.join(' ')}
+              {preview.not_applicable.map(tIncoming).join(' ')}
             </p>
           {/if}
         {:else if mustApply}
@@ -420,7 +422,7 @@
             {t(
               'This preset leaves a Codex hook or AGENTS.md out, so the terminal starts only with it applied: started without it, they would load again. It cannot be applied now, so it cannot start.',
             )}
-            {plan.enforcement.reason}
+            {tIncoming(plan.enforcement.reason)}
           </p>
         {:else}
           <p class="native-warning" role="note">

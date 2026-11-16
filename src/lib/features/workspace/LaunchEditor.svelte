@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { msg, t } from '../../i18n/index.svelte';
+  import { msg, t, tIncoming } from '../../i18n/index.svelte';
   import type { Item, Selection, PlanItem } from '../../contracts/arsenal';
   import { permissionsFor, type Permission } from '../../contracts/native';
   import {
@@ -238,7 +238,9 @@
     } catch (e) {
       phase = 'failed';
       error =
-        e instanceof Error ? e.message : t('Workspace could not be read.');
+        e instanceof Error
+          ? tIncoming(e.message)
+          : t('Workspace could not be read.');
     }
   }
   // Read on the first visit, and again on each later one: a launch made elsewhere appears.
@@ -467,21 +469,26 @@
       lib
         .filter((item) => item.kind === kind)
         .sort((a, b) => a.name.localeCompare(b.name))
-        .map((item) => ({
-          key: item.id,
-          label: item.name,
-          on:
-            on.has(item.id) &&
-            !itemPlan.some((i) => i.capability === item.id && unavailable(i)),
-          disabled:
-            kind === 'skill' &&
-            (itemPlanState !== 'ready' ||
-              itemPlan.some((i) => i.capability === item.id && unavailable(i))),
-          title: itemPlan.find(
+        .map((item) => {
+          const reason = itemPlan.find(
             (i) => i.capability === item.id && unavailable(i),
-          )?.reason,
-          set: (v: boolean) => setItem(item.id, v),
-        }));
+          )?.reason;
+          return {
+            key: item.id,
+            label: item.name,
+            on:
+              on.has(item.id) &&
+              !itemPlan.some((i) => i.capability === item.id && unavailable(i)),
+            disabled:
+              kind === 'skill' &&
+              (itemPlanState !== 'ready' ||
+                itemPlan.some(
+                  (i) => i.capability === item.id && unavailable(i),
+                )),
+            title: reason ? tIncoming(reason) : undefined,
+            set: (v: boolean) => setItem(item.id, v),
+          };
+        });
     const out: Group[] = [];
     const options = data.options;
     if (d.agent === 'claude_code' && d.spec && options) {
@@ -758,7 +765,7 @@
         : e instanceof ArsenalCallError
           ? t(failureMessage(e))
           : e instanceof Error
-            ? e.message
+            ? tIncoming(e.message)
             : t('It could not be saved.');
       error =
         done.length > 0

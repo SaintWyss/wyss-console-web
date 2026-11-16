@@ -18,6 +18,7 @@
     PERMISSION_LABEL,
     failureText,
   } from '../native/present';
+  import { workspaceErrorText } from './failure-words';
   import {
     isFullAccess,
     LaunchRefusal,
@@ -25,7 +26,7 @@
     type LaunchNote,
   } from './launch';
   import { applyOrder, loadOrder, moveLaunch, saveOrder } from './launch-order';
-  import { msg, t } from '../../i18n/index.svelte';
+  import { msg, t, tIncoming } from '../../i18n/index.svelte';
   import SessionBar from './SessionBar.svelte';
   import { arsenalClient } from '../../desktop/arsenal-client';
   import {
@@ -67,6 +68,7 @@
   let launchError = $state<{
     text: string;
     translatable: boolean;
+    incoming?: boolean;
     values?: Record<string, string>;
   } | null>(null);
   let launchOrder = $state<string[]>(loadOrder());
@@ -118,6 +120,7 @@
   function explain(error: unknown): {
     text: string;
     translatable: boolean;
+    incoming?: boolean;
     values?: Record<string, string>;
   } {
     if (error instanceof LaunchRefusal)
@@ -140,9 +143,10 @@
         ),
         translatable: true,
       };
-    if (e?.reasons?.length) return { text: e.reasons[0], translatable: false };
+    if (e?.reasons?.length)
+      return { text: e.reasons[0], translatable: false, incoming: true };
     return error instanceof Error
-      ? { text: error.message, translatable: false }
+      ? { text: error.message, translatable: false, incoming: true }
       : { text: msg('The launch could not be opened.'), translatable: true };
   }
   /** Opens or closes the Launch menu (the toolbar's + Launch). */
@@ -494,7 +498,7 @@
         {/if}
         {#each launches.refused as bad (bad.id)}
           <p class="launch-refused">
-            <code>{bad.id}.toml</code>: {bad.error}
+            <code>{bad.id}.toml</code>: {tIncoming(bad.error)}
           </p>
         {/each}
         <div class="launch-foot">
@@ -527,7 +531,9 @@
   {#if launchError}<p role="alert" class="workspace-error">
       {launchError.translatable
         ? t(launchError.text, launchError.values)
-        : launchError.text}
+        : launchError.incoming
+          ? tIncoming(launchError.text)
+          : launchError.text}
     </p>{/if}
   {#if launchNote}<p role="status" class="launch-note">
       {#each launchNote as note, index (index)}{index > 0 ? ' ' : ''}{t(
@@ -536,7 +542,7 @@
         )}{/each}
     </p>{/if}
   {#if workspace.error}<p role="alert" class="workspace-error">
-      {workspace.error}
+      {workspaceErrorText(workspace.error)}
     </p>{/if}
   <div class="pane-area" bind:this={area}>
     {#if manager}

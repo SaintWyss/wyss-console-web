@@ -4,6 +4,8 @@
     ProjectsCallError,
     type ProjectsClient,
   } from '../../desktop/projects-client';
+  import { t, tIncoming } from '../../i18n/index.svelte';
+  import { PROJECT_ERROR_CODE } from '../projects/present';
   import ReadmeEditor from './ReadmeEditor.svelte';
   import UmlDiagram from './UmlDiagram.svelte';
 
@@ -128,7 +130,11 @@
     </p>
   {:else if failure}
     <div class="projects-banner" data-kind="error" role="alert">
-      <span>No se pudo analizar el proyecto: {failure.replace(/_/g, ' ')}.</span
+      <span
+        >No se pudo analizar el proyecto: {t(
+          PROJECT_ERROR_CODE[failure as keyof typeof PROJECT_ERROR_CODE] ??
+            failure.replace(/_/g, ' '),
+        )}.</span
       >
     </div>
   {:else if insight}
@@ -245,13 +251,13 @@
       {#each insight.architecture as p (p.name)}
         <article class="insight-pattern">
           <header>
-            <strong>{p.name}</strong>
+            <strong>{tIncoming(p.name)}</strong>
             <span class="projects-note">{p.confidence}%</span>
           </header>
           <div class="insight-meter" aria-hidden="true">
             <span style={`width: ${p.confidence}%`}></span>
           </div>
-          <p>{p.description}</p>
+          <p>{tIncoming(p.description)}</p>
           <ul class="insight-list">
             {#each p.evidence as e (e)}<li>{e}</li>{/each}
           </ul>
