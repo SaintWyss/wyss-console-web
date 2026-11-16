@@ -108,8 +108,8 @@ const WITH_PARTS = Object.entries(INCOMING_ES).filter(([en]) =>
  */
 export function tIncoming(text: string): string {
   if (language !== 'es') return text;
-  const exact = INCOMING_ES[text];
-  if (exact !== undefined) return exact;
+  // Own keys only: a word like `constructor` must not reach the object's prototype.
+  if (Object.hasOwn(INCOMING_ES, text)) return INCOMING_ES[text];
   for (const [en, es] of WITH_PARTS) {
     const filled = fillTemplate(en, es, text);
     if (filled !== null) return filled;

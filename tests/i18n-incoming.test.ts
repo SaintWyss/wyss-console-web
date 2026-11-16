@@ -67,6 +67,20 @@ it('translates an exact sentence, a filled sentence, and leaves the rest as it c
       'Built for Codex; this terminal runs Claude Code.',
     ),
   ).toBe('Hecha para Codex; esta terminal corre Claude Code.');
+  expect(tIncoming('This profile was not written for this agent.')).toBe(
+    N['This profile was not written for this agent.'],
+  );
+  const filled = Object.entries({ ...A, ...N, ...C, ...R }).find(([en]) =>
+    /^\{\w+\} /.test(en),
+  );
+  expect(filled, 'a sentence that starts with a part').toBeDefined();
+  const [en, es] = filled!;
+  const part = en.match(/^\{(\w+)\}/)![1];
+  expect(tIncoming(en.replace(`{${part}}`, 'XYZ'))).toBe(
+    es.replace(`{${part}}`, 'XYZ'),
+  );
+  for (const word of ['constructor', 'toString', '__proto__', 'hasOwnProperty'])
+    expect(tIncoming(word)).toBe(word);
   expect(
     fillTemplate('Built for {a}.', 'Hecha para {a}.', 'Other text.'),
   ).toBeNull();

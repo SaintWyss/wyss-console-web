@@ -22,6 +22,7 @@ import {
   ArsenalController,
   type ArsenalState,
 } from '../src/lib/features/arsenal/controller';
+import { tPhrase } from '../src/lib/i18n/index.svelte';
 import { planKey } from '../src/lib/features/arsenal/presets';
 
 const design: LibraryItem = {
@@ -190,7 +191,16 @@ function controllerWith(client: ArsenalClient) {
     (state) => states.push(state),
     client,
   );
-  return { controller, last: () => states[states.length - 1] };
+  // The controller hands phrases to the view; the tests read them as the English the window
+  // draws, so every expected sentence stays the English one.
+  const english = (state: ArsenalState) =>
+    state.notice
+      ? {
+          ...state,
+          notice: { ...state.notice, text: tPhrase(state.notice.text) },
+        }
+      : state;
+  return { controller, last: () => english(states[states.length - 1]) };
 }
 
 describe('Arsenal controller', () => {

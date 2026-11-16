@@ -1,13 +1,11 @@
 import { afterEach, expect, it } from 'vitest';
 import { workspaceErrorText } from '../src/lib/features/terminal/failure-words';
-import { ES_AREA } from '../src/lib/i18n/es-native';
 import { setLanguage, t, tIncoming } from '../src/lib/i18n/index.svelte';
 
 afterEach(() => setLanguage('en'));
 
 it('draws native-owned phrases in Spanish and keeps English unchanged', () => {
   setLanguage('es');
-  expect(ES_AREA['Managed sessions']).toBe('Sesiones Managed');
   expect(t('Managed sessions')).toBe('Sesiones Managed');
   expect(t('Run PTY smoke')).toBe('Ejecutar prueba de PTY');
   setLanguage('en');

@@ -1,9 +1,5 @@
 /** Spanish for the window's own text, area: rest. Same rules as `es.ts`; merged into `ES`. */
 export const ES_AREA: Readonly<Record<string, string>> = {
-  // Project sessions and input
-  Agent: 'Agente',
-  Shell: 'Shell',
-  Managed: 'Managed',
   live: 'en curso',
   ended: 'finalizada',
   attached: 'conectada',
@@ -54,7 +50,6 @@ export const ES_AREA: Readonly<Record<string, string>> = {
   '{reason} {dropped} were not sent.': '{reason} No se enviaron {dropped}.',
   'Input was released with {dropped} still waiting; they were not sent.':
     'Se liberó la entrada con {dropped} todavía en espera; no se enviaron.',
-  // Pipeline and handoff states. Keep the English keys in the original display form.
   ready: 'listo',
   pausing: 'poniendo en pausa',
   paused: 'en pausa',
