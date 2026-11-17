@@ -96,10 +96,6 @@
             closed: counts.closed_sessions,
           })}
           {#if running}· {tPhrase(running)}{/if}
-        {:else if sessions.link === 'connecting'}
-          {t('Connecting to the authority')}
-        {:else}
-          {t('Authority unavailable')}
         {/if}
       </p>
     </div>

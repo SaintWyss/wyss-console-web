@@ -44,6 +44,8 @@ export type TranscriptItem =
 
 export interface TurnEntry {
   id: ManagedTurnId;
+  /** Everything the authority holds for an ended turn was read, or nothing is held. */
+  loaded: boolean;
   /** The turn as the authority holds it. Null between its receipt and its first read. */
   turn: TurnSummary | null;
   /**
@@ -168,8 +170,6 @@ interface Entry extends TurnEntry {
   /** Where the next reading starts. */
   cursor: string | null;
   chars: number;
-  /** Everything the authority holds for an ended turn was read, or nothing is held. */
-  loaded: boolean;
   /** The next piece of text starts a new block. */
   paragraph: boolean;
   /** A list has named this turn. One that was, and no longer is, fell out of it. */
@@ -309,6 +309,7 @@ export class AgentController {
         facts: model.facts,
         turns: model.entries.map((entry) => ({
           id: entry.id,
+          loaded: entry.loaded,
           turn: entry.turn,
           prompt: entry.prompt,
           items: entry.items.map((item) => ({ ...item })),

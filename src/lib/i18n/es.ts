@@ -683,8 +683,6 @@ export const ES: Readonly<Record<string, string>> = {
 
   // Sessions: the managed session view and the presenter that words it
   'Managed sessions': 'Sesiones Managed',
-  'Connecting to the authority': 'Conectando con la autoridad',
-  'Authority unavailable': 'Autoridad no disponible',
   'New session': 'Nueva sesión',
   'Activate {name}': 'Activar {name}',
   'Activate session': 'Activar sesión',

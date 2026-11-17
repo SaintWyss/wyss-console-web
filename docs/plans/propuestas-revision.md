@@ -88,3 +88,10 @@ npm notice run 'prettier' --check src/lib/features/workspace/LaunchEditor.svelte
 ## Ajustes y Credenciales
 
 - Traducir en Rust los diálogos GTK de credenciales (New API key, Replace API key, Delete this API key?, Cancel, Keep…): hoy quedan en inglés con la app en español.
+
+## Sessions + Agents (revisión 17/11)
+
+- **Agent: estado de conexión dos veces.** La línea de estado sobre el transcript y la pista del compositor dicen las dos «Connecting to the authority…». Recomendación: dejar solo la línea de estado.
+- **Agent: «Cancelling…» dos veces.** Aparece en el turno y en el botón. Recomendación: dejarlo solo en el botón.
+- **Sessions: «Ready: attached to the running agent.»** Repite el detalle del enlace que ya está en los datos de la sesión. Recomendación: no mostrar esa pista para una sesión lista.
+- **Eventos (pendiente técnico):** la consulta de una aprobación desde un evento puede mostrar una respuesta vieja después de reconectar. Arreglarla con un test de vista.

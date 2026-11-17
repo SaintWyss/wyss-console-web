@@ -370,7 +370,8 @@
                 </p>
               {/if}
             {/each}
-            {#if ended && entry.items.length === 0}
+            <!-- Until its output is read, an ended turn is not said to have none. -->
+            {#if ended && entry.items.length === 0 && (entry.loaded || !turn?.output)}
               <p class="turn-note">
                 {turn?.output
                   ? t('This turn produced no answer.')

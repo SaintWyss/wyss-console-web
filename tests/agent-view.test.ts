@@ -1087,3 +1087,17 @@ it('refuses a page of the twin session, and shows neither its turns nor a new na
   expect(agent().querySelector('.turn-alert')).toBeNull();
   expect(text(older())).toBe('Load older turns');
 });
+
+it('does not say an ended turn produced no answer before its output is read', async () => {
+  const ipc = desktop();
+  ipc.world.turns.set(S, [turn(T1, 'completed', 3)]);
+  component = mount(App, { target: document.body });
+  await flush();
+  await openAgent(1);
+  // The authority holds output of the turn, and it is being read.
+  expect(ipc.count('managed_turn_read')).toBe(1);
+  expect(text(turns()[0])).not.toContain('This turn produced no answer.');
+  ipc.last('managed_turn_read').resolve(reading(turn(T1, 'completed', 3), []));
+  await flush();
+  expect(text(turns()[0])).toContain('This turn produced no answer.');
+});
