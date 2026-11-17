@@ -58,7 +58,7 @@ path = "tests/f8_fixture_process.rs"
 required-features = ["f8-fixture"]
 
 [build-dependencies]
-tauri-build = { version = "=2.7.1", features = [] }
+tauri-build = { version = "=2.7.5", features = [] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 # Same GTK version Tauri resolves; used by desktop-native dialogs and editors.
@@ -69,7 +69,7 @@ gtk = "=0.18.2"
 sha2 = "0.10.9"
 ring = "=0.17.14"
 hmac = "=0.12.1"
-tauri = { version = "=2.12.1", features = [] }
+tauri = { version = "=2.12.5", features = [] }
 serde = { version = "1", features = ["derive"] }
 # `float_roundtrip`: a split ratio must decode to the exact f64 that was encoded (contracts::m1).
 serde_json = { version = "1", features = ["float_roundtrip"] }
@@ -102,6 +102,6 @@ opt-level = 3
 opt-level = 3
 
 [dev-dependencies]
-tauri = { version = "=2.12.1", features = ["test"] }
+tauri = { version = "=2.12.5", features = ["test"] }
 # Test-only: a fault switch for the audit table (F8-16) is an authorizer on the connection.
 rusqlite = { version = "=0.40.2", default-features = false, features = ["bundled", "hooks"] }
