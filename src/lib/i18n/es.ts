@@ -16,13 +16,13 @@ export const ES: Readonly<Record<string, string>> = {
   'Not available: the instructions file could not be read.':
     'No disponible: no se pudo leer el archivo de instrucciones.',
   'This skills choice cannot be applied now: {reason} Check it before starting.':
-    'Esta selección de skills no se puede aplicar ahora: {reason} Revisala antes de iniciar.',
+    'Esta selección de habilidades no se puede aplicar ahora: {reason} Revisala antes de iniciar.',
   '{count} unavailable items were left out: {items}':
     'Se excluyeron {count} ítems no disponibles: {items}',
   'Files that could not be read': 'Archivos que no se pudieron leer',
   'Detected on this computer: {id}': 'Detectada en esta computadora: {id}',
   'No distribution here matches this computer: add one to start it here.':
-    'Ninguna distribución de acá coincide con esta computadora: agregá una para iniciarlo acá.',
+    'Ninguna distribución coincide con esta computadora. Agregá una para poder iniciar el lanzamiento acá.',
   'The launch folder is not available.':
     'La carpeta de lanzamientos no está disponible.',
   'Something unexpected happened. Try again.':
@@ -52,11 +52,11 @@ export const ES: Readonly<Record<string, string>> = {
   'reasoned from what locking does; not exercised here':
     'deducido del funcionamiento del bloqueo de pantalla; no se probó acá',
   "With lingering the user's manager keeps running after the last session ends.":
-    'Con lingering, el gestor de servicios del usuario sigue corriendo después de que termina la última sesión.',
+    'Con lingering, el gestor de servicios del usuario sigue activo después de que termina la última sesión.',
   "this machine's facts (where the host runs, logind's setting)":
     'datos de esta máquina (dónde corre el host y la configuración de logind)',
   "Without lingering the user's manager stops with the last session, and what runs inside it stops too.":
-    'Sin lingering, el gestor de servicios del usuario se detiene con la última sesión, junto con lo que corre dentro de él.',
+    'Sin lingering, el gestor de servicios del usuario se detiene con la última sesión, junto con los procesos que ejecuta.',
   'Suspend freezes processes and resume continues them; programs that watch a clock or a network see the gap.':
     'La suspensión pausa los procesos y la reanudación los continúa; los programas que consultan un reloj o la red perciben la interrupción.',
   'reasoned from what suspend does; not exercised here':
@@ -67,7 +67,7 @@ export const ES: Readonly<Record<string, string>> = {
     'lectura del código: el host es dueño de la PTY',
   'No process survives a reboot or a loss of power, and nothing is started again by itself afterwards.':
     'Ningún proceso sobrevive a un reinicio o un corte de energía, y nada vuelve a iniciarse por sí solo después.',
-  'what a reboot is': 'por el funcionamiento de un reinicio',
+  'what a reboot is': 'por lo que implica un reinicio',
   // Shell: navigation
   Terminals: 'Terminales',
   System: 'Sistema',
@@ -86,7 +86,7 @@ export const ES: Readonly<Record<string, string>> = {
   'Saved as “{name}”. The file under the old name could not be deleted: it is still listed.':
     'Se guardó como “{name}”. No se pudo borrar el archivo con el nombre anterior: sigue en la lista.',
   'roles.json could not be read. Roles are shown as the basic ones and are not saved until the file is fixed or removed.':
-    'No se pudo leer roles.json. Se muestran los roles básicos y no se guardan hasta que el archivo se arregle o se borre.',
+    'No se pudo leer roles.json. Se muestran los roles básicos y los cambios no se guardan hasta corregir o borrar el archivo.',
   Orchestrator: 'Orquestador',
   Worker: 'Trabajador',
   Researcher: 'Investigador',
@@ -94,7 +94,7 @@ export const ES: Readonly<Record<string, string>> = {
   'Workspace could not be read.': 'No se pudo leer el Workspace.',
   'New launch': 'Lanzamiento nuevo',
   'not measured': 'sin medir',
-  'Account skills': 'Skills de la cuenta',
+  'Account skills': 'Habilidades de la cuenta',
   'The role could not be saved.': 'No se pudo guardar el rol.',
   'The role could not be deleted.': 'No se pudo borrar el rol.',
   'preset “{name}” (a copy: the other launches keep theirs)':
@@ -122,7 +122,7 @@ export const ES: Readonly<Record<string, string>> = {
   'Save and try': 'Guardar y probar',
   Try: 'Probar',
   'This launch runs commands from its file. It opens from here; edit it in its file.':
-    'Este lanzamiento corre comandos de su archivo. Se abre desde acá; editalo en su archivo.',
+    'Este lanzamiento ejecuta los comandos de su archivo. Se inicia desde acá; editá el archivo para cambiarlo.',
   Role: 'Rol',
   Distributor: 'Distribuidor',
   'Saved and recent folders': 'Carpetas guardadas y recientes',
@@ -138,7 +138,7 @@ export const ES: Readonly<Record<string, string>> = {
   'Codex asks you to approve the hooks the first time in each new folder.':
     'Codex pedirá aprobar los hooks la primera vez en cada carpeta nueva.',
   'For Codex a launch chooses skills, AGENTS.md and the hooks of hooks.json. MCP servers and account skills are Claude Code only.':
-    'En Codex un lanzamiento elige skills, AGENTS.md y los hooks de hooks.json. Los servidores MCP y las skills de la cuenta son solo de Claude Code.',
+    'En Codex, cada lanzamiento elige las habilidades, AGENTS.md y los hooks de hooks.json. Los servidores MCP y las habilidades de la cuenta solo se pueden usar en Claude Code.',
   '{on} of {all}': '{on} de {all}',
   'Nothing of this kind.': 'No hay nada de este tipo.',
   // Console: toolbar and session bar
@@ -151,7 +151,7 @@ export const ES: Readonly<Record<string, string>> = {
   '● 1 change not committed': '● 1 cambio sin commitear',
   '● {count} changes not committed': '● {count} cambios sin commitear',
   '↑{count} not pushed': '↑{count} sin subir',
-  'Native · {agent}': 'Nativa · {agent}',
+  'Native · {agent}': 'Native · {agent}',
   Console: 'Consola',
   'Local terminal workspace': 'Terminales locales',
   Workspace: 'Workspace',
@@ -206,9 +206,9 @@ export const ES: Readonly<Record<string, string>> = {
   Models: 'Modelos',
 
   Credentials: 'Credenciales',
-  'API keys, kept sealed': 'Claves de API, guardadas selladas',
+  'API keys, kept sealed': 'Claves de API, resguardadas',
   Settings: 'Ajustes',
-  'Preferences and about': 'Preferencias y acerca de',
+  'Preferences and about': 'Preferencias e información',
 
   Primary: 'Principal',
   '{count} waiting': '{count} en espera',
@@ -217,9 +217,9 @@ export const ES: Readonly<Record<string, string>> = {
   'Terminal tools': 'Herramientas de terminal',
   'Split side by side': 'Dividir lado a lado',
   'Split side by side (Ctrl+Shift+D)': 'Dividir lado a lado (Ctrl+Shift+D)',
-  'Split one above the other': 'Dividir una arriba de la otra',
+  'Split one above the other': 'Dividir en dos paneles, uno encima del otro',
   'Split, one above the other (Ctrl+Shift+E)':
-    'Dividir, una arriba de la otra (Ctrl+Shift+E)',
+    'Dividir en dos paneles, uno encima del otro (Ctrl+Shift+E)',
   'Keyboard shortcuts': 'Atajos de teclado',
   Launch: 'Lanzar',
 
@@ -255,7 +255,7 @@ export const ES: Readonly<Record<string, string>> = {
   Stopping: 'Deteniendo',
   Unknown: 'Desconocido',
   Installing: 'Instalando',
-  'Failed to start': 'No pudo iniciar',
+  'Failed to start': 'No se pudo iniciar',
   'Not answering': 'Sin respuesta',
   stopped: 'detenido',
   'Not checked yet': 'Todavía no se revisó',
@@ -266,14 +266,14 @@ export const ES: Readonly<Record<string, string>> = {
   'The authority stopped answering. Reconnecting.':
     'La autoridad dejó de responder. Reconectando.',
   'The authority speaks another protocol or storage version.':
-    'La autoridad habla otro protocolo o versión de almacenamiento.',
+    'La autoridad usa otra versión del protocolo o del almacenamiento.',
   'The authority broke the control protocol and was disconnected.':
-    'La autoridad rompió el protocolo de control y se desconectó.',
+    'La autoridad incumplió el protocolo de control y se desconectó.',
   'The runtime directory or control socket is not private.':
     'El directorio de runtime o el socket de control no son privados.',
   'Looking for the Wyss authority.': 'Buscando la autoridad Wyss.',
   'The desktop could not read the authority state.':
-    'El escritorio no pudo leer el estado de la autoridad.',
+    'La aplicación de escritorio no pudo leer el estado de la autoridad.',
   'Reading the canonical authority state.':
     'Leyendo el estado canónico de la autoridad.',
   'The console is closing its authority link.':
@@ -330,32 +330,32 @@ export const ES: Readonly<Record<string, string>> = {
   'A service definition Wyss Console did not write is in the place of its own. It was left as it is, and the authority was not started.':
     'Hay una definición de servicio que Wyss Console no escribió en el lugar que le corresponde. Se dejó como está y la autoridad no se inició.',
   'The authority could not be installed. Nothing is half installed: what was there before is still in place.':
-    'No se pudo instalar la autoridad. No quedó nada a medio instalar: lo que había antes sigue en su lugar.',
+    'No se pudo instalar la autoridad. La instalación no quedó a medias: lo que había antes sigue en su lugar.',
   'No user service manager answered, so the authority could not be started. Wyss Console starts its authority through the service manager of your login session.':
     'Ningún administrador de servicios de usuario respondió, así que no se pudo iniciar la autoridad. Wyss Console la inicia a través del administrador de servicios de tu sesión.',
   'The service manager did not start the authority.':
     'El administrador de servicios no inició la autoridad.',
   'The authority was started and ended before it answered.':
-    'La autoridad se inició y terminó antes de responder.',
+    'La autoridad se inició y se cerró antes de responder.',
   'The authority ended repeatedly and is no longer being restarted.':
-    'La autoridad terminó varias veces y ya no se reinicia.',
+    'La autoridad se cerró varias veces y ya no se reinicia.',
   'The authority is not running: it was stopped, or it ended and was not restarted.':
     'La autoridad no está corriendo: se detuvo, o terminó y no se reinició.',
   'The authority is running and did not answer in time.':
     'La autoridad está corriendo y no respondió a tiempo.',
   'The control socket of the authority is not private to you, so it is not used.':
-    'El socket de control de la autoridad no es privado para vos, así que no se usa.',
+    'El socket de control de la autoridad no está restringido a tu usuario, así que no se usa.',
   'Packaged: carries its own authority':
-    'Empaquetado: trae su propia autoridad',
+    'Empaquetada: incluye su propia autoridad',
   'Development: uses an authority that is already running':
     'Desarrollo: usa una autoridad que ya está corriendo',
   'Packaged, but its authority cannot be found':
-    'Empaquetado, pero no se encuentra su autoridad',
+    'Empaquetada, pero no se encuentra su autoridad',
   Installed: 'Instalada',
   'Installed by another version': 'Instalada por otra versión',
   'A service definition that is not Wyss Console’s':
     'Una definición de servicio que no es de Wyss Console',
-  'Not safely yours': 'No es de tu propiedad de forma segura',
+  'Not safely yours': 'No está en una ubicación segura',
   'No service manager answered':
     'No respondió ningún administrador de servicios',
 
@@ -363,20 +363,20 @@ export const ES: Readonly<Record<string, string>> = {
   'Reading preferences': 'Leyendo preferencias',
   'Preferences unavailable': 'Preferencias no disponibles',
   'Saving…': 'Guardando…',
-  'Saved on this computer': 'Guardado en esta computadora',
-  'Defaults in use': 'Valores por defecto en uso',
+  'Saved on this computer': 'Guardadas en esta computadora',
+  'Defaults in use': 'Se usan los valores por defecto',
   'Preferences could not be read, so the defaults are shown. Nothing is saved until they can be.':
     'No se pudieron leer las preferencias, así que se muestran los valores por defecto. No se guarda nada hasta que se puedan leer.',
   'Try again': 'Reintentar',
   'Preferences change how Wyss Console looks and behaves. They never change what Codex may do: sessions start in Inference, Local Tools is chosen for each session, and every command or file change it proposes waits for your approval.':
-    'Las preferencias cambian cómo se ve y se comporta la Consola Wyss. Nunca cambian lo que Codex puede hacer: las sesiones arrancan en Inference, Local Tools se elige en cada sesión, y cada comando o cambio de archivo que propone espera tu aprobación.',
+    'Las preferencias cambian la apariencia y el funcionamiento de Wyss Console. Nunca cambian lo que Codex puede hacer: las sesiones arrancan en Inference, Local Tools se elige en cada sesión y cada comando o cambio de archivo que propone espera tu aprobación.',
   Appearance: 'Apariencia',
   'Color theme': 'Tema de color',
   Dark: 'Oscuro',
   Light: 'Claro',
   'High contrast': 'Alto contraste',
   'Changes appearance only. It does not change provider or approval permissions.':
-    'Solo cambia la apariencia. No cambia permisos de proveedores ni de aprobaciones.',
+    'Solo cambia la apariencia; no modifica el proveedor ni los permisos de aprobación.',
   Interface: 'Interfaz',
   Language: 'Idioma',
   'The language of Wyss Console itself. What an agent, a provider or the system writes is shown as it arrives.':
@@ -429,18 +429,18 @@ export const ES: Readonly<Record<string, string>> = {
   'Your saved preferences could not be read':
     'No se pudieron leer tus preferencias guardadas',
   'They were set aside and the defaults are in use. Change a preference to save a new set, or reset to start clean.':
-    'Se apartaron y se usan los valores por defecto. Cambiá una preferencia para guardar un conjunto nuevo, o restablecé para empezar de cero.',
+    'Las preferencias anteriores se conservaron aparte y ahora se usan los valores por defecto. Cambiá una preferencia para guardar una configuración nueva o restablecelas para empezar de cero.',
   'Saved by a newer version of Wyss Console':
     'Guardadas por una versión más nueva de Wyss Console',
   'These preferences were left as they are and the defaults are in use. They cannot be changed from this version until they are reset.':
     'Estas preferencias se dejaron como están y se usan los valores por defecto. Desde esta versión no se pueden cambiar hasta restablecerlas.',
   'Your saved preferences were not trusted':
-    'No se confió en tus preferencias guardadas',
+    'No se pudo confiar en tus preferencias guardadas',
   'The file is not private to you, so it was not read and the defaults are in use. Changing a preference replaces it.':
-    'El archivo no es privado tuyo, así que no se leyó y se usan los valores por defecto. Cambiar una preferencia lo reemplaza.',
+    'Los permisos del archivo no son privados, así que no se leyó y se usan los valores por defecto. Si cambiás una preferencia, se reemplaza el archivo.',
   'Preferences cannot be saved here': 'Acá no se pueden guardar preferencias',
   'The place they are kept in is not safely yours, so the defaults are in use and changes are not kept.':
-    'El lugar donde se guardan no es tuyo de forma segura, así que se usan los valores por defecto y los cambios no se conservan.',
+    'No es seguro guardar preferencias en esta ubicación: se usan los valores por defecto y no se guardan los cambios.',
   'That value is not allowed.': 'Ese valor no está permitido.',
   'These preferences were saved by a newer version. Reset them to change them from this version.':
     'Estas preferencias las guardó una versión más nueva. Restablecelas para cambiarlas desde esta versión.',
@@ -456,7 +456,7 @@ export const ES: Readonly<Record<string, string>> = {
   'Managed by Wyss Console': 'Administrada por Wyss Console',
   'Started outside Wyss Console': 'Iniciada fuera de Wyss Console',
   'Installed by Wyss Console': 'Instalada por Wyss Console',
-  'Not installed': 'No instalada',
+  'Not installed': 'Sin instalar',
   'Not known yet': 'Todavía no se sabe',
   Compatibility: 'Compatibilidad',
   'This Wyss authority is not compatible with this version of the app.':
@@ -470,7 +470,7 @@ export const ES: Readonly<Record<string, string>> = {
   Update: 'Actualización',
   'Update tool': 'Actualizar',
   'A newer authority is installed the next time it starts':
-    'Se instala una autoridad más nueva la próxima vez que arranque',
+    'La próxima vez que se inicie, se instalará una versión más reciente de la autoridad.',
 
   // App shell and diagnostics
   'Skip to main content': 'Saltar al contenido principal',
@@ -897,9 +897,9 @@ export const ES: Readonly<Record<string, string>> = {
   // Credentials: the API keys the desktop keeps sealed
   'API credentials': 'Credenciales de API',
   'API keys for the AI services, kept sealed on this computer (the key that seals them is in your Secret Service). A key is typed in a window of its own and is never shown again, never sent to this page and never written unsealed. Only a name, the service and a short checksum are listed. Nothing here starts an agent with a key.':
-    'Claves de API de los servicios de IA, guardadas selladas en esta computadora (la clave que las sella está en tu Secret Service). Una clave se escribe en una ventana propia y nunca se vuelve a mostrar, nunca se envía a esta página y nunca se escribe sin sellar. Solo se listan un nombre, el servicio y un checksum corto. Acá nada arranca un agente con una clave.',
+    'Claves de API de los servicios de IA, almacenadas de forma sellada en esta computadora (la clave que las sella está en tu Secret Service). La clave se ingresa en una ventana aparte y después no vuelve a mostrarse, no se envía a esta página ni se guarda sin sellar. Solo se muestran el nombre, el servicio y una suma de verificación breve. Acá no se inicia ningún agente con una clave.',
   'The name must be 1 to 60 characters, not blank, without control characters.':
-    'El nombre tiene que tener de 1 a 60 caracteres, no estar en blanco y no tener caracteres de control.',
+    'El nombre debe tener entre 1 y 60 caracteres, no estar vacío ni contener caracteres de control.',
   'The key may not be empty, contain whitespace or control characters, or be longer than 4096 bytes.':
     'La clave no puede estar vacía, contener espacios en blanco o caracteres de control, ni superar los 4096 bytes.',
   'That key is not kept any more.': 'Esa clave ya no está guardada.',
@@ -913,8 +913,8 @@ export const ES: Readonly<Record<string, string>> = {
   'The Console could not write its own state.':
     'La consola no pudo escribir su propio estado.',
   'The key store of Wyss Console is not available.':
-    'El almacén de claves de la Consola Wyss no está disponible.',
-  'Something went wrong in Wyss Console.': 'Algo salió mal en la Consola Wyss.',
+    'El almacén de claves de Wyss Console no está disponible.',
+  'Something went wrong in Wyss Console.': 'Algo salió mal en Wyss Console.',
   'Something went wrong in the desktop.': 'Algo salió mal en el escritorio.',
   'The folder of this launch could not be prepared, so nothing was started. Your own configuration was not changed. Try again; if it keeps failing, save the launch again in Workspace.':
     'No se pudo preparar la carpeta de este lanzamiento, así que no se inició nada. Tu configuración no se tocó. Probá de nuevo; si sigue fallando, guardá el lanzamiento otra vez en Workspace.',
@@ -941,10 +941,9 @@ export const ES: Readonly<Record<string, string>> = {
   'Arsenal presets': 'Presets de Arsenal',
   'No keys yet': 'Todavía no hay claves',
   'Add one above. Its value is asked for in a separate window.':
-    'Agregá una arriba. Su valor se pide en una ventana aparte.',
+    'Agregá una arriba. La clave se ingresa en una ventana aparte.',
   Keys: 'Claves',
   'New name': 'Nombre nuevo',
-  checksum: 'checksum',
   'kept {date}': 'guardada el {date}',
   'changed {date}': 'cambiada el {date}',
   'Save name': 'Guardar nombre',
@@ -954,10 +953,10 @@ export const ES: Readonly<Record<string, string>> = {
   'Delete…': 'Eliminar…',
   'Key kept, sealed.': 'Clave guardada, sellada.',
   'Key replaced.': 'Clave reemplazada.',
-  'Renamed.': 'Renombrada.',
+  'Renamed.': 'Se cambió el nombre.',
   'Key deleted.': 'Clave eliminada.',
   'The key opens and matches its checksum.':
-    'La clave se abre y coincide con su checksum.',
+    'La clave se abre y coincide con su suma de verificación.',
   'The key could not be verified. Replace the key.':
     'No se pudo verificar la clave. Reemplazá la clave.',
 
@@ -984,7 +983,7 @@ export const ES: Readonly<Record<string, string>> = {
   'Waiting for the confirmation window…':
     'Esperando la ventana de confirmación…',
   'Applying…': 'Aplicando…',
-  'Continue to confirm': 'Seguir para confirmar',
+  'Continue to confirm': 'Continuar para confirmar',
   Apply: 'Aplicar',
   'Preparing the change…': 'Preparando el cambio…',
   'This could not be read again just now. What is shown is from the last successful read.':
@@ -1130,7 +1129,7 @@ export const ES: Readonly<Record<string, string>> = {
     'Es del proveedor; solo se cambia con su propio comando',
   'Produced by another tool': 'Lo genera otra herramienta',
   'Its folder can be written by a group: read, never changed':
-    'Su carpeta la puede escribir un grupo: solo se lee, nunca se cambia',
+    'Un grupo tiene permiso para escribir en esta carpeta: se puede leer, pero no modificar.',
   'This entry cannot be changed from here.':
     'Esta entrada no se puede cambiar desde acá.',
   'environment value': 'valor de entorno',
@@ -1145,9 +1144,9 @@ export const ES: Readonly<Record<string, string>> = {
   'It holds credentials, so it is never opened.':
     'Tiene credenciales, así que nunca se abre.',
   'Where it leads is outside the places this app may read.':
-    'A donde apunta está fuera de los lugares que esta app puede leer.',
+    'El destino está fuera de las ubicaciones que esta app puede leer.',
   'Its place is not safe to read from: someone else owns or can change it.':
-    'Su lugar no es seguro para leer: otro lo tiene o lo puede cambiar.',
+    'No es seguro leer desde esta ubicación: pertenece a otra persona o alguien más puede modificarla.',
   'It is behind too many links.': 'Está detrás de demasiados enlaces.',
   'It is not a regular file.': 'No es un archivo regular.',
   'It is larger than the bounds this app reads.':
@@ -1164,7 +1163,7 @@ export const ES: Readonly<Record<string, string>> = {
   'Read.': 'Leído.',
   'Not present.': 'No está presente.',
   'Not read: Codex loads a project’s own configuration only for a project you trust.':
-    'No se leyó: Codex carga la configuración propia de un proyecto solo para un proyecto de confianza.',
+    'No se leyó: Codex solo carga la configuración de un proyecto si es de confianza.',
   empty: 'vacío',
   none: 'ninguno',
   'hidden ({kind})': 'oculto ({kind})',
@@ -1327,36 +1326,36 @@ export const ES: Readonly<Record<string, string>> = {
   'Filter events': 'Filtrar eventos',
   'Events, newest first': 'Eventos, más recientes primero',
   'Event details': 'Detalles del evento',
-  'Events of an earlier stream': 'Eventos de un stream anterior',
+  'Events of an earlier stream': 'Eventos de un flujo anterior',
   'Load older': 'Cargar anteriores',
   'Older events exist and are not loaded.':
     'Hay eventos anteriores que no están cargados.',
   'New events available': 'Hay eventos nuevos',
-  'No loaded event matches.': 'Ningún evento cargado coincide.',
+  'No loaded event matches.': 'No hay eventos cargados que coincidan.',
   'Filters apply to the events loaded here, not to all of history.':
     'Los filtros se aplican a los eventos cargados acá, no a todo el historial.',
   'Authority offline. Showing previously loaded history: it was read before the connection was lost and nothing newer is known.':
-    'Autoridad sin conexión. Se muestra el historial cargado antes: se leyó antes de que se cortara la conexión y no se sabe nada más nuevo.',
+    'La autoridad está desconectada. Se muestra el historial cargado antes de que se perdiera la conexión; no se sabe si hay eventos más recientes.',
   'Showing previously loaded history. It is being read again.':
     'Se muestra el historial cargado antes. Se está leyendo de nuevo.',
   'The authority restarted. It kept the same event stream: the history below continues, and what it ended on the way is recorded in it.':
-    'La autoridad se reinició. Conservó el mismo stream de eventos: el historial de abajo sigue, y lo que quedó a medio camino consta en él.',
+    'La autoridad se reinició y conservó el mismo flujo de eventos. El historial de abajo continúa y registra lo que quedó interrumpido durante el reinicio.',
   "Events are the authority's own record and are read from it. Nothing is shown until it is connected. Your local terminals keep working.":
     'Los eventos son el registro propio de la autoridad y se leen de ella. No se muestra nada hasta que esté conectada. Tus terminales locales siguen funcionando.',
   'Reading events…': 'Leyendo eventos…',
   'No events yet.': 'Todavía no hay eventos.',
   'The authority records every session, runtime, turn, approval and lease change it commits. Nothing has been recorded in this stream.':
-    'La autoridad registra cada cambio de sesión, runtime, turno, aprobación y concesión que confirma. Todavía no se registró nada en este stream.',
-  'New authority event stream': 'Nuevo stream de eventos de la autoridad',
+    'La autoridad registra cada cambio confirmado de sesión, entorno de ejecución, turno, aprobación y permiso. Todavía no hay registros en este flujo de eventos.',
+  'New authority event stream': 'Nuevo flujo de eventos de la autoridad',
   'The events above belong to the stream the authority holds now. The ones below come from another stream ({id}) and do not continue it: their positions are unrelated.':
-    'Los eventos de arriba pertenecen al stream que la autoridad tiene ahora. Los de abajo vienen de otro stream ({id}) y no lo continúan: sus posiciones no tienen relación entre sí.',
-  'Lease until': 'Concesión hasta',
+    'Los eventos de arriba pertenecen al flujo de eventos que la autoridad conserva ahora. Los de abajo vienen de otro flujo ({id}) y no lo continúan: sus posiciones no guardan relación entre sí.',
+  'Lease until': 'Permiso vigente hasta',
   Position: 'Posición',
-  'in stream {id}': 'en el stream {id}',
+  'in stream {id}': 'en el flujo {id}',
   'This record was read from a stream the authority no longer holds here. What it is about cannot be opened or read from this authority.':
-    'Este registro se leyó de un stream que la autoridad ya no tiene acá. Aquello a lo que se refiere no se puede abrir ni leer desde esta autoridad.',
+    'Este registro se leyó en un flujo que la autoridad ya no conserva acá. No se puede consultar desde esta autoridad el elemento al que se refiere.',
   'This is a record of what happened then. What it is about may have changed since: that is read from the authority where it lives.':
-    'Es un registro de lo que pasó en ese momento. Aquello a lo que se refiere puede haber cambiado desde entonces: eso se lee de la autoridad donde vive.',
+    'Este registro muestra lo que ocurrió entonces. La situación puede haber cambiado desde entonces; el estado actual se consulta en la autoridad correspondiente.',
   'Open session': 'Abrir sesión',
   'Open in Agents': 'Abrir en Agentes',
   'Show events of this turn': 'Ver eventos de este turno',
@@ -1365,28 +1364,30 @@ export const ES: Readonly<Record<string, string>> = {
   'Open Approvals': 'Abrir Aprobaciones',
   'Now:': 'Ahora:',
   'The authority no longer holds what it was about.':
-    'La autoridad ya no tiene aquello a lo que se refería.',
+    'La autoridad ya no conserva lo que ese registro describe.',
   'What it is about is shown in Approvals.':
-    'Aquello a lo que se refiere se ve en Aprobaciones.',
+    'Los detalles están en Aprobaciones.',
   'Approval detail is no longer available. The record above is still what happened.':
     'El detalle de la aprobación ya no está disponible. El registro de arriba sigue siendo lo que pasó.',
   'The approval could not be read from the authority.':
     'No se pudo leer la aprobación desde la autoridad.',
-  'bind a workspace': 'vincular un workspace',
+  'bind a workspace': 'vincular un Workspace',
   'attach to Codex': 'conectarse a Codex',
   'start a turn': 'iniciar un turno',
   'run approved commands': 'correr comandos aprobados',
-  'apply approved file changes': 'aplicar cambios de archivos aprobados',
+  'apply approved file changes':
+    'aplicar los cambios aprobados en los archivos',
   'Codex was not available to start.':
-    'Codex no estuvo disponible para arrancar.',
-  'The authority could not launch Codex.': 'La autoridad no pudo lanzar Codex.',
+    'No se pudo iniciar Codex porque no estaba disponible.',
+  'The authority could not launch Codex.':
+    'La autoridad no pudo iniciar Codex.',
   'The connection to Codex failed.': 'Falló la conexión con Codex.',
   'Codex did not answer in time when it started.':
     'Codex no respondió a tiempo al arrancar.',
   'Codex did not speak the protocol the authority expects.':
-    'Codex no habló el protocolo que espera la autoridad.',
+    'Codex no usó el protocolo que espera la autoridad.',
   'Codex asked for something this runtime is not allowed to answer.':
-    'Codex pidió algo que este runtime no puede responder.',
+    'Codex pidió algo que este entorno de ejecución no tiene permitido responder.',
   'Codex refused the configuration it was started with.':
     'Codex rechazó la configuración con la que arrancó.',
   'Codex refused the model catalog it was started with.':
@@ -1397,38 +1398,42 @@ export const ES: Readonly<Record<string, string>> = {
   'Codex acted outside what its isolation allows, and the authority stopped it.':
     'Codex actuó fuera de lo que permite su aislamiento, y la autoridad lo detuvo.',
   'The authority could not prove the isolation of the runtime, and did not let it run.':
-    'La autoridad no pudo comprobar el aislamiento del runtime, y no lo dejó correr.',
-  'Managed session prepared': 'Sesión Managed preparada',
-  'Managed session closed': 'Sesión Managed cerrada',
-  'Session bound to a workspace': 'Sesión vinculada a un workspace',
+    'La autoridad no pudo demostrar que el entorno de ejecución estuviera aislado y no permitió iniciarlo.',
+  'Managed session prepared': 'Sesión administrada preparada',
+  'Managed session closed': 'Sesión administrada cerrada',
+  'Session bound to a workspace': 'Sesión vinculada a un Workspace',
   'Session attached to Codex': 'Sesión conectada a Codex',
   'Workspace binding outcome unknown':
-    'Resultado del vínculo con el workspace desconocido',
+    'No se pudo confirmar si se vinculó el Workspace.',
   'Uncertain binding attempt discarded':
-    'Intento de vínculo incierto descartado',
-  'Codex runtime start accepted': 'Inicio del runtime de Codex aceptado',
-  'Codex runtime stop accepted': 'Detención del runtime de Codex aceptada',
-  'Codex runtime request accepted': 'Pedido al runtime de Codex aceptado',
-  'Codex runtime ready': 'Runtime de Codex listo',
-  'Codex runtime contained': 'Runtime de Codex contenido',
-  'Codex runtime stopped': 'Runtime de Codex detenido',
+    'Se descartó el intento de vinculación, cuyo resultado era incierto.',
+  'Codex runtime start accepted':
+    'Se aceptó iniciar el entorno de ejecución de Codex',
+  'Codex runtime stop accepted':
+    'Se aceptó detener el entorno de ejecución de Codex',
+  'Codex runtime request accepted':
+    'Se aceptó una solicitud para el entorno de ejecución de Codex',
+  'Codex runtime ready': 'Entorno de ejecución de Codex listo',
+  'Codex runtime contained': 'Entorno de ejecución de Codex confinado',
+  'Codex runtime stopped': 'Entorno de ejecución de Codex detenido',
   'Codex runtime ended unexpectedly':
-    'El runtime de Codex terminó de forma inesperada',
-  'Managed turn admitted': 'Turno Managed admitido',
-  'Managed turn running': 'Turno Managed en curso',
+    'El entorno de ejecución de Codex terminó inesperadamente',
+  'Managed turn admitted': 'Turno administrado admitido',
+  'Managed turn running': 'Turno administrado en curso',
   'Turn cancellation requested': 'Se pidió cancelar el turno',
-  'Managed turn completed': 'Turno Managed completado',
-  'Managed turn interrupted': 'Turno Managed interrumpido',
-  'Managed turn failed': 'Turno Managed falló',
-  'Managed turn outcome unknown': 'Resultado del turno Managed desconocido',
-  'Command approval requested': 'Aprobación de comando pedida',
-  'File change approval requested': 'Aprobación de cambio de archivo pedida',
+  'Managed turn completed': 'Turno administrado completado',
+  'Managed turn interrupted': 'Turno administrado interrumpido',
+  'Managed turn failed': 'Falló el turno administrado',
+  'Managed turn outcome unknown':
+    'Resultado del turno administrado desconocido',
+  'Command approval requested': 'Se pidió aprobar un comando',
+  'File change approval requested': 'Se pidió aprobar un cambio de archivo',
   'Approved action confirmed by Codex': 'Codex confirmó la acción aprobada',
   'Approval denied': 'Aprobación denegada',
-  'Execution lease granted': 'Concesión de ejecución otorgada',
-  'Execution lease renewed': 'Concesión de ejecución renovada',
-  'Execution lease revoked': 'Concesión de ejecución revocada',
-  'Execution lease expired': 'Concesión de ejecución vencida',
+  'Execution lease granted': 'Permiso de ejecución otorgado',
+  'Execution lease renewed': 'Permiso de ejecución renovado',
+  'Execution lease revoked': 'Permiso de ejecución revocado',
+  'Execution lease expired': 'Permiso de ejecución vencido',
   'Authority event': 'Evento de la autoridad',
   'a command': 'un comando',
   'the approved command': 'el comando aprobado',
@@ -1437,7 +1442,7 @@ export const ES: Readonly<Record<string, string>> = {
   'an action': 'una acción',
   'the approved action': 'la acción aprobada',
   'The authority admitted the turn under an execution lease. What was asked of Codex is not part of the record.':
-    'La autoridad admitió el turno con una concesión de ejecución. Lo que se le pidió a Codex no forma parte del registro.',
+    'La autoridad admitió el turno con un permiso de ejecución. Lo que se le pidió a Codex no forma parte del registro.',
   'Codex took the turn and started working on it.':
     'Codex tomó el turno y empezó a trabajar en él.',
   'A cancel of the turn was recorded.':
@@ -1445,49 +1450,48 @@ export const ES: Readonly<Record<string, string>> = {
   'The authority recorded how the turn ended.':
     'La autoridad registró cómo terminó el turno.',
   'Codex proposed {about} and the authority held it for a decision. The proposal itself is not part of the record.':
-    'Codex propuso {about} y la autoridad retuvo esa propuesta para decidir. La propuesta en sí no forma parte del registro.',
+    'Codex propuso {about} y la autoridad dejó la propuesta pendiente de aprobación. La propuesta en sí no forma parte del registro.',
   'The approval of {about} was accepted and the answer was sent to Codex.':
-    'Se aceptó la aprobación de {about} y la respuesta se envió a Codex.',
+    'Se aprobó {about} y se envió la respuesta a Codex.',
   'Codex reported what it did with {approved}.':
     'Codex informó qué hizo con {approved}.',
   'The approval of {about} was denied. Nothing was run or changed for it.':
-    'Se denegó la aprobación de {about}. No se ejecutó ni se cambió nada por ella.',
+    'Se rechazó la aprobación de {about}. No se ejecutó ni se modificó nada por esa aprobación.',
   'The authority recorded how the approval ended.':
     'La autoridad registró cómo terminó la aprobación.',
   '{lead} It allowed the session to {scopes}.':
-    '{lead} Permitió a la sesión {scopes}.',
+    '{lead} Ese permiso le permitía a la sesión {scopes}.',
   'The lease ended because its session was closed.':
-    'La concesión terminó porque se cerró su sesión.',
-  'The lease was revoked.': 'La concesión se revocó.',
-  'The lease reached its time limit.':
-    'La concesión llegó a su límite de tiempo.',
+    'El permiso de ejecución terminó al cerrarse la sesión.',
+  'The lease was revoked.': 'Se revocó el permiso de ejecución.',
+  'The lease reached its time limit.': 'Venció el permiso de ejecución.',
   'The authority extended a lease for this session.':
-    'La autoridad extendió una concesión para esta sesión.',
+    'La autoridad prorrogó el permiso de ejecución de esta sesión.',
   'The authority granted a lease for this session.':
-    'La autoridad otorgó una concesión para esta sesión.',
+    'La autoridad otorgó un permiso de ejecución a esta sesión.',
   'The authority accepted a request for the managed Codex runtime and recorded what it should be.':
-    'La autoridad aceptó un pedido para el runtime de Codex Managed y registró cómo debe quedar.',
+    'La autoridad aceptó una solicitud para el entorno de ejecución administrado de Codex y registró el estado que debía tener.',
   'Codex {version} started, was checked and is ready.':
     'Codex {version} se inició, se verificó y está listo.',
   'Codex started, was checked and is ready.':
     'Codex se inició, se verificó y está listo.',
   '{exit} The authority meant it to.': '{exit} La autoridad lo quiso así.',
   'A managed session was created. It has no workspace until it is bound.':
-    'Se creó una sesión Managed. No tiene workspace hasta que se vincula uno.',
+    'Se creó una sesión administrada. Aún no tiene un Workspace vinculado.',
   'The session was closed. Closing is final.':
-    'La sesión se cerró. Cerrar es definitivo.',
+    'La sesión se cerró de forma definitiva.',
   'The authority bound the session to a project folder. Which folder is not part of the record.':
-    'La autoridad vinculó la sesión a una carpeta de proyecto. Cuál carpeta no forma parte del registro.',
+    'La autoridad vinculó la sesión a una carpeta de proyecto. El registro no indica cuál.',
   'The session was attached to the Codex runtime that was running.':
-    'La sesión se conectó al runtime de Codex que estaba corriendo.',
+    'La sesión se conectó al entorno de ejecución de Codex que ya estaba activo.',
   'The authority could not confirm whether Codex created the workspace binding.':
-    'La autoridad no pudo confirmar si Codex creó el vínculo con el workspace.',
+    'La autoridad no pudo confirmar si Codex vinculó el Workspace.',
   'An uncertain binding attempt was given up on explicitly.':
-    'Se abandonó explícitamente un intento de vínculo incierto.',
+    'Se descartó explícitamente un intento de vinculación con resultado incierto.',
   'The authority recorded an event of a kind this version of the console does not know. Nothing else of it is shown.':
-    'La autoridad registró un evento de un tipo que esta versión de la consola no conoce. No se muestra nada más de él.',
+    'La autoridad registró un evento de un tipo que esta versión de la consola no reconoce. No se muestra información adicional.',
   'This is the beginning of the event stream.':
-    'Este es el comienzo del stream de eventos.',
+    'Este es el inicio del flujo de eventos.',
   'History before this point is unavailable.':
     'El historial anterior a este punto no está disponible.',
   'Events could not be read: the authority did not answer.':
@@ -1497,7 +1501,7 @@ export const ES: Readonly<Record<string, string>> = {
   'The event history changed while it was being read.':
     'El historial de eventos cambió mientras se leía.',
   'Events could not be read. Nothing new is shown without verification.':
-    'No se pudieron leer los eventos. No se muestra nada nuevo sin verificar.',
+    'No se pudieron leer los eventos. No se muestra información nueva sin verificarla.',
   'Older events could not be read: the authority holds another history than the one shown. The newest events were read again.':
     'No se pudieron leer los eventos anteriores: la autoridad tiene otro historial que el que se muestra. Los eventos más recientes se leyeron de nuevo.',
   'Older events could not be read: the authority did not answer.':
@@ -1544,9 +1548,9 @@ export const ES: Readonly<Record<string, string>> = {
   Move: 'Mover',
   'Nobody decided it in time.': 'Nadie la decidió a tiempo.',
   'The execution lease of its turn expired.':
-    'La concesión de ejecución de su turno venció.',
+    'El permiso de ejecución del turno venció.',
   'The execution lease of its turn was revoked.':
-    'Se revocó la concesión de ejecución de su turno.',
+    'Se revocó el permiso de ejecución del turno.',
   'Its turn was cancelled.': 'Su turno se canceló.',
   'Its turn ended.': 'Su turno terminó.',
   'Its session was closed.': 'Su sesión se cerró.',
@@ -1578,12 +1582,12 @@ export const ES: Readonly<Record<string, string>> = {
   'Reading approvals…': 'Leyendo aprobaciones…',
   'Nothing is waiting for a decision.': 'Nada espera una decisión.',
   'In Local Tools, every command and file change Codex proposes stops here until you approve or deny it. Inference sessions propose none.':
-    'En Local Tools, cada comando y cambio de archivo que propone Codex se detiene acá hasta que lo apruebes o lo denegues. Las sesiones de Inference no proponen ninguno.',
+    'En Local Tools, cada comando y cambio de archivo que propone Codex se detiene acá hasta que lo apruebes o lo rechaces. Las sesiones de Inference no proponen ninguno.',
   'Pending approvals': 'Aprobaciones pendientes',
   'Recently ended': 'Terminadas recientemente',
   'Ended approvals': 'Aprobaciones terminadas',
   'Older approvals are not listed.':
-    'Las aprobaciones más viejas no se listan.',
+    'No se muestran las aprobaciones anteriores.',
   'Asking the authority to approve it…':
     'Pidiendo a la autoridad que la apruebe…',
   'Asking the authority to deny it…':
@@ -1596,7 +1600,7 @@ export const ES: Readonly<Record<string, string>> = {
     'La aprobación cambió después de mostrarse. Se volvió a leer.',
   'The approval had already ended.': 'La aprobación ya había terminado.',
   'The authority denied it: the lease its turn was admitted under does not allow this action.':
-    'La autoridad la denegó: la concesión con la que se admitió su turno no permite esta acción.',
+    'La autoridad la rechazó: el permiso con el que se admitió el turno no permite esta acción.',
   'Codex is no longer there to answer.': 'Codex ya no está para responder.',
   'The authority could not confirm what Codex did with the answer. Nothing is sent again by itself.':
     'La autoridad no pudo confirmar qué hizo Codex con la respuesta. No se vuelve a enviar nada por sí solo.',
@@ -1607,7 +1611,7 @@ export const ES: Readonly<Record<string, string>> = {
   'Approvals could not be read. The authority is busy; try again in a moment.':
     'No se pudieron leer las aprobaciones. La autoridad está ocupada; probá de nuevo en un momento.',
   'Approvals could not be read. Nothing is shown rather than something unverified.':
-    'No se pudieron leer las aprobaciones. No se muestra nada antes que algo sin verificar.',
+    'No se pudieron leer las aprobaciones. En vez de mostrar datos sin verificar, no se muestra nada.',
   Start: 'Iniciar',
 
   Import: 'Importar',
@@ -1634,16 +1638,16 @@ export const ES: Readonly<Record<string, string>> = {
   'Terminals after the window closes':
     'Terminales después de cerrar la ventana',
   'What survives what could not be read from the host.':
-    'No se pudo leer del host qué sobrevive a qué.',
+    'No se pudo leer desde el host qué pasa con las terminales en cada caso.',
   'Your terminals belong to a host process, not to this window. Closing the window does not stop them; this is what happens in the other cases on this machine.':
     'Tus terminales pertenecen a un proceso host, no a esta ventana. Cerrar la ventana no las detiene; esto es lo que pasa en los otros casos de esta máquina.',
-  'What survives what': 'Qué sobrevive a qué',
+  'What survives what': 'Qué pasa con las terminales',
   When: 'Cuándo',
   Why: 'Por qué',
   'Lingering keeps your user session manager running after you log out. It is {state}. The Console never turns it on by itself.':
-    'Lingering mantiene el administrador de tu sesión de usuario corriendo después de cerrar sesión. Está {state}. La Consola nunca lo activa por sí sola.',
+    'Con lingering, el gestor de servicios de tu usuario sigue activo después de cerrar sesión. Su estado: {state}. La Consola no lo activa por su cuenta.',
   'not something this system lets the Console read':
-    'algo que este sistema no deja leer a la Consola',
+    'no se puede consultar en este sistema',
   on: 'activado',
   off: 'desactivado',
   'Confirm lingering': 'Confirmar lingering',
@@ -1680,10 +1684,9 @@ export const ES: Readonly<Record<string, string>> = {
   'New terminal in a new tab': 'Nueva terminal en una pestaña nueva',
   'Split the pane side by side': 'Dividir el panel lado a lado',
   'Split the pane, one above the other':
-    'Dividir el panel, una arriba de la otra',
+    'Dividir el panel en dos, uno encima del otro',
   'Close the pane': 'Cerrar el panel',
-  'Search the pane’s scrollback':
-    'Buscar en el historial de desplazamiento del panel',
+  'Search the pane’s scrollback': 'Buscar en el historial del panel',
   'Move to the pane in that direction': 'Ir al panel en esa dirección',
   'Next and previous pane': 'Panel siguiente y anterior',
   'Next and previous tab': 'Pestaña siguiente y anterior',
@@ -1699,34 +1702,35 @@ export const ES: Readonly<Record<string, string>> = {
   'A hook this preset left out is no longer in hooks.json: it was edited or removed. A launch with this preset does not start until you check the hooks and save.':
     'Un hook que este preset dejaba afuera ya no está en hooks.json: se editó o se borró. Un lanzamiento con este preset no arranca hasta que revises los hooks y guardes.',
   'The hook was changed, but the launch presets that left it out could not be updated. Until you open each of them in Workspace, check its hooks and save, a launch with one of them may run the changed hook, or (Codex) may not start.':
-    'El hook se cambió, pero no se pudieron actualizar los presets de lanzamiento que lo dejaban afuera. Hasta que abras cada uno en Workspace, revises sus hooks y guardes, un lanzamiento con uno de ellos puede correr el hook cambiado o (Codex) no arrancar.',
+    'El hook se modificó, pero no se pudieron actualizar los presets de lanzamiento que lo excluían. Abrí cada preset en Workspace, revisá sus hooks y guardá los cambios. Hasta entonces, un lanzamiento con uno de esos presets podría ejecutar el hook modificado o, en Codex, no iniciar.',
   'A command before the start did not succeed ({result}); the agent started anyway.':
     'Un comando previo al inicio no tuvo éxito ({result}); el agente arrancó igual.',
-  'Started with {selection} applied.': 'Iniciado con {selection} aplicado.',
+  'Started with {selection} applied.':
+    'Se inició con el preset {selection} aplicado.',
   'Started without applying {selection}; the selection is recorded.':
-    'Iniciado sin aplicar {selection}; la selección queda registrada.',
+    'Se inició sin aplicar el preset {selection}; la selección queda registrada.',
   'The terminal started, but Arsenal could not record its selection.':
-    'La terminal inició, pero Arsenal no pudo registrar su selección.',
+    'La terminal se inició, pero Arsenal no pudo registrar la selección.',
   'Screen restored · {count} KiB of output was missed while it was kept':
-    'Pantalla restaurada · se perdieron {count} KiB de salida mientras se guardaba',
+    'Pantalla restaurada · se perdieron {count} KiB de salida mientras se conservaba el estado de pantalla',
   'The program printed faster than the screen could be kept, so part of its output never reached it. What is drawn may differ from the program until the program draws again.':
-    'El programa imprimió más rápido de lo que se podía guardar la pantalla, así que parte de su salida nunca llegó. Lo dibujado puede diferir del programa hasta que el programa vuelva a dibujar.',
+    'El programa generó salida más rápido de lo que el host pudo conservar el estado de pantalla. Parte de la salida no llegó a mostrarse. Lo que ves puede diferir de lo que muestra el programa hasta que vuelva a dibujar la pantalla.',
   'Screen rebuilt from the end of the output · {count} KiB before it is not included':
-    'Pantalla reconstruida desde el final de la salida · {count} KiB anteriores no están incluidos',
+    'Pantalla reconstruida desde el final de la salida · no se incluyen los {count} KiB anteriores',
   'The parser that keeps this screen was restarted and only the output the host still held was replayed into it. State set earlier (an alternate screen, a mode) may be missing until the program draws again.':
-    'Se reinició el analizador que guarda esta pantalla y solo se reprodujo en él la salida que todavía tenía el host. El estado definido antes (una pantalla alternativa, un modo) puede faltar hasta que el programa vuelva a dibujar.',
+    'El analizador que mantiene esta pantalla se reinició y solo pudo recuperarse la salida que el host aún conservaba. Puede faltar el estado anterior (una pantalla alternativa o un modo) hasta que el programa vuelva a dibujar.',
   'Screen restored · {count} older lines not shown':
     'Pantalla restaurada · {count} líneas anteriores no se muestran',
   'The screen and its recent history were redrawn from the host. Older history was past what is kept.':
-    'La pantalla y su historial reciente se volvieron a dibujar desde el host. El historial más viejo quedó fuera de lo que se guarda.',
+    'La pantalla y su historial reciente se reconstruyeron a partir de los datos del host. El historial anterior supera lo que se conserva.',
   'Output replayed · no screen state was kept':
-    'Salida reproducida · no se guardó estado de pantalla',
+    'Salida reproducida · no se conservó el estado de la pantalla',
   'The host had no screen for this terminal ({reason}), so what it kept of the output was replayed and the program was asked to draw again.':
-    'El host no tenía pantalla para esta terminal ({reason}), así que lo que guardó de la salida se reprodujo y se le pidió al programa que volviera a dibujar.',
+    'El host no tenía un estado de pantalla para esta terminal ({reason}), así que se reprodujo la salida que aún conservaba y se pidió al programa que volviera a dibujar.',
   'Output was missed while the screen was kept':
-    'Se perdió salida mientras se guardaba la pantalla',
+    'Se perdió parte de la salida mientras se conservaba el estado de la pantalla',
   'The program printed faster than the screen could be kept. The terminal itself is complete; a window opened later may show a screen that differs until the program draws again.':
-    'El programa imprimió más rápido de lo que se podía guardar la pantalla. La terminal en sí está completa; una ventana abierta después puede mostrar una pantalla distinta hasta que el programa vuelva a dibujar.',
+    'El programa generó salida más rápido de lo que se podía conservar la pantalla. El contenido de la terminal está completo, pero una ventana que abras después puede mostrar otra pantalla hasta que el programa vuelva a dibujarla.',
   'Screen parser restarting': 'Reiniciando el analizador de pantalla',
   'The terminal itself is not affected. The screen state is being rebuilt from the output the host still holds.':
     'La terminal en sí no se ve afectada. El estado de pantalla se está reconstruyendo desde la salida que todavía tiene el host.',
@@ -1734,7 +1738,7 @@ export const ES: Readonly<Record<string, string>> = {
   'The terminal works. If this window is closed and opened again, the output the host kept is replayed instead of a saved screen.':
     'La terminal funciona. Si esta ventana se cierra y se vuelve a abrir, se reproduce la salida que guardó el host en lugar de una pantalla guardada.',
   'Started by the Console in your shell. Not mediated, contained or approved by the Console.':
-    'Iniciada por la Consola en tu shell. La Consola no la media, no la contiene ni la aprueba.',
+    'Iniciada por la Consola desde tu shell. La Consola no la gestiona, no la aísla ni la aprueba.',
   'Starting agent…': 'Iniciando agente…',
   'Starting terminal…': 'Iniciando terminal…',
   'Agent exited': 'El agente terminó',
@@ -1795,13 +1799,13 @@ export const ES: Readonly<Record<string, string>> = {
   Integrations: 'Integraciones',
   Automations: 'Automatizaciones',
   'Rules the agent always follows: standing instructions read when every session starts.':
-    'Reglas que el agente cumple siempre: instrucciones fijas que lee al arrancar cada sesión.',
+    'Reglas que el agente siempre sigue: instrucciones permanentes que lee al iniciar cada sesión.',
   'Model profiles (astra, luna, sol) that choose which model and effort a task runs with.':
     'Perfiles de modelo (astra, luna, sol) que eligen con qué modelo y esfuerzo corre una tarea.',
   'MCP servers: connections to outside tools such as Notion, a browser or library docs.':
     'Servidores MCP: conexiones a herramientas de afuera como Notion, un navegador o la documentación de una librería.',
   'Hooks that run by themselves at moments of the session and are not about security.':
-    'Hooks que corren solos en momentos de la sesión y no son de seguridad.',
+    'Hooks que se ejecutan automáticamente en distintos momentos de la sesión y no cumplen una función de seguridad.',
   After: 'Después',
   Environment: 'Entorno',
   Save: 'Guardar',
@@ -1979,13 +1983,13 @@ export const ES: Readonly<Record<string, string>> = {
   'Synchronization details': 'Detalles de la sincronización',
   'This computer': 'Esta computadora',
   '{host} · {count} change(s) published':
-    '{host} · {count} cambio(s) publicado(s)',
+    'Cambios publicados por {host}: {count}',
   'Shared folder': 'Carpeta compartida',
   '(Syncthing carries it)': '(Syncthing lo transporta)',
   'Last check': 'Última comprobación',
   'not yet': 'todavía no',
   'applied {applied} of {published} change(s) from here':
-    'aplicó {applied} de {published} cambio(s) de esta computadora',
+    'Cambios aplicados desde esta computadora: {applied} de {published}',
   'last heard {time}': 'última señal {time}',
   'Check now': 'Comprobar ahora',
   'Arsenal selection': 'Selección de Arsenal',
@@ -2111,13 +2115,13 @@ export const ES: Readonly<Record<string, string>> = {
     'Este lanzamiento no tiene comandos para esta distribución. Agregala en Workspace.',
   Distributions: 'Distribuciones',
   'Detected on this computer: {name} ({id})':
-    'Detectado en esta PC: {name} ({id})',
+    'Detectada en esta computadora: {name} ({id})',
   'This computer’s distribution could not be read (/etc/os-release).':
     'No se pudo leer la distribución de esta PC (/etc/os-release).',
   'No distribution here matches this computer: the file’s own commands run.':
-    'Ninguna distribución coincide con esta PC: corren los comandos propios del archivo.',
+    'Ninguna distribución coincide con esta computadora. Se ejecutan los comandos propios del archivo.',
   'No distribution here matches this computer: add {id} to start it here.':
-    'Ninguna distribución coincide con esta PC: agregá {id} para lanzarlo acá.',
+    'Ninguna distribución coincide con esta computadora. Agregá una con el ID {id} para iniciar el lanzamiento acá.',
   'This computer’s distribution: it cannot be deleted.':
     'Es la distribución de esta PC: no se puede borrar.',
   active: 'activa',
@@ -2129,13 +2133,13 @@ export const ES: Readonly<Record<string, string>> = {
   'The script was written by hand, so the options are off.':
     'El script se editó a mano, así que las opciones quedan apagadas.',
   'Back to options': 'Volver a las opciones',
-  'Script it runs': 'Script que se lanza',
+  'Script it runs': 'Comandos que ejecuta',
   'One command per line, typed in a new terminal in {folder}.':
-    'Un comando por línea, escrito en una terminal nueva en {folder}.',
+    'Se ejecuta un comando por línea en una terminal nueva en {folder}.',
   Discard: 'Descartar',
   'No distributions yet.': 'Todavía no hay distribuciones.',
   'The file’s own commands, for every distribution. Add one to give it its own.':
-    'Los comandos propios del archivo, para cualquier distribución. Agregá una para darle los suyos.',
+    'El archivo ejecuta estos comandos en todas las distribuciones. Agregá una para definir comandos propios para esa distribución.',
   'Adds “flatpak update”: also updates the apps installed from Flathub, which the package manager does not touch.':
     'Agrega «flatpak update»: actualiza también las apps instaladas desde Flathub, que el gestor de paquetes no toca.',
   'Adds -y: answers yes to every question, so the update runs to the end without stopping. Without it, it asks before installing.':
@@ -2161,7 +2165,7 @@ export const ES: Readonly<Record<string, string>> = {
   'For openSUSE Tumbleweed and Leap. zypper refresh reads the repositories; zypper dup brings the whole system to their versions.':
     'Para openSUSE Tumbleweed y Leap. zypper refresh lee los repositorios; zypper dup lleva todo el sistema a sus versiones.',
   'A distribution added by hand: it runs on computers whose os-release ID is {id}.':
-    'Distribución agregada a mano: corre en las PC cuyo ID de os-release es {id}.',
+    'Distribución agregada manualmente: se usa en las computadoras con el ID de os-release {id}.',
   'Include AUR -git packages (--devel)':
     'Incluir paquetes -git del AUR (--devel)',
   'Adds --devel to paru: also rebuilds AUR packages that follow a repository (-git, -svn…), which a plain update leaves as they are.':
@@ -2176,24 +2180,24 @@ export const ES: Readonly<Record<string, string>> = {
   'Where the agent works: it reads and edits the files of this folder, and its project settings are this folder’s.':
     'Dónde trabaja el agente: lee y edita los archivos de esta carpeta, y usa la configuración de proyecto de esta carpeta.',
   'About how much context the agent loads before you write anything, from what is switched on below. The bar compares it with everything switched on. MCP servers and hook output are not measured.':
-    'Aproximadamente cuánto contexto carga el agente antes de que escribas algo, según lo que está activado abajo. La barra lo compara con todo activado. No se miden los servidores MCP ni la salida de los hooks.',
+    'Estimación del contexto que carga el agente antes de empezar, según las opciones activadas abajo. La barra lo compara con el total activado. No se mide el contenido de los servidores MCP ni la salida de los hooks.',
   'CLAUDE.md and the rules files Claude Code reads when it starts: what you told it to always follow. Switching one off saves context, and the agent no longer follows it.':
     'CLAUDE.md y los archivos de reglas que Claude Code lee al arrancar: lo que le pediste que siga siempre. Apagar uno ahorra contexto, y el agente deja de seguirlo.',
   'Know-how the agent loads when a task needs it. At start only each one’s short description takes context.':
-    'Conocimientos que el agente carga cuando una tarea los necesita. Al arrancar solo ocupa contexto la descripción corta de cada uno.',
+    'Habilidades que el agente carga cuando una tarea las necesita. Al iniciar, solo la descripción breve de cada una suma contexto.',
   'Outside tools the agent can call (browser, docs, Notion…). How much context they take is not measured.':
     'Herramientas externas que el agente puede usar (navegador, documentación, Notion…). No se mide cuánto contexto ocupan.',
   'Helpers the agent can hand part of a task to. Unticking one here does not switch it off: the agent loads its installed ones as usual.':
     'Ayudantes a los que el agente puede delegar parte de una tarea. Destildar uno acá no lo apaga: el agente carga los que tiene instalados como siempre.',
   'The skills of your Claude account (claude.ai), on top of the ones installed on this computer.':
-    'Las skills de tu cuenta de Claude (claude.ai), además de las instaladas en esta PC.',
+    'Las habilidades de tu cuenta de Claude (claude.ai), además de las instaladas en esta computadora.',
   'Scripts that run on their own at fixed moments (before a command, when a turn ends…). The script takes no context, but what some of them print (at start, before each message) enters the conversation. Not measured.':
     'Scripts que corren solos en momentos fijos (antes de un comando, al terminar un turno…). El script no ocupa contexto, pero lo que imprimen algunos (al arrancar, antes de cada mensaje) entra en la conversación. No se mide.',
   Personalization: 'Personalización',
   'Skills, agents, MCP servers and presets: what a session can load.':
     'Skills, agentes, servidores MCP y presets: lo que una sesión puede cargar.',
   'The API keys each distributor needs, kept sealed.':
-    'Las claves de API que necesita cada distribuidor, guardadas selladas.',
+    'Las claves de API que necesita cada distribuidor, resguardadas.',
   'The Console has no verified update command for this tool.':
     'La Consola no tiene un comando de actualización verificado para esta herramienta.',
   'The home folder is unavailable.': 'La carpeta personal no está disponible.',
@@ -2321,7 +2325,7 @@ export const ES: Readonly<Record<string, string>> = {
   'The skills on disk could not be read.':
     'No se pudieron leer las skills del disco.',
   'A folder holds more than is read: the lists are incomplete.':
-    'Una carpeta tiene más de lo que se lee: las listas están incompletas.',
+    'Una carpeta contiene más elementos de los que se leyeron; las listas están incompletas.',
   Back: 'Volver',
   'Its text could not be read ({reason}).':
     'No se pudo leer su texto ({reason}).',
@@ -2345,7 +2349,7 @@ export const ES: Readonly<Record<string, string>> = {
   'Without project instructions, the agent does not read the project instructions or rules. Your global instructions follow their switch.':
     'Sin las instrucciones del proyecto, el agente no lee sus instrucciones ni reglas. Tus instrucciones globales siguen su interruptor.',
   'The text applies at start. Another open terminal of this launch may see it change; resuming a conversation keeps what it already had.':
-    'El texto se aplica al arrancar. Otra terminal abierta de este lanzamiento puede verlo cambiar; al reanudar una conversación se conserva lo que ya tenía.',
+    'El texto se aplica al iniciar. Si lo cambiás, otras terminales abiertas de este lanzamiento pueden ver el cambio; al reanudar una conversación, se conserva el texto que ya tenían.',
   'The launch instructions file cannot be read. It was not modified.':
     'No se puede leer el archivo de instrucciones de lanzamiento. No se modificó.',
   'The preset “{name}” changes the project instructions, and it cannot be applied now: {reason} Nothing was started.':
@@ -2380,6 +2384,8 @@ export const ES: Readonly<Record<string, string>> = {
     'Se escribe en una terminal nueva al elegir «Actualizar herramienta»; el comando depende de cómo se instaló la herramienta.',
   'Anything to remember about it.':
     'Algo que convenga recordar sobre esta herramienta.',
+  Linux: 'Linux',
+  checksum: 'suma de verificación',
   ...ES_ARSENAL,
   ...ES_NATIVE,
   ...ES_CONFIGURATION,

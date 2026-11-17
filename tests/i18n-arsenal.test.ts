@@ -122,10 +122,10 @@ it('translates Rust format strings whose source escapes the value quotes', () =>
     'La selección conserva «system-skills», que no está instalado para este proveedor.',
   );
   expect(incomingMessage(applied)).toBe(
-    'Selección de Arsenal «Starter»: se desactivan 2 skill(s) instaladas en esta sesión.',
+    'Selección de Arsenal «Starter»: se desactivan las skills instaladas en esta sesión (2).',
   );
   expect(incomingMessage(changed)).toBe(
-    'Selección de Arsenal «Starter»: se desactivan 2 skill(s) instaladas en esta sesión. La configuración cambió entre la vista previa y este registro.',
+    'Selección de Arsenal «Starter»: se desactivan las skills instaladas en esta sesión (2). La configuración cambió entre la vista previa y este registro.',
   );
 
   setLanguage('en');

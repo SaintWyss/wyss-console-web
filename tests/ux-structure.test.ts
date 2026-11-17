@@ -36,12 +36,7 @@ it('offers six entries on the rail, and every other view under More', () => {
   // No view is lost: what the rail does not open itself is under More, optional ones included.
   const all = NAV_ITEMS;
   const more = moreItems(all).map((i) => i.id);
-  expect(more).toEqual([
-    'sessions',
-    'agents',
-    'approvals',
-    'events',
-  ]);
+  expect(more).toEqual(['sessions', 'agents', 'approvals', 'events']);
   for (const item of all)
     expect(
       more.includes(item.id) ||

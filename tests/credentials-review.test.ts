@@ -195,7 +195,7 @@ it('keeps an unsuccessful rename open with its draft so it can be corrected', as
 it.each([
   [
     'name_invalid',
-    'El nombre tiene que tener de 1 a 60 caracteres, no estar en blanco y no tener caracteres de control.',
+    'El nombre debe tener entre 1 y 60 caracteres, no estar vacío ni contener caracteres de control.',
   ],
   [
     'secret_invalid',
@@ -203,9 +203,9 @@ it.each([
   ],
   [
     'store_unavailable',
-    'El almacén de claves de la Consola Wyss no está disponible.',
+    'El almacén de claves de Wyss Console no está disponible.',
   ],
-  ['internal', 'Algo salió mal en la Consola Wyss.'],
+  ['internal', 'Algo salió mal en Wyss Console.'],
 ] as const)('explains %s accurately in Spanish', async (failure, expected) => {
   setLanguage('es');
   const controller = new CredentialsController(() => undefined);

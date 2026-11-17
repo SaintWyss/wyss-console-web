@@ -387,7 +387,7 @@ it('opens in the language that was saved', async () => {
   );
   expect(select('setting-language').value).toBe('es');
   expect(text(page().querySelector('.sessions-count'))).toBe(
-    'Guardado en esta computadora',
+    'Guardadas en esta computadora',
   );
   // Settings names itself; a view the shell titles is titled in the language in force.
   expect(text(page().querySelector('h2'))).toBe('Ajustes');

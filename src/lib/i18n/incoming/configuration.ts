@@ -53,7 +53,7 @@ export const INCOMING: Readonly<Record<string, string>> = {
   'the distributor could not be deleted': 'No se pudo borrar el distribuidor.',
   'a launch with that name exists': 'Ya existe un lanzamiento con ese nombre.',
   unreadable: 'No se pudo leer.',
-  'not a plain file': 'No es un archivo común.',
+  'not a plain file': 'No es un archivo normal.',
   'larger than {size} KiB': 'Supera el límite de {size} KiB.',
   'not UTF-8': 'No tiene una codificación UTF-8 válida.',
   'no preset named “{preset}” for this agent':
@@ -65,20 +65,21 @@ export const INCOMING: Readonly<Record<string, string>> = {
   'directory must be ~, ~/… or an absolute path':
     'la carpeta debe ser ~, ~/… o una ruta absoluta',
   'a launch with that file name is not a plain file':
-    'el lanzamiento con ese nombre de archivo no es un archivo común',
-  "preset must be a preset's name": 'preset debe ser el nombre de un preset',
+    'No se puede guardar el lanzamiento: ya hay un elemento con ese nombre que no es un archivo normal.',
+  "preset must be a preset's name": 'preset debe ser el nombre de un preset.',
   "preset must be a preset's name, 1–{n} characters on one line":
     'preset debe ser el nombre de un preset, de 1 a {n} caracteres en una sola línea',
-  'agent must be claude_code or codex': 'agent debe ser claude_code o codex',
+  'agent must be claude_code or codex':
+    'El agente debe ser claude_code o codex.',
   'session agent must be claude_code or codex':
     'el agente de la sesión debe ser claude_code o codex',
   'only a launch saved from Workspace can be deleted here; edit the others in their file':
     'acá solo se puede borrar un lanzamiento guardado desde Workspace; editá los demás en su archivo',
   'the launch could not be deleted': 'no se pudo borrar el lanzamiento',
-  'unknown launch': 'lanzamiento desconocido',
-  'launch folder: {e}': 'carpeta de lanzamientos: {e}',
+  'unknown launch': 'No se encontró el lanzamiento.',
+  'launch folder: {e}': 'No se pudo acceder a la carpeta de lanzamientos: {e}',
   'only a commands launch has distributions':
-    'solo un lanzamiento de comandos tiene distribuciones',
+    'Solo los lanzamientos de comandos pueden tener distribuciones.',
   'not a launch file': 'no es un archivo de lanzamiento',
   'not a launch file: {message}': 'no es un archivo de lanzamiento: {message}',
   "distro.{id} is this computer's distribution and stays":
@@ -99,13 +100,13 @@ export const INCOMING: Readonly<Record<string, string>> = {
   'at most {n} commands, each one line of at most {m} characters':
     'como máximo {n} comandos, cada uno en una línea de hasta {m} caracteres',
   'distro and template belong to a commands launch':
-    'distro y template pertenecen a un lanzamiento de comandos',
+    'distro y template solo se permiten en lanzamientos de comandos.',
   'a launch has commands or a session, not both':
     'un lanzamiento tiene comandos o una sesión, no ambos',
   'a launch needs commands or a session':
     'un lanzamiento necesita comandos o una sesión',
   'before belongs to a session; put the commands in order instead':
-    'before pertenece a una sesión; ordená los comandos en su lugar',
+    'before solo se usa en sesiones; ordená los comandos en su lugar.',
   'at most {n} distributions': 'como máximo {n} distribuciones',
   'at most {n} before commands, each one line of at most {m} characters':
     'como máximo {n} comandos previos, cada uno en una línea de hasta {m} caracteres',
@@ -118,5 +119,15 @@ export const INCOMING: Readonly<Record<string, string>> = {
   'permission = "edits" is only for claude_code':
     'permission = "edits" es solo para claude_code',
   'profiles were removed: set permission = "ask", "read_only", "edits" or "bypass" in this launch, or remove the profile line to start as configured':
-    'los perfiles se eliminaron: usá permission = "ask", "read_only", "edits" o "bypass" en este lanzamiento, o quitá la línea profile para iniciar según la configuración propia',
+    'Los perfiles se eliminaron. En este lanzamiento, definí permission = "ask", "read_only", "edits" o "bypass", o quitá la línea profile para iniciarlo según su configuración.',
+  'More than {MAX_SKILLS_OFF} installed skills would be switched off.':
+    'Se desactivarían más de {MAX_SKILLS_OFF} skills instaladas.',
+  'Claude Code documents these effort levels: {efforts}. "{effort}" is not one of them, so it is not passed.':
+    'Claude Code documenta estos niveles de razonamiento: {efforts}. No se pasa «{effort}» porque no está entre ellos.',
+  'name must be 1–{n} characters on one line':
+    'El nombre debe tener entre 1 y {n} caracteres, en una sola línea.',
+  'only the first {n} files are read':
+    'Solo se leen los primeros {n} archivos.',
+  'template must be a short lowercase name':
+    'template debe ser un nombre corto en minúscula.',
 };

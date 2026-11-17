@@ -24,40 +24,40 @@ export const INCOMING: Readonly<Record<string, string>> = {
   'Built for {owner}; this terminal runs {target}.':
     'Preparado para {owner}; esta terminal usa {target}.',
   'A {kind} is not switched per session. The provider loads its installed ones as usual.':
-    'Un elemento de tipo {kind} no se activa por sesión. El proveedor carga los que tiene instalados como siempre.',
+    'El proveedor carga los elementos instalados de este tipo como siempre; no se pueden activar ni desactivar por sesión (tipo: {kind}).',
   'Not installed for this provider. Adding stored content to one session needs a qualified session plugin, which is not available.':
-    'No está instalado para este proveedor. Agregar contenido guardado a una sesión requiere un plugin de sesión validado, que no está disponible.',
+    'Esta habilidad no está instalada para este proveedor. Para agregar contenido guardado a una sesión hace falta un plugin de sesión verificado, que no está disponible.',
   'The installed copy is exactly revision {revision}. It stays exposed.':
     'La copia instalada corresponde exactamente a la revisión {revision}. Sigue disponible.',
   'Installed as a link, so its content cannot be compared with this revision.':
-    'Está instalado como enlace, así que no se puede comparar su contenido con esta revisión.',
+    'Está instalada como enlace, por eso no se puede comparar su contenido con esta revisión.',
   'The installed copy differs from revision {revision}. Restore or import so they match; Arsenal does not expose a revision that is not installed.':
-    'La copia instalada no coincide con la revisión {revision}. Restaurar o volver a importar el elemento permite igualarlas; Arsenal no expone una revisión que no esté instalada.',
+    'La copia instalada no coincide con la revisión {revision}. Restaurala o volvé a importarla para que coincida; Arsenal no muestra revisiones que no estén instaladas.',
   'The selection keeps {key}, which is not installed for this provider.':
     'La selección conserva «{key}», que no está instalado para este proveedor.',
   '{count} kept skill(s) are switched off in your own {provider} configuration and stay off: {names}.':
-    '{count} skill(s) que se conservan están desactivadas en tu configuración de {provider} y siguen así: {names}.',
+    'Estas skills conservadas siguen desactivadas en tu configuración de {provider}: {names} ({count}).',
   'Hooks, permissions and MCP servers: as your settings say.':
     'Hooks, permisos y servidores MCP: según tus ajustes.',
   "The provider's built-in skills.": 'Las skills incluidas en el proveedor.',
   "Codex's own system skills (~/.codex/skills/.system) and the skills your config.toml already switches.":
     'Las skills de sistema de Codex (~/.codex/skills/.system) y las que tu config.toml ya desactiva.',
   'Plugin {plugin} keeps its {count} skill(s): plugin skills are not switched off by skill overrides.':
-    'El plugin {plugin} conserva {count} skill(s): las skills de plugins no se desactivan con las anulaciones de skills.',
+    'El plugin {plugin} conserva sus skills ({count}): las anulaciones no desactivan las skills de los plugins.',
   '{name}: missing {kind} "{dependency}".':
     '{name}: falta {kind} «{dependency}».',
   'Some installed skills could not be read, so the exclusion would be incomplete. Nothing is applied.':
-    'No se pudieron leer algunas skills instaladas, así que la exclusión quedaría incompleta. No se aplica.',
+    'No se pudieron leer algunas habilidades instaladas; la exclusión quedaría incompleta y no se aplicaría ningún cambio.',
   'More than {count} installed skills would be switched off.':
-    'Se desactivarían más de {count} skills instaladas.',
+    'Se desactivarían más de {count} habilidades instaladas.',
   'The installed provider build could not be identified. Nothing is applied.':
     'No se pudo identificar la versión instalada del proveedor. No se aplica.',
   'Skill exclusion is qualified for {version}. Start applies it to this terminal only.':
-    'La exclusión de skills está validada para la versión {version}. Al iniciar, se aplica solo a esta terminal.',
+    'La opción para desactivar habilidades está verificada para la versión {version}. Al iniciar, se aplica solo a esta terminal.',
   '{provider} has no qualified per-session skill switch: the session layer of [[skills.config]] and the shared app-server daemon are not proven. The selection can be recorded, not applied.':
-    'No se verificó una forma de desactivar skills por sesión en {provider}: no está comprobada la capa de sesión de [[skills.config]] ni el daemon app-server compartido. La selección se puede registrar, pero no aplicar.',
+    'No hay una opción verificada para desactivar habilidades por sesión en {provider}: no se comprobó la capa de sesión de [[skills.config]] ni el servidor app-server compartido. La selección se puede guardar, pero no aplicar.',
   'Skill exclusion is not qualified for Claude Code {version}. The selection can be recorded, not applied.':
-    'La exclusión de skills no está validada para Claude Code {version}. La selección se puede registrar, pero no aplicar.',
+    'La opción para desactivar habilidades no está verificada para Claude Code {version}. La selección se puede guardar, pero no aplicar.',
   'Started with this exact exclusion. Whether the provider used it is not observed.':
     'Se inició con esta exclusión exacta. No se observó si el proveedor la usó.',
   'Started without applying the selection.':
@@ -79,18 +79,17 @@ export const INCOMING: Readonly<Record<string, string>> = {
   'A skill the Arsenal selection switches off is no longer installed. Check the plan again.':
     'Una skill que la selección de Arsenal desactiva ya no está instalada. Revisa el plan de nuevo.',
   'Arsenal selection {selection}: {count} installed skill(s) switched off for this session.':
-    'Selección de Arsenal «{selection}»: se desactivan {count} skill(s) instaladas en esta sesión.',
+    'Selección de Arsenal «{selection}»: se desactivan las skills instaladas en esta sesión ({count}).',
   'Arsenal selection {selection}: {count} installed skill(s) switched off for this session, which runs without the shared Codex server.':
-    'Selección de Arsenal «{selection}»: esta sesión se inicia sin el servidor compartido de Codex y desactiva {count} skills instaladas.',
+    'Selección de Arsenal «{selection}»: esta sesión se inicia sin el servidor compartido de Codex y desactiva las skills instaladas ({count}).',
   'without CLAUDE.md and rules': 'sin CLAUDE.md ni archivos de reglas',
-  '{count} rule file(s) left out': '{count} archivo(s) de reglas omitido(s)',
-  '{count} hook(s) left out': '{count} hook(s) omitido(s)',
-  'only {count} MCP server(s)': 'solo {count} servidor(es) MCP',
-  '{count} plugin(s) off': '{count} plugin(s) desactivado(s)',
+  '{count} rule file(s) left out': 'Archivos de reglas omitidos: {count}',
+  '{count} hook(s) left out': 'Hooks omitidos: {count}',
+  'only {count} MCP server(s)': 'Servidores MCP conservados: {count}',
+  '{count} plugin(s) off': 'Plugins desactivados: {count}',
   'auto memory off': 'memoria automática desactivada',
   'without your agents': 'sin tus agentes',
-  '{count} account skill(s) off':
-    '{count} skill(s) de la cuenta desactivada(s)',
+  '{count} account skill(s) off': 'Skills de la cuenta desactivadas: {count}',
   'Own launch folder, signed in with the stored long-lived token: {changes}.':
     'Carpeta de lanzamiento propia, con inicio de sesión mediante el token de larga duración guardado: {changes}.',
   'without AGENTS.md': 'sin AGENTS.md',

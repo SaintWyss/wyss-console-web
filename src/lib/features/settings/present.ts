@@ -13,6 +13,7 @@ import {
   type AuthorityObservation,
 } from '../../shell/authority';
 import type { LifecycleObservation } from '../../shell/lifecycle';
+import { t } from '../../i18n/index.svelte';
 import { msg } from '../../i18n/msg';
 import type { RuntimeTone } from '../../shell/runtime';
 
@@ -197,6 +198,6 @@ export function authorityFacts(
 /** `linux-x86_64` as a person would say it. */
 export function platformLabel(platform: string): string {
   const [system, architecture] = platform.split('-');
-  const name = system === 'linux' ? 'Linux' : system;
+  const name = system === 'linux' ? t('Linux') : system;
   return `${name} (${architecture})`;
 }

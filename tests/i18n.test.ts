@@ -199,14 +199,12 @@ it('draws the events sentences in Spanish, with their nested places', () => {
     facts: { expected: true, exit: 'child_exited' },
   });
   setLanguage('es');
-  expect(t(eventTitle(proposal))).toBe(
-    'Aprobación de cambio de archivo pedida',
-  );
+  expect(t(eventTitle(proposal))).toBe('Se pidió aprobar un cambio de archivo');
   expect(tPhrase(eventDetail(proposal))).toBe(
-    'Codex propuso un cambio de archivo y la autoridad retuvo esa propuesta para decidir. La propuesta en sí no forma parte del registro.',
+    'Codex propuso un cambio de archivo y la autoridad dejó la propuesta pendiente de aprobación. La propuesta en sí no forma parte del registro.',
   );
   expect(tPhrase(eventDetail(granted))).toBe(
-    'La autoridad otorgó una concesión para esta sesión. Permitió a la sesión conectarse a Codex, iniciar un turno.',
+    'La autoridad otorgó un permiso de ejecución a esta sesión. Ese permiso le permitía a la sesión conectarse a Codex, iniciar un turno.',
   );
   expect(tPhrase(eventDetail(ready))).toBe(
     'Codex 0.9.1 se inició, se verificó y está listo.',

@@ -6,7 +6,7 @@ afterEach(() => setLanguage('en'));
 it.each([
   ['directory not found', 'no se encontró la carpeta'],
   ['directory is not a folder', 'la ruta no es una carpeta'],
-  ['unknown launch', 'lanzamiento desconocido'],
+  ['unknown launch', 'No se encontró el lanzamiento.'],
   ['each distribution once', 'cada distribución debe aparecer una sola vez'],
   [
     'a launch needs commands or at least one distribution',
