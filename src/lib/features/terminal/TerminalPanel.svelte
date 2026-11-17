@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { memoryText } from '../../desktop/terminal-client';
   import { onMount, tick } from 'svelte';
   import type {
     TerminalSession,
@@ -16,6 +17,7 @@
     focused,
     place,
     searching,
+    memory = null,
     manager,
     onsearchclose,
     nativeRecord = null,
@@ -33,6 +35,8 @@
     /** Where the pane sits in its tab, as fractions of the area. */
     place: { x: number; y: number; w: number; h: number };
     searching: boolean;
+    /** RSS bytes of this terminal's process tree; null when not read. */
+    memory?: number | null;
     manager: TerminalSessionManager;
     onsearchclose: () => void;
     nativeRecord?: NativeSession | null;
@@ -160,6 +164,11 @@
           >{t('Terminal failed: {reason}', {
             reason: t(failureWords(session.view.error)),
           })}</span
+        >{/if}
+      {#if memory !== null && session.view.state === 'running'}<span
+          class="terminal-memory"
+          title={t('Memory this terminal and what runs in it use')}
+          >· {memoryText(memory)}</span
         >{/if}
       {#if session.view.truncated}
         · {t('Output truncated')}{/if}

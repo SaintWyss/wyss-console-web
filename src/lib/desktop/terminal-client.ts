@@ -159,6 +159,23 @@ export async function terminalGitStatus(
     await invoke<unknown>('terminal_git_status', { request: { terminal_id } }),
   );
 }
+/** Memory (RSS bytes) of the terminal's process tree; `null` when it is not running. */
+export async function terminalMemory(
+  terminal_id: TerminalId,
+): Promise<number | null> {
+  const answer = await invoke<{ rss_bytes?: unknown }>('terminal_memory', {
+    request: { terminal_id },
+  });
+  const bytes = answer?.rss_bytes;
+  return typeof bytes === 'number' && Number.isFinite(bytes) && bytes >= 0
+    ? bytes
+    : null;
+}
+/** 84 MB, 1.2 GB: memory for a glance, not for accounting. */
+export function memoryText(bytes: number): string {
+  const mb = bytes / 1024 / 1024;
+  return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${Math.round(mb)} MB`;
+}
 export async function closeTerminal(
   terminal_id: TerminalId,
 ): Promise<TerminalInfo> {

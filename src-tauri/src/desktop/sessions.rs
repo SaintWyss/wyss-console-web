@@ -643,6 +643,7 @@ mod tests {
             "allow-terminal-redraw",
             // The git state of a session's own folder, for the session bar. Read only.
             "allow-terminal-git-status",
+            "allow-terminal-memory",
             "allow-terminal-attach",
             "allow-terminal-attach-commit",
             "allow-host-persistence",

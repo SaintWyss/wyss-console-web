@@ -4020,3 +4020,14 @@ li.native-row .native-note {
   min-height: 44px;
   padding: 4px 8px;
 }
+
+/* Memory of a terminal and of a tab: read at a glance, quieter than the state. */
+.terminal-memory,
+.tab-memory {
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+.tab-memory {
+  margin-left: 8px;
+}

@@ -206,6 +206,32 @@ pub async fn terminal_status(
     blocking(move || link.call("term_status", json!({"terminal_id": request.terminal_id}))).await
 }
 
+/// Memory the terminal's process and everything it started hold now (RSS, bytes), read from
+/// /proc. The window names a terminal it has, never a process: the host answers which process
+/// that is. `null` when the terminal is not running or its process is gone.
+#[tauri::command]
+pub async fn terminal_memory(
+    link: State<'_, HostLink>,
+    request: TargetRequest,
+) -> Result<Value, WireError> {
+    if !id_ok(&request.terminal_id) {
+        return Err(invalid());
+    }
+    let link = link.inner().clone();
+    blocking(move || {
+        let info = link.call("term_status", json!({"terminal_id": request.terminal_id}))?;
+        let bytes = info
+            .get("observed_pid")
+            .and_then(Value::as_u64)
+            .filter(|_| info.get("state").and_then(Value::as_str) == Some("running"))
+            .and_then(|pid| i32::try_from(pid).ok())
+            .and_then(|pid| crate::native::resources::Snapshot::take()?.tree(pid))
+            .map(|sample| sample.rss_bytes);
+        Ok(json!({ "rss_bytes": bytes }))
+    })
+    .await
+}
+
 /// The git state of a session's folder (session bar). The folder is the one the host holds for
 /// that terminal, never a path from the window: the window can only name a terminal it has.
 #[tauri::command]
@@ -570,6 +596,7 @@ const COMMANDS: &[&str] = &[
     "close_terminal",
     "terminal_status",
     "terminal_git_status",
+    "terminal_memory",
     "terminal_redraw",
     "terminal_attach",
     "terminal_attach_commit",
@@ -591,6 +618,7 @@ pub fn extension() -> wyss_console::Extension {
             close_terminal,
             terminal_status,
             terminal_git_status,
+            terminal_memory,
             terminal_redraw,
             terminal_attach,
             terminal_attach_commit,

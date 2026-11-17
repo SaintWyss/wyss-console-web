@@ -37,7 +37,11 @@
     type EstimateData,
   } from '../workspace/data';
   import { kTokens } from '../workspace/estimate';
-  import { terminalGitStatus } from '../../desktop/terminal-client';
+  import {
+    memoryText,
+    terminalGitStatus,
+    terminalMemory,
+  } from '../../desktop/terminal-client';
 
   const EMPTY_NATIVE: NativeState = {
     phase: 'idle',
@@ -75,6 +79,33 @@
   let manager = $state<TerminalSessionManager>();
   let strip: HTMLDivElement;
   let area = $state<HTMLDivElement>();
+  /** RSS bytes of each running terminal's process tree, by session id. */
+  let memory = $state<Record<string, number>>({});
+  // Read every 2 s, only while the Console is on screen.
+  $effect(() => {
+    if (!visible || !manager) return;
+    const read = () => {
+      for (const session of workspace.sessions) {
+        const id = session.view.info?.terminal_id;
+        if (session.view.state !== 'running' || !id) continue;
+        void terminalMemory(id).then(
+          (bytes) => {
+            if (bytes === null) delete memory[session.id];
+            else memory[session.id] = bytes;
+          },
+          () => undefined,
+        );
+      }
+    };
+    read();
+    const timer = setInterval(read, 2000);
+    return () => clearInterval(timer);
+  });
+  const tabMemory = (tabId: string) =>
+    workspace.sessions
+      .filter((s) => tabOf(s.id)?.id === tabId)
+      .reduce((sum, s) => sum + (memory[s.id] ?? 0), 0);
+
   let searchFor = $state<ConsoleSessionId>();
   /** The launch panel (ADR 0059): the owner's launch files, read when it opens. */
   let launches = $state<LaunchList | null>(null);
@@ -400,7 +431,9 @@
                 >◆</span
               >{/if}{tabTitle(tab)}{#if tabState(tab) !== 'running'}&#32;· {tabStatus(
                 tab,
-              )}{/if}
+              )}{/if}{#if tabMemory(tab.id) > 0}<span class="tab-memory"
+                >{memoryText(tabMemory(tab.id))}</span
+              >{/if}
           </button>
           <button
             class="tab-close"
@@ -649,6 +682,7 @@
             ? arrangement?.panes.get(session.id)
             : undefined) ?? WHOLE}
           searching={searchFor === session.id}
+          memory={memory[session.id] ?? null}
           {manager}
           onsearchclose={() => (searchFor = undefined)}
         />

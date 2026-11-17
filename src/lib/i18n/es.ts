@@ -2103,6 +2103,8 @@ export const ES: Readonly<Record<string, string>> = {
     'Este proyecto está en una carpeta que otra cuenta puede escribir. Arsenal lo lista como solo lectura y no lo copia.',
   'This skill cannot be imported.': 'Esta skill no se puede importar.',
   // Workspace redesign (tabs)
+  'Memory this terminal and what runs in it use':
+    'Memoria que usan esta terminal y lo que corre adentro',
   'Global instructions': 'Instrucciones globales',
   'Your own instruction files. Open one to read it.':
     'Tus archivos de instrucciones. Tocá uno para ver su texto.',
