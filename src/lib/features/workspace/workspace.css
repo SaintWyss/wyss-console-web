@@ -519,8 +519,3 @@ h1.ws-title {
   text-align: left;
 }
 
-/* A select with few short choices: sized to them, not to the row. */
-.ws-short > select {
-  width: 240px;
-  max-width: 100%;
-}

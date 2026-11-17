@@ -254,7 +254,7 @@ it('warns when launch instructions are unreadable and does not overwrite them', 
   expect(document.body.textContent).toContain(
     'The launch instructions file cannot be read',
   );
-  openTab('Instructions');
+  openTab('General');
   expect(document.querySelector('#project-instructions')).toBeNull();
   expect(document.body.textContent).toContain(
     'Not available: the instructions file could not be read.',
@@ -702,6 +702,7 @@ it('each General field says what it is, and Mode is gone', async () => {
     'Application',
     'Working directory',
     'Permissions',
+    'Project instructions',
   ]);
   for (const [, hint] of labels) expect(hint).not.toBe('');
 });
@@ -879,7 +880,7 @@ it('does not draw the environment of a preset whose file cannot be read, says so
 });
 
 function projectInstructions(mode: 'load' | 'exclude' | 'role') {
-  openTab('Instructions');
+  openTab('General');
   const select = document.querySelector<HTMLSelectElement>(
     '#project-instructions',
   )!;
@@ -1020,7 +1021,6 @@ it.each([false, true])(
 
 it('explains only the chosen project mode and shows the custom text only for it', async () => {
   await show([session('estudiar', 'Estudio')]);
-  openTab('Instructions');
   const help = () =>
     document
       .querySelector('#project-instructions')!
@@ -1102,7 +1102,6 @@ it('regression: rechecking a pinned skill keeps the revision that was evaluated'
 
 it('regression: unreadable instructions are not described as excluded', async () => {
   await show([session('estudiar', 'Estudio')], { failInstructions: true });
-  openTab('Instructions');
   expect(document.body.textContent).toContain(
     'Not available: the instructions file could not be read.',
   );
@@ -1276,7 +1275,6 @@ it('regression: variant save errors translate host codes into sentences', async 
 it('regression: Workspace copy describes the project modes in both languages', async () => {
   const { setLanguage } = await import('../src/lib/i18n/index.svelte');
   await show([session('estudiar', null)]);
-  openTab('Instructions');
   const modes = () =>
     [
       ...document.querySelector<HTMLSelectElement>('#project-instructions')!

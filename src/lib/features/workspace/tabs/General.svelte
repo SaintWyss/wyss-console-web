@@ -19,6 +19,21 @@
   const folders = $derived([
     ...new Set([draft.directory, ...ws.saved, ...ws.used.map((u) => u.path)]),
   ]);
+  const MODE_HELP = {
+    load: 'The agent reads the project’s instructions as well as yours.',
+    exclude:
+      'The agent does not read the project’s instructions or rules; yours follow their switches.',
+    role: 'The agent reads the text below instead of the project’s instructions.',
+  } as const;
+
+  function setMode(mode: 'load' | 'exclude' | 'role') {
+    const role =
+      draft.instructions && 'role' in draft.instructions
+        ? draft.instructions.role
+        : '';
+    draft.instructions =
+      mode === 'load' ? { project: 'load' } : { project: mode, role };
+  }
 </script>
 
 <div class="ws-row">
@@ -90,3 +105,49 @@
     </p>
   </div>
 </div>
+
+<div class="ws-row">
+  <div>
+    <label class="ws-label" for="project-instructions"
+      >{t('Project instructions')}</label
+    >
+    <p class="ws-hint">
+      {t('The CLAUDE.md or AGENTS.md of the working directory.')}
+    </p>
+  </div>
+  {#if draft.instructions}
+    <div class="ws-control">
+      <select
+        id="project-instructions"
+        disabled={ws.busy}
+        value={draft.instructions.project}
+        onchange={(e) =>
+          setMode(e.currentTarget.value as 'load' | 'exclude' | 'role')}
+      >
+        <option value="load">{t('Load')}</option>
+        <option value="exclude">{t('Skip')}</option>
+        <option value="role">{t('Custom text')}</option>
+      </select>
+      <p class="ws-hint">{t(MODE_HELP[draft.instructions.project])}</p>
+    </div>
+  {:else}
+    <p class="ws-hint" role="alert">
+      {t('Not available: the instructions file could not be read.')}
+    </p>
+  {/if}
+</div>
+{#if draft.instructions?.project === 'role'}
+  <div class="ws-row">
+    <div>
+      <label class="ws-label" for="custom-instructions"
+        >{t('Custom text')}</label
+      >
+      <p class="ws-hint">{t('Read instead of the project’s instructions.')}</p>
+    </div>
+    <textarea
+      id="custom-instructions"
+      class="ws-commands"
+      disabled={ws.busy}
+      bind:value={draft.instructions.role}></textarea>
+  </div>
+{/if}
