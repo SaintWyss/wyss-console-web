@@ -12,6 +12,7 @@
  */
 import { execFileSync } from 'node:child_process';
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { emptyFragment, replaceValue } from './fold-screen-i18n-lib.mjs';
 
 const dry = process.argv.includes('--dry');
 const DIR = 'src/lib/i18n/screens';
@@ -45,29 +46,6 @@ for (const f of screens) {
         throw new Error(`"${en}": ${had.from} and ${f} disagree`);
       into.set(en, { es, from: f });
     }
-}
-
-/** The key as it may be written in a dictionary: single-quoted (prettier) or double-quoted. */
-function keyForms(en: string): string[] {
-  const single = `'${en.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
-  return [single, JSON.stringify(en)];
-}
-
-/** Replaces the value of `en` in `text`, or returns null when the key is not there. */
-function replaceValue(text: string, en: string, es: string): string | null {
-  for (const key of keyForms(en)) {
-    const at = text.indexOf(`\n  ${key}:`);
-    if (at < 0) continue;
-    const valueStart = at + 3 + key.length + 1;
-    // The value is the next quoted string, on this line or the next one.
-    const m = /\s*('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")/y;
-    m.lastIndex = valueStart;
-    const found = m.exec(text);
-    if (!found) throw new Error(`cannot read the value of "${en}"`);
-    const end = valueStart + found[0].length;
-    return `${text.slice(0, valueStart)} ${JSON.stringify(es)}${text.slice(end)}`;
-  }
-  return null;
 }
 
 function drawnIn(en: string): string {
@@ -134,13 +112,5 @@ fold(
 );
 
 if (!dry)
-  for (const f of screens) {
-    const path = `${DIR}/${f}`;
-    writeFileSync(
-      path,
-      readFileSync(path, 'utf8').replace(
-        /(export const (?:ES|INCOMING)_SCREEN: Readonly<Record<string, string>> = )\{[\s\S]*?\n?\};/g,
-        '$1{};',
-      ),
-    );
-  }
+  for (const f of screens)
+    writeFileSync(`${DIR}/${f}`, emptyFragment(f.replace(/\.ts$/, '')));
