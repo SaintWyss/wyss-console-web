@@ -688,7 +688,7 @@ it('hovering each field and each group says what it is', async () => {
       (f) => f.querySelector('span')?.textContent === label,
     )!;
   expect(field('Mode').title).toContain('Managed');
-  expect(field('Permissions').title).toContain('without asking');
+  expect(field('Permissions').hasAttribute('title')).toBe(false);
   expect(field('Role').title).toContain('does not change what the agent does');
   expect(field('Folder').title).toContain('Where the agent works');
   expect(
@@ -1197,20 +1197,32 @@ it('regression: says when unavailable items were removed from the draft', async 
   );
 });
 
-it('regression: the agent estimate does not shrink when an individual agent is unchecked', async () => {
-  await show([session('estudiar', null)]);
+it('shows provider agents as information without changing the saved preset', async () => {
+  const { calls } = await show([session('estudiar', 'Estudio')]);
   const agents = [...document.querySelectorAll('.le-group')].find((g) =>
     g.querySelector('.le-gtoggle')?.textContent?.includes('Agents'),
   )!;
   agents.querySelector<HTMLButtonElement>('.le-gtoggle')!.click();
   flushSync();
-  const cost = agents.querySelector('.le-cost')!.textContent;
-  agents.querySelector<HTMLInputElement>('.le-row input')!.click();
-  flushSync();
-  expect(agents.querySelector('.le-cost')!.textContent).toBe(cost);
+  expect(agents.querySelectorAll('input, select')).toHaveLength(0);
+  expect(agents.querySelectorAll('.le-row')).toHaveLength(1);
   expect(
     agents.querySelector<HTMLButtonElement>('.le-gtoggle')!.title,
-  ).toContain('does not switch it off');
+  ).toContain('informational');
+  choose(fieldSelect('Permissions'), 'ask');
+  button('Save').click();
+  await settle();
+  expect(calls.saveSelection).toBeUndefined();
+});
+
+it('keeps permission reasons on the select and options without duplicate label help', async () => {
+  await show([session('estudiar', null)]);
+  const select = fieldSelect('Permissions');
+  expect(select.title).not.toBe('');
+  expect(select.closest('label')!.hasAttribute('title')).toBe(false);
+  expect([...select.options].filter((o) => o.value).every((o) => o.title)).toBe(
+    true,
+  );
 });
 
 it('regression: preserves the cause when deleting a launch fails', async () => {

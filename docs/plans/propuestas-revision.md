@@ -1,6 +1,6 @@
 # Propuestas de la revisión por áreas (para el dueño)
 
-De la corrección por áreas, hecha por Sol Medium y revisada por Opus. Nada de esto está aplicado.
+Aplicadas el 2026-11-17: 1, 2, 3, 6, 7, 8, 11, 12, 13, 15, 16, 17, 18. Quedan: 14 (va con la traducción); 4, 5, 9, 10 se dejan como están por decisión del dueño.
 
 ## Shell
 

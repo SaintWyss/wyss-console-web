@@ -206,11 +206,9 @@ export function mapOf(
         );
       }
       for (const [section, label] of [
-        ['hooks', text.hooks],
         ['mcp', text.mcp],
         ['global', text.configuration],
       ] as const) {
-        if (section === 'hooks' && withHooks) continue;
         const count = configItems.filter(
           (item) =>
             item.provider === tool && CONFIG_KINDS[section].includes(item.kind),

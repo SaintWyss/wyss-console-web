@@ -303,6 +303,18 @@ export async function openLaunch(
   // what the window cannot tell (another name of the same folder) the host refuses.
   if (apply && plan && (await ownFolderInHome(plan, agent, directory, deps)))
     throw new LaunchRefusal(HOME_FOLDER_REFUSED);
+  const preview = await deps.preview(agent, profileId, apply ? arsenal : null);
+  if (!preview.can_start)
+    throw new LaunchRefusal(
+      apply
+        ? msg(
+            'The Arsenal selection “{name}” cannot be applied with this permission. Choose the preset for this launch in Workspace, then try again. The agent was not started.',
+          )
+        : msg(
+            'The launch “{name}” cannot start with this permission. No commands were run.',
+          ),
+      { name: plan?.selection_name ?? launch.name },
+    );
   const notes: LaunchNote[] = (await deps.runBefore(launch.id))
     .filter((o) => o.result !== 'ok')
     .map((o) => ({
@@ -311,14 +323,6 @@ export async function openLaunch(
       ),
       values: { result: o.result },
     }));
-  const preview = await deps.preview(agent, profileId, apply ? arsenal : null);
-  if (apply && !preview.can_start)
-    throw new LaunchRefusal(
-      msg(
-        'The Arsenal selection “{name}” cannot be applied with this permission. Choose the preset for this launch in Workspace, then try again. The agent was not started.',
-      ),
-      { name: plan!.selection_name },
-    );
   const reply = await deps
     .start(agent, directory, profileId, preview, apply ? arsenal : null)
     .catch((error: unknown) => {

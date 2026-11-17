@@ -406,7 +406,7 @@ describe('a session launch and the Arsenal selection its folder remembers', () =
     expect(d.start).not.toHaveBeenCalled();
   });
 
-  it('does not claim nothing ran when before commands preceded a permission refusal', async () => {
+  it('refuses permission before running any before command', async () => {
     const { d } = deps(session(), undefined, {
       selection: 'sel-1',
       canStart: false,
@@ -414,7 +414,7 @@ describe('a session launch and the Arsenal selection its folder remembers', () =
     const refusal = (await openLaunch('codex', d).catch(
       (error: unknown) => error,
     )) as LaunchRefusal;
-    expect(d.runBefore).toHaveBeenCalledOnce();
+    expect(d.runBefore).not.toHaveBeenCalled();
     expect(d.start).not.toHaveBeenCalled();
     expect(refusal).toBeInstanceOf(LaunchRefusal);
     expect(t(refusal.template, refusal.values)).toContain(
@@ -907,3 +907,10 @@ it.each(['name_collision', 'methodology_conflict', 'exclusion_limit'] as const)(
     expect(d.start).not.toHaveBeenCalled();
   },
 );
+
+it('refuses a permission preview without an applied preset before running commands', async () => {
+  const { d } = deps(session(), undefined, { canStart: false });
+  await expect(openLaunch('codex', d)).rejects.toThrow('No commands were run.');
+  expect(d.runBefore).not.toHaveBeenCalled();
+  expect(d.start).not.toHaveBeenCalled();
+});

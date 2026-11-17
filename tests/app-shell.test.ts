@@ -197,7 +197,6 @@ it('renders the shell with brand, every view enabled and Console selected', asyn
     'Agents',
     'Approvals',
     'Events',
-    'Settings',
   ]);
   // No item is a placeholder.
   expect(document.querySelector('.nav-tag:not(.waiting)')).toBeNull();
@@ -347,7 +346,7 @@ it('follows authority restarts without touching the terminal workspace', async (
 it('names the protocol 1 status independently of protocol 2 runtimes', async () => {
   component = mount(App, { target: document.body });
   await flush();
-  expect(pill('authority')?.textContent).toContain('Authority P1');
+  expect(pill('authority')?.textContent).toContain('Authority');
   expect(pill('authority')?.getAttribute('title')).toContain(
     'Protocol 1 authority',
   );

@@ -51,6 +51,8 @@ export class GuideStore {
   choose(next: { tool?: GuideTool; section?: GuideSection }): void {
     if (next.tool !== undefined) this.tool = next.tool;
     if (next.section !== undefined) this.section = next.section;
+    if (this.tool === 'opencode' && this.section === 'hooks')
+      this.section = 'global';
     this.close();
   }
 

@@ -509,7 +509,10 @@
                 <button
                   type="button"
                   class="action primary"
-                  disabled={!connected || pending || hint !== null}
+                  disabled={!connected ||
+                    pending ||
+                    selected.binding === 'bound_attached' ||
+                    hint !== null}
                   onclick={() => controller.resume(selected.id)}
                   >{t('Resume')}</button
                 >

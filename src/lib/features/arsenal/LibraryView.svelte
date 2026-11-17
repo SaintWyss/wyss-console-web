@@ -104,10 +104,7 @@
   });
   $effect(() => {
     // OpenCode has only its configuration pages.
-    if (
-      store.tool === 'opencode' &&
-      !['hooks', 'mcp', 'global'].includes(store.section)
-    )
+    if (store.tool === 'opencode' && !['mcp', 'global'].includes(store.section))
       store.choose({ section: 'global' });
   });
 
@@ -303,8 +300,6 @@
   );
   /** Kept entries have no provider or kind in their public metadata. */
   let parkedOpen = $state(false);
-  /** The tool used by the add-hook form on the kept-entries page. */
-  let parkedTool = $state<'claude_code' | 'codex'>('claude_code');
   const parked = $derived(
     (changes.records ?? []).filter((r) => r.state === 'parked'),
   );
@@ -363,7 +358,6 @@
   {#snippet parkedPanel()}
     <div class="ars-config-inline">
       <h2 class="ab-title">{t('Kept aside')}</h2>
-      {@render listTop(`${parkedTool}/hooks/${addEvent}`)}
       {#if changes.records === null}
         {#if changes.failure}
           <p role="alert">{t(CHANGE_FAILURE_TEXT[changes.failure])}</p>
@@ -818,8 +812,7 @@
       {listTop}
       configShown={configOpen || parkedOpen}
       configView={parkedOpen ? parkedPanel : configPanel}
-      onparked={(key) => {
-        parkedTool = key.startsWith('codex/') ? 'codex' : 'claude_code';
+      onparked={() => {
         leave();
         store.close();
         openItemId = null;

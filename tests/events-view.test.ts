@@ -713,3 +713,57 @@ it('identifies an approval by its session when Events was opened first and Sessi
     `rag-corp · session ${S2} · turn ${T2.slice(0, 8)}`,
   ]);
 });
+
+it.each(['success', 'failure'] as const)(
+  'discards a superseded approval lookup %s after reconnecting',
+  async (outcome) => {
+    const ipc = await opened(
+      () => ({
+        ...rawPage(2, 2),
+        events: [
+          row(2, 'approval_requested', {
+            facts: { approval_kind: 'command_execution' },
+          }),
+          row(1, 'approval_requested', {
+            approval: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+            facts: { approval_kind: 'command_execution' },
+          }),
+        ],
+      }),
+      '2',
+    );
+    await click(rows()[0]);
+    let resolve!: (value: unknown) => void;
+    let reject!: (reason: unknown) => void;
+    ipc.world.approval = () =>
+      new Promise((yes, no) => {
+        resolve = yes;
+        reject = no;
+      });
+    await click(button('Check what it is now', details()!));
+    await ipc.tell(views.waiting_absent);
+    await ipc.tell(ready('2', 6));
+    ipc.world.approval = () => ({
+      approval: { ...approvals.recent[0], id: A1 },
+      workspace: '/home/dev/rag-corp',
+      command: null,
+      files: null,
+      file: null,
+    });
+    // Read another approval before returning to the first ID: the old request is still pending.
+    await click(rows()[1]);
+    await click(button('Check what it is now', details()!));
+    await click(rows()[0]);
+    await click(button('Check what it is now', details()!));
+    expect(text(details())).toContain('Now: Approved.');
+    if (outcome === 'failure') reject({ code: 'unavailable', retry: true });
+    else
+      resolve({
+        ...approvals.command,
+        approval: { ...approvals.command.approval, id: A1 },
+      });
+    await flush();
+    expect(text(details())).toContain('Now: Approved.');
+    expect(text(details())).not.toContain('The approval could not be read');
+  },
+);

@@ -157,24 +157,50 @@ it('does not offer an unsupported Claude MCP creation', () => {
   ).not.toContain('Add an MCP server…');
 });
 
-it('authors a Codex hook for Codex and does not offer the Claude all-hooks switch', async () => {
-  const { authorHook } = embedded('codex', 'hook');
-  expect
-    .soft([...document.querySelectorAll('button')].map((node) => text(node)))
-    .not.toContain('Turn off every hook');
-  button('Add a hook…').click();
+it('offers hook creation only over the event list, not embedded configuration', async () => {
+  embedded('codex', 'hook');
+  expect(
+    [...document.querySelectorAll('button')].map((node) => text(node)),
+  ).not.toContain('Add a hook…');
+  await unmount(component!);
+  component = undefined;
+  document.body.replaceChildren();
+  await library([hook({ provider: 'codex', source: 'codex_user_config' })]);
+  const root = button('OpenAI · Codex');
+  root.click();
   flushSync();
-  document
-    .querySelector('form')!
-    .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-  await settle();
-  expect(authorHook).toHaveBeenCalledWith(
-    'PreToolUse',
-    null,
-    null,
-    false,
-    'codex',
-  );
+  [...root.closest('li')!.querySelectorAll<HTMLButtonElement>('button')]
+    .find((node) => text(node.querySelector('.ab-label') ?? node) === 'Hooks')!
+    .click();
+  flushSync();
+  button('Before a tool runs').click();
+  flushSync();
+  expect(
+    [...document.querySelectorAll('button')].filter(
+      (node) => text(node) === 'Add a hook',
+    ),
+  ).toHaveLength(1);
+  button('Add a hook').click();
+  flushSync();
+  expect(document.querySelector('form.ars-add')).not.toBeNull();
+});
+
+it('shows the Codex hook trust notice once when its card is open', async () => {
+  await library([hook({ provider: 'codex', source: 'codex_user_config' })]);
+  const root = button('OpenAI · Codex');
+  root.click();
+  flushSync();
+  [...root.closest('li')!.querySelectorAll<HTMLButtonElement>('button')]
+    .find((node) => text(node.querySelector('.ab-label') ?? node) === 'Hooks')!
+    .click();
+  flushSync();
+  button('Before a tool runs').click();
+  flushSync();
+  button('Bash').click();
+  flushSync();
+  expect(
+    text().split('Codex asks you to trust a new or changed hook'),
+  ).toHaveLength(2);
 });
 
 it('labels records of unknown type as kept entries and nests their plan inside the list item', async () => {

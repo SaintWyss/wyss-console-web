@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest';
 import type { Guide, Selection } from '../src/lib/contracts/arsenal';
+import { GuideStore } from '../src/lib/features/arsenal/guide-store.svelte';
 import { mapOf, type MapText } from '../src/lib/features/arsenal/map';
 
 const text: MapText = {
@@ -53,4 +54,31 @@ it('adds one counted Presets node under each supported tool', () => {
       tool: 'codex',
     },
   ]);
+});
+
+it('omits Hooks from OpenCode while keeping MCP and Configuration', () => {
+  const roots = mapOf(
+    { entries: [], sets: [], truncated: false },
+    [],
+    ['opencode'],
+    text,
+    [],
+  );
+  const keys = roots.flatMap((root) =>
+    root.kind === 'branch' ? root.children.map((child) => child.key) : [],
+  );
+  expect(keys).not.toContain('opencode/hooks');
+  expect(keys).toContain('opencode/mcp');
+  expect(keys).toContain('opencode/global');
+});
+
+it('redirects an old OpenCode Hooks selection to Configuration', () => {
+  const store = new GuideStore({
+    guide: async () => ({ entries: [], sets: [], truncated: false }),
+    guideBody: async () => {
+      throw new Error('unused');
+    },
+  });
+  store.choose({ tool: 'opencode', section: 'hooks' });
+  expect(store.section).toBe('global');
 });

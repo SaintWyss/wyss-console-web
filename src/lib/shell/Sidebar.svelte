@@ -84,7 +84,8 @@
           class="nav-item"
           class:rail-more={item.id === 'more'}
           aria-current={lit === item.id ? 'page' : undefined}
-          title={t(item.label)}
+          aria-label={t(item.label)}
+          title={t(item.hint ?? item.label)}
           aria-controls={item.id === 'more' ? 'rail-more-list' : undefined}
           aria-expanded={item.id === 'more' ? moreOpen : undefined}
           onclick={() => choose(item)}

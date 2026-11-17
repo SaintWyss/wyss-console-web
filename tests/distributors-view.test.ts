@@ -93,7 +93,7 @@ function desktop() {
 const rail = (label: string) =>
   Array.from(
     document.querySelectorAll<HTMLButtonElement>('.rail-list .nav-item'),
-  ).find((b) => b.getAttribute('title') === label)!;
+  ).find((b) => b.getAttribute('aria-label') === label)!;
 const tab = (label: string) =>
   Array.from(
     document.querySelectorAll<HTMLButtonElement>(

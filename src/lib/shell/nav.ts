@@ -86,6 +86,7 @@ export type RailId =
 export interface RailItem {
   id: RailId;
   label: string;
+  hint?: string;
   icon: string;
   /** The view it opens; `more` opens a menu instead. */
   view: ViewId | 'activity' | null;
@@ -101,12 +102,16 @@ export const RAIL_ITEMS: readonly RailItem[] = [
   {
     id: 'workspace',
     label: msg('Workspace'),
+    hint: msg(
+      'Create and edit launches, their folders, permissions and presets.',
+    ),
     icon: 'M4 6h16M4 12h16M4 18h16M8 4v4M15 10v4M10 16v4',
     view: 'launches',
   },
   {
     id: 'personalization',
     label: msg('Personalization'),
+    hint: msg('Open distributors, installed capabilities and API keys.'),
     // A palette: how the agents look and start is yours to set.
     icon: 'M12 3a9 9 0 1 0 0 18c.9 0 1.5-.7 1.5-1.5 0-.4-.2-.8-.4-1.1-.3-.3-.4-.6-.4-1 0-.8.7-1.5 1.5-1.5H16a5 5 0 0 0 5-5c0-4.4-4-7.9-9-7.9zM7.5 11.5h.01M10 7.5h.01M14.5 7.5h.01M17 11h.01',
     // The tab last visited opens; Distributors the first time.
@@ -115,6 +120,7 @@ export const RAIL_ITEMS: readonly RailItem[] = [
   {
     id: 'activity',
     label: msg('Activity'),
+    hint: msg('Review approvals and the authority’s recorded events.'),
     icon: 'M3 12h4l2.5-6 4 12 2.5-6H21',
     view: 'activity',
   },
@@ -181,12 +187,13 @@ export function railOf(shown: ShownView): RailId {
 }
 
 /** Views offered under More: every view of `NAV_ITEMS` that the rail does not open itself,
- * plus Approvals, Events and Settings, which keep their own page there. The
+ * plus Approvals and Events, which keep their own page there. Settings stays only on the rail. The
  * rail's Workspace opens the launch editor. */
 export function moreItems(items: readonly NavItem[]): readonly NavItem[] {
   const own = new Set<ViewId>([
     'console',
     'launches',
+    'settings',
     ...PERSONALIZATION.map((tab) => tab.id),
   ]);
   return items.filter((item) => !own.has(item.id));

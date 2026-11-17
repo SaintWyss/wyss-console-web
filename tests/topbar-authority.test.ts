@@ -27,6 +27,6 @@ it('shows the protocol 1 authority status', () => {
   });
   flushSync();
   const pill = authorityPill();
-  expect(pill?.querySelector('.pill-key')?.textContent).toBe('Authority P1');
+  expect(pill?.querySelector('.pill-key')?.textContent).toBe('Authority');
   expect(pill?.getAttribute('title')).toMatch(/^Protocol 1 authority · /);
 });

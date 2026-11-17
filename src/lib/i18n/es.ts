@@ -230,8 +230,6 @@ export const ES: Readonly<Record<string, string>> = {
     'Terminal local. Funciona con o sin la autoridad.',
   'Protocol 1 authority': 'Autoridad de protocolo 1',
 
-  'Authority P1': 'Autoridad P1',
-
   'Authority status': 'Estado de la autoridad',
   Details: 'Detalles',
   'No terminals': 'Sin terminales',
@@ -571,6 +569,16 @@ export const ES: Readonly<Record<string, string>> = {
   'File change failed': 'Cambio de archivo con error',
   'Approval requested': 'Aprobación pedida',
   Activity: 'Actividad',
+  'The launch “{name}” cannot start with this permission. No commands were run.':
+    'El lanzamiento «{name}» no puede iniciar con este permiso. No se ejecutó ningún comando.',
+  'Helpers the provider loads from its installed agents. This list is informational; the launch does not select individual agents.':
+    'Ayudantes que el proveedor carga desde sus agentes instalados. Esta lista es informativa; el lanzamiento no elige agentes sueltos.',
+  'Create and edit launches, their folders, permissions and presets.':
+    'Crear y editar lanzamientos, sus carpetas, permisos y presets.',
+  'Open distributors, installed capabilities and API keys.':
+    'Abrir distribuidores, capacidades instaladas y claves de API.',
+  'Review approvals and the authority’s recorded events.':
+    'Revisar aprobaciones y los eventos registrados por la autoridad.',
   'Approval accepted': 'Aprobación aceptada',
   'Approval declined': 'Aprobación rechazada',
   'Approval cancelled': 'Aprobación cancelada',

@@ -733,7 +733,7 @@ it('words sessions, hints and failures without protocol text', () => {
         true,
       ),
     ),
-  ).toContain('Ready');
+  ).toBeNull();
   for (const code of SESSION_FAILURES) {
     for (const kind of ['activate', 'resume', 'close', 'abandon'] as const) {
       const message = tPhrase(failureMessage(kind, code));

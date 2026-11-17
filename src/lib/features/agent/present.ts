@@ -262,8 +262,8 @@ export function overLimit(draft: string): boolean {
 }
 
 /**
- * Why Run is not offered, from what was read. Null when it is. It words a hint: every
- * start that is sent is decided by the authority.
+ * The composer hint from what was read. Connection progress belongs to the status line;
+ * the view also gates Run on the connection. Every start is decided by the authority.
  */
 export function runHint(
   link: AgentLink,
@@ -271,7 +271,7 @@ export function runHint(
 ): string | null {
   if (link !== 'connected')
     return link === 'connecting'
-      ? msg('Connecting to the authority…')
+      ? null
       : msg('The authority is unavailable: a turn cannot be started.');
   if (view.start?.status === 'pending') return msg('Starting the turn…');
   if (view.start) return msg('Retry or dismiss the turn that was not started.');

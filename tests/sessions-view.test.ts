@@ -447,7 +447,7 @@ it('creates and activates a session from one composer, step by step', async () =
   expect(rows()[0].textContent).toContain(FOLDER);
   const facts = text(details()!.querySelector('.session-facts'));
   expect(facts).toContain('Runtime Ready');
-  expect(text(details()!.querySelector('.session-hint'))).toContain(
+  expect(text(details()!.querySelector('.session-hint'))).not.toContain(
     'Ready: attached to the running agent.',
   );
   expect(button('New session').disabled).toBe(false);
@@ -754,7 +754,7 @@ it('resumes a bound session with one narrow request', async () => {
   });
   expect(rows()[1].textContent).toContain('Ready');
   expect(button('Resume', details()!).disabled).toBe(true);
-  expect(details()!.querySelector('.session-hint')?.textContent).toContain(
+  expect(text(details()!.querySelector('.session-hint'))).not.toContain(
     'Ready: attached to the running agent.',
   );
 });

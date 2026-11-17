@@ -1,5 +1,6 @@
 import { afterEach, expect, it } from 'vitest';
 import { flushSync, mount, tick, unmount } from 'svelte';
+import StatusList from '../src/lib/shell/StatusList.svelte';
 import Sidebar from '../src/lib/shell/Sidebar.svelte';
 import { parseAuthorityView } from '../src/lib/contracts/authority';
 import { setLanguage, t, tJoin } from '../src/lib/i18n/index.svelte';
@@ -125,3 +126,44 @@ it.each(['failed', 'incompatible'] as const)(
     expect(lifecycleNotice(old, absent)).not.toBeNull();
   },
 );
+
+it('keeps Settings only on the rail and explains the three grouped destinations', () => {
+  component = mount(Sidebar, {
+    target: document.body,
+    props: { active: 'console', onselect: () => undefined },
+  });
+  flushSync();
+  expect(moreItems(NAV_ITEMS).some((item) => item.id === 'settings')).toBe(
+    false,
+  );
+  expect(
+    document.querySelectorAll('.rail-list button[aria-label="Settings"]'),
+  ).toHaveLength(1);
+  const titles = [...document.querySelectorAll('.rail-list button')].map((b) =>
+    b.getAttribute('title'),
+  );
+  expect(titles).toContain(
+    'Create and edit launches, their folders, permissions and presets.',
+  );
+  expect(titles).toContain(
+    'Open distributors, installed capabilities and API keys.',
+  );
+  expect(titles).toContain(
+    'Review approvals and the authority’s recorded events.',
+  );
+});
+
+it('labels the authority without a protocol suffix', () => {
+  component = mount(StatusList, {
+    target: document.body,
+    props: {
+      runtime: { label: 'No terminals', tone: 'idle' },
+      authority: absent,
+      lifecycle: { state: 'pending' },
+    },
+  });
+  flushSync();
+  expect(document.querySelector('.pill.authority .pill-key')?.textContent).toBe(
+    'Authority',
+  );
+});

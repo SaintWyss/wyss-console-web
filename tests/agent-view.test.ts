@@ -1,3 +1,6 @@
+import AgentView from '../src/lib/features/agent/AgentView.svelte';
+import { ApprovalsController } from '../src/lib/features/approvals/controller';
+import { showing } from './agent-harness';
 import { settingsView } from './settings-harness';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { flushSync, mount, unmount } from 'svelte';
@@ -512,7 +515,8 @@ it('asks for a cancel and shows the turn as cancelling until the authority says 
   ]);
   // Asked, not done. The button cannot ask twice and nothing says it was cancelled.
   expect(button('Cancelling…')!.disabled).toBe(true);
-  expect(text(turns()[0])).toContain('Cancelling…');
+  expect(text(turns()[0])).not.toContain('Cancelling…');
+  expect(document.body.textContent!.split('Cancelling…')).toHaveLength(2);
   expect(text(turns()[0].querySelector('.turn-head .pill'))).toBe('Running');
   ipc.last('managed_turn_cancel').resolve({ id: T1 });
   await flush();
@@ -1100,4 +1104,27 @@ it('does not say an ended turn produced no answer before its output is read', as
   ipc.last('managed_turn_read').resolve(reading(turn(T1, 'completed', 3), []));
   await flush();
   expect(text(turns()[0])).toContain('This turn produced no answer.');
+});
+
+it('shows connecting once in status and keeps Run disabled', async () => {
+  const h = await showing();
+  const approvalsController = new ApprovalsController(() => undefined);
+  component = mount(AgentView, {
+    target: document.body,
+    props: {
+      visible: true,
+      agent: { ...h.state(), link: 'connecting' },
+      controller: h.controller,
+      authority: { state: 'pending' },
+      onsessions: () => undefined,
+      approvals: approvalsController.state(),
+      approvalsController,
+    },
+  });
+  flushSync();
+  expect(text(agent()).split('Connecting to the authority…')).toHaveLength(2);
+  expect(text(agent().querySelector('.composer-hint'))).toBe('');
+  expect(button('Run')!.disabled).toBe(true);
+  approvalsController.dispose();
+  h.controller.dispose();
 });

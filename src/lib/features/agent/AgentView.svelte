@@ -60,7 +60,7 @@
   const connected = $derived(agent.link === 'connected');
   const hint = $derived(view ? runHint(agent.link, view) : null);
   const runnable = $derived(
-    view !== null && hint === null && promptFits(view.draft),
+    connected && view !== null && hint === null && promptFits(view.draft),
   );
   const active = $derived(view?.turns.find((t) => t.id === view.active));
   /** The approval a turn waits on, once what it is about was read. Never another turn's. */
@@ -406,12 +406,6 @@
                 </div>
               {/if}
             {/if}
-            {#if !ended && entry.cancel !== 'idle'}
-              <p class="turn-activity live" role="status">
-                <span class="dot" aria-hidden="true"></span>
-                {t('Cancelling…')}
-              </p>
-            {/if}
             {#if entry.cancelFailure}
               <p
                 class="turn-alert"
@@ -488,7 +482,9 @@
         onkeydown={keydown}></textarea>
       <div class="composer-row">
         <p class="composer-hint" class:warn={overLimit(view.draft)}>
-          {t(hint ?? 'Enter to run · Shift+Enter for a new line')}
+          {#if agent.link !== 'connecting'}{t(
+              hint ?? 'Enter to run · Shift+Enter for a new line',
+            )}{/if}
         </p>
         {#if active?.turn}
           <button

@@ -394,7 +394,7 @@ it('opens in the language that was saved', async () => {
   expect(document.querySelector('.context-title')).toBeNull();
   document
     .querySelector<HTMLButtonElement>(
-      '.rail-list .nav-item[title="Actividad"]',
+      '.rail-list .nav-item[aria-label="Actividad"]',
     )!
     .click();
   await flush();

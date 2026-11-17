@@ -44,7 +44,7 @@
     data-tone={link.tone}
     title={`${t('Protocol 1 authority')} · ${t(link.label)} · ${tJoin(link.detail)}`}
   >
-    <span class="pill-key">{t('Authority P1')}</span>
+    <span class="pill-key">{t('Authority')}</span>
     <span class="dot" aria-hidden="true"></span>
     <span class="pill-value">{t(link.label)}</span>
     {#if link.note}<span class="pill-note"

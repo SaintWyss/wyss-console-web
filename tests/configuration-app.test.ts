@@ -521,12 +521,12 @@ it('keeps deleted hooks aside and puts one back through a plan', async () => {
   await flush();
   const panel = library().querySelector<HTMLElement>('.ars-config-inline')!;
   expect(text(panel)).toContain('PreToolUse · Bash');
-  // Adding a hook is offered here too, for any event.
+  // Adding a hook is offered only from each event's list, not here.
   expect(
     Array.from(panel.querySelectorAll('button')).some(
       (b) => text(b) === 'Add a hook',
     ),
-  ).toBe(true);
+  ).toBe(false);
   Array.from(panel.querySelectorAll<HTMLButtonElement>('button'))
     .find((b) => text(b) === 'Put back')!
     .click();

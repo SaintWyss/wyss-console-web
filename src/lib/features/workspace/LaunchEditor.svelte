@@ -116,7 +116,7 @@
       'Outside tools the agent can call (browser, docs, Notion…). How much context they take is not measured.',
     ),
     agents: msg(
-      'Helpers the agent can hand part of a task to. Unticking one here does not switch it off: the agent loads its installed ones as usual.',
+      'Helpers the provider loads from its installed agents. This list is informational; the launch does not select individual agents.',
     ),
     account: msg(
       'The skills of your Claude account (claude.ai), on top of the ones installed on this computer.',
@@ -586,6 +586,7 @@
     id: string;
     label: string;
     rows: Row[];
+    informational?: boolean;
     tokens: number | null;
     note?: string;
     /** Shown on hover instead of the group's usual hint. */
@@ -699,6 +700,7 @@
       label: msg('Agents'),
       tokens: est?.agents ?? null,
       rows: libRows('agent'),
+      informational: true,
     });
     if (d.agent === 'claude_code' && d.spec && options) {
       const spec = d.spec;
@@ -1339,7 +1341,7 @@
                 {/each}
               </select>
             </label>
-            <label class="le-field" title={t(HINT.permission)}
+            <label class="le-field"
               ><span>{t('Permissions')}</span>
               <select
                 class="le-input"
@@ -1447,15 +1449,15 @@
             {@const n = group.rows.filter((r) => r.on).length}
             <div class="le-group">
               <div class="le-ghead">
-                <input
-                  type="checkbox"
-                  aria-label={t(group.label)}
-                  checked={n === group.rows.length && n > 0}
-                  indeterminate={n > 0 && n < group.rows.length}
-                  disabled={group.rows.length === 0 ||
-                    group.rows.every((r) => r.disabled)}
-                  onchange={(e) => setAll(group, e.currentTarget.checked)}
-                />
+                {#if !group.informational}<input
+                    type="checkbox"
+                    aria-label={t(group.label)}
+                    checked={n === group.rows.length && n > 0}
+                    indeterminate={n > 0 && n < group.rows.length}
+                    disabled={group.rows.length === 0 ||
+                      group.rows.every((r) => r.disabled)}
+                    onchange={(e) => setAll(group, e.currentTarget.checked)}
+                  />{/if}
                 <button
                   type="button"
                   class="le-gtoggle"
@@ -1469,7 +1471,7 @@
                   {t(group.label)}
                   <span class="le-meta"
                     >{t('{on} of {all}', {
-                      on: n,
+                      on: group.informational ? group.rows.length : n,
                       all: group.rows.length,
                     })}</span
                   >
@@ -1492,16 +1494,22 @@
                     <p class="le-meta">{t(group.notice)}</p>
                   {/if}
                   {#each group.rows as row (row.key)}
-                    <label class="le-row" class:off={!row.on} title={row.title}>
-                      <input
-                        type="checkbox"
-                        checked={row.on}
-                        disabled={row.disabled}
-                        title={row.title}
-                        onchange={(e) => row.set(e.currentTarget.checked)}
-                      />
-                      <span title={row.title ?? row.label}>{row.label}</span>
-                    </label>
+                    {#if group.informational}
+                      <div class="le-row">
+                        <span title={row.title ?? row.label}>{row.label}</span>
+                      </div>
+                    {:else}
+                      <label class="le-row" class:off={!row.on}>
+                        <input
+                          type="checkbox"
+                          checked={row.on}
+                          disabled={row.disabled}
+                          title={row.title}
+                          onchange={(e) => row.set(e.currentTarget.checked)}
+                        />
+                        <span title={row.title ?? row.label}>{row.label}</span>
+                      </label>
+                    {/if}
                   {/each}
                   {#if group.rows.length === 0 && !group.fixed?.length}
                     <p class="le-meta">{t('Nothing of this kind.')}</p>

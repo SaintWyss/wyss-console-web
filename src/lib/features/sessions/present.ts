@@ -550,8 +550,7 @@ export function resumeHint(
 ): Phrase | null {
   if (session.state === 'closed')
     return { text: msg('A closed session cannot be resumed.') };
-  if (session.binding === 'bound_attached')
-    return { text: msg('Ready: attached to the running agent.') };
+  if (session.binding === 'bound_attached') return null;
   // The binding itself is described next to it; this says what it means for Resume.
   if (!session.resumable)
     return {

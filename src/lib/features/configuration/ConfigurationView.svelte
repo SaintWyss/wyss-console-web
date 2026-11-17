@@ -263,7 +263,7 @@
         onclick={() => changesController.show('history')}>{t('History')}</button
       >
       {#if changes.panel === 'items'}
-        {#if offers('hook') && (!embedded || configuration.provider === 'claude_code' || configuration.provider === 'codex')}<button
+        {#if offers('hook') && !embedded}<button
             type="button"
             class="action chip"
             aria-pressed={writing === 'hook'}

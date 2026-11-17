@@ -41,7 +41,6 @@ it('offers six entries on the rail, and every other view under More', () => {
     'agents',
     'approvals',
     'events',
-    'settings',
   ]);
   for (const item of all)
     expect(
@@ -80,7 +79,7 @@ it('names every rail icon for screen readers and marks only the open view', asyn
   });
   flushSync();
   const rail = [...document.querySelectorAll('.rail-list .nav-item')];
-  expect(rail.map((b) => b.getAttribute('title'))).toEqual(
+  expect(rail.map((b) => b.getAttribute('aria-label'))).toEqual(
     RAIL_ITEMS.map((r) => r.label),
   );
   expect(rail.map((b) => b.querySelector('.nav-label')?.textContent)).toEqual(

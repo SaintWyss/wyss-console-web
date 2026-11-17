@@ -126,10 +126,23 @@
       ? checked.answer
       : null,
   );
+  let lookupGeneration = 0;
+  $effect(() => {
+    // Answers from a previous connection or stream cannot describe this authority.
+    void events.link;
+    void events.stream;
+    lookupGeneration++;
+    checked = null;
+    return () => {
+      lookupGeneration++;
+    };
+  });
   function check(approval: ManagedApprovalId) {
+    const generation = ++lookupGeneration;
     checked = { approval, answer: { status: 'reading' } };
     const settle = (answer: Lookup) => {
-      if (checked?.approval === approval) checked = { approval, answer };
+      if (generation === lookupGeneration && checked?.approval === approval)
+        checked = { approval, answer };
     };
     lookup(approval).then(
       (detail) => settle({ status: 'read', detail }),

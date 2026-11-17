@@ -1123,3 +1123,8 @@ it('keeps tab names unique when a name equals the short identity another tab gai
   expect(new Set(labels).size).toBe(3);
   expect(h.shown().label).toBe(labels[2]);
 });
+
+it('leaves connecting copy to the status line while the controller still refuses starts', async () => {
+  const h = await showing();
+  expect(runHint('connecting', h.shown())).toBeNull();
+});
