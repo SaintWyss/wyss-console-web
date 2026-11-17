@@ -382,6 +382,7 @@ describe('Arsenal controller', () => {
       expect(client.importSkill).toHaveBeenCalledTimes(3);
       expect(last().bulk?.failures).toEqual([
         {
+          id: 'id-new',
           name: 'alpha',
           text: expect.stringContaining('larger than the import limit'),
         },

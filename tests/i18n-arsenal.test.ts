@@ -64,7 +64,13 @@ it('translates interpolated import and bulk notices', () => {
     tPhrase(
       bulkSummary({
         ...run,
-        failures: [{ name: 'another', text: 'This skill cannot be imported.' }],
+        failures: [
+          {
+            id: 'candidate-another',
+            name: 'another',
+            text: 'This skill cannot be imported.',
+          },
+        ],
         stopped:
           'The Arsenal library is damaged, so nothing was changed. Keep the file and report it.',
       }),

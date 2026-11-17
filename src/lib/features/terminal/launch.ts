@@ -155,7 +155,7 @@ export function launchBlock(
     if (match.state === 'several')
       return new LaunchRefusal(
         msg(
-          'More than one preset is named “{name}” for this agent. Delete the extra ones in Workspace, then start again.',
+          'More than one preset is named “{name}” for this agent. Delete the extra presets in Arsenal › Presets, then start again.',
         ),
         { name: launch.preset },
       );
@@ -291,8 +291,11 @@ export async function openLaunch(
     }));
   const preview = await deps.preview(agent, profileId, apply ? arsenal : null);
   if (apply && !preview.can_start)
-    throw new Error(
-      `The Arsenal selection ${plan!.selection_name} cannot be applied with this permission now; start it from Agents to choose.`,
+    throw new LaunchRefusal(
+      msg(
+        'The Arsenal selection “{name}” cannot be applied with this permission. Choose the preset for this launch in Workspace, then try again. Nothing was started.',
+      ),
+      { name: plan!.selection_name },
     );
   const reply = await deps
     .start(agent, directory, profileId, preview, apply ? arsenal : null)

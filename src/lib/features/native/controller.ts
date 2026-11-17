@@ -748,13 +748,15 @@ export class NativeController {
       this.endMutation();
     }
   }
-  async forget(id: string) {
-    if (this.disposed) return;
+  async forget(id: string): Promise<boolean> {
+    if (this.disposed) return false;
     this.beginMutation();
     try {
       await this.client.forget(id);
+      return true;
     } catch (error) {
       this.fail(error);
+      return false;
     } finally {
       this.endMutation();
     }

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   ENVIRONMENT_UNREADABLE,
   isFullAccess,
@@ -28,6 +28,7 @@ const shown = (note: {
   text: string;
   values?: Record<string, string | number>;
 }) => t(note.text, note.values);
+afterEach(() => setLanguage('en'));
 
 const session = (
   over: Partial<Extract<Launch, { kind: 'session' }>> = {},
@@ -221,11 +222,36 @@ describe('openLaunch', () => {
     // Its own sentence, not the "no preset" one: the owner has one too many, not none.
     const { template, values } = refusal as LaunchRefusal;
     expect(template).toContain('More than one preset');
+    expect(template).toContain('Arsenal › Presets');
     expect(template).not.toContain('No preset named');
     expect(values).toEqual({ name: 'Estudio' });
+    expect(ES[template]).toBeDefined();
+    setLanguage('es');
+    expect(shown({ text: template, values })).toContain('Arsenal › Presets');
     expect(d.runBefore).not.toHaveBeenCalled();
     expect(d.plan).not.toHaveBeenCalled();
     expect(d.start).not.toHaveBeenCalled();
+  });
+
+  it('routes a preset that cannot be applied with this permission to Workspace in a translated refusal', async () => {
+    const { d } = deps(session({ preset: 'Estudio' }), undefined, {
+      canStart: false,
+    });
+    const refusal = await openLaunch('codex', d).catch(
+      (error: unknown) => error,
+    );
+
+    expect(refusal).toBeInstanceOf(LaunchRefusal);
+    const { template, values } = refusal as LaunchRefusal;
+    expect(template).toContain('Workspace');
+    expect(template).not.toContain('Agents');
+    expect(values).toEqual({ name: 'Work' });
+    expect(ES[template]).toBeDefined();
+    setLanguage('es');
+    expect(shown({ text: template, values })).toContain('Workspace');
+    expect(shown({ text: template, values })).not.toContain('Agents');
+    expect(d.start).not.toHaveBeenCalled();
+    expect(d.openNative).not.toHaveBeenCalled();
   });
 
   it('a same-named preset of the other agent is not a second match', async () => {

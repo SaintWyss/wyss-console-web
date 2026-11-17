@@ -247,6 +247,28 @@ describe('restoring a workspace', () => {
 });
 
 describe('tidying the registry', () => {
+  it('reports whether forgetting a registry entry succeeded', async () => {
+    const refused = new NativeController(
+      () => undefined,
+      undefined,
+      fakeClient({
+        forget: vi.fn(async () => {
+          throw new NativeCallError({ code: 'store_unavailable', reasons: [] });
+        }),
+      }),
+    );
+    const accepted = new NativeController(
+      () => undefined,
+      undefined,
+      fakeClient(),
+    );
+
+    expect(await refused.forget('a'.repeat(32))).toBe(false);
+    expect(await accepted.forget('b'.repeat(32))).toBe(true);
+    refused.dispose();
+    accepted.dispose();
+  });
+
   it('removes the records of what is not running and nothing else', async () => {
     vi.useFakeTimers();
     const sessions = [

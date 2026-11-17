@@ -101,7 +101,7 @@
       return;
     nativeController.clearFailure();
     if (await nativeController.restart(session.native.sessionId))
-      await manager.closeTab(tabId);
+      await manager.close(session.id);
   }
   async function forgetNative() {
     if (
@@ -111,8 +111,8 @@
     )
       return;
     nativeController.clearFailure();
-    await nativeController.forget(session.native.sessionId);
-    await manager.closeTab(tabId);
+    if (await nativeController.forget(session.native.sessionId))
+      await manager.close(session.id);
   }
 </script>
 

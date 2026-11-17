@@ -107,6 +107,17 @@
     <h2>{t('Presets')} · {label}</h2>
   </header>
 
+  {#if arsenal.notice}
+    <p
+      class="preset-notice"
+      data-tone={arsenal.notice.tone}
+      role={arsenal.notice.tone === 'error' ? 'alert' : 'status'}
+      aria-live={arsenal.notice.tone === 'error' ? 'assertive' : 'polite'}
+    >
+      {tPhrase(arsenal.notice.text)}
+    </p>
+  {/if}
+
   <div class="preset-import">
     <p>
       {#if arsenal.discover}
@@ -164,7 +175,7 @@
     >
       {tPhrase(bulkSummary(arsenal.bulk))}
     </p>
-    {#each arsenal.bulk.failures as failure (failure.name)}
+    {#each arsenal.bulk.failures as failure (failure.id)}
       <p role="alert">{failure.name}: {t(failure.text)}</p>
     {/each}
     {#if arsenal.bulk.stopped}
@@ -294,6 +305,9 @@
     display: grid;
     gap: 12px;
     min-width: 0;
+  }
+  .preset-notice[data-tone='error'] {
+    color: var(--danger, #b42318);
   }
   .preset-import {
     display: flex;

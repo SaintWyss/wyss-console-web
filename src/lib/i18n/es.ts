@@ -153,8 +153,10 @@ export const ES: Readonly<Record<string, string>> = {
     'Ese preset ya no está disponible. Actualizá la lista y volvé a probar.',
   'No preset named “{name}” for this agent. Create it in Workspace, or change the launch file.':
     'No hay un preset llamado “{name}” para este agente. Crealo en Workspace o cambiá el archivo del lanzamiento.',
-  'More than one preset is named “{name}” for this agent. Delete the extra ones in Workspace, then start again.':
-    'Hay más de un preset llamado “{name}” para este agente. Borrá los sobrantes en Workspace y volvé a iniciar.',
+  'More than one preset is named “{name}” for this agent. Delete the extra presets in Arsenal › Presets, then start again.':
+    'Hay más de un preset llamado “{name}” para este agente. Borrá los demás en Arsenal › Presets y volvé a iniciar.',
+  'The Arsenal selection “{name}” cannot be applied with this permission. Choose the preset for this launch in Workspace, then try again. Nothing was started.':
+    'No se puede aplicar la selección “{name}” de Arsenal con este permiso. Elegí el preset de este lanzamiento en Workspace y volvé a probar. No se inició nada.',
   Configuration: 'Configuración',
   Models: 'Modelos',
 

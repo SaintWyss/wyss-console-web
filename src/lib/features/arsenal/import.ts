@@ -12,7 +12,7 @@ export interface BulkRun {
   created: number;
   newRevision: number;
   unchanged: number;
-  failures: { name: string; text: string }[];
+  failures: { id: string; name: string; text: string }[];
   /** Why the run stopped early, when the library itself refused writes. */
   stopped: string | null;
   finished: boolean;
@@ -78,6 +78,7 @@ export async function importEligible(
         break;
       }
       run.failures.push({
+        id: candidate.id,
         name: candidate.name,
         text: failureMessage(error),
       });

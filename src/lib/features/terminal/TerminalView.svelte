@@ -198,7 +198,10 @@
         id,
         desktopLaunchDeps({
           openTerminal: (title, cwd, input) => m.launch(title, cwd, input),
-          openNative: (reply) => m.createNative(reply),
+          openNative: (reply) => {
+            m.createNative(reply);
+            nativeController?.refreshSessions();
+          },
         }),
       );
       launchesOpen = false;
