@@ -2,6 +2,7 @@
   import { t } from '../../../i18n/index.svelte';
   import { toggle } from '../../arsenal/environment';
   import { workspace } from '../context';
+  import Fold from '../Fold.svelte';
   import Toggle from '../Toggle.svelte';
 
   const ws = workspace();
@@ -39,51 +40,60 @@
     {t('The launch environment could not be read.')}
   </p>
 {:else}
-  <h2 class="ws-section">{t('Your servers')}</h2>
-  {#each servers as name (name)}
-    <div class="ws-line">
-      <span>{name}</span>
-      <span></span>
-      <Toggle
-        label={name}
-        on={serverOn(name)}
-        disabled={ws.busy}
-        onchange={(on) => setServer(name, on)}
-      />
-    </div>
-  {:else}
-    <p class="ws-hint">{t('Nothing of this kind.')}</p>
-  {/each}
-
-  <h2 class="ws-section">{t('Your claude.ai account')}</h2>
-  <div class="ws-line">
-    <span>{t('Account connectors')}</span>
-    <span class="ws-meta"
-      >{t(
-        'Only with every server above on: Claude loads them all or none.',
-      )}</span
-    >
-    <Toggle
-      label={t('Account connectors')}
-      on={connectors}
-      disabled={ws.busy}
-      onchange={setConnectors}
-    />
-  </div>
-
-  {#if options.plugins.length > 0}
-    <h2 class="ws-section">{t('Plugins')}</h2>
-    {#each options.plugins as name (name)}
+  <Fold
+    label={t('Your servers')}
+    count={`${servers.filter(serverOn).length}/${servers.length}`}
+  >
+    {#each servers as name (name)}
       <div class="ws-line">
         <span>{name}</span>
         <span></span>
         <Toggle
           label={name}
-          on={!spec.plugins_off.includes(name)}
+          on={serverOn(name)}
           disabled={ws.busy}
-          onchange={(on) => setPlugin(name, on)}
+          onchange={(on) => setServer(name, on)}
         />
       </div>
+    {:else}
+      <p class="ws-hint">{t('Nothing of this kind.')}</p>
     {/each}
+  </Fold>
+
+  <Fold label={t('Your claude.ai account')}>
+    <div class="ws-line">
+      <span>{t('Account connectors')}</span>
+      <span class="ws-meta"
+        >{t(
+          'Only with every server above on: Claude loads them all or none.',
+        )}</span
+      >
+      <Toggle
+        label={t('Account connectors')}
+        on={connectors}
+        disabled={ws.busy}
+        onchange={setConnectors}
+      />
+    </div>
+  </Fold>
+
+  {#if options.plugins.length > 0}
+    <Fold
+      label={t('Plugins')}
+      count={`${options.plugins.filter((n) => !spec.plugins_off.includes(n)).length}/${options.plugins.length}`}
+    >
+      {#each options.plugins as name (name)}
+        <div class="ws-line">
+          <span>{name}</span>
+          <span></span>
+          <Toggle
+            label={name}
+            on={!spec.plugins_off.includes(name)}
+            disabled={ws.busy}
+            onchange={(on) => setPlugin(name, on)}
+          />
+        </div>
+      {/each}
+    </Fold>
   {/if}
 {/if}

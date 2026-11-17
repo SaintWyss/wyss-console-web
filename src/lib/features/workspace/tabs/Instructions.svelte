@@ -29,6 +29,7 @@
           ? [
               {
                 name: 'CLAUDE.md',
+                key: 'CLAUDE.md',
                 size: options.sizes.instructions,
                 on: spec.instructions,
                 disabled: false,
@@ -38,6 +39,7 @@
           : []),
         ...options.rules.map((rule) => ({
           name: `rules/${rule}`,
+          key: `rules/${rule}`,
           size: options.sizes[`rule:${rule}`],
           on: spec.instructions && !spec.rules_off.includes(rule),
           disabled: !spec.instructions,
@@ -51,6 +53,7 @@
     return [
       {
         name: 'AGENTS.md',
+        key: 'codex/AGENTS.md',
         size: undefined,
         on: spec.instructions,
         disabled: false,
@@ -58,6 +61,21 @@
       },
     ];
   });
+
+  let dialog = $state<HTMLDialogElement>();
+  let shown = $state<{ name: string; text: string | null; failed: boolean }>({
+    name: '',
+    text: null,
+    failed: false,
+  });
+  function view(name: string, key: string) {
+    shown = { name, text: null, failed: false };
+    dialog?.showModal();
+    ws.instructionText(key).then(
+      (text) => (shown = { name, text, failed: false }),
+      () => (shown = { name, text: null, failed: true }),
+    );
+  }
 
   function setMode(mode: 'load' | 'exclude' | 'role') {
     const role =
@@ -119,7 +137,12 @@
 <h2 class="ws-section">{t('Global')}</h2>
 {#each files as file (file.name)}
   <div class="ws-line">
-    <span class="ws-mono">{file.name}</span>
+    <button
+      type="button"
+      class="ws-link ws-mono"
+      title={t('Show its text')}
+      onclick={() => view(file.name, file.key)}>{file.name}</button
+    >
     <span class="ws-meta">{size(file.size)}</span>
     <Toggle
       label={file.name}
@@ -131,3 +154,24 @@
 {:else}
   <p class="ws-hint">{t('Nothing of this kind.')}</p>
 {/each}
+
+<dialog
+  class="ws-dialog"
+  bind:this={dialog}
+  aria-label={shown.name}
+  onclick={(e) => e.target === dialog && dialog?.close()}
+>
+  <header>
+    <h2 class="ws-mono">{shown.name}</h2>
+    <button type="button" class="action" onclick={() => dialog?.close()}
+      >{t('Close')}</button
+    >
+  </header>
+  {#if shown.failed}
+    <p class="ws-hint" role="alert">{t('The file could not be read.')}</p>
+  {:else if shown.text === null}
+    <p class="ws-hint">{t('Reading')}</p>
+  {:else}
+    <pre>{shown.text}</pre>
+  {/if}
+</dialog>

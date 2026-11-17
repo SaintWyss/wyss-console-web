@@ -754,6 +754,7 @@
     setAgent,
     setItem,
     browse,
+    instructionText: (name: string) => client.instructionText(name),
     reload: load,
   });
 </script>

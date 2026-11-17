@@ -591,6 +591,8 @@ mod tests {
             "allow-arsenal-codex-environment",
             "allow-arsenal-codex-environment-options",
             "allow-arsenal-codex-environment-write",
+            // Workspace: read one global instruction file to show it.
+            "allow-arsenal-instruction-text",
             "allow-arsenal-launch-instructions",
             "allow-arsenal-launch-instructions-write",
             // Workspace roles (redesign stage 2): roles.json beside environment.json.

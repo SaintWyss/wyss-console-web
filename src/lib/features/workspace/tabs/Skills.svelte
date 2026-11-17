@@ -10,6 +10,7 @@
     type SkillEntry,
   } from '../model';
   import Category from '../Category.svelte';
+  import Fold from '../Fold.svelte';
   import Toggle from '../Toggle.svelte';
 
   const ws = workspace();
@@ -59,36 +60,41 @@
     .map((c) => ({ ...c, entries: c.entries.filter(shown) }))
     .filter((c) => c.entries.length > 0)}
   {#if cats.length > 0}
-    <h2 class="ws-section">{t(section.label)}</h2>
-    {#each cats as cat (cat.id)}
-      {@const free = cat.entries.filter((e) => !locked(e))}
-      <Category
-        label={t(cat.label)}
-        count={`${cat.entries.filter(isOn).length}/${cat.entries.length}`}
-        on={free.length > 0 && free.every(isOn)}
-        disabled={free.length === 0}
-        onchange={(on) => free.forEach((e) => set(e, on))}
-      >
-        {#each cat.entries as entry (entry.id)}
-          {@const why = blocker(entry)}
-          <div class="ws-line ws-indent" class:ws-off={!!why}>
-            <span>{entry.name}</span>
-            <span
-              class="ws-meta"
-              title={why?.reason ? tIncoming(why.reason) : undefined}
-              >{why?.reason ? tIncoming(why.reason) : ''}</span
-            >
-            {#if why}<span></span>{:else}
-              <Toggle
-                label={entry.name}
-                on={isOn(entry)}
-                disabled={locked(entry)}
-                onchange={(on) => set(entry, on)}
-              />
-            {/if}
-          </div>
-        {/each}
-      </Category>
-    {/each}
+    {@const all = cats.flatMap((c) => c.entries)}
+    <Fold
+      label={t(section.label)}
+      count={`${all.filter(isOn).length}/${all.length}`}
+    >
+      {#each cats as cat (cat.id)}
+        {@const free = cat.entries.filter((e) => !locked(e))}
+        <Category
+          label={t(cat.label)}
+          count={`${cat.entries.filter(isOn).length}/${cat.entries.length}`}
+          on={free.length > 0 && free.every(isOn)}
+          disabled={free.length === 0}
+          onchange={(on) => free.forEach((e) => set(e, on))}
+        >
+          {#each cat.entries as entry (entry.id)}
+            {@const why = blocker(entry)}
+            <div class="ws-line ws-indent" class:ws-off={!!why}>
+              <span>{entry.name}</span>
+              <span
+                class="ws-meta"
+                title={why?.reason ? tIncoming(why.reason) : undefined}
+                >{why?.reason ? tIncoming(why.reason) : ''}</span
+              >
+              {#if why}<span></span>{:else}
+                <Toggle
+                  label={entry.name}
+                  on={isOn(entry)}
+                  disabled={locked(entry)}
+                  onchange={(on) => set(entry, on)}
+                />
+              {/if}
+            </div>
+          {/each}
+        </Category>
+      {/each}
+    </Fold>
   {/if}
 {/each}

@@ -282,6 +282,7 @@ const COMMANDS: &[&str] = &[
     "arsenal_codex_environment",
     "arsenal_codex_environment_options",
     "arsenal_codex_environment_write",
+    "arsenal_instruction_text",
     "arsenal_launch_instructions",
     "arsenal_launch_instructions_write",
     "arsenal_roles",
@@ -325,6 +326,7 @@ pub fn extension() -> wyss_console::Extension {
             arsenal_codex_environment,
             arsenal_codex_environment_options,
             arsenal_codex_environment_write,
+            arsenal_instruction_text,
             arsenal_launch_instructions,
             arsenal_launch_instructions_write,
             arsenal_roles,
@@ -958,6 +960,19 @@ fn arsenal_codex_environment_options()
     Ok(crate::native::launch_home_codex::options(
         &crate::native::launch_home_codex::CodexOwner::from_process(&home),
     ))
+}
+
+/// The text of one global instruction file, by the name Workspace lists (`CLAUDE.md`,
+/// `rules/<name>.md`, `codex/AGENTS.md`). Read only; never a path from the page.
+#[tauri::command]
+fn arsenal_instruction_text(name: String) -> Result<String, ArsenalError> {
+    let home = std::env::var_os("HOME")
+        .map(std::path::PathBuf::from)
+        .ok_or(ArsenalError::from(Error::Storage))?;
+    let claude = crate::native::launch_home::Owner::from_home(&home).dir;
+    let codex = crate::native::launch_home_codex::CodexOwner::from_process(&home).dir;
+    crate::native::instruction_text::read(&name, &claude, &codex)
+        .map_err(|_| ArsenalError::code(super::environment::UNREADABLE))
 }
 
 /// Records the launch environment of a Codex preset. Local to this computer.

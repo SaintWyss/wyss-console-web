@@ -17,7 +17,7 @@
     onchange: (on: boolean) => void;
     children: Snippet;
   } = $props();
-  let open = $state(true);
+  let open = $state(false);
 </script>
 
 <section class="ws-category">

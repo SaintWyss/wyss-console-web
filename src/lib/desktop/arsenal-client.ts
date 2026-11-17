@@ -136,6 +136,16 @@ export const arsenalClient = {
     call('arsenal_codex_environment_write', { selection, environment }).then(
       () => undefined,
     ),
+  /** One global instruction file's text, by the name Workspace lists. Read only. */
+  instructionText: (name: string) =>
+    answer(
+      'arsenal_instruction_text',
+      (value) => {
+        if (typeof value !== 'string') throw new Error('invalid answer');
+        return value;
+      },
+      { name },
+    ),
   launchInstructions: (selection: string) =>
     answer('arsenal_launch_instructions', parseLaunchInstructions, {
       selection,

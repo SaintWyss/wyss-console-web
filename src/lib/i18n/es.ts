@@ -2103,6 +2103,10 @@ export const ES: Readonly<Record<string, string>> = {
     'Este proyecto está en una carpeta que otra cuenta puede escribir. Arsenal lo lista como solo lectura y no lo copia.',
   'This skill cannot be imported.': 'Esta skill no se puede importar.',
   // Workspace redesign (tabs)
+  'Show its text': 'Ver su texto',
+  'Not loaded': 'No se carga',
+  'What this launch does not give the agent: switched off by you, or not available here.':
+    'Lo que este lanzamiento no le da al agente: lo que apagaste o lo que no está disponible acá.',
   '{count} unavailable skills are removed from this launch on save.':
     'Al guardar se quitan de este lanzamiento {count} skills no disponibles.',
   'At start': 'Arranque',

@@ -266,6 +266,7 @@ it('preserves narrow IPC capabilities and production script/network restrictions
     'allow-arsenal-codex-environment',
     'allow-arsenal-codex-environment-options',
     'allow-arsenal-codex-environment-write',
+    'allow-arsenal-instruction-text',
     'allow-arsenal-launch-instructions',
     'allow-arsenal-launch-instructions-write',
     'allow-arsenal-roles',

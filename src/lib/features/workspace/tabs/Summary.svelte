@@ -84,7 +84,12 @@
 </dl>
 
 {#if s.leftOut.length > 0}
-  <h2 class="ws-section">{t('Left out')}</h2>
+  <h2 class="ws-section">{t('Not loaded')}</h2>
+  <p class="ws-hint">
+    {t(
+      'What this launch does not give the agent: switched off by you, or not available here.',
+    )}
+  </p>
   <dl class="ws-facts">
     {#each s.leftOut as item (item.name)}
       <dt>{t(item.name)}</dt>

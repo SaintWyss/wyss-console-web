@@ -17,6 +17,8 @@ export interface WorkspaceContext {
   setAgent(agent: Agent): void;
   setItem(id: string, on: boolean): void;
   browse(): Promise<void>;
+  /** A global instruction file's text: `CLAUDE.md`, `rules/<n>.md` or `codex/AGENTS.md`. */
+  instructionText(name: string): Promise<string>;
   reload(): Promise<void>;
 }
 

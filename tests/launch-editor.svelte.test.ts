@@ -383,11 +383,23 @@ it('says what was saved when a later step fails, and keeps the draft', async () 
   expect(button('Save').disabled).toBe(false);
 });
 
+/** Opens a tab and unfolds every section and category in it (they start folded). */
 function openTab(label: string) {
   [...document.querySelectorAll<HTMLButtonElement>('[role="tab"]')]
     .find((tab) => tab.textContent?.trim().startsWith(label))!
     .click();
   flushSync();
+  let closed: HTMLButtonElement[];
+  while (
+    (closed = [
+      ...document.querySelectorAll<HTMLButtonElement>(
+        '.ws-fold[aria-expanded="false"]',
+      ),
+    ]).length > 0
+  ) {
+    closed.forEach((fold) => fold.click());
+    flushSync();
+  }
 }
 /** The switches of a tab's rows, by their label. */
 const switches = () => [
@@ -1323,4 +1335,49 @@ it('account connectors load only with every server on, and the switch says so', 
   connectors().click();
   flushSync();
   expect(switchNamed('context7')!.getAttribute('aria-checked')).toBe('true');
+});
+
+it('starts every skills section folded, and opens one level at a time', async () => {
+  await show([session('estudiar', 'Estudio')]);
+  [...document.querySelectorAll<HTMLButtonElement>('[role="tab"]')]
+    .find((tab) => tab.textContent?.trim().startsWith('Skills'))!
+    .click();
+  flushSync();
+  const folds = () => [
+    ...document.querySelectorAll<HTMLButtonElement>('.ws-fold'),
+  ];
+  expect(folds().length).toBeGreaterThan(0);
+  expect(
+    folds().every((f) => f.getAttribute('aria-expanded') === 'false'),
+  ).toBe(true);
+  expect(switches()).toHaveLength(0);
+  folds()[0].click();
+  flushSync();
+  // The section shows its categories, still folded: no skill switch yet.
+  expect(document.querySelectorAll('.ws-category-head').length).toBeGreaterThan(
+    0,
+  );
+  expect(document.querySelectorAll('.ws-indent [role="switch"]')).toHaveLength(
+    0,
+  );
+});
+
+it('shows a global instruction file’s text in a dialog', async () => {
+  const { client } = fake();
+  const read = vi.fn(async () => '# Kernel\nrules');
+  await show(
+    [session('estudiar', 'Estudio')],
+    {},
+    {
+      client: { ...client, instructionText: read } as ArsenalClient,
+    },
+  );
+  openTab('Instructions');
+  HTMLDialogElement.prototype.showModal ??= function (this: HTMLDialogElement) {
+    this.open = true;
+  };
+  button('CLAUDE.md').click();
+  await settle();
+  expect(read).toHaveBeenCalledWith('CLAUDE.md');
+  expect(text('.ws-dialog pre')).toBe('# Kernel\nrules');
 });

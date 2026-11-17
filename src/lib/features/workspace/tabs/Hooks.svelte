@@ -7,6 +7,7 @@
     matcherText,
     type HookRow,
   } from '../model';
+  import Fold from '../Fold.svelte';
   import Toggle from '../Toggle.svelte';
 
   const ws = workspace();
@@ -71,30 +72,35 @@
   </p>
 {:else}
   {#each sections as section (section.event)}
-    <h2 class="ws-section">{t(eventText(section.event))}</h2>
-    {#each section.rows as row (row.id)}
-      <div class="ws-line">
-        <span class="ws-mono">{row.script}</span>
-        <span class="ws-meta">{when(row)}</span>
-        <Toggle
-          label={row.script}
-          on={isOn(row)}
-          disabled={ws.busy}
-          onchange={(on) => set(row, on)}
-        />
-      </div>
-    {/each}
+    <Fold
+      label={t(eventText(section.event))}
+      count={`${section.rows.filter(isOn).length}/${section.rows.length}`}
+    >
+      {#each section.rows as row (row.id)}
+        <div class="ws-line">
+          <span class="ws-mono">{row.script}</span>
+          <span class="ws-meta">{when(row)}</span>
+          <Toggle
+            label={row.script}
+            on={isOn(row)}
+            disabled={ws.busy}
+            onchange={(on) => set(row, on)}
+          />
+        </div>
+      {/each}
+    </Fold>
   {:else}
     <p class="ws-hint">{t('Nothing of this kind.')}</p>
   {/each}
   {#if fixed.length > 0}
-    <h2 class="ws-section">{t('Always on (config.toml)')}</h2>
-    {#each fixed.flatMap((s) => s.rows) as row (row.id)}
-      <div class="ws-line">
-        <span class="ws-mono">{row.script}</span>
-        <span class="ws-meta">{when(row)}</span>
-        <span></span>
-      </div>
-    {/each}
+    <Fold label={t('Always on (config.toml)')}>
+      {#each fixed.flatMap((s) => s.rows) as row (row.id)}
+        <div class="ws-line">
+          <span class="ws-mono">{row.script}</span>
+          <span class="ws-meta">{when(row)}</span>
+          <span></span>
+        </div>
+      {/each}
+    </Fold>
   {/if}
 {/if}
