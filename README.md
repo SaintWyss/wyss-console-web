@@ -21,13 +21,13 @@ Para instalar la aplicación o actualizarla conservando las sesiones, seguí el 
 
 ## Documentación
 
-| Tema | Guía |
-|---|---|
-| Objetivo y alcance | [Producto](docs/PRODUCT.md) |
-| Capacidades y verificaciones pendientes | [Estado actual](docs/STATUS.md) |
-| Trabajo pendiente | [Hoja de ruta](docs/ROADMAP.md) |
-| Decisiones y restricciones | [Decisiones](docs/DECISIONS.md) |
-| Componentes y estado | [Arquitectura](docs/ARCHITECTURE.md) |
-| Desarrollo, comprobaciones e instalación | [Desarrollo](docs/DEVELOPMENT.md) |
-| Comportamiento esperado y criterios de aceptación | [Requisitos](docs/REQUIREMENTS.md) |
-| Ejecución de tareas de ingeniería | [Guía de ejecución](docs/EXECUTION.md) |
+| Tema                                              | Guía                                   |
+| ------------------------------------------------- | -------------------------------------- |
+| Objetivo y alcance                                | [Producto](docs/PRODUCT.md)            |
+| Capacidades y verificaciones pendientes           | [Estado actual](docs/STATUS.md)        |
+| Trabajo pendiente                                 | [Hoja de ruta](docs/ROADMAP.md)        |
+| Decisiones y restricciones                        | [Decisiones](docs/DECISIONS.md)        |
+| Componentes y estado                              | [Arquitectura](docs/ARCHITECTURE.md)   |
+| Desarrollo, comprobaciones e instalación          | [Desarrollo](docs/DEVELOPMENT.md)      |
+| Comportamiento esperado y criterios de aceptación | [Requisitos](docs/REQUIREMENTS.md)     |
+| Ejecución de tareas de ingeniería                 | [Guía de ejecución](docs/EXECUTION.md) |

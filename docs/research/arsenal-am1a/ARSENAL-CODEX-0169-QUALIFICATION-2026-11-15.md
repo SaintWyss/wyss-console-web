@@ -11,14 +11,14 @@ and inside a launch home (a `CODEX_HOME` that links the owner's `rules`, `skills
 
 ## Probes (`codex debug prompt-input`, no inference)
 
-| #   | Probe                                                             | Real `~/.codex`           | Launch home               |
-| --- | ----------------------------------------------------------------- | ------------------------- | ------------------------- |
-| P1  | No override                                                       | 110 skills listed         | 111 listed (same set)     |
-| P2  | `SKILL.md` path of `frontend-design`, `enabled = false`           | leaves the list           | leaves the list           |
-| P3  | `SKILL.md` paths of `frontend-design` and `gsap-react`            | both leave, others stay   | both leave, others stay   |
-| P4  | The skill **folder** path                                         | ignored, skill stays      | ignored, skill stays      |
-| P5  | `codex --help`                                                    | `--no-daemon` present     | n/a                       |
-| P6  | `~/.codex/auth.json` size and mtime before and after all probes   | unchanged                 | unchanged                 |
+| #   | Probe                                                           | Real `~/.codex`         | Launch home             |
+| --- | --------------------------------------------------------------- | ----------------------- | ----------------------- |
+| P1  | No override                                                     | 110 skills listed       | 111 listed (same set)   |
+| P2  | `SKILL.md` path of `frontend-design`, `enabled = false`         | leaves the list         | leaves the list         |
+| P3  | `SKILL.md` paths of `frontend-design` and `gsap-react`          | both leave, others stay | both leave, others stay |
+| P4  | The skill **folder** path                                       | ignored, skill stays    | ignored, skill stays    |
+| P5  | `codex --help`                                                  | `--no-daemon` present   | n/a                     |
+| P6  | `~/.codex/auth.json` size and mtime before and after all probes | unchanged               | unchanged               |
 
 A home without the `skills` link lists 109 skills against 110: the account's skills come from
 `~/.agents/skills` and Codex's own system skills, so the link carries only what lives in

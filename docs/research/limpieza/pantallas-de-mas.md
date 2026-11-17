@@ -15,6 +15,7 @@ No edité el repo ni corrí tests. Rutas relativas a `/home/saintwyss/Github_rep
 **Método.** Grafo de imports de `src/` y `tests/` (320 archivos), alcanzabilidad desde `src/main.ts` cortando las aristas de `src/App.svelte` a cada pantalla, y cruce de los 188 `#[tauri::command]` con sus referencias en TS. Scripts y salidas en `/tmp/claude-1000/-home-saintwyss/5371837e-b489-4d25-8d18-5ed3ed9562e9/scratchpad/mas-audit/`.
 
 **Nombres que se pisan:**
+
 - `workspace` es la vista Terminal agents (`WorkspaceView`); el rail "Workspace" abre `launches` (`LaunchEditor`, queda).
 - `desktop/workspace.rs` es el diálogo de carpeta de Sessions.
 - Los "workspaces" de Projects son otra cosa, y `native.launcher.projects` no es la pantalla Projects.
@@ -26,23 +27,26 @@ No edité el repo ni corrí tests. Rutas relativas a `/home/saintwyss/Github_rep
 ### 1.1 `workspace` — Terminal agents
 
 **Quién enlaza:** solo el menú Más (`nav.ts:40-45`). Dos restos:
+
 - `App.svelte:207` (`TITLED`).
 - `terminal/launch.ts:295`: el error dice "start it from Agents to choose", que queda sin destino.
 
-| Se borra | Líneas | Evidencia |
-|---|---|---|
-| `features/native/WorkspaceView.svelte` | 1279 | único importador: `App.svelte:37` |
-| `features/native/HandoffPanel.svelte`, `DelegationsPanel.svelte`, `delegations.ts` | 208 / 385 / 91 | solo los importa WorkspaceView |
-| `features/arsenal/ArsenalTerminalPanel.svelte`, `arsenal/terminal.ts` | 487 / 88 | solo WorkspaceView |
-| Tests: `native-view`, `native-readiness-view`, `native-stop-sync`, `workspace-codex-environment.svelte`, `delegations-panel`, `arsenal-terminal.svelte`, `NativeHarness.svelte` | 1958 | todos montan WorkspaceView vía `tests/NativeHarness.svelte` |
+| Se borra                                                                                                                                                                        | Líneas         | Evidencia                                                   |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | ----------------------------------------------------------- |
+| `features/native/WorkspaceView.svelte`                                                                                                                                          | 1279           | único importador: `App.svelte:37`                           |
+| `features/native/HandoffPanel.svelte`, `DelegationsPanel.svelte`, `delegations.ts`                                                                                              | 208 / 385 / 91 | solo los importa WorkspaceView                              |
+| `features/arsenal/ArsenalTerminalPanel.svelte`, `arsenal/terminal.ts`                                                                                                           | 487 / 88       | solo WorkspaceView                                          |
+| Tests: `native-view`, `native-readiness-view`, `native-stop-sync`, `workspace-codex-environment.svelte`, `delegations-panel`, `arsenal-terminal.svelte`, `NativeHarness.svelte` | 1958           | todos montan WorkspaceView vía `tests/NativeHarness.svelte` |
 
 **Tests a editar:** `workspace-launch-save.test.ts` (usa NativeHarness y `onOffCounts` de `arsenal/terminal`, pero también `openLaunch`, que queda), `ux-structure.test.ts`, `i18n.test.ts:429`.
 
 **Comparte, no se borra:**
+
 - `NativeController`: App lo sigue usando para `state`, `rediscover`, `choose`, `setVisible`, `dispose` (`App.svelte:152,239,248,322,472`). `DistributorsView` usa el tipo `NativeState`.
 - `native/present.ts`, `native/bridge.ts`, `desktop/native-client.ts`: los usan `terminal/launch-deps.ts`, `TerminalView`, `LaunchEditor`.
 
 **Queda muerto dentro de lo compartido (segunda pasada):**
+
 - Métodos de `NativeController` que solo llama WorkspaceView o HandoffPanel: `startAgent`, `startWithArsenal`, `restart`, `stop`, `forget`, `forgetFinished`, `restoreLost`, `handoff`, `saveBrief`, `setDelegation`, `hasTab`, `showTerminal`, `checkLauncher`, `preview`.
 - El callback `onstarted` de `App.svelte:140-150`.
 
@@ -51,18 +55,20 @@ No edité el repo ni corrí tests. Rutas relativas a `/home/saintwyss/Github_rep
 ### 1.2 `sessions`
 
 **Quién enlaza:**
+
 - Events, botón "Open session": `EventsView.svelte:471` → `App.svelte:367 showSession`.
 - AgentView, `onsessions`: `App.svelte:500`.
 - Settings "Open on": valor `sessions`.
 - Textos en archivos que quedan: `LaunchEditor.svelte:94` ("Managed… starts from Sessions") y `agent/present.ts:129,131,287,289`.
 
-| Se borra | Líneas | Evidencia |
-|---|---|---|
-| `features/sessions/SessionsView.svelte` | 620 | único importador: App |
-| `features/sessions/controller.ts` | 703 | fuera de App y la vista solo queda un `import type` en `sessions/present.ts`; lee únicamente con la vista visible (`controller.ts:264-296`) |
-| Tests `sessions-view`, `sessions`, `session-activation` | 2860 | sujeto: vista y controller |
+| Se borra                                                | Líneas | Evidencia                                                                                                                                   |
+| ------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `features/sessions/SessionsView.svelte`                 | 620    | único importador: App                                                                                                                       |
+| `features/sessions/controller.ts`                       | 703    | fuera de App y la vista solo queda un `import type` en `sessions/present.ts`; lee únicamente con la vista visible (`controller.ts:264-296`) |
+| Tests `sessions-view`, `sessions`, `session-activation` | 2860   | sujeto: vista y controller                                                                                                                  |
 
 **Comparte:**
+
 - `sessions/present.ts`: quedan vivos `folderName`, `shortId`, `localTime`, `sessionNames`, `sessionLabel` (ApprovalsView, EventsView, `approvals/present.ts`); unos 14 de 22 exports mueren.
 - `desktop/sessions-client.ts`: solo `SessionCallError` tiene usuarios que quedan.
 - `contracts/sessions.ts`: `parseSessionFailure`.
@@ -73,19 +79,21 @@ No edité el repo ni corrí tests. Rutas relativas a `/home/saintwyss/Github_rep
 ### 1.3 `agents`
 
 **Quién enlaza:**
+
 - Events, botón "Open in Agents": `EventsView.svelte:477` → `App.svelte:371 showAgent`.
 - Sessions, `onagent`: `App.svelte:490`.
 - Settings "Open on": valor `agents`.
 - `App.svelte:207` (`TITLED`) y `App.svelte:217` (`approvalsController.setWatching(agent.following)`).
 
-| Se borra | Líneas | Evidencia |
-|---|---|---|
-| `features/agent/AgentView.svelte` | 509 | único importador: App |
-| `features/agent/controller.ts` | 1051 | queda solo un `import type` en `agent/present.ts` |
-| `desktop/turns-client.ts` | 158 | único importador: `agent/controller.ts` |
-| Tests `agent-view`, `agent`, `agent-history`, `turns` | 3290 | sujeto: vista, controller y cliente de turnos |
+| Se borra                                              | Líneas | Evidencia                                         |
+| ----------------------------------------------------- | ------ | ------------------------------------------------- |
+| `features/agent/AgentView.svelte`                     | 509    | único importador: App                             |
+| `features/agent/controller.ts`                        | 1051   | queda solo un `import type` en `agent/present.ts` |
+| `desktop/turns-client.ts`                             | 158    | único importador: `agent/controller.ts`           |
+| Tests `agent-view`, `agent`, `agent-history`, `turns` | 3290   | sujeto: vista, controller y cliente de turnos     |
 
 **Comparte:**
+
 - `agent/present.ts`: quedan `outcomeUnknown`, `localClock` (ApprovalCard) y `TURN_REASON` (`events/present.ts`); 10 de 14 exports mueren.
 - `contracts/turns.ts`: quedan 3 de 17 exports.
 - `tests/agent-harness.ts`: lo importan seis tests de pantallas que quedan (`approvals-view`, `events-view`, `product-polish`, `lifecycle-view`, `distributors-view`, `configuration-app`). Hay que recortarlo, no borrarlo.
@@ -94,11 +102,11 @@ No edité el repo ni corrí tests. Rutas relativas a `/home/saintwyss/Github_rep
 
 **Quién enlaza:** solo Más. Hacia afuera, `onruntimes` → `go('runtimes')` (`App.svelte:505`).
 
-| Se borra | Líneas | Evidencia |
-|---|---|---|
-| `features/orchestration/PipelinesView.svelte` | 2293 | único importador: App |
-| `desktop/orchestration-client.ts`, `contracts/orchestration.ts` | 401 / 223 | solo PipelinesView |
-| Tests `orchestration-view`, `orchestration-capability` | 694 | — |
+| Se borra                                                        | Líneas    | Evidencia             |
+| --------------------------------------------------------------- | --------- | --------------------- |
+| `features/orchestration/PipelinesView.svelte`                   | 2293      | único importador: App |
+| `desktop/orchestration-client.ts`, `contracts/orchestration.ts` | 401 / 223 | solo PipelinesView    |
+| Tests `orchestration-view`, `orchestration-capability`          | 694       | —                     |
 
 Usa `contracts/f8.ts` y `sessions-client` (`prepareSession`, `chooseWorkspace`): va antes o junto con Runtimes.
 
@@ -106,10 +114,10 @@ Usa `contracts/f8.ts` y `sessions-client` (`prepareSession`, `chooseWorkspace`):
 
 **Quién enlaza:** solo Más. Es estática, sin cliente ni comando.
 
-| Se borra | Líneas | Evidencia |
-|---|---|---|
-| `features/remote/RemoteView.svelte` | 226 | único importador: App |
-| `tests/remote-view.test.ts` y el caso `i18n.test.ts:183` | 61 | — |
+| Se borra                                                 | Líneas | Evidencia             |
+| -------------------------------------------------------- | ------ | --------------------- |
+| `features/remote/RemoteView.svelte`                      | 226    | único importador: App |
+| `tests/remote-view.test.ts` y el caso `i18n.test.ts:183` | 61     | —                     |
 
 El módulo Rust `remote/` (3.537 líneas) no lo usa la vista ni nadie fuera de sus tests (`main.rs:36-39`).
 
@@ -119,16 +127,17 @@ El módulo Rust `remote/` (3.537 líneas) no lo usa la vista ni nadie fuera de s
 
 Por lectura de código, hoy abre en blanco: `ArsenalView` está dentro de `.personal`, que lleva `hidden` cuando la vista no es una pestaña de Personalización (`App.svelte:519`, `app.css:5085`), y `arsenal-presets` no lo es. Sin verificar en la app corriendo.
 
-| Se borra | Líneas | Evidencia |
-|---|---|---|
-| `arsenal/ArsenalView.svelte`, `PresetsTab.svelte` | 1523 / 1454 | App → ArsenalView → PresetsTab |
-| `arsenal/controller.ts` | 746 | `LibraryView` no lo recibe; solo ArsenalView y PresetsTab |
-| `arsenal/EnvironmentPanel.svelte`, `SyncLine.svelte`, `sync-present.ts` | 452 / 159 / 166 | solo desde los de arriba |
-| Tests `arsenal-view`, `arsenal-presets-view`, `arsenal-controller`, `arsenal-sync`, `arsenal-environment-panel.svelte` | 2555 | editar además `i18n-arsenal.test.ts` |
+| Se borra                                                                                                               | Líneas          | Evidencia                                                 |
+| ---------------------------------------------------------------------------------------------------------------------- | --------------- | --------------------------------------------------------- |
+| `arsenal/ArsenalView.svelte`, `PresetsTab.svelte`                                                                      | 1523 / 1454     | App → ArsenalView → PresetsTab                            |
+| `arsenal/controller.ts`                                                                                                | 746             | `LibraryView` no lo recibe; solo ArsenalView y PresetsTab |
+| `arsenal/EnvironmentPanel.svelte`, `SyncLine.svelte`, `sync-present.ts`                                                | 452 / 159 / 166 | solo desde los de arriba                                  |
+| Tests `arsenal-view`, `arsenal-presets-view`, `arsenal-controller`, `arsenal-sync`, `arsenal-environment-panel.svelte` | 2555            | editar además `i18n-arsenal.test.ts`                      |
 
 **Comparte:** `arsenal-client.ts`, `contracts/arsenal.ts`, `presets.ts`, `environment.ts`, `groups.ts`, `catalogue.ts`, `guide*`, `messages.ts`, `map.ts` (LibraryView, LaunchEditor, `launch.ts`).
 
 **Pérdida funcional:**
+
 - No queda UI para crear, editar o borrar presets, importar skills, mover grupos o categorías, ni para "sync now" y su línea de estado.
 - `terminal/launch.ts:158` le dice al usuario "Delete the extra ones in Arsenal", que ya no se podría hacer.
 - La sincronización automática sigue corriendo sola (`arsenal/mod.rs:58-59`, `sync.rs:1918`).
@@ -136,18 +145,19 @@ Por lectura de código, hoy abre en blanco: `ArsenalView` está dentro de `.pers
 ### 1.7 `runtimes`
 
 **Quién enlaza:**
+
 - Más, solo si `f8.gate === 'active'`. En esta PC el `.desktop` instalado no pasa `--f8-authority`, así que hoy no aparece.
 - Pipelines (`onruntimes`).
 - `StatusBar`, prop `f8` (`App.svelte:438-440,617`).
 - Texto de Settings "shown in Runtimes" (`SettingsView.svelte:425`).
 - `App.svelte:274`: `f8Controller.start()` al montar.
 
-| Se borra | Líneas | Evidencia |
-|---|---|---|
-| `features/f8/*` (9 archivos) | 3660 | importadores: App y entre sí |
-| `desktop/f8-client.ts`, `contracts/f8.ts` | 362 / 1010 | solo f8 y PipelinesView |
-| `contracts/models.ts` | 176 | solo `contracts/f8.ts` y código ya inalcanzable |
-| Tests `f8-view`, `f8-controller`, `f8-contract`, `f8-harness`, `f8-requests`, `f8-visible`, `f8-capability`, `preview/f8.*` | 2462 | editar `topbar-authority.test.ts` |
+| Se borra                                                                                                                    | Líneas     | Evidencia                                       |
+| --------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------------------------------------------- |
+| `features/f8/*` (9 archivos)                                                                                                | 3660       | importadores: App y entre sí                    |
+| `desktop/f8-client.ts`, `contracts/f8.ts`                                                                                   | 362 / 1010 | solo f8 y PipelinesView                         |
+| `contracts/models.ts`                                                                                                       | 176        | solo `contracts/f8.ts` y código ya inalcanzable |
+| Tests `f8-view`, `f8-controller`, `f8-contract`, `f8-harness`, `f8-requests`, `f8-visible`, `f8-capability`, `preview/f8.*` | 2462       | editar `topbar-authority.test.ts`               |
 
 Limpiar también `RUNTIMES_NAV_ITEM` y el primer parámetro de `navItems` (`nav.ts:112-161`).
 
@@ -155,26 +165,27 @@ Limpiar también `RUNTIMES_NAV_ITEM` y el primer parámetro de `navItems` (`nav.
 
 **Quién enlaza:** solo Más; siempre ofrecida (`App.svelte:197`, tercer argumento `true`).
 
-| Se borra | Líneas | Evidencia |
-|---|---|---|
-| `features/m3/*` (8 archivos) | 1276 | solo App |
-| `desktop/m3-client.ts`, `contracts/m3.ts` | 31 / 851 | solo m3 |
-| Tests `m3-view`, `m3-controller`, `m3-contract`, `M3Harness.svelte`, `m3-capability` | 763 | editar `i18n.test.ts:344`, `i18n-rest.test.ts:44` |
+| Se borra                                                                             | Líneas   | Evidencia                                         |
+| ------------------------------------------------------------------------------------ | -------- | ------------------------------------------------- |
+| `features/m3/*` (8 archivos)                                                         | 1276     | solo App                                          |
+| `desktop/m3-client.ts`, `contracts/m3.ts`                                            | 31 / 851 | solo m3                                           |
+| Tests `m3-view`, `m3-controller`, `m3-contract`, `M3Harness.svelte`, `m3-capability` | 763      | editar `i18n.test.ts:344`, `i18n-rest.test.ts:44` |
 
 ### 1.9 `projects`
 
 **Quién enlaza:**
+
 - Más, solo si `projects.overview.enabled`. En esta PC no existe `~/.local/state/wyss-console/projects/`, así que hoy no aparece.
 - `ProjectsGate` dentro de Settings (`App.svelte:607`): el interruptor que la prende.
 - `src/main.ts:3,27`: monta `ProjectsWindow` cuando `location.hash === '#workspace'`.
 - `App.svelte:250`, `App.svelte:207` (`TITLED`), `App.svelte:275`.
 
-| Se borra | Líneas | Evidencia |
-|---|---|---|
-| `features/projects/*` (12 archivos, incluye `ProjectsGate` y `ProjectsWindow`) | 2892 | importadores: App y `main.ts` |
-| `features/insight/*` (5 archivos) | 1285 | solo projects |
-| `desktop/projects-client.ts`, `contracts/projects.ts`, `contracts/insight.ts` | 275 / 710 / 191 | solo projects |
-| Tests `projects-view`, `projects-controller`, `projects-contract`, `projects-harness`, `ProjectsHarness.svelte`, `projects-input-queue`, `projects-capability`, `insight-contract`, `uml`, `markdown` | 2612 | editar `i18n-rest.test.ts` |
+| Se borra                                                                                                                                                                                              | Líneas          | Evidencia                     |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | ----------------------------- |
+| `features/projects/*` (12 archivos, incluye `ProjectsGate` y `ProjectsWindow`)                                                                                                                        | 2892            | importadores: App y `main.ts` |
+| `features/insight/*` (5 archivos)                                                                                                                                                                     | 1285            | solo projects                 |
+| `desktop/projects-client.ts`, `contracts/projects.ts`, `contracts/insight.ts`                                                                                                                         | 275 / 710 / 191 | solo projects                 |
+| Tests `projects-view`, `projects-controller`, `projects-contract`, `projects-harness`, `ProjectsHarness.svelte`, `projects-input-queue`, `projects-capability`, `insight-contract`, `uml`, `markdown` | 2612            | editar `i18n-rest.test.ts`    |
 
 ---
 
@@ -195,17 +206,17 @@ No encontré atajos de teclado hacia ninguna de estas vistas.
 
 ### 3.1 Comandos Tauri sin consumidor si se borran las nueve
 
-| Grupo | Comandos | Dónde |
-|---|---|---|
-| F8 | 24 `f8_*` | `desktop/f8.rs` (610) + `desktop/f8/` (1187); `capabilities/f8.json`; `f8_state` en `main.json` |
-| M3 | `m3_state` + 5 `m3_fixture_*` | `m3/gui.rs`, `m3/fixture/host.rs`; `capabilities/m3.json` |
-| Orquestación | `orchestration_call` | `orchestration_commands.rs` (133) |
-| Projects | 26 `projects_*` | `projects/commands.rs`; `capabilities/projects.json` (ventanas `w-*`) |
-| Sesiones P1 | `managed_sessions_page`, `managed_session_{prepare,resume,close,activate,abandon,mode}`, `choose_workspace` | `desktop/sessions.rs`, `desktop/workspace.rs` |
-| Turnos P1 | `managed_turns`, `managed_turns_older`, `managed_turn_{read,start,cancel}` | `desktop/turns.rs` |
-| Nativos | `native_restart`, `native_stop`, `native_forget`, `native_handoff_{prepare,save}`, `native_delegations`, `native_delegation_cancel` | `native/commands.rs` |
-| Arsenal | `arsenal_discover`, `_candidate`, `_import`, `_presets`, `_preset_write`, `_preset_delete`, `_preset_plan`, `_selection_delete`, `_category_write`, `_group_move`, `_terminal_bindings`, `_sync_status`, `_sync_now` | `arsenal/commands.rs` |
-| Arsenal, certeza media | `arsenal_file`, `_restore`, `_categories`, `_groups`, `_capability`, `_preview` | no hallé llamada `.método(` en archivos que quedan |
+| Grupo                  | Comandos                                                                                                                                                                                                             | Dónde                                                                                           |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| F8                     | 24 `f8_*`                                                                                                                                                                                                            | `desktop/f8.rs` (610) + `desktop/f8/` (1187); `capabilities/f8.json`; `f8_state` en `main.json` |
+| M3                     | `m3_state` + 5 `m3_fixture_*`                                                                                                                                                                                        | `m3/gui.rs`, `m3/fixture/host.rs`; `capabilities/m3.json`                                       |
+| Orquestación           | `orchestration_call`                                                                                                                                                                                                 | `orchestration_commands.rs` (133)                                                               |
+| Projects               | 26 `projects_*`                                                                                                                                                                                                      | `projects/commands.rs`; `capabilities/projects.json` (ventanas `w-*`)                           |
+| Sesiones P1            | `managed_sessions_page`, `managed_session_{prepare,resume,close,activate,abandon,mode}`, `choose_workspace`                                                                                                          | `desktop/sessions.rs`, `desktop/workspace.rs`                                                   |
+| Turnos P1              | `managed_turns`, `managed_turns_older`, `managed_turn_{read,start,cancel}`                                                                                                                                           | `desktop/turns.rs`                                                                              |
+| Nativos                | `native_restart`, `native_stop`, `native_forget`, `native_handoff_{prepare,save}`, `native_delegations`, `native_delegation_cancel`                                                                                  | `native/commands.rs`                                                                            |
+| Arsenal                | `arsenal_discover`, `_candidate`, `_import`, `_presets`, `_preset_write`, `_preset_delete`, `_preset_plan`, `_selection_delete`, `_category_write`, `_group_move`, `_terminal_bindings`, `_sync_status`, `_sync_now` | `arsenal/commands.rs`                                                                           |
+| Arsenal, certeza media | `arsenal_file`, `_restore`, `_categories`, `_groups`, `_capability`, `_preview`                                                                                                                                      | no hallé llamada `.método(` en archivos que quedan                                              |
 
 - `managed_model_catalogue` ya no tiene llamador alcanzable hoy.
 - Siguen con consumidor: `native_launcher`, `native_readiness`, `native_sessions`, `native_choose_project`, `native_preview`, `native_start`.
@@ -214,17 +225,17 @@ No encontré atajos de teclado hacia ninguna de estas vistas.
 
 ### 3.2 Módulos Rust
 
-| Módulo | Líneas aprox. | ¿Sale sin tocar otra cosa? |
-|---|---|---|
-| `projects/` | 16.570 | Sí: solo lo nombra `main.rs:137`. Tiene store persistido propio. |
-| `remote/` | 3.537 | Sí: sin consumidores. Hay un `android/` en la raíz. |
-| `orchestration/` + `orchestration_commands.rs` | 10.759 | Casi: lo usan tests de `f8/v10.rs` y `f8/workspace_guard.rs`, y el flag `--wyss-orchestrator` (`main.rs:69-74`). En esta PC existe `~/.local/state/wyss-console/orchestration.sqlite3`. |
-| `desktop/f8*` + `f8/gui` | ~5.200 | Parcial: `F8Gui` lo usan `desktop/select.rs` (`--f8-authority`), `examples/f8_local_gui.rs`, `tests/f8_codex_process.rs`, `tests/f8_fixture_process.rs`. |
-| `f8/` (resto) | ~60.000 | No: está enlazado en la autoridad (`control/store.rs:314,814`, `control/server.rs:908-987`, `control/bindings.rs:440-620`, `control/application.rs:152-298`, `contracts/control.rs:671,996`, `bin/wyss-control.rs:11`, `bin/wyss-credential-agent.rs:136`). |
-| `m3/` | ~6.500 | Solo `m3/gui*` y `m3/fixture*`: el resto lo usa `f8/claude/{admission,worker}.rs` y `f8/engine.rs:96` en producción. |
-| `delegate/` + `handoff.rs` | ~3.950 | Quedan sin activación desde la ventana; `--wyss-delegate-mcp` sigue en `main.rs:103`. |
-| `sessions/`, `turns/`, `desktop/sessions.rs`, `desktop/turns.rs` | ~10.400 | No mientras quede Actividad: `SessionService` es el transporte de approvals y events (`desktop.rs:255-258`) y `managed_approval*` vive en `desktop/turns.rs`. |
-| `control/`, `authority/`, `lifecycle/`, `events/`, `bin/wyss-control.rs` | — | Autoridad P1: se queda mientras quede Actividad. |
+| Módulo                                                                   | Líneas aprox. | ¿Sale sin tocar otra cosa?                                                                                                                                                                                                                                  |
+| ------------------------------------------------------------------------ | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `projects/`                                                              | 16.570        | Sí: solo lo nombra `main.rs:137`. Tiene store persistido propio.                                                                                                                                                                                            |
+| `remote/`                                                                | 3.537         | Sí: sin consumidores. Hay un `android/` en la raíz.                                                                                                                                                                                                         |
+| `orchestration/` + `orchestration_commands.rs`                           | 10.759        | Casi: lo usan tests de `f8/v10.rs` y `f8/workspace_guard.rs`, y el flag `--wyss-orchestrator` (`main.rs:69-74`). En esta PC existe `~/.local/state/wyss-console/orchestration.sqlite3`.                                                                     |
+| `desktop/f8*` + `f8/gui`                                                 | ~5.200        | Parcial: `F8Gui` lo usan `desktop/select.rs` (`--f8-authority`), `examples/f8_local_gui.rs`, `tests/f8_codex_process.rs`, `tests/f8_fixture_process.rs`.                                                                                                    |
+| `f8/` (resto)                                                            | ~60.000       | No: está enlazado en la autoridad (`control/store.rs:314,814`, `control/server.rs:908-987`, `control/bindings.rs:440-620`, `control/application.rs:152-298`, `contracts/control.rs:671,996`, `bin/wyss-control.rs:11`, `bin/wyss-credential-agent.rs:136`). |
+| `m3/`                                                                    | ~6.500        | Solo `m3/gui*` y `m3/fixture*`: el resto lo usa `f8/claude/{admission,worker}.rs` y `f8/engine.rs:96` en producción.                                                                                                                                        |
+| `delegate/` + `handoff.rs`                                               | ~3.950        | Quedan sin activación desde la ventana; `--wyss-delegate-mcp` sigue en `main.rs:103`.                                                                                                                                                                       |
+| `sessions/`, `turns/`, `desktop/sessions.rs`, `desktop/turns.rs`         | ~10.400       | No mientras quede Actividad: `SessionService` es el transporte de approvals y events (`desktop.rs:255-258`) y `managed_approval*` vive en `desktop/turns.rs`.                                                                                               |
+| `control/`, `authority/`, `lifecycle/`, `events/`, `bin/wyss-control.rs` | —             | Autoridad P1: se queda mientras quede Actividad.                                                                                                                                                                                                            |
 
 Los fixtures `tests/fixtures/f8-gui-v1.json`, `f8-requests-v1.json`, `fixtures/m3/*` y `projects-v1.json` los incluyen tests Rust: en un borrado solo-front se quedan.
 
@@ -254,21 +265,21 @@ Los fixtures `tests/fixtures/f8-gui-v1.json`, `f8-requests-v1.json`, `fixtures/m
 
 ## 5. Resumen: unidades de borrado (un commit cada una)
 
-| # | Unidad | Fuente + tests |
-|---|---|---|
-| U1 | Remote (vista) | 226 + 61 |
-| U2 | Providers (vista, m3 front) | 2158 + 763 |
-| U3 | Pipelines (vista, cliente, contrato) | 2917 + 694 |
-| U4 | Runtimes (f8 front, prop `f8` de StatusBar) | 5208 + 2462 |
-| U5 | Projects (vista, insight, `ProjectsGate`, `ProjectsWindow`) | 5353 + 2612 |
-| U6 | Arsenal presets | 4500 + 2555 |
-| U7 | Terminal agents | 2538 + 1958 |
-| U8 | Agents (vista, controller, `turns-client`) | 1718 + 3290 |
-| U9 | Sessions (vista, controller) + migración de "Open on" | 1323 + 2860, más Rust de settings |
-| U10 | Shell: menú Más, `nav.ts`, tests de estructura | ~150 |
-| U11 | `app.css` | ~2.087 (estimado) |
-| U12 | Segunda pasada: métodos de `NativeController`, exports de `present.ts`, clientes y contratos | sin medir |
-| B1–B5 | Backend, solo si se aprueba: comandos y capabilities sin consumidor; `projects/`; `orchestration/`; `remote/`; superficie de ventana F8/M3 | ver 3.2 |
+| #     | Unidad                                                                                                                                     | Fuente + tests                    |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------- |
+| U1    | Remote (vista)                                                                                                                             | 226 + 61                          |
+| U2    | Providers (vista, m3 front)                                                                                                                | 2158 + 763                        |
+| U3    | Pipelines (vista, cliente, contrato)                                                                                                       | 2917 + 694                        |
+| U4    | Runtimes (f8 front, prop `f8` de StatusBar)                                                                                                | 5208 + 2462                       |
+| U5    | Projects (vista, insight, `ProjectsGate`, `ProjectsWindow`)                                                                                | 5353 + 2612                       |
+| U6    | Arsenal presets                                                                                                                            | 4500 + 2555                       |
+| U7    | Terminal agents                                                                                                                            | 2538 + 1958                       |
+| U8    | Agents (vista, controller, `turns-client`)                                                                                                 | 1718 + 3290                       |
+| U9    | Sessions (vista, controller) + migración de "Open on"                                                                                      | 1323 + 2860, más Rust de settings |
+| U10   | Shell: menú Más, `nav.ts`, tests de estructura                                                                                             | ~150                              |
+| U11   | `app.css`                                                                                                                                  | ~2.087 (estimado)                 |
+| U12   | Segunda pasada: métodos de `NativeController`, exports de `present.ts`, clientes y contratos                                               | sin medir                         |
+| B1–B5 | Backend, solo si se aprueba: comandos y capabilities sin consumidor; `projects/`; `orchestration/`; `remote/`; superficie de ventana F8/M3 | ver 3.2                           |
 
 U1 a U9 suman 43.196 líneas, a las que se agrega la poda de `es.ts`.
 

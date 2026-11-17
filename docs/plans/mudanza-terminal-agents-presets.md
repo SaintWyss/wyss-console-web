@@ -13,6 +13,7 @@ No edité el repo. `/home/saintwyss/Github_repos/wyss-console-ux`, HEAD `a905375
 3. **`start0()` solo lo llama `WorkspaceView.svelte:257`**, que hoy está siempre montada (`App.svelte:476`). La mudanza lo pasa a `App.svelte`; si no, el registro de agentes y `native.launcher` no cargan nunca.
 
 Rastro de uso en esta PC (la Acer no la medí; el registro es una foto, no un historial):
+
 - **Registro nativo:** 7 registros (5 parados, 2 perdidos), ninguno con delegación, reinicio, OpenCode ni Hermes.
 - **Presets:** 7 en total. Cuatro son de la migración del 01/11; los otros son "Estudio", "test" y "Lanzamiento nuevo". Solo el último lo usa un lanzamiento.
 - **Categorías:** 1 skill movida de grupo a mano; no vi categorías propias en `groups.json`.
@@ -92,16 +93,17 @@ El sync corre solo: al arrancar, tras cada cambio local, cuando Syncthing trae u
 
 ## C. Qué recomiendo perder
 
-| Función | Por qué |
-|---|---|
-| Brief de handoff (`HandoffPanel`) | Sin rastro de uso; el brief se le pide al agente en su terminal. |
-| Ver, cancelar y prender delegación | Ningún registro con delegación. Un lanzamiento guardado no puede pedirla (`launch-deps.ts:33-41`); si vuelve, es un campo del lanzamiento. |
-| "Sync now" | El sync automático ya cubre los cuatro disparadores. |
-| Mover grupos y categorías propias | El árbol que queda agrupa solo con `groupFor` y no lee lo movido a mano. Solo ordenaban el selector de `PresetsTab`. |
-| Editor de presets suelto y duplicar | Lo cubre Workspace. |
-| De `ArsenalView`: Composites, pestaña Terminals, restaurar revisiones, import de a uno | No tienen otro camino. Por lectura de código la pantalla abre en blanco desde `5a25f1c` (14/11); no lo verifiqué en la app. |
+| Función                                                                                | Por qué                                                                                                                                    |
+| -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Brief de handoff (`HandoffPanel`)                                                      | Sin rastro de uso; el brief se le pide al agente en su terminal.                                                                           |
+| Ver, cancelar y prender delegación                                                     | Ningún registro con delegación. Un lanzamiento guardado no puede pedirla (`launch-deps.ts:33-41`); si vuelve, es un campo del lanzamiento. |
+| "Sync now"                                                                             | El sync automático ya cubre los cuatro disparadores.                                                                                       |
+| Mover grupos y categorías propias                                                      | El árbol que queda agrupa solo con `groupFor` y no lee lo movido a mano. Solo ordenaban el selector de `PresetsTab`.                       |
+| Editor de presets suelto y duplicar                                                    | Lo cubre Workspace.                                                                                                                        |
+| De `ArsenalView`: Composites, pestaña Terminals, restaurar revisiones, import de a uno | No tienen otro camino. Por lectura de código la pantalla abre en blanco desde `5a25f1c` (14/11); no lo verifiqué en la app.                |
 
 Con Terminal agents también se van cosas que no estaban en tu lista:
+
 - **Arrancar un agente sin lanzamiento guardado, y OpenCode/Hermes.** Los lanzamientos solo aceptan Claude Code y Codex (`desktop/launch-client.ts:23`).
 - **"Update agent".** Distribuidores ya tiene su comando de actualización.
 - **Datos de la fila de sesión:** modelo y esfuerzo, CPU y RAM, aviso de dos agentes en la misma carpeta.
@@ -133,19 +135,20 @@ Los 4 presets de la migración y "test" no los toca la mudanza: los borrás vos 
 
 ## E. Tamaño estimado (variante recomendada)
 
-| Parte | Archivos | Líneas |
-|---|---|---|
-| Consola: `TerminalPanel`, `TerminalView`, `App.svelte` | 3 editados | +140 |
-| Arsenal: `PresetsPanel.svelte` e `import.ts` nuevos; `map.ts`, `ArsenalBrowser`, `LibraryView`, `SyncLine`, `LaunchEditor`, `App.svelte` | 2 nuevos, 6 editados | +470 |
-| `app.css`, textos de `launch.ts`, catálogo es | 3 editados | +80 |
-| Tests nuevos: acciones en Consola, panel de presets, import | 3 nuevos | +650 |
-| **Mudanza** | **5 nuevos, unos 11 editados** | **≈ +1.350** |
-| Después se borra (U6 + U7 del inventario, menos `SyncLine` y `sync-present.ts`) | 10 fuentes y 12 tests | ≈ −11.200 |
-| Segunda pasada en `NativeController` (`startAgent`, `startWithArsenal`, `handoff`, `saveBrief`, `setDelegation`, `hasTab`, `showTerminal`, `preview`) | 1 | ≈ −150 |
+| Parte                                                                                                                                                 | Archivos                       | Líneas       |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ | ------------ |
+| Consola: `TerminalPanel`, `TerminalView`, `App.svelte`                                                                                                | 3 editados                     | +140         |
+| Arsenal: `PresetsPanel.svelte` e `import.ts` nuevos; `map.ts`, `ArsenalBrowser`, `LibraryView`, `SyncLine`, `LaunchEditor`, `App.svelte`              | 2 nuevos, 6 editados           | +470         |
+| `app.css`, textos de `launch.ts`, catálogo es                                                                                                         | 3 editados                     | +80          |
+| Tests nuevos: acciones en Consola, panel de presets, import                                                                                           | 3 nuevos                       | +650         |
+| **Mudanza**                                                                                                                                           | **5 nuevos, unos 11 editados** | **≈ +1.350** |
+| Después se borra (U6 + U7 del inventario, menos `SyncLine` y `sync-present.ts`)                                                                       | 10 fuentes y 12 tests          | ≈ −11.200    |
+| Segunda pasada en `NativeController` (`startAgent`, `startWithArsenal`, `handoff`, `saveBrief`, `setDelegation`, `hasTab`, `showTerminal`, `preview`) | 1                              | ≈ −150       |
 
 Con la variante "como se decidió" del punto 4, la mudanza sube a unas +1.700 y se borran unas 2.300 menos.
 
 **Estado: `LISTO CON RESERVAS`.** Auto-rating 8/10. Los huecos:
+
 - El cruce disco↔candidato quedó sin verificar; el diseño lo evita con el import en bloque.
 - La pantalla en blanco de Arsenal presets y el uso en la Acer quedaron sin medir.
 - Los tamaños son estimados, no salen de un prototipo.
