@@ -359,15 +359,6 @@ h1.ws-title {
 .ws-tools > .action {
   width: 140px;
 }
-.ws-split {
-  display: grid;
-  grid-template-columns: 200px minmax(0, 1fr);
-  gap: 16px;
-  align-items: start;
-}
-.ws-split > .ws-hint {
-  margin: 0;
-}
 
 /* The switch: only the track and its knob. */
 .ws-switch {
@@ -432,7 +423,6 @@ h1.ws-title {
   }
 }
 @media (max-width: 1023px) {
-  .ws-split,
   .ws-facts {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -524,4 +514,10 @@ h1.ws-title {
 }
 .ws-dialog > .ws-hint {
   padding: 16px;
+}
+
+/* A file name that opens its text: aligned as the other row names. */
+.ws-line > .ws-link {
+  justify-self: start;
+  text-align: left;
 }

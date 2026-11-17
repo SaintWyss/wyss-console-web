@@ -1021,7 +1021,10 @@ it.each([false, true])(
 it('explains only the chosen project mode and shows the custom text only for it', async () => {
   await show([session('estudiar', 'Estudio')]);
   openTab('Instructions');
-  const help = () => text('.ws-split .ws-hint');
+  const help = () =>
+    document
+      .querySelector('#project-instructions')!
+      .parentElement!.querySelector('.ws-hint')!.textContent ?? '';
   expect(help()).toContain('as well as yours');
   expect(document.querySelector('#custom-instructions')).toBeNull();
   projectInstructions('exclude');

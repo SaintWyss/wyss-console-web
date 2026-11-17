@@ -98,7 +98,7 @@
     </p>
   </div>
   {#if draft.instructions}
-    <div class="ws-split">
+    <div class="ws-control">
       <select
         id="project-instructions"
         disabled={ws.busy}
