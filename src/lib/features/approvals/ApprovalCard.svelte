@@ -100,6 +100,11 @@
         {/if}
       </div>
     {/each}
+    {#if card.listingFailure}
+      <p class="approval-note failed" role="alert">
+        {t('More files of this change could not be read.')}
+      </p>
+    {/if}
     {#if card.shown.length < card.files}
       <p class="approval-note">
         {t('{shown} of {total} files shown.', {
@@ -175,6 +180,11 @@
       disabled={!open}
       onclick={() => controller.decide(id, 'deny')}>{t('Deny')}</button
     >
+    {#if connected && !card.approval.decidable}
+      <p class="approval-note">
+        {t('This approval cannot be decided from here.')}
+      </p>
+    {/if}
     {#if open && !whole}
       <p class="approval-note">{t('Read the whole change to approve it.')}</p>
     {/if}

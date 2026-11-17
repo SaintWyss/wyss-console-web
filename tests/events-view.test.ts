@@ -600,7 +600,7 @@ it('draws a boundary where the authority holds another stream', async () => {
   const boundary = view().querySelector('.events-boundary')!;
   expect(text(boundary)).toContain('New authority event stream');
   expect(text(boundary)).toContain(STREAM.slice(0, 8));
-  expect(text(boundary)).toContain('positions of the two are unrelated');
+  expect(text(boundary)).toContain('their positions are unrelated');
   // Above it, the two events of the new stream; below it, what was shown before.
   const lists = view().querySelectorAll('.events-list');
   expect(rows(lists[0])).toHaveLength(2);

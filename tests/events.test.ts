@@ -9,6 +9,8 @@ import {
 } from '../src/lib/contracts/events';
 import { readEvents, readOlderEvents } from '../src/lib/desktop/events-client';
 import { SessionCallError } from '../src/lib/desktop/sessions-client';
+import { eventDetail } from '../src/lib/features/events/present';
+import type { EventRow } from '../src/lib/contracts/events';
 import {
   A1,
   OTHER_STREAM,
@@ -335,4 +337,18 @@ it('reports a refusal by the name the desktop gave it', async () => {
   });
   bridge(() => Promise.reject('boom'));
   expect((await failure(readEvents())).code).toBe('internal');
+});
+
+it('words a cancel request without claiming the turn stopped, and a revoked lease as revoked', () => {
+  const row = (category: string, kind: string, facts: object) =>
+    ({ category, kind, facts }) as unknown as EventRow;
+  expect(
+    eventDetail(
+      row('turn', 'turn_cancel_requested', { turn_reason: 'user_cancel' }),
+    ).text,
+  ).toBe('A cancel of the turn was recorded.');
+  expect(
+    eventDetail(row('lease', 'lease_revoked', { revocation: 'user_request' }))
+      .text,
+  ).toBe('The lease was revoked.');
 });

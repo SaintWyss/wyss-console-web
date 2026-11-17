@@ -190,11 +190,7 @@
     <div class="sessions-heading">
       <h2>{t('Events')}</h2>
       <p class="sessions-count">
-        {#if events.link === 'connecting' && !events.loaded}
-          {t('Connecting to the authority')}
-        {:else if !events.loaded}
-          {connected ? t('Reading') : t('Authority unavailable')}
-        {:else}
+        {#if events.loaded}
           {t('{count} loaded', { count: events.events.length })} · {t(
             'newest first',
           )}
@@ -368,9 +364,8 @@
             <p class="empty-title">{t('New authority event stream')}</p>
             <p>
               {t(
-                'The events above belong to the stream the authority holds now. The ones below were read from another stream (',
-              )}<span class="mono">{short(events.previous.stream)}</span>{t(
-                ') and are not continued by them: positions of the two are unrelated.',
+                'The events above belong to the stream the authority holds now. The ones below come from another stream ({id}) and do not continue it: their positions are unrelated.',
+                { id: short(events.previous.stream) },
               )}
             </p>
           </div>
@@ -406,7 +401,7 @@
               <time datetime={selected.at}>{localTime(selected.at)}</time>
               <span class="fact-note mono">{selected.at}</span>
             </dd>
-            <dt>{t('Kind')}</dt>
+            <dt>{t('Category')}</dt>
             <dd>
               {t(CATEGORY_LABEL[selected.category])}
               {#if selected.disposition !== 'normal'}

@@ -45,13 +45,7 @@
     <div class="sessions-heading">
       <h2>{t('Approvals')}</h2>
       <p class="sessions-count">
-        {#if !connected}
-          {approvals.link === 'connecting'
-            ? t('Connecting to the authority')
-            : t('Authority unavailable')}
-        {:else if pending === null}
-          {t('Reading')}
-        {:else}
+        {#if connected && pending !== null}
           {t('{count} waiting for a decision', { count: pending.length })}
         {/if}
       </p>

@@ -1300,6 +1300,11 @@ export const ES: Readonly<Record<string, string>> = {
   'Codex AGENTS.override.md': 'AGENTS.override.md de Codex',
   'OpenCode AGENTS.md': 'AGENTS.md de OpenCode',
 
+  Category: 'Categoría',
+  'This approval cannot be decided from here.':
+    'Esta aprobación no se puede decidir desde acá.',
+  'More files of this change could not be read.':
+    'No se pudieron leer más archivos de este cambio.',
   // Events: the authority's record, the presenter that words each event and the window's labels
   All: 'Todos',
   Lease: 'Concesión',
@@ -1337,10 +1342,8 @@ export const ES: Readonly<Record<string, string>> = {
   'The authority records every session, runtime, turn, approval and lease change it commits. Nothing has been recorded in this stream.':
     'La autoridad registra cada cambio de sesión, runtime, turno, aprobación y concesión que confirma. Todavía no se registró nada en este stream.',
   'New authority event stream': 'Nuevo stream de eventos de la autoridad',
-  'The events above belong to the stream the authority holds now. The ones below were read from another stream (':
-    'Los eventos de arriba pertenecen al stream que la autoridad tiene ahora. Los de abajo se leyeron de otro stream (',
-  ') and are not continued by them: positions of the two are unrelated.':
-    ') y no continúan en ellos: las posiciones de ambos no tienen relación entre sí.',
+  'The events above belong to the stream the authority holds now. The ones below come from another stream ({id}) and do not continue it: their positions are unrelated.':
+    'Los eventos de arriba pertenecen al stream que la autoridad tiene ahora. Los de abajo vienen de otro stream ({id}) y no lo continúan: sus posiciones no tienen relación entre sí.',
   'Lease until': 'Concesión hasta',
   Position: 'Posición',
   'in stream {id}': 'en el stream {id}',
@@ -1449,7 +1452,7 @@ export const ES: Readonly<Record<string, string>> = {
     '{lead} Permitió a la sesión {scopes}.',
   'The lease ended because its session was closed.':
     'La concesión terminó porque se cerró su sesión.',
-  'The lease was given back.': 'La concesión se devolvió.',
+  'The lease was revoked.': 'La concesión se revocó.',
   'The lease reached its time limit.':
     'La concesión llegó a su límite de tiempo.',
   'The authority extended a lease for this session.':
@@ -1487,8 +1490,8 @@ export const ES: Readonly<Record<string, string>> = {
     'No se pudieron leer los eventos. La autoridad está ocupada; probá de nuevo en un momento.',
   'The event history changed while it was being read.':
     'El historial de eventos cambió mientras se leía.',
-  'Events could not be read. Nothing is shown rather than something unverified.':
-    'No se pudieron leer los eventos. No se muestra nada en lugar de algo sin verificar.',
+  'Events could not be read. Nothing new is shown without verification.':
+    'No se pudieron leer los eventos. No se muestra nada nuevo sin verificar.',
   'Older events could not be read: the authority holds another history than the one shown. The newest events were read again.':
     'No se pudieron leer los eventos anteriores: la autoridad tiene otro historial que el que se muestra. Los eventos más recientes se leyeron de nuevo.',
   'Older events could not be read: the authority did not answer.':

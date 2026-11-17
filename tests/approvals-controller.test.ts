@@ -650,3 +650,16 @@ it('has no action broader than one decision, and asks nothing once disposed', as
   expect(h.published()).toBe(published);
   expect(vi.getTimerCount()).toBe(0);
 });
+
+it('says when more files of a change set could not be read, and forgets it on a new try', async () => {
+  const h = await showing(listOf([change(11)]));
+  expect(h.card(F).listingFailure).toBeNull();
+  h.reads.at(-1)!.reject(UNAVAILABLE);
+  await settle();
+  // The file that was read stays; the failure is said instead of a silent stop.
+  expect(h.card(F).listing).toBe(false);
+  expect(h.card(F).listingFailure).toMatchObject({ code: 'unavailable' });
+  h.controller.moreFiles(F);
+  expect(h.card(F).listing).toBe(true);
+  expect(h.card(F).listingFailure).toBeNull();
+});

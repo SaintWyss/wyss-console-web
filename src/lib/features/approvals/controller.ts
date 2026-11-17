@@ -55,6 +55,7 @@ export interface ApprovalCard {
   shown: FileCard[];
   /** More files are being read. */
   listing: boolean;
+  listingFailure: SessionFailure | null;
   decision: DecisionView | null;
 }
 export interface ApprovalsState {
@@ -329,6 +330,7 @@ export class ApprovalsController {
         files: detail.files,
         shown: detail.file ? [fileCard(detail.file)] : [],
         listing: false,
+        listingFailure: null,
         decision: null,
         intent: null,
       };
@@ -383,6 +385,7 @@ export class ApprovalsController {
             card.shown.length !== index
           ) {
             card.listing = false;
+            card.listingFailure = { code: 'internal', retry: false };
             this.publish();
             return;
           }
@@ -390,15 +393,18 @@ export class ApprovalsController {
           this.publish();
           next();
         },
-        () => {
+        (error) => {
+          if (!this.same(card)) return;
           // The files that were read stay; the rest can be asked for again.
           card.listing = false;
+          card.listingFailure = failureOf(error);
           this.publish();
         },
       );
     };
     if (card.shown.length >= card.files) return;
     card.listing = true;
+    card.listingFailure = null;
     next();
   }
   /** Reads more files of a change set than were read by themselves. */

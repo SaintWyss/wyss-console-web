@@ -233,7 +233,7 @@ export function eventDetail(event: EventRow): Phrase {
         return { text: msg('Codex took the turn and started working on it.') };
       const reason = facts.turn_reason ? TURN_REASON[facts.turn_reason] : '';
       if (event.kind === 'turn_cancel_requested')
-        return { text: reason || msg('A cancel of the turn was recorded.') };
+        return { text: msg('A cancel of the turn was recorded.') };
       return {
         text: reason || msg('The authority recorded how the turn ended.'),
       };
@@ -291,7 +291,7 @@ export function eventDetail(event: EventRow): Phrase {
           text:
             facts.revocation === 'session_closed'
               ? msg('The lease ended because its session was closed.')
-              : msg('The lease was given back.'),
+              : msg('The lease was revoked.'),
         });
       if (event.kind === 'lease_expired')
         return allowed({ text: msg('The lease reached its time limit.') });
@@ -389,7 +389,7 @@ export function eventsReadFailure(code: SessionFailureCode): string {
       : code === 'changed'
         ? msg('The event history changed while it was being read.')
         : msg(
-            'Events could not be read. Nothing is shown rather than something unverified.',
+            'Events could not be read. Nothing new is shown without verification.',
           );
 }
 export function olderFailure(code: SessionFailureCode): string {
