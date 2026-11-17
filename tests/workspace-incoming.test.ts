@@ -28,12 +28,3 @@ it.each([
   setLanguage('es');
   expect(tIncoming(en)).toBe(es);
 });
-
-it('regression: the Native option is marked for translation just like the other modes', async () => {
-  const { readFileSync } = await import('node:fs');
-  const source = readFileSync(
-    'src/lib/features/workspace/LaunchEditor.svelte',
-    'utf8',
-  );
-  expect(source).toContain("<option>{t('Native')}</option>");
-});

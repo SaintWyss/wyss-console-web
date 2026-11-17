@@ -2102,15 +2102,116 @@ export const ES: Readonly<Record<string, string>> = {
   'This project is in a folder another account can write. Arsenal lists it as read only and does not copy it.':
     'Este proyecto está en una carpeta que otra cuenta puede escribir. Arsenal lo lista como solo lectura y no lo copia.',
   'This skill cannot be imported.': 'Esta skill no se puede importar.',
+  // Workspace redesign (tabs)
+  '{count} unavailable skills are removed from this launch on save.':
+    'Al guardar se quitan de este lanzamiento {count} skills no disponibles.',
+  'At start': 'Arranque',
+  'Writing/editing': 'Escritura y edición',
+  'Reading files': 'Lectura de archivos',
+  'This launch changes nothing: it uses your full ~/.claude.':
+    'Este lanzamiento no cambia nada de tu configuración: usa tu ~/.claude completo.',
+  'This launch changes nothing: it uses your full ~/.codex.':
+    'Este lanzamiento no cambia nada de tu configuración: usa tu ~/.codex completo.',
+  'A label for the launch.': 'Etiqueta del lanzamiento.',
+  'Account connectors': 'Conectores de tu cuenta',
+  'After a tool fails': 'Después de que falla una herramienta',
+  'After using a tool': 'Después de usar una herramienta',
+  Always: 'Siempre',
+  'Always on (config.toml)': 'Siempre activos (config.toml)',
+  Application: 'Aplicación',
+  'Asks for approval before every action.':
+    'Solicita autorización antes de cada acción.',
+  'Before a message is sent': 'Antes de enviar un mensaje',
+  'Before the conversation is compacted': 'Antes de compactar la conversación',
+  'Before using a tool': 'Antes de usar una herramienta',
+  'By type of work': 'Por tipo de trabajo',
+  'Commands for this computer.': 'Los comandos de esta PC.',
+  'Custom text': 'Texto propio',
+  'Directory instructions': 'Instrucciones del directorio',
+  Distribution: 'Distribución',
+  'Does not change files or run commands.':
+    'No modifica archivos ni ejecuta comandos.',
+  'Each option changes the commands below.':
+    'Cada opción modifica los comandos de abajo.',
+  'Editable. One per line, in a new terminal in {folder}.':
+    'Editables. Uno por línea, en una terminal nueva en {folder}.',
+  'Edited by hand: the options no longer change them.':
+    'Editados a mano: las opciones ya no los modifican.',
+  'Edits without asking; asks before running commands.':
+    'Edita sin preguntar; solicita autorización para comandos.',
+  'Filter skills': 'Filtrar skills',
+  'From the project': 'Del proyecto',
+  General: 'General',
+  'Initial context': 'Contexto inicial',
+  'Initial context estimated': 'Contexto inicial estimado',
+  'Initial context: no estimate for Codex':
+    'Contexto inicial: sin estimación para Codex',
+  'Launch settings': 'Configuración del lanzamiento',
+  'Left out': 'Fuera',
+  Load: 'Cargar',
+  'New role': 'Rol nuevo',
+  'No approvals and no sandbox, with your account’s permissions.':
+    'Sin aprobaciones ni sandbox, con los permisos de tu cuenta.',
+  'No context at start. To add one, ask Claude.':
+    'No ocupan contexto al iniciar. Para agregar uno, pedíselo a Claude.',
+  'Not estimated': 'Sin estimar',
+  'Only with every server above on: Claude loads them all or none.':
+    'Solo con todos los servidores de arriba prendidos: Claude los carga todos o ninguno.',
+  'Own topics': 'Temas propios',
+  'Project instructions: could not be read':
+    'Instrucciones del proyecto: no se pudieron leer',
+  'Project instructions: loaded': 'Instrucciones del proyecto: se cargan',
+  'Project instructions: replaced by custom text':
+    'Instrucciones del proyecto: reemplazadas por texto propio',
+  'Project instructions: skipped': 'Instrucciones del proyecto: se omiten',
+  'Read instead of the project’s instructions.':
+    'Se lee en lugar de las instrucciones del proyecto.',
+  'Reading launches': 'Leyendo lanzamientos',
+  'Reads first': 'Lee primero',
+  'Rebuild from the options': 'Regenerar desde las opciones',
+  'Remove distribution': 'Quitar distribución',
+  'Remove {name}?': '¿Quitar {name}?',
+  Saving: 'Guardando',
+  Select: 'Seleccionar',
+  Skip: 'Omitir',
+  Summary: 'Resumen',
+  'Switched off': 'Apagado',
+  'The CLAUDE.md or AGENTS.md of the working directory.':
+    'El CLAUDE.md o AGENTS.md del directorio de trabajo.',
+  'The agent reads the project’s instructions as well as yours.':
+    'El agente lee las instrucciones del proyecto además de las tuyas.',
+  'The agent reads the text below instead of the project’s instructions.':
+    'El agente lee el texto de abajo en lugar de las instrucciones del proyecto.',
+  'The folder the session opens in.': 'Carpeta donde se abre la sesión.',
+  'The program that starts in the terminal.':
+    'Programa que se inicia en la terminal.',
+  'To add one, ask Claude.': 'Para agregar uno, pedíselo a Claude.',
+  'Uses what the application has configured.':
+    'Usa lo que tenga configurado la aplicación.',
+  'When a notification arrives': 'Cuando llega una notificación',
+  'When a task completes': 'Cuando termina una tarea',
+  'When a teammate is idle': 'Cuando un compañero queda inactivo',
+  'When a worktree is created': 'Cuando se crea un worktree',
+  'When a worktree is removed': 'Cuando se borra un worktree',
+  'When an agent starts': 'Cuando arranca un agente',
+  'When an agent stops': 'Cuando se detiene un agente',
+  'When configuration changes': 'Cuando cambia la configuración',
+  'When instructions are loaded': 'Cuando se cargan las instrucciones',
+  'When the agent stops': 'Cuando el agente se detiene',
+  'When the session ends': 'Cuando termina la sesión',
+  'When the session starts': 'Al iniciar la sesión',
+  'Which actions need your approval.': 'Qué acciones requieren tu aprobación.',
+  'Working directory': 'Directorio de trabajo',
+  'Your claude.ai account': 'De tu cuenta de claude.ai',
+  'Your servers': 'Tus servidores',
+  tokens: 'tokens',
   // Workspace: a launch's distributions
   'Update Flatpak apps': 'Actualizar apps Flatpak',
-  'No confirmation (--noconfirm)': 'Sin confirmar (--noconfirm)',
-  'Include AUR (paru)': 'Incluir AUR (paru)',
-  'Skip AUR review (--skipreview)': 'Saltar revisión AUR (--skipreview)',
-  'Clean the package cache (paccache -rk2)':
-    'Limpiar caché de paquetes (paccache -rk2)',
-  'No confirmation (-y)': 'Sin confirmar (-y)',
-  'Remove unused packages (autoremove)': 'Quitar paquetes sin uso (autoremove)',
+  'No confirmation': 'Sin confirmar',
+  'Include AUR': 'Incluir AUR',
+  'Skip AUR review': 'Saltar revisión AUR',
+  'Clean the package cache': 'Limpiar caché de paquetes',
+  'Remove unused packages': 'Quitar paquetes sin uso',
   'This launch has no commands for this distribution. Add one in Workspace.':
     'Este lanzamiento no tiene comandos para esta distribución. Agregala en Workspace.',
   Distributions: 'Distribuciones',
@@ -2166,8 +2267,7 @@ export const ES: Readonly<Record<string, string>> = {
     'Para openSUSE Tumbleweed y Leap. zypper refresh lee los repositorios; zypper dup lleva todo el sistema a sus versiones.',
   'A distribution added by hand: it runs on computers whose os-release ID is {id}.':
     'Distribución agregada manualmente: se usa en las computadoras con el ID de os-release {id}.',
-  'Include AUR -git packages (--devel)':
-    'Incluir paquetes -git del AUR (--devel)',
+  'Include AUR -git packages': 'Incluir paquetes -git del AUR',
   'Adds --devel to paru: also rebuilds AUR packages that follow a repository (-git, -svn…), which a plain update leaves as they are.':
     'Agrega --devel a paru: también recompila los paquetes del AUR que siguen un repositorio (-git, -svn…), que una actualización común deja como están.',
   'Finish with cachy-update': 'Terminar con cachy-update',

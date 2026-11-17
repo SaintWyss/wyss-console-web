@@ -299,7 +299,7 @@ it('adds a tool by name and command, opens it from its file, and makes a launch 
   button('Make launch').click();
   await flush();
   // Workspace opens on the launch made.
-  expect(document.querySelector('.launch-editor')!.hasAttribute('hidden')).toBe(
+  expect(document.querySelector('section.ws')!.hasAttribute('hidden')).toBe(
     false,
   );
 });

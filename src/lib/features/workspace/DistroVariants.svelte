@@ -54,6 +54,7 @@
   let picked = $state<string | null>(null);
   let adding = $state(false);
   let newId = $state('');
+  let confirmingRemove = $state(false);
   let busy = $state(false);
   let error = $state<string | null>(null);
   let notice = $state<string | null>(null);
@@ -174,232 +175,215 @@
   }
 </script>
 
-<div class="dv" aria-label={t('Distributions')}>
-  <p class="dv-system">
-    {#if system.id}
-      {system.name && system.name !== system.id
-        ? t('Detected on this computer: {name} ({id})', {
-            name: system.name,
-            id: system.id,
-          })
-        : t('Detected on this computer: {id}', { id: system.id })}
-    {:else}
-      {t('This computer’s distribution could not be read (/etc/os-release).')}
+<div class="ws-body">
+  <div>
+    {#if error || (notice && !dirty) || !launch.active}
+      <div class="ws-notices">
+        {#if error}<p class="notice" data-tone="error" role="alert">
+            {error}
+          </p>{/if}
+        {#if notice && !dirty}<p class="notice" data-tone="ok" role="status">
+            {notice}
+          </p>{/if}
+        {#if !launch.active}
+          <p class="notice" data-tone="warn">
+            {launch.commands.length > 0
+              ? t(
+                  'No distribution here matches this computer: the file’s own commands run.',
+                )
+              : system.id
+                ? t(
+                    'No distribution here matches this computer: add {id} to start it here.',
+                    { id: system.id },
+                  )
+                : t(
+                    'No distribution here matches this computer: add one to start it here.',
+                  )}
+          </p>
+        {/if}
+      </div>
     {/if}
-  </p>
-  {#if error}<p class="notice" data-tone="error" role="alert">{error}</p>{/if}
-  {#if notice && !dirty}<p class="notice" data-tone="ok" role="status">
-      {notice}
-    </p>{/if}
-  {#if !launch.active}
-    <p class="notice" data-tone="warn">
-      {launch.commands.length > 0
-        ? t(
-            'No distribution here matches this computer: the file’s own commands run.',
-          )
-        : system.id
-          ? t(
-              'No distribution here matches this computer: add {id} to start it here.',
-              { id: system.id },
-            )
-          : t(
-              'No distribution here matches this computer: add one to start it here.',
-            )}
-    </p>
-  {/if}
-  <div class="dv-body">
-    <aside class="dv-list">
-      <p class="le-role">{t('Distributions')}</p>
-      {#each rows as r (r.distro)}
-        <button
-          type="button"
-          class="le-item"
-          aria-current={picked === r.distro ? 'true' : undefined}
-          title={isUpdate && distroOf(r.distro)
-            ? t(distroOf(r.distro)!.hint)
-            : t(
-                'A distribution added by hand: it runs on computers whose os-release ID is {id}.',
-                { id: r.distro },
-              )}
-          onclick={() => (picked = r.distro)}
+
+    <div class="ws-row">
+      <div>
+        <label class="ws-label" for="launch-distribution"
+          >{t('Distribution')}</label
         >
-          <span class="dv-dot" class:on={r.distro === launch.active}></span>
-          <span class="le-name">{labelOf(r.distro)}</span>
-          {#if r.distro === launch.active}<span
-              class="le-meta"
-              title={t('This computer’s distribution: it cannot be deleted.')}
-              >{t('active')}</span
-            >{/if}
-        </button>
-      {/each}
-      {#if adding}
-        <div class="dv-add">
-          {#each missing as d (d.id)}
-            <button
-              type="button"
-              class="le-item"
-              title={t(d.hint)}
-              onclick={() => add(d.id)}
-              ><span class="le-name">{d.label}</span></button
-            >
-          {/each}
+        <p class="ws-hint">{t('Commands for this computer.')}</p>
+      </div>
+      <div class="ws-control">
+        <div class="ws-pair">
+          <select
+            id="launch-distribution"
+            disabled={busy}
+            value={picked ?? ''}
+            onchange={(e) => {
+              picked = e.currentTarget.value;
+              confirmingRemove = false;
+            }}
+          >
+            {#each rows as r (r.distro)}
+              <option value={r.distro}>{labelOf(r.distro)}</option>
+            {/each}
+          </select>
+          <button
+            type="button"
+            class="action"
+            disabled={busy}
+            aria-expanded={adding}
+            onclick={() => (adding = !adding)}>{t('Add')}</button
+          >
+        </div>
+        {#if adding}
           <form
-            class="le-folder"
+            class="ws-pair"
             onsubmit={(e) => {
               e.preventDefault();
               add(newId);
             }}
           >
             <input
-              class="le-input"
+              list="known-distributions"
               placeholder={t('os-release ID, e.g. void')}
               aria-label={t('Distribution ID')}
               maxlength="64"
               bind:value={newId}
             />
+            <datalist id="known-distributions">
+              {#each missing as d (d.id)}<option value={d.id}>{d.label}</option
+                >{/each}
+            </datalist>
             <button
               type="submit"
               class="action"
               disabled={!distroIdOk(newId.trim().toLowerCase())}
-              >{t('Add')}</button
+              >{t('Add distribution')}</button
             >
           </form>
-        </div>
-      {:else}
-        <button type="button" class="le-new" onclick={() => (adding = true)}
-          >+ {t('Add distribution')}</button
-        >
-      {/if}
-    </aside>
+        {/if}
+      </div>
+    </div>
 
     {#if row}
       {@const r = row}
-      <section class="dv-detail" aria-label={labelOf(r.distro)}>
-        <header class="dv-head">
-          <h3>{labelOf(r.distro)}</h3>
-          <span class="le-meta">{r.distro}</span>
-          {#if r.distro === launch.active}<span class="dv-badge"
-              >{t('runs on this computer')}</span
-            >{/if}
-        </header>
-
-        {#if isUpdate && distroOf(r.distro)}
-          {@const d = distroOf(r.distro)!}
-          <p class="le-meta dv-hint">{t(d.hint)}</p>
-          <fieldset class="dv-switches" disabled={busy || r.manual}>
-            <legend class="le-role">{t('Options')}</legend>
+      {#if isUpdate && distroOf(r.distro)}
+        {@const d = distroOf(r.distro)!}
+        <div class="ws-row">
+          <div>
+            <span class="ws-label">{t('Options')}</span>
+            <p class="ws-hint">
+              {t('Each option changes the commands below.')}
+            </p>
+          </div>
+          <fieldset class="ws-options" disabled={busy || r.manual}>
+            <legend class="visually-hidden">{t('Options')}</legend>
             {#each d.switches as s (s.id)}
-              <label
-                class="le-row"
-                class:off={!r.options.includes(s.id)}
-                title={t(s.hint)}
-              >
+              <label title={t(s.hint)}>
                 <input
                   type="checkbox"
                   checked={r.options.includes(s.id)}
                   onchange={(e) => setSwitch(s.id, e.currentTarget.checked)}
                 />
-                <span>{t(s.label)}</span>
+                <span>
+                  {t(s.label)}
+                  {#if s.flag}<code>{s.flag}</code>{/if}
+                </span>
               </label>
             {/each}
           </fieldset>
-          {#if r.manual}
-            <p class="notice" data-tone="warn">
-              {t('The script was written by hand, so the options are off.')}
-              <button
-                type="button"
-                class="action quiet"
-                onclick={backToSwitches}>{t('Back to options')}</button
-              >
-            </p>
-          {/if}
-        {/if}
+        </div>
+      {/if}
 
-        <label class="dv-script">
-          <span class="le-role">{t('Script it runs')}</span>
+      <div class="ws-row">
+        <div>
+          <label class="ws-label" for="launch-commands">{t('Commands')}</label>
+          <p class="ws-hint">
+            {t('Editable. One per line, in a new terminal in {folder}.', {
+              folder: launch.directory,
+            })}
+          </p>
+        </div>
+        <div class="ws-control">
           <textarea
-            class="le-input"
+            id="launch-commands"
+            class="ws-commands"
             spellcheck="false"
-            rows={Math.max(3, r.script.split('\n').length + 1)}
+            rows={Math.max(5, r.script.split('\n').length + 1)}
             disabled={busy}
             value={r.script}
             oninput={(e) => editScript(e.currentTarget.value)}></textarea>
-          <span class="le-meta"
-            >{t('One command per line, typed in a new terminal in {folder}.', {
-              folder: launch.directory,
-            })}</span
-          >
-        </label>
-
-        <div class="dv-actions">
-          <button
-            type="button"
-            class="action danger"
-            disabled={busy || r.distro === launch.active}
-            title={r.distro === launch.active
-              ? t('This computer’s distribution: it cannot be deleted.')
-              : undefined}
-            onclick={() => remove(r.distro)}>{t('Delete')}</button
-          >
-          <span class="dv-spacer"></span>
-          {#if dirty}
-            <button
-              type="button"
-              class="action"
-              disabled={busy}
-              onclick={() => reset(launch)}>{t('Discard')}</button
-            >
+          {#if r.manual && isUpdate && distroOf(r.distro)}
+            <p class="ws-manual" role="status">
+              {t('Edited by hand: the options no longer change them.')}
+              <button type="button" class="ws-link" onclick={backToSwitches}
+                >{t('Rebuild from the options')}</button
+              >
+            </p>
           {/if}
-          <button
-            type="button"
-            class="action"
-            disabled={busy ||
-              !valid ||
-              (launch.commands.length === 0 && !dirty)}
-            onclick={() => void tryIt()}
-            >{dirty ? t('Save and try') : t('Try')}</button
-          >
-          <button
-            type="button"
-            class="action primary"
-            disabled={busy || !dirty || !valid}
-            onclick={() => void store()}
-            >{busy ? t('Saving…') : t('Save')}</button
-          >
         </div>
-      </section>
-    {:else}
-      <section class="dv-detail">
-        {#if launch.commands.length > 0}
-          <div class="dv-script">
-            <span class="le-role">{t('Script it runs')}</span>
-            <pre class="le-input dv-pre">{launch.commands.join('\n')}</pre>
-            <span class="le-meta"
-              >{t(
-                'The file’s own commands, for every distribution. Add one to give it its own.',
-              )}</span
-            >
-          </div>
-        {:else}
-          <p class="le-meta">{t('No distributions yet.')}</p>
-        {/if}
-        <div class="dv-actions">
-          <span class="dv-spacer"></span>
-          {#if launch.commands.length > 0 && !dirty}
-            <button
-              type="button"
-              class="action"
-              onclick={() => onopen(launch.id)}>{t('Try')}</button
-            >
-          {/if}
-          <button
-            type="button"
-            class="action primary"
-            disabled={busy || !dirty || !valid}
-            onclick={() => void store()}>{t('Save')}</button
-          >
+      </div>
+    {:else if launch.commands.length > 0}
+      <div class="ws-row">
+        <div>
+          <span class="ws-label">{t('Commands')}</span>
+          <p class="ws-hint">
+            {t(
+              'The file’s own commands, for every distribution. Add one to give it its own.',
+            )}
+          </p>
         </div>
-      </section>
+        <pre class="ws-commands">{launch.commands.join('\n')}</pre>
+      </div>
     {/if}
   </div>
+</div>
+
+<div class="ws-foot">
+  {#if row && row.distro !== launch.active}
+    {#if confirmingRemove}
+      <span>{t('Remove {name}?', { name: labelOf(row.distro) })}</span>
+      <button
+        type="button"
+        class="action danger"
+        onclick={() => {
+          remove(row!.distro);
+          confirmingRemove = false;
+        }}>{t('Remove')}</button
+      >
+      <button
+        type="button"
+        class="action"
+        onclick={() => (confirmingRemove = false)}>{t('Cancel')}</button
+      >
+    {:else}
+      <button
+        type="button"
+        class="action ws-delete"
+        disabled={busy}
+        onclick={() => (confirmingRemove = true)}
+        >{t('Remove distribution')}</button
+      >
+    {/if}
+  {/if}
+  <span class="ws-spacer"></span>
+  {#if dirty}
+    <button
+      type="button"
+      class="action"
+      disabled={busy}
+      onclick={() => reset(launch)}>{t('Discard')}</button
+    >
+  {/if}
+  <button
+    type="button"
+    class="action"
+    disabled={busy || !valid || (launch.commands.length === 0 && !dirty)}
+    onclick={() => void tryIt()}>{t('Try')}</button
+  >
+  <button
+    type="button"
+    class="action primary"
+    disabled={busy || !dirty || !valid}
+    onclick={() => void store()}>{busy ? t('Saving') : t('Save')}</button
+  >
 </div>
