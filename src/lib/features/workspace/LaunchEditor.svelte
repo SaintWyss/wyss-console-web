@@ -1,9 +1,8 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { t, tIncoming } from '../../i18n/index.svelte';
-  import type { Item, PlanItem, Selection } from '../../contracts/arsenal';
-  import type { InventoryReply } from '../../contracts/configuration';
-  import { permissionsFor } from '../../contracts/native';
+  import { msg, t, tIncoming } from '../../i18n/index.svelte';
+  import type { Item, Selection, PlanItem } from '../../contracts/arsenal';
+  import { permissionsFor, type Permission } from '../../contracts/native';
   import {
     arsenalClient,
     type ArsenalClient,
@@ -17,18 +16,26 @@
     type Launch,
     type SystemInfo,
   } from '../../desktop/launch-client';
-  import { readConfigurationInventory } from '../../desktop/configuration-client';
   import DistroVariants from './DistroVariants.svelte';
   import {
     DEFAULT_CODEX_SPEC,
     DEFAULT_SPEC,
+    hookLabel,
+    isDefault,
     toggle,
   } from '../arsenal/environment';
+  import { distributorOf } from '../distributors/present';
+  import {
+    AS_CONFIGURED,
+    BYPASS_WARNING,
+    PERMISSION_LABEL,
+    PERMISSION_HELP,
+  } from '../native/present';
   import { ENVIRONMENT_UNREADABLE } from '../terminal/launch';
   import { kTokens } from './estimate';
   import { previewItems } from './preview';
   import { errorMessage, sentence } from './messages';
-  import { BASIC_ROLES } from './plan';
+  import { BASIC_ROLES as BASIC } from './plan';
   import {
     loadOrder,
     renameInOrder,
@@ -36,7 +43,9 @@
   } from '../terminal/launch-order';
   import {
     allItemsOf,
+    estimateLaunch,
     estimateOf,
+    libraryItems,
     loadEstimateData,
     NO_DATA,
     selectionOf,
@@ -49,19 +58,6 @@
     type Agent,
     type LaunchDraft,
   } from './plan';
-  import {
-    tabCounts,
-    groupLaunches,
-    WORKSPACE_TABS,
-    type WorkspaceTab,
-  } from './model';
-  import LaunchList from './LaunchList.svelte';
-  import General from './tabs/General.svelte';
-  import Instructions from './tabs/Instructions.svelte';
-  import Skills from './tabs/Skills.svelte';
-  import Mcp from './tabs/Mcp.svelte';
-  import Hooks from './tabs/Hooks.svelte';
-  import Summary from './tabs/Summary.svelte';
 
   let {
     visible,
@@ -90,38 +86,106 @@
     launches?: typeof listLaunches;
   } = $props();
 
+  /** What each part of a launch is, shown on hover. */
+  const HINT = {
+    role: msg(
+      'Only for ordering this list: launches are grouped by role. It does not change what the agent does.',
+    ),
+    distributor: msg(
+      'Which agent the launch starts: Claude Code (Anthropic) or Codex (OpenAI). Changing it resets the preset, skills, environment and project instructions; the permission stays if the other agent has it too.',
+    ),
+    permission: PERMISSION_HELP,
+    mode: msg(
+      'Native: the agent runs as its own program in a terminal of the Console, as when you type claude or codex. The other mode, Managed (the Console drives the session), starts from Sessions, not from a launch; that is why it is fixed here.',
+    ),
+    folder: msg(
+      'Where the agent works: it reads and edits the files of this folder, and its project settings are this folder’s.',
+    ),
+    estimate: msg(
+      'About how much context the agent loads before you write anything, from what is switched on below. The bar compares it with everything switched on. MCP servers and hook output are not measured.',
+    ),
+  } as const;
+  const GROUP_HINT: Record<string, string> = {
+    instructions: msg(
+      'CLAUDE.md and the rules files Claude Code reads when it starts: what you told it to always follow. Switching one off saves context, and the agent no longer follows it.',
+    ),
+    skills: msg(
+      'Know-how the agent loads when a task needs it. At start only each one’s short description takes context.',
+    ),
+    mcp: msg(
+      'Outside tools the agent can call (browser, docs, Notion…). How much context they take is not measured.',
+    ),
+    agents: msg(
+      'Helpers the provider loads from its installed agents. This list is informational; the launch does not select individual agents.',
+    ),
+    account: msg(
+      'The skills of your Claude account (claude.ai), on top of the ones installed on this computer.',
+    ),
+    hooks: msg(
+      'Scripts that run on their own at fixed moments (before a command, when a turn ends…). The script takes no context, but what some of them print (at start, before each message) enters the conversation. Not measured.',
+    ),
+    codexInstructions: msg(
+      'AGENTS.md of your Codex folder: what you told Codex to always follow. Switched off, this launch starts without it.',
+    ),
+  };
+  /** Said under the hooks of a Codex launch: what leaving one out does, and what Codex asks. */
+  const CODEX_HOME_NOTE = msg(
+    'A launch that leaves a hook or AGENTS.md out runs in its own Codex folder, with your own Codex sign-in. Codex asks you to approve the hooks the first time in each new folder.',
+  );
+  const STALE_HOOKS = msg(
+    'A hook this preset left out is no longer in hooks.json: it was edited or removed. A launch with this preset does not start until you check the hooks and save.',
+  );
+  const CONFIG_HOOKS_NOTE = msg(
+    'Declared in config.toml: these run in every launch and cannot be switched off here.',
+  );
+  /** What each permission does, shown on hover over the chosen one. */
+  const PERMISSION_HINT: Record<Permission, string> = {
+    ask: msg('The agent asks before every change.'),
+    read_only: msg('The agent reads and plans; it changes nothing.'),
+    edits: msg(
+      'The agent edits files without asking; it still asks before running commands. Claude Code only.',
+    ),
+    bypass: BYPASS_WARNING,
+  };
+
+  const AGENTS: readonly { id: Agent; distributor: string }[] = (
+    ['claude_code', 'codex'] as const
+  ).map((id) => ({ id, distributor: distributorOf(id) }));
+
   let phase = $state<'idle' | 'loading' | 'ready' | 'failed'>('idle');
   let launches = $state<Launch[]>([]);
   let refused = $state<{ id: string; error: string }[]>([]);
   let system = $state<SystemInfo>({ id: '', like: [], name: '' });
   let roles = $state<Roles>({ custom: [], assigned: {}, damaged: false });
   let data = $state<EstimateData>(NO_DATA);
-  let inventory = $state<InventoryReply | null>(null);
   let q = $state('');
   let selected = $state<string | null>(null);
   let draft = $state<LaunchDraft | null>(null);
   let baseline = $state('');
-  let tab = $state<WorkspaceTab>('general');
+  let open = $state<string | null>('skills');
   let busy = $state(false);
   let error = $state<string | null>(null);
   let notice = $state<string | null>(null);
   let confirming = $state(false);
   let rolesOpen = $state(false);
   let newRole = $state('');
-  /** A preset dropped a Codex hook that no longer exists in hooks.json. */
+  let foldersOpen = $state(false);
+  /** The draft dropped a hook its preset left out that hooks.json no longer has. */
   let staleHooks = $state(false);
   let usedPresetRequest: number | null = null;
   let itemPlan = $state<PlanItem[]>([]);
+  let leftOut = $state<PlanItem[]>([]);
   let selectionPlanError = $state('');
   let itemPlanError = $state('');
   let selectionPlan = $state<
     import('../../contracts/arsenal').TerminalPlan | null
   >(null);
   let itemPlanState = $state<'loading' | 'ready' | 'failed'>('loading');
+  const unavailable = (item: PlanItem) =>
+    item.state === 'missing' || item.state === 'rejected';
 
-  const unavailable = (item: PlanItem) => item.state !== 'prepared';
-
-  // Check all provider items, including unticked skills. Late answers for old drafts are ignored.
+  // Evaluate every library item, including unticked skills, with the launch's pinned revisions.
+  // No preset is created by opening the editor. Ignore an answer for an older folder or agent.
   $effect(() => {
     if (!draft) return;
     const agent = draft.agent;
@@ -129,26 +193,30 @@
     const selection = draft.selection;
     const items = allItemsOf(data.library, agent);
     for (const item of selection?.items ?? []) {
-      const index = items.findIndex(
-        (candidate) => candidate.capability === item.capability,
-      );
+      const index = items.findIndex((i) => i.capability === item.capability);
       if (index < 0) items.push({ ...item });
       else items[index] = { ...item };
     }
     let active = true;
     itemPlanState = 'loading';
     itemPlan = [];
+    leftOut = [];
     itemPlanError = '';
     void previewItems(client, agent, directory, items)
-      .then((available) => {
+      .then((items) => {
         if (!active || !draft) return;
-        itemPlan = available;
+        itemPlan = items;
         const blocked = new Set(
-          available.filter(unavailable).map((item) => item.capability),
+          items.filter(unavailable).map((i) => i.capability),
         );
-        draft.items = draft.items.filter(
-          (item) => !blocked.has(item.capability),
+        leftOut = items.filter(
+          (i) =>
+            unavailable(i) &&
+            draft!.items.some(
+              (selected) => selected.capability === i.capability,
+            ),
         );
+        draft.items = draft.items.filter((i) => !blocked.has(i.capability));
         itemPlanState = 'ready';
       })
       .catch((e: unknown) => {
@@ -162,7 +230,8 @@
     };
   });
 
-  // The plan verdict reads the actual draft separately; availability batches are not a launch plan.
+  // Availability batches are not a launch plan: their exclusions/conflicts differ from the draft.
+  // Read the actual draft separately for the advisory enforcement verdict, never merge batch verdicts.
   $effect(() => {
     selectionPlan = null;
     selectionPlanError = '';
@@ -173,6 +242,7 @@
     if (items.length > 512) return;
     let active = true;
     const selection = draft.selection;
+    // Saved presets also carry composites, which an item-only preview cannot represent.
     const unchanged =
       selection && JSON.stringify(items) === JSON.stringify(selection.items);
     void client
@@ -196,39 +266,33 @@
   });
 
   const allRoles = $derived([
-    ...BASIC_ROLES.map((role) => ({
-      id: role.id,
-      name: t(role.name),
-      basic: true,
-    })),
-    ...roles.custom.map((role) => ({ ...role, basic: false })),
+    ...BASIC.map((r) => ({ id: r.id, name: t(r.name), basic: true })),
+    ...roles.custom.map((r) => ({ ...r, basic: false })),
   ]);
   const roleOf = (id: string) => roles.assigned[id] ?? 'worker';
   const knownRole = (id: string) =>
-    allRoles.some((role) => role.id === id) ? id : 'worker';
+    allRoles.some((r) => r.id === id) ? id : 'worker';
 
   async function load() {
     phase = 'loading';
     error = null;
     try {
-      const [list, roleData, estimateData, configInventory] = await Promise.all(
-        [
-          loadLaunches(),
-          client
-            .roles()
-            .catch((): Roles => ({ custom: [], assigned: {}, damaged: true })),
-          loadEstimateData(client),
-          readConfigurationInventory().catch(() => null),
-        ],
-      );
+      const [list, r, read] = await Promise.all([
+        loadLaunches(),
+        // Roles that cannot be read leave the basic ones; the editor still opens.
+        client
+          .roles()
+          .catch((): Roles => ({ custom: [], assigned: {}, damaged: true })),
+        loadEstimateData(client),
+      ]);
+      // An answer without a list is a failure, never an empty Workspace.
       if (!Array.isArray(list?.launches))
         throw new Error(t('Workspace could not be read.'));
       launches = list.launches;
       refused = list.refused ?? [];
       system = list.system ?? system;
-      roles = roleData;
-      data = estimateData;
-      inventory = configInventory;
+      roles = r;
+      data = read;
       phase = 'ready';
       if (!selected && launches[0]) pick(launches[0]);
     } catch (e) {
@@ -236,14 +300,13 @@
       error = errorMessage(e);
     }
   }
-
-  // Load on first visit and again on later visits so launches created elsewhere appear.
+  // Read on the first visit, and again on each later one: a launch made elsewhere appears.
   $effect(() => {
     if (visible) untrack(() => phase !== 'loading' && void load());
   });
   $effect(() => {
     const id = select;
-    const found = launches.find((launch) => launch.id === id);
+    const found = launches.find((l) => l.id === id);
     if (found) untrack(() => selected !== found.id && pick(found));
   });
   $effect(() => {
@@ -264,14 +327,6 @@
       error = t('That preset is no longer available. Refresh and try again.');
     onpresetused(request.request);
   });
-
-  function unreadableFor(selection: Selection | null, agent: Agent): boolean {
-    if (selection === null) return false;
-    return agent === 'codex'
-      ? data.codexUnreadable === true &&
-          !data.codexEnvironments.has(selection.id)
-      : data.claudeFailed?.has(selection.id) === true;
-  }
 
   function draftOf(launch: Launch | null): LaunchDraft {
     if (!launch || launch.kind !== 'session') {
@@ -301,9 +356,10 @@
       directory: launch.directory,
       selection,
       items: selection
-        ? selection.items.map((item) => ({ ...item }))
+        ? selection.items.map((i) => ({ ...i }))
         : allItemsOf(data.library, launch.agent),
       composites: selection ? [...selection.composites] : [],
+      // Claude, the same: a file that cannot be read draws nothing and saves nothing.
       spec:
         launch.agent === 'claude_code' &&
         !unreadableFor(selection, 'claude_code')
@@ -312,6 +368,8 @@
                 DEFAULT_SPEC),
             }
           : null,
+      // A preset whose environment could not be read gets none here: nothing is drawn as
+      // "everything on", and Save does not write over what is not known.
       codexSpec:
         launch.agent === 'codex' && !unreadableFor(selection, 'codex')
           ? {
@@ -327,30 +385,37 @@
             }),
     };
   }
-
+  /** Whether the environment of this preset is in a file that cannot be read. */
+  function unreadableFor(
+    selection: Selection | null,
+    agent: 'claude_code' | 'codex',
+  ): boolean {
+    if (selection === null) return false;
+    return agent === 'codex'
+      ? data.codexUnreadable === true &&
+          !data.codexEnvironments.has(selection.id)
+      : data.claudeFailed?.has(selection.id) === true;
+  }
   function pick(launch: Launch | null) {
     selected = launch?.id ?? 'new';
     const fresh = draftOf(launch);
+    // The baseline is what is saved. A hook the preset left out that `hooks.json` no longer has
+    // (edited or removed) is dropped from the draft only, so the draft differs and can be saved.
     baseline = JSON.stringify(fresh);
     staleHooks = false;
-    const listed = data.codexOptions?.hooks.map((hook) => hook.key);
+    const listed = data.codexOptions?.hooks.map((h) => h.key);
     if (fresh.codexSpec && listed) {
-      const kept = fresh.codexSpec.hooks_off.filter((key) =>
-        listed.includes(key),
-      );
+      const kept = fresh.codexSpec.hooks_off.filter((k) => listed.includes(k));
       if (kept.length !== fresh.codexSpec.hooks_off.length) {
         fresh.codexSpec = { ...fresh.codexSpec, hooks_off: kept };
         staleHooks = true;
       }
     }
     draft = fresh;
-    tab = 'general';
     error = null;
     notice = null;
     confirming = false;
-    rolesOpen = false;
   }
-
   function freeLaunchName(name: string): string {
     const base = name.trim() || t('New launch');
     const usedIds = new Set(launches.map((launch) => launch.id));
@@ -363,7 +428,6 @@
     }
     return t('New launch');
   }
-
   function pickPreset(selection: Selection) {
     const fresh = draftOf(null);
     fresh.name = freeLaunchName(selection.name);
@@ -385,6 +449,7 @@
     fresh.instructions = data.instructionsFailed?.has(selection.id)
       ? null
       : (data.launchInstructions?.get(selection.id) ?? { project: 'load' });
+
     staleHooks = false;
     const listed = data.codexOptions?.hooks.map((hook) => hook.key);
     if (fresh.codexSpec && listed) {
@@ -399,17 +464,15 @@
     selected = 'new';
     baseline = JSON.stringify(fresh);
     draft = fresh;
-    tab = 'general';
     error = null;
     notice = null;
     confirming = false;
   }
-
   const dirty = $derived(draft !== null && JSON.stringify(draft) !== baseline);
-  const current = $derived(
-    launches.find((launch) => launch.id === selected) ?? null,
-  );
+  const current = $derived(launches.find((l) => l.id === selected) ?? null);
+  /** A launch that runs commands or `before` lines: opened from here, edited in its file. */
   const readOnly = $derived(current !== null && !editable(current));
+  /** Saving writes the file its name gives; another file name is removed after it. */
   const renames = $derived(
     current !== null &&
       !readOnly &&
@@ -430,8 +493,23 @@
           new TextEncoder().encode(draft.instructions.role).length <=
             64 * 1024)),
   );
-  const listGroups = $derived(groupLaunches(launches, q));
+
+  // The list, by role, filtered by the search.
+  const groups = $derived(
+    allRoles
+      .map((role) => ({
+        role,
+        items: launches.filter(
+          (l) =>
+            knownRole(roleOf(l.id)) === role.id &&
+            l.name.toLowerCase().includes(q.trim().toLowerCase()),
+        ),
+      }))
+      .filter((g) => g.items.length > 0),
+  );
+
   const est = $derived(
+    // No estimate from defaults when the Claude environment could not be read.
     draft &&
       !readOnly &&
       !(draft.agent === 'claude_code' && draft.spec === null)
@@ -448,64 +526,20 @@
         )
       : null,
   );
-  const known = $derived(new Set(recent.map((entry) => entry.path)));
+  const agentPermissions = $derived(draft ? permissionsFor(draft.agent) : []);
+  // Only folders the Console knows as projects: the desktop reads no other.
+  const known = $derived(new Set(recent.map((r) => r.path)));
   const saved = $derived([
-    ...new Set(
-      launches
-        .map((launch) => launch.directory)
-        .filter((path) => known.has(path)),
-    ),
+    ...new Set(launches.map((l) => l.directory).filter((d) => known.has(d))),
   ]);
   const used = $derived(
     [...recent].sort((a, b) => b.last_used - a.last_used).slice(0, 8),
   );
 
-  const tabItems = $derived.by(() => {
-    const currentDraft = draft;
-    if (!currentDraft) return [];
-    const counts = tabCounts(currentDraft, data, itemPlan);
-    return WORKSPACE_TABS.filter(
-      (id) => id !== 'mcp' || currentDraft.agent === 'claude_code',
-    ).map((id) => {
-      const c = counts[id];
-      return {
-        id,
-        label: t(tabLabel(id)),
-        count: c ? t('{on} of {all}', { on: c.on, all: c.all }) : '',
-      };
-    });
-  });
-
-  function tabLabel(id: WorkspaceTab): string {
-    const labels: Record<WorkspaceTab, string> = {
-      general: 'General',
-      instructions: 'Instructions',
-      skills: 'Skills',
-      mcp: 'MCP',
-      hooks: 'Hooks',
-      summary: 'Summary',
-    };
-    return labels[id];
-  }
-
-  function tabKey(event: KeyboardEvent, index: number) {
-    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-    event.preventDefault();
-    const next =
-      event.key === 'Home'
-        ? 0
-        : event.key === 'End'
-          ? tabItems.length - 1
-          : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabItems.length) %
-            tabItems.length;
-    const selectedTab = tabItems[next];
-    if (!selectedTab) return;
-    tab = selectedTab.id;
-    document.getElementById(`workspace-tab-${selectedTab.id}`)?.focus();
-  }
-
   function setAgent(agent: Agent) {
     if (!draft || draft.agent === agent) return;
+    // Preset and environment belong to an agent: they start over. A permission stays when the
+    // other agent has it too (accepting edits is Claude Code's own).
     draft.agent = agent;
     if (draft.permission && !permissionsFor(agent).includes(draft.permission))
       draft.permission = null;
@@ -515,40 +549,218 @@
     draft.spec = agent === 'claude_code' ? { ...DEFAULT_SPEC } : null;
     draft.codexSpec = agent === 'codex' ? { ...DEFAULT_CODEX_SPEC } : null;
     draft.instructions = { project: 'load' };
-    if (agent === 'codex' && tab === 'mcp') tab = 'general';
   }
-
   function setItem(id: string, on: boolean) {
     if (
       !draft ||
       (on &&
         (itemPlanState !== 'ready' ||
-          itemPlan.some((item) => item.capability === id && unavailable(item))))
+          itemPlan.some((i) => i.capability === id && unavailable(i))))
     )
       return;
-    const has = draft.items.some((item) => item.capability === id);
-    if (on && !has) {
+    const has = draft.items.some((i) => i.capability === id);
+    if (on && !has)
       draft.items = [
         ...draft.items,
         {
           capability: id,
           revision:
-            draft.selection?.items.find((item) => item.capability === id)
-              ?.revision ?? null,
+            draft.selection?.items.find((i) => i.capability === id)?.revision ??
+            null,
         },
       ];
-    }
     if (!on && has)
-      draft.items = draft.items.filter((item) => item.capability !== id);
+      draft.items = draft.items.filter((i) => i.capability !== id);
   }
 
-  function setAccountSkill(name: string, on: boolean) {
-    if (!draft?.spec) return;
-    draft.spec.account_skills_off = toggle(
-      draft.spec.account_skills_off,
-      name,
-      !on,
-    );
+  // The groups of what a session loads, one row each, as the contract lists them.
+  interface Row {
+    key: string;
+    label: string;
+    on: boolean;
+    set: (on: boolean) => void;
+    disabled?: boolean;
+    title?: string;
+  }
+  interface Group {
+    id: string;
+    label: string;
+    rows: Row[];
+    informational?: boolean;
+    tokens: number | null;
+    note?: string;
+    /** Shown on hover instead of the group's usual hint. */
+    hint?: string;
+    /** Said inside the open group, above its rows. */
+    notice?: string;
+    /** Things of this kind that always load: shown ticked and fixed, never counted or switched. */
+    fixed?: { label: string; title: string; note: string }[];
+  }
+  const groupsOf = $derived.by((): Group[] => {
+    if (!draft) return [];
+    const d = draft;
+    const lib = libraryItems(data.library, d.agent);
+    const on = new Set(d.items.map((i) => i.capability));
+    const libRows = (kind: string): Row[] =>
+      lib
+        .filter((item) => item.kind === kind)
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((item) => {
+          const reason = itemPlan.find(
+            (i) => i.capability === item.id && unavailable(i),
+          )?.reason;
+          return {
+            key: item.id,
+            label: item.name,
+            on:
+              on.has(item.id) &&
+              !itemPlan.some((i) => i.capability === item.id && unavailable(i)),
+            disabled:
+              kind === 'skill' &&
+              (itemPlanState !== 'ready' ||
+                itemPlan.some(
+                  (i) => i.capability === item.id && unavailable(i),
+                )),
+            title: reason ? tIncoming(reason) : undefined,
+            set: (v: boolean) => setItem(item.id, v),
+          };
+        });
+    const out: Group[] = [];
+    const options = data.options;
+    if (d.agent === 'claude_code' && d.spec && options) {
+      const spec = d.spec;
+      out.push({
+        id: 'instructions',
+        label: msg('Instructions'),
+        tokens: est?.instructions ?? null,
+        rows: [
+          ...(options.instructions
+            ? [
+                {
+                  key: 'CLAUDE.md',
+                  label: 'CLAUDE.md',
+                  on: spec.instructions,
+                  set: (v: boolean) => (spec.instructions = v),
+                },
+              ]
+            : []),
+          ...options.rules.map((rule) => ({
+            key: `rule:${rule}`,
+            label: `rules/${rule}`,
+            on: spec.instructions && !spec.rules_off.includes(rule),
+            disabled: !spec.instructions,
+            set: (v: boolean) =>
+              (spec.rules_off = toggle(spec.rules_off, rule, !v)),
+          })),
+        ],
+      });
+    }
+    const codex = data.codexOptions;
+    if (d.agent === 'codex' && d.codexSpec && codex?.instructions) {
+      const spec = d.codexSpec;
+      out.push({
+        id: 'instructions',
+        label: msg('Instructions'),
+        tokens: null,
+        hint: GROUP_HINT.codexInstructions,
+        rows: [
+          {
+            key: 'AGENTS.md',
+            label: 'AGENTS.md',
+            on: spec.instructions,
+            set: (v: boolean) => (spec.instructions = v),
+          },
+        ],
+      });
+    }
+    out.push({
+      id: 'skills',
+      label: msg('Skills'),
+      tokens: est?.skills ?? null,
+      rows: libRows('skill'),
+    });
+    if (d.agent === 'claude_code' && d.spec && options) {
+      const spec = d.spec;
+      out.push({
+        id: 'mcp',
+        label: msg('MCP servers'),
+        tokens: null,
+        note: msg('not measured'),
+        rows: options.mcp.map((name) => ({
+          key: name,
+          label: name,
+          on: spec.mcp === null || spec.mcp.includes(name),
+          set: (v: boolean) =>
+            (spec.mcp = toggle(spec.mcp ?? [...options.mcp], name, v)),
+        })),
+      });
+    }
+    out.push({
+      id: 'agents',
+      label: msg('Agents'),
+      tokens: est?.agents ?? null,
+      rows: libRows('agent'),
+      informational: true,
+    });
+    if (d.agent === 'claude_code' && d.spec && options) {
+      const spec = d.spec;
+      out.push({
+        id: 'account',
+        label: msg('Account skills'),
+        tokens: est?.account ?? null,
+        rows: options.account_skills.map((name) => ({
+          key: name,
+          label: name,
+          on: !spec.account_skills_off.includes(name),
+          set: (v: boolean) =>
+            (spec.account_skills_off = toggle(
+              spec.account_skills_off,
+              name,
+              !v,
+            )),
+        })),
+      });
+      out.push({
+        id: 'hooks',
+        label: msg('Hooks'),
+        tokens: null,
+        note: msg('not measured'),
+        rows: options.hooks.map((hook) => ({
+          key: hook.key,
+          label: hookLabel(hook),
+          on: !spec.hooks_off.includes(hook.key),
+          set: (v: boolean) =>
+            (spec.hooks_off = toggle(spec.hooks_off, hook.key, !v)),
+        })),
+      });
+    }
+    if (d.agent === 'codex' && d.codexSpec && codex) {
+      const spec = d.codexSpec;
+      out.push({
+        id: 'hooks',
+        label: msg('Hooks'),
+        tokens: null,
+        note: msg('not measured'),
+        notice: CODEX_HOME_NOTE,
+        rows: codex.hooks.map((hook) => ({
+          key: hook.key,
+          label: hookLabel(hook),
+          on: !spec.hooks_off.includes(hook.key),
+          set: (v: boolean) =>
+            (spec.hooks_off = toggle(spec.hooks_off, hook.key, !v)),
+        })),
+        // Hooks `config.toml` declares: no launch leaves one out, so they are not rows.
+        fixed: codex.config_hooks.map((hook) => ({
+          label: hookLabel(hook),
+          title: hook.command,
+          note: CONFIG_HOOKS_NOTE,
+        })),
+      });
+    }
+    return out;
+  });
+  function setAll(group: Group, v: boolean) {
+    for (const row of group.rows) if (!row.disabled) row.set(v);
   }
 
   async function addRole() {
@@ -561,11 +773,10 @@
       error = `${t('The role could not be saved.')} ${errorMessage(e)}`;
     }
   }
-
   async function removeRole(id: string) {
     try {
       roles = await client.writeRole({ do: 'delete', id });
-      if (draft?.role === id) draft.role = 'worker';
+      if (draft && draft.role === id) draft.role = 'worker';
     } catch (e) {
       error = `${t('The role could not be deleted.')} ${errorMessage(e)}`;
     }
@@ -574,11 +785,12 @@
   /** One Save: preset → environment → launch → role. Says what was saved if a step fails. */
   async function save(): Promise<string | null> {
     if (!draft || !canSave || busy) return null;
+    // A frozen copy: the fields are disabled while saving, and nothing typed meanwhile mixes in.
     const d: LaunchDraft = $state.snapshot(draft) as LaunchDraft;
     const blocked = new Set(
-      itemPlan.filter(unavailable).map((item) => item.capability),
+      itemPlan.filter(unavailable).map((i) => i.capability),
     );
-    d.items = d.items.filter((item) => !blocked.has(item.capability));
+    d.items = d.items.filter((i) => !blocked.has(i.capability));
     busy = true;
     error = null;
     notice = null;
@@ -588,9 +800,7 @@
       .catch(() => null);
     const plan = savePlan(d, {
       launches,
-      selections: data.selections.filter(
-        (selection) => selection.provider === d.agent,
-      ),
+      selections: data.selections.filter((s) => s.provider === d.agent),
       folderSelection,
       savedSpec: d.selection
         ? (data.environments.get(d.selection.id) ?? null)
@@ -605,27 +815,23 @@
     });
     try {
       let target: Selection | null = d.selection;
-      const preset = plan.preset;
-      if (
-        preset.do === 'write' ||
-        preset.do === 'copy' ||
-        preset.do === 'create'
-      ) {
+      const p = plan.preset;
+      if (p.do === 'write' || p.do === 'copy' || p.do === 'create') {
         target = await client.saveSelection({
-          id: preset.do === 'write' ? preset.id : null,
-          name: preset.name,
+          id: p.do === 'write' ? p.id : null,
+          name: p.name,
           provider: d.agent,
           items: d.items as Item[],
           composites: d.composites,
         });
         done.push(
-          preset.do === 'copy'
+          p.do === 'copy'
             ? t('preset “{name}” (a copy: the other launches keep theirs)', {
-                name: preset.name,
+                name: p.name,
               })
-            : t('preset “{name}”', { name: preset.name }),
+            : t('preset “{name}”', { name: p.name }),
         );
-      } else if (preset.do === 'none') target = null;
+      } else if (p.do === 'none') target = null;
       if (plan.environment && target && d.agent === 'codex' && d.codexSpec) {
         await client.writeCodexEnvironment(target.id, d.codexSpec);
         done.push(t('environment'));
@@ -642,7 +848,7 @@
               project: 'load',
             },
           ) ||
-          ((preset.do === 'copy' || preset.do === 'create') &&
+          ((p.do === 'copy' || p.do === 'create') &&
             d.instructions.project !== 'load'))
       ) {
         await client.writeLaunchInstructions(target.id, d.instructions);
@@ -656,6 +862,8 @@
         replace: plan.launch.replace,
       });
       done.push(t('launch'));
+      // The role follows the new name before the old file goes: a failure here leaves both
+      // files, never a launch without its role.
       if (plan.role.renamedFrom)
         roles = await client.writeRole({
           do: 'rename',
@@ -671,6 +879,7 @@
       if (plan.removeOld) {
         try {
           await deleteLaunch(plan.removeOld);
+          // It keeps its place in + Launch.
           saveOrder(renameInOrder(loadOrder(), plan.removeOld, launch.id));
         } catch {
           error = t(
@@ -681,7 +890,7 @@
       }
       const failed = error;
       await load();
-      const fresh = launches.find((item) => item.id === launch.id) ?? null;
+      const fresh = launches.find((l) => l.id === launch.id) ?? null;
       pick(fresh);
       error = failed;
       notice = failed ? null : t('Saved.');
@@ -703,7 +912,6 @@
       busy = false;
     }
   }
-
   async function tryIt() {
     if (!draft) return;
     if (!dirty && draft.id) {
@@ -713,28 +921,23 @@
     const id = await save();
     if (id) onopen(id);
   }
-
   async function remove() {
     const removing = current;
-    if (!removing || (removing.kind === 'session' && !editable(removing)))
-      return;
-    const removingSession = removing.kind === 'session' ? removing : null;
+    if (!removing || removing.kind !== 'session' || !editable(removing)) return;
     busy = true;
     let deleted = false;
     try {
-      const selection = removingSession
-        ? selectionOf(removingSession, data.selections)
-        : null;
+      const selection = selectionOf(removing, data.selections);
       await deleteLaunch(removing.id);
       deleted = true;
       if (
         selection &&
         !launches.some(
-          (launch) =>
-            launch.id !== removing.id &&
-            launch.kind === 'session' &&
-            launch.agent === removingSession?.agent &&
-            launch.preset === selection.name,
+          (l) =>
+            l.id !== removing.id &&
+            l.kind === 'session' &&
+            l.agent === removing.agent &&
+            l.preset === selection.name,
         )
       ) {
         await client.writeLaunchInstructions(selection.id, { project: 'load' });
@@ -749,362 +952,193 @@
         draft = null;
         await load();
       }
-      error = `${t(
-        deleted
-          ? 'The launch was deleted, but its instructions or role could not be cleared.'
-          : 'The launch could not be deleted.',
-      )} ${errorMessage(e)}`;
+      error =
+        t(
+          deleted
+            ? 'The launch was deleted, but its instructions or role could not be cleared.'
+            : 'The launch could not be deleted.',
+        ) + ` ${errorMessage(e)}`;
     } finally {
       busy = false;
       confirming = false;
     }
   }
-
   async function browse() {
     const path = await choose().catch(() => null);
     if (path && draft) draft.directory = path;
   }
-
-  function noticeText(text: string, tone: 'warning' | 'error' | 'success') {
-    return { text, tone };
-  }
-
-  const editorNotices = $derived.by(() => {
-    if (!draft) return [];
-    const notes: { text: string; tone: 'warning' | 'error' | 'success' }[] = [];
-    if (
-      !readOnly &&
-      draft.selection &&
-      unreadableFor(draft.selection, draft.agent)
-    ) {
-      notes.push(
-        noticeText(
-          t(
-            draft.agent === 'claude_code' && !data.claudeUnreadable
-              ? 'The launch environment could not be read.'
-              : ENVIRONMENT_UNREADABLE,
-          ),
-          'error',
-        ),
-      );
-    }
-    if (!readOnly && staleHooks)
-      notes.push(
-        noticeText(
-          t(
-            'A hook this preset left out is no longer in hooks.json: it was edited or removed. A launch with this preset does not start until you check the hooks and save.',
-          ),
-          'warning',
-        ),
-      );
-    if (
-      !readOnly &&
-      draft.selection &&
-      data.instructionsFailed?.has(draft.selection.id)
-    )
-      notes.push(
-        noticeText(
-          t(
-            'The launch instructions file cannot be read. It was not modified.',
-          ),
-          'error',
-        ),
-      );
-    if (roles.damaged)
-      notes.push(
-        noticeText(
-          t(
-            'roles.json could not be read. Roles are shown as the basic ones and are not saved until the file is fixed or removed.',
-          ),
-          'warning',
-        ),
-      );
-    if (renames && current && draft)
-      notes.push(
-        noticeText(
-          t(
-            'This launch is saved as {file}.toml. Saving writes {next}.toml and removes {file}.toml.',
-            { file: current.id, next: launchId(draft.name) },
-          ),
-          'warning',
-        ),
-      );
-    if (itemPlanState === 'failed' || selectionPlanError)
-      notes.push(
-        noticeText(
-          t('The launch plan could not be read: {reason}', {
-            reason: itemPlanError || selectionPlanError,
-          }),
-          'error',
-        ),
-      );
-    if (selectionPlan && selectionPlan.can_apply === false)
-      notes.push(
-        noticeText(
-          t(
-            'This skills choice cannot be applied now: {reason} Check it before starting.',
-            {
-              reason:
-                selectionPlan.conflicts
-                  ?.filter((conflict) => conflict.blocking)
-                  .map((conflict) => conflict.names.join(', '))
-                  .join('; ') || tIncoming(selectionPlan.enforcement.reason),
-            },
-          ),
-          'warning',
-        ),
-      );
-    if (error) notes.push(noticeText(error, 'error'));
-    if (notice) notes.push(noticeText(notice, 'success'));
-    return notes;
-  });
 </script>
 
 <section
-  class="workspace-shell"
+  class="launch-editor"
   aria-label={t('Launches')}
   hidden={!visible}
   inert={!visible}
 >
-  <LaunchList
-    groups={listGroups}
-    query={q}
-    {selected}
-    {phase}
-    {refused}
-    disabled={busy}
-    onquery={(value) => (q = value)}
-    onpick={pick}
-    onnew={() => pick(null)}
-  />
+  <aside class="le-list">
+    <div class="le-search">
+      <input
+        class="le-input"
+        type="search"
+        placeholder={t('Search…')}
+        aria-label={t('Search launches')}
+        bind:value={q}
+      />
+      <button
+        type="button"
+        class="top-action icon"
+        aria-label={t('Roles')}
+        title={t('Roles')}
+        aria-expanded={rolesOpen}
+        onclick={() => (rolesOpen = !rolesOpen)}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true"
+          ><path
+            d="M9 7a3 3 0 1 0 0 .01M3 20c0-3 2.7-5 6-5s6 2 6 5M17 8v6M14 11h6"
+          /></svg
+        >
+      </button>
+    </div>
+    {#if rolesOpen}
+      <div class="le-roles">
+        {#each allRoles as role (role.id)}
+          <div class="le-role-row">
+            <span>{role.name}</span>
+            {#if role.basic}
+              <span class="le-meta">{t('basic')}</span>
+            {:else}
+              <button
+                type="button"
+                class="action quiet"
+                aria-label={t('Delete role {name}', { name: role.name })}
+                onclick={() => void removeRole(role.id)}>×</button
+              >
+            {/if}
+          </div>
+        {/each}
+        <form
+          class="le-role-row"
+          onsubmit={(e) => {
+            e.preventDefault();
+            void addRole();
+          }}
+        >
+          <input
+            class="le-input"
+            placeholder={t('New role…')}
+            aria-label={t('New role name')}
+            maxlength="40"
+            bind:value={newRole}
+          />
+          <button type="submit" class="action">{t('Add')}</button>
+        </form>
+        <p class="le-meta">
+          {t('Launches of a deleted role become Worker.')}
+        </p>
+      </div>
+    {/if}
+    <div class="le-groups">
+      {#if phase === 'loading' && launches.length === 0}
+        <p class="le-meta">{t('Reading launches…')}</p>
+      {/if}
+      {#each groups as group (group.role.id)}
+        <p class="le-role">{group.role.name}</p>
+        {#each group.items as launch (launch.id)}
+          {@const e = estimateLaunch(launch, data)}
+          <button
+            type="button"
+            class="le-item"
+            aria-current={selected === launch.id ? 'true' : undefined}
+            onclick={() => pick(launch)}
+          >
+            <span class="le-name">{launch.name}</span>
+            {#if e}<span class="le-meta">~{kTokens(e.total)}</span>{/if}
+          </button>
+        {/each}
+      {/each}
+      {#if phase === 'ready' && launches.length === 0}
+        <p class="le-meta">{t('No saved launches yet.')}</p>
+      {/if}
+    </div>
+    {#if refused.length > 0}
+      <div class="notice" data-tone="warn">
+        <p>{t('Files that could not be read')}</p>
+        {#each refused as file (file.id)}
+          <p>{file.id}: {tIncoming(file.error)}</p>
+        {/each}
+      </div>
+    {/if}
+    <button type="button" class="le-new" onclick={() => pick(null)}
+      >+ {t('New')}</button
+    >
+  </aside>
 
-  <main
-    class="workspace-main"
-    class:commands={draft !== null && current?.kind === 'commands'}
-  >
-    {#if draft}
-      {@const currentDraft = draft}
-      <header class="workspace-header">
+  {#if draft}
+    {@const d = draft}
+    <div class="le-editor">
+      <header class="le-head">
         <input
-          class="workspace-title"
-          disabled={busy || readOnly || current?.kind === 'commands'}
+          class="le-title"
+          disabled={busy}
           readonly={current?.kind === 'commands'}
           aria-label={t('Launch name')}
           maxlength="60"
-          bind:value={currentDraft.name}
+          bind:value={d.name}
         />
-        {#if current?.kind !== 'commands'}
-          <div class="context-estimate" aria-live="polite">
-            {#if est && ceiling}
-              <span
-                >{t('Initial context estimated {total}', {
-                  total: kTokens(est.total),
-                })}</span
-              >
-              <span
-                class="estimate-bar"
-                role="img"
-                aria-label={t('{value} percent of available context', {
-                  value: Math.min(
-                    100,
-                    Math.round((est.total / ceiling.total) * 100),
-                  ),
-                })}
-              >
-                <span
-                  style:width={`${Math.min(100, Math.round((est.total / ceiling.total) * 100))}%`}
-                ></span>
-              </span>
-            {:else if currentDraft.agent === 'codex' && !readOnly}
-              <span>{t('Initial context: no estimate for Codex')}</span>
-            {/if}
-          </div>
-        {/if}
-      </header>
-
-      {#if current?.kind === 'commands'}
-        <DistroVariants
-          launch={current}
-          {system}
-          disabled={busy}
-          {onopen}
-          {confirming}
-          onrequestremove={() => (confirming = true)}
-          oncancelremove={() => (confirming = false)}
-          onremove={() => void remove()}
-          onbusy={(value) => (busy = value)}
-          onsaved={(fresh) => {
-            launches = launches.map((launch) =>
-              launch.id === fresh.id ? fresh : launch,
-            );
-          }}
-        />
-      {:else}
-        <div
-          class="workspace-tabs"
-          role="tablist"
-          aria-label={t('Launch settings')}
-        >
-          {#each tabItems as item, index (item.id)}
-            <button
-              id={`workspace-tab-${item.id}`}
-              type="button"
-              role="tab"
-              aria-selected={tab === item.id}
-              aria-controls={`workspace-panel-${item.id}`}
-              tabindex={tab === item.id ? 0 : -1}
-              disabled={busy}
-              class:active={tab === item.id}
-              onkeydown={(event) => tabKey(event, index)}
-              onclick={() => (tab = item.id)}
+        <span class="le-total" aria-live="polite" title={t(HINT.estimate)}>
+          {#if est && ceiling}
+            ~{kTokens(est.total)}
+            <span class="le-bar" aria-hidden="true"
+              ><span
+                style:width={`${Math.min(100, Math.round((est.total / ceiling.total) * 100))}%`}
+              ></span></span
             >
-              <span>{item.label}</span>
-              {#if item.count}<span class="tab-count">{item.count}</span>{/if}
+            <span class="le-meta"
+              >{t('of {total} · estimated, MCP and hooks not measured', {
+                total: kTokens(ceiling.total),
+              })}</span
+            >
+          {:else if d.agent === 'codex' && !readOnly}
+            <span class="le-meta">{t('No estimate for Codex yet.')}</span>
+          {/if}
+        </span>
+        {#if current && editable(current)}
+          {#if confirming}
+            <span class="le-meta"
+              >{t('Delete {name}?', { name: current.name })}</span
+            >
+            <button
+              type="button"
+              class="action danger"
+              onclick={() => void remove()}>{t('Delete')}</button
+            >
+            <button
+              type="button"
+              class="action"
+              onclick={() => (confirming = false)}>{t('Cancel')}</button
+            >
+          {:else}
+            <button
+              type="button"
+              class="top-action icon le-delete"
+              aria-label={t('Delete launch')}
+              title={t('Delete launch')}
+              onclick={() => (confirming = true)}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true"
+                ><path
+                  d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"
+                /></svg
+              >
             </button>
-          {/each}
-        </div>
-
-        <div class="workspace-scroll" inert={busy}>
-          {#if editorNotices.length > 0}
-            <div class="workspace-notices" aria-label={t('Notices')}>
-              {#each editorNotices as item, index (`${index}-${item.text}`)}
-                <p
-                  class={`workspace-notice ${item.tone}`}
-                  role={item.tone === 'error' ? 'alert' : 'status'}
-                >
-                  <span aria-hidden="true"
-                    >{item.tone === 'error'
-                      ? '×'
-                      : item.tone === 'warning'
-                        ? '⚠'
-                        : '✓'}</span
-                  >
-                  <strong
-                    >{t(
-                      item.tone === 'error'
-                        ? 'Error'
-                        : item.tone === 'warning'
-                          ? 'Warning'
-                          : 'Saved',
-                    )}</strong
-                  >
-                  <span>{item.text}</span>
-                </p>
-              {/each}
-            </div>
           {/if}
-          {#if current && !editable(current)}
-            <p class="workspace-notice warning" role="status">
-              <span aria-hidden="true">⚠</span><strong>{t('Warning')}</strong>
-              <span
-                >{t(
-                  'This launch runs commands from its file. It opens from here; edit it in its file.',
-                )}</span
-              >
-            </p>
-          {/if}
-
-          <div
-            id={`workspace-panel-${tab}`}
-            class="workspace-panel"
-            role="tabpanel"
-            aria-labelledby={`workspace-tab-${tab}`}
-            tabindex="0"
-          >
-            {#if tab === 'general'}
-              <General
-                draft={currentDraft}
-                {busy}
-                {readOnly}
-                {roles}
-                {allRoles}
-                {saved}
-                {used}
-                {rolesOpen}
-                {newRole}
-                onBrowse={browse}
-                onSetAgent={setAgent}
-                onToggleRoles={() => (rolesOpen = !rolesOpen)}
-                onNewRole={(value) => (newRole = value)}
-                onAddRole={() => void addRole()}
-                onRemoveRole={(id) => void removeRole(id)}
-              />
-            {:else if tab === 'instructions'}
-              <Instructions
-                draft={currentDraft}
-                {data}
-                {inventory}
-                disabled={busy || readOnly}
-              />
-            {:else if tab === 'skills'}
-              <Skills
-                draft={currentDraft}
-                {data}
-                {itemPlan}
-                {itemPlanState}
-                estimate={est ? est.skills + est.account : null}
-                disabled={busy || readOnly}
-                onread={() => void load()}
-                {setItem}
-                {setAccountSkill}
-              />
-            {:else if tab === 'mcp' && currentDraft.agent === 'claude_code'}
-              <Mcp
-                draft={currentDraft}
-                {data}
-                {inventory}
-                disabled={busy || readOnly}
-                onread={() => void load()}
-              />
-            {:else if tab === 'hooks'}
-              <Hooks
-                draft={currentDraft}
-                {data}
-                disabled={busy || readOnly}
-                onread={() => void load()}
-              />
-            {:else}
-              <Summary draft={currentDraft} {data} estimate={est} {itemPlan} />
-            {/if}
-          </div>
-        </div>
-
-        <footer class="workspace-footer">
-          {#if current && current.kind === 'session' && editable(current)}
-            {#if confirming}
-              <span class="remove-confirm"
-                >{t('Delete {name}?', { name: current.name })}</span
-              >
-              <button
-                type="button"
-                class="remove-launch"
-                disabled={busy}
-                onclick={() => void remove()}>{t('Delete')}</button
-              >
-              <button
-                type="button"
-                class="action"
-                disabled={busy}
-                onclick={() => (confirming = false)}>{t('Cancel')}</button
-              >
-            {:else}
-              <button
-                type="button"
-                class="remove-launch"
-                disabled={busy}
-                onclick={() => (confirming = true)}>{t('Delete launch')}</button
-              >
-            {/if}
-          {/if}
-          <span class="footer-spacer"></span>
-          <button
+        {/if}
+        {#if current?.kind !== 'commands'}<button
             type="button"
             class="action"
-            disabled={busy ||
-              (!currentDraft.id && !canSave) ||
-              (dirty && !canSave)}
+            disabled={busy || (!d.id && !canSave) || (dirty && !canSave)}
             onclick={() => void tryIt()}
-            >{dirty || !currentDraft.id ? t('Save and try') : t('Try')}</button
+            >{dirty || !d.id ? t('Save and try') : t('Try')}</button
           >
           <button
             type="button"
@@ -1112,292 +1146,396 @@
             disabled={busy || !dirty || !canSave}
             onclick={() => void save()}
             >{busy ? t('Saving…') : t('Save')}</button
-          >
-        </footer>
-      {/if}
-    {:else if phase === 'failed'}
-      <div class="workspace-failed">
-        <p class="workspace-notice error" role="alert">
-          <span aria-hidden="true">×</span><strong>{t('Error')}</strong><span
-            >{error}</span
-          >
+          >{/if}
+      </header>
+      {#if current?.kind === 'commands'}
+        <DistroVariants
+          launch={current}
+          {system}
+          {onopen}
+          onsaved={(fresh) => {
+            launches = launches.map((l) => (l.id === fresh.id ? fresh : l));
+          }}
+        />
+      {:else if current && !editable(current)}
+        <p class="notice" data-tone="warn">
+          {t(
+            'This launch runs commands from its file. It opens from here; edit it in its file.',
+          )}
         </p>
-        <button
-          type="button"
-          class="action"
-          disabled={busy}
-          onclick={() => void load()}>{t('Try again')}</button
-        >
-      </div>
-    {/if}
-  </main>
-</section>
+      {/if}
+      {#if !readOnly && (d.agent === 'codex' || d.agent === 'claude_code') && unreadableFor(d.selection, d.agent)}
+        <p class="notice" data-tone="error" role="alert">
+          {t(
+            d.agent === 'claude_code' && !data.claudeUnreadable
+              ? 'The launch environment could not be read.'
+              : ENVIRONMENT_UNREADABLE,
+          )}
+        </p>
+      {/if}
+      {#if !readOnly && staleHooks}
+        <p class="notice" data-tone="warn" role="alert">
+          {t(STALE_HOOKS)}
+        </p>
+      {/if}
+      {#if !readOnly && d.selection && data.instructionsFailed?.has(d.selection.id)}
+        <p class="notice" data-tone="error" role="alert">
+          {t(
+            'The launch instructions file cannot be read. It was not modified.',
+          )}
+        </p>
+      {/if}
+      {#if roles.damaged}
+        <p class="notice" data-tone="warn">
+          {t(
+            'roles.json could not be read. Roles are shown as the basic ones and are not saved until the file is fixed or removed.',
+          )}
+        </p>
+      {/if}
+      {#if error}<p class="notice" data-tone="error" role="alert">
+          {error}
+        </p>{/if}
+      {#if notice}<p class="notice" data-tone="ok" role="status">
+          {notice}
+        </p>{/if}
 
-<style>
-  .workspace-shell {
-    display: grid;
-    grid-template-columns: minmax(210px, 250px) minmax(0, 1fr);
-    width: 100%;
-    height: 100%;
-    min-width: 0;
-    min-height: 0;
-    overflow: hidden;
-    background: var(--surface);
-    color: var(--text);
-  }
-  .workspace-main {
-    display: grid;
-    grid-template-rows: auto auto minmax(0, 1fr) auto;
-    min-width: 0;
-    min-height: 0;
-    overflow: hidden;
-  }
-  .workspace-main.commands {
-    grid-template-rows: auto minmax(0, 1fr);
-  }
-  .workspace-header {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 12px 20px;
-    min-width: 0;
-    padding: 18px 32px 8px;
-  }
-  .workspace-title {
-    flex: 1 1 220px;
-    min-width: 0;
-    min-height: 42px;
-    padding: 3px 0;
-    border: 1px solid transparent;
-    border-radius: var(--radius-md);
-    background: transparent;
-    color: var(--text);
-    font: 600 var(--text-lg) var(--font-sans);
-  }
-  .workspace-title:hover:not(:disabled) {
-    border-color: var(--line);
-  }
-  .workspace-title:focus-visible {
-    border-color: var(--focus);
-  }
-  .context-estimate {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 8px 12px;
-    min-width: 0;
-    color: var(--muted);
-    font-size: var(--text-xs);
-  }
-  .estimate-bar {
-    display: block;
-    width: 110px;
-    height: 4px;
-    overflow: hidden;
-    border-radius: var(--radius-md);
-    background: var(--surface-hover);
-  }
-  .estimate-bar > span {
-    display: block;
-    height: 100%;
-    background: var(--accent);
-  }
-  .workspace-tabs {
-    display: flex;
-    align-items: stretch;
-    flex-wrap: wrap;
-    gap: 4px 20px;
-    padding: 0 32px;
-    border-bottom: 1px solid var(--line);
-  }
-  .workspace-tabs button {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    min-width: 0;
-    min-height: 44px;
-    padding: 7px 0;
-    border: 0;
-    border-bottom: 2px solid transparent;
-    border-radius: 0;
-    background: transparent;
-    color: var(--muted);
-    font-size: var(--text-sm);
-    white-space: normal;
-  }
-  .workspace-tabs button:hover:not(:disabled) {
-    background: transparent;
-    color: var(--text);
-  }
-  .workspace-tabs button.active {
-    border-bottom-color: var(--accent);
-    color: var(--text);
-    font-weight: 600;
-  }
-  .tab-count {
-    color: var(--muted);
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    font-weight: 400;
-  }
-  .workspace-scroll {
-    min-width: 0;
-    min-height: 0;
-    overflow: auto;
-    padding: 8px 32px 20px;
-  }
-  .workspace-panel {
-    width: 100%;
-    max-width: 980px;
-    margin: 0 auto;
-    outline-offset: 4px;
-  }
-  .workspace-notices {
-    display: grid;
-    gap: 6px;
-    max-width: 980px;
-    margin: 0 auto 10px;
-  }
-  .workspace-notice {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    margin: 0;
-    padding: 9px 12px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius-md);
-    font-size: var(--text-xs);
-    overflow-wrap: anywhere;
-  }
-  .workspace-notice > span:first-child {
-    display: inline-grid;
-    place-items: center;
-    flex: none;
-    width: 18px;
-    height: 18px;
-    border: 1px solid currentColor;
-    border-radius: 50%;
-    font-family: var(--font-mono);
-    line-height: 1;
-  }
-  .workspace-notice strong {
-    flex: none;
-  }
-  .workspace-notice.warning {
-    border-color: var(--warn);
-    background: var(--warn-soft);
-    color: var(--warn);
-  }
-  .workspace-notice.error {
-    border-color: var(--error);
-    background: var(--surface);
-    color: var(--error);
-  }
-  .workspace-notice.success {
-    border-color: var(--accent);
-    background: var(--accent-soft);
-    color: var(--text);
-  }
-  .workspace-footer {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
-    min-height: 68px;
-    padding: 12px 32px;
-    border-top: 1px solid var(--line);
-    background: var(--surface);
-  }
-  .footer-spacer {
-    flex: 1;
-  }
-  .remove-launch {
-    min-height: var(--control-h);
-    padding: 0 4px;
-    border: 0;
-    border-radius: var(--radius-md);
-    background: transparent;
-    color: var(--error);
-    text-align: left;
-  }
-  .remove-launch:hover:not(:disabled) {
-    background: var(--surface-hover);
-  }
-  .remove-confirm {
-    color: var(--text);
-    font-size: var(--text-xs);
-    overflow-wrap: anywhere;
-  }
-  .workspace-failed {
-    display: grid;
-    align-content: start;
-    justify-items: start;
-    gap: 10px;
-    min-width: 0;
-    padding: 20px 32px;
-  }
-  .action {
-    min-height: var(--control-h);
-  }
-  .action.primary {
-    background: var(--accent);
-    color: var(--surface);
-  }
-  @media (max-width: 1023px) {
-    .workspace-header {
-      padding: 14px 20px 8px;
-    }
-    .workspace-tabs {
-      gap: 4px 14px;
-      padding: 0 20px;
-    }
-    .workspace-scroll {
-      padding: 8px 20px 16px;
-    }
-    .workspace-footer {
-      padding: 10px 20px;
-    }
-  }
-  @media (max-width: 760px) {
-    .workspace-shell {
-      grid-template-columns: minmax(0, 1fr);
-      grid-template-rows: auto minmax(0, 1fr);
-    }
-    .workspace-main {
-      grid-template-rows: auto auto minmax(0, 1fr) auto;
-    }
-    .workspace-header,
-    .workspace-tabs,
-    .workspace-scroll,
-    .workspace-footer {
-      padding-right: 14px;
-      padding-left: 14px;
-    }
-    .workspace-tabs {
-      gap: 0 14px;
-    }
-    .context-estimate {
-      justify-content: flex-start;
-      flex: 1 1 100%;
-    }
-  }
-  @media (max-width: 420px) {
-    .workspace-header {
-      padding-top: 10px;
-    }
-    .workspace-tabs {
-      gap: 0 10px;
-    }
-    .workspace-tabs button {
-      min-height: 40px;
-      font-size: var(--text-xs);
-    }
-    .workspace-footer {
-      gap: 6px;
-    }
-    .workspace-footer .action {
-      flex: 1 1 100px;
-    }
-  }
-</style>
+      {#if renames && current && draft}
+        <p class="notice" data-tone="warn">
+          {t(
+            'This launch is saved as {file}.toml. Saving writes {next}.toml and removes {file}.toml.',
+            { file: current.id, next: launchId(draft.name) },
+          )}
+        </p>
+      {/if}
+      {#if !readOnly && d.permission === 'bypass'}
+        <p class="notice" data-tone="warn" role="status">
+          {t(BYPASS_WARNING)}
+        </p>
+      {/if}
+      {#if !readOnly}
+        <fieldset
+          class="le-fieldset le-group"
+          disabled={busy || !d.instructions}
+        >
+          <div class="le-ghead">{t('Project instructions')}</div>
+          <div class="le-fields">
+            <label class="le-field">
+              <select
+                class="le-input"
+                aria-label={t('Project instructions')}
+                value={d.instructions?.project ?? 'load'}
+                onchange={(e) => {
+                  const mode = e.currentTarget.value as
+                    'load' | 'exclude' | 'role';
+                  d.instructions =
+                    mode === 'load'
+                      ? { project: 'load' }
+                      : {
+                          project: mode,
+                          role:
+                            d.instructions && 'role' in d.instructions
+                              ? d.instructions.role
+                              : '',
+                        };
+                }}
+              >
+                <option value="load">{t('Load project instructions')}</option>
+                <option value="exclude">{t('Skip project instructions')}</option
+                >
+                <option value="role">{t('Custom instructions')}</option>
+              </select>
+            </label>
+            {#if d.instructions?.project === 'role'}
+              <label class="le-field">
+                <textarea
+                  class="le-input"
+                  rows="6"
+                  aria-label={t('Custom instructions')}
+                  bind:value={d.instructions.role}></textarea>
+              </label>
+            {/if}
+            <div class="le-field">
+              <span
+                >{t(
+                  !d.instructions
+                    ? 'Not available: the instructions file could not be read.'
+                    : d.instructions.project === 'load'
+                      ? 'Loads the project instructions.'
+                      : 'Without project instructions, the agent does not read the project instructions or rules. Your global instructions follow their switch.',
+                )}</span
+              >
+              {#if d.instructions?.project === 'role'}
+                <span
+                  >{t(
+                    'The text applies at start. Another open terminal of this launch may see it change; resuming a conversation keeps what it already had.',
+                  )}</span
+                >
+              {/if}
+              {#if d.agent === 'claude_code' && (d.instructions?.project === 'role' || (d.spec && !isDefault(d.spec))) && data.options && !data.options.token_stored}
+                <span class="notice" data-tone="warn" role="alert"
+                  >{t(
+                    'No long-lived token is stored, so this terminal will not start. Run claude setup-token in your own terminal and store it with: secret-tool store --label "Claude Code token (Wyss Console)" service wyss-console kind claude-oauth-token',
+                  )}</span
+                >
+              {/if}
+            </div>
+          </div>
+        </fieldset>
+        {#if itemPlanState === 'failed' || selectionPlanError}
+          <p class="notice" data-tone="error" role="alert">
+            {t('The launch plan could not be read: {reason}', {
+              reason: itemPlanError || selectionPlanError,
+            })}
+          </p>
+        {/if}
+        {#if selectionPlan && selectionPlan.can_apply === false}
+          <p class="notice" data-tone="warn" role="status">
+            {t(
+              'This skills choice cannot be applied now: {reason} Check it before starting.',
+              {
+                reason:
+                  selectionPlan.conflicts
+                    ?.filter((c) => c.blocking)
+                    .map((c) => c.names.join(', '))
+                    .join('; ') || tIncoming(selectionPlan.enforcement.reason),
+              },
+            )}
+          </p>
+        {/if}
+        {#if leftOut.length > 0}
+          <p class="notice" data-tone="warn" role="status">
+            {t('{count} unavailable items were left out: {items}', {
+              count: leftOut.length,
+              items: leftOut
+                .map(
+                  (i) =>
+                    `${i.name || i.capability}${i.reason ? `: ${tIncoming(i.reason)}` : ''}`,
+                )
+                .join('; '),
+            })}
+          </p>
+        {/if}
+        <fieldset class="le-fieldset" disabled={busy}>
+          <div class="le-fields">
+            <label class="le-field" title={t(HINT.role)}
+              ><span>{t('Role')}</span>
+              <select class="le-input" bind:value={d.role}>
+                {#each allRoles as role (role.id)}
+                  <option value={role.id}>{role.name}</option>
+                {/each}
+              </select>
+            </label>
+            <label class="le-field" title={t(HINT.distributor)}
+              ><span>{t('Distributor')}</span>
+              <select
+                class="le-input"
+                value={d.agent}
+                onchange={(e) => setAgent(e.currentTarget.value as Agent)}
+              >
+                {#each AGENTS as a (a.id)}
+                  <option value={a.id}
+                    >{a.distributor} · {a.id === 'claude_code'
+                      ? 'Claude Code'
+                      : 'Codex'}</option
+                  >
+                {/each}
+              </select>
+            </label>
+            <label class="le-field"
+              ><span>{t('Permissions')}</span>
+              <select
+                class="le-input"
+                aria-label={t('Permissions')}
+                title={t(
+                  d.permission
+                    ? PERMISSION_HINT[d.permission]
+                    : HINT.permission,
+                )}
+                value={d.permission ?? ''}
+                onchange={(e) => {
+                  const word = e.currentTarget.value;
+                  d.permission =
+                    agentPermissions.find((p) => p === word) ?? null;
+                }}
+              >
+                <option value="">{t(AS_CONFIGURED)}</option>
+                {#each agentPermissions as p (p)}
+                  <option value={p} title={t(PERMISSION_HINT[p])}
+                    >{t(PERMISSION_LABEL[p])}</option
+                  >
+                {/each}
+              </select>
+            </label>
+            <label class="le-field" title={t(HINT.mode)}
+              ><span>{t('Mode')}</span>
+              <select class="le-input" disabled>
+                <option>{t('Native')}</option>
+              </select>
+            </label>
+            <div class="le-field le-wide" title={t(HINT.folder)}>
+              <span>{t('Folder')}</span>
+              <div class="le-folder">
+                <!-- Read only: a folder is chosen in the dialog or among the known projects. The
+                     desktop reads only those, so a typed path could never start. -->
+                <input
+                  class="le-input"
+                  aria-label={t('Folder')}
+                  readonly
+                  title={t('Choose it with Browse… or from the known folders.')}
+                  value={d.directory}
+                />
+                <button
+                  type="button"
+                  class="top-action icon"
+                  aria-label={t('Saved and recent folders')}
+                  title={t('Saved and recent folders')}
+                  aria-expanded={foldersOpen}
+                  onclick={() => (foldersOpen = !foldersOpen)}
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true"
+                    ><path
+                      d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"
+                    /></svg
+                  >
+                </button>
+                <button
+                  type="button"
+                  class="action"
+                  onclick={() => void browse()}>{t('Browse…')}</button
+                >
+                {#if foldersOpen}
+                  <div class="le-folders">
+                    {#if saved.length > 0}<p class="le-role">
+                        {t('Saved')}
+                      </p>{/if}
+                    {#each saved as folder (folder)}
+                      <button
+                        type="button"
+                        class="le-item"
+                        onclick={() => {
+                          d.directory = folder;
+                          foldersOpen = false;
+                        }}><span class="le-name">{folder}</span></button
+                      >
+                    {/each}
+                    {#if used.length > 0}<p class="le-role">
+                        {t('Recently used')}
+                      </p>{/if}
+                    {#each used as entry (entry.path)}
+                      <button
+                        type="button"
+                        class="le-item"
+                        onclick={() => {
+                          d.directory = entry.path;
+                          foldersOpen = false;
+                        }}><span class="le-name">{entry.path}</span></button
+                      >
+                    {/each}
+                  </div>
+                {/if}
+              </div>
+            </div>
+          </div>
+        </fieldset>
+        <div class="le-loads" inert={busy}>
+          {#if d.agent === 'codex'}
+            <p class="le-meta le-pad">
+              {t(
+                'For Codex a launch chooses skills, AGENTS.md and the hooks of hooks.json. MCP servers and account skills are Claude Code only.',
+              )}
+            </p>
+          {/if}
+          {#each groupsOf as group (group.id)}
+            {@const n = group.rows.filter((r) => r.on).length}
+            <div class="le-group">
+              <div class="le-ghead">
+                {#if !group.informational}<input
+                    type="checkbox"
+                    aria-label={t(group.label)}
+                    checked={n === group.rows.length && n > 0}
+                    indeterminate={n > 0 && n < group.rows.length}
+                    disabled={group.rows.length === 0 ||
+                      group.rows.every((r) => r.disabled)}
+                    onchange={(e) => setAll(group, e.currentTarget.checked)}
+                  />{/if}
+                <button
+                  type="button"
+                  class="le-gtoggle"
+                  title={(group.hint ?? GROUP_HINT[group.id])
+                    ? t(group.hint ?? GROUP_HINT[group.id])
+                    : undefined}
+                  aria-expanded={open === group.id}
+                  onclick={() => (open = open === group.id ? null : group.id)}
+                >
+                  <span class="le-chev" class:open={open === group.id}>›</span>
+                  {t(group.label)}
+                  <span class="le-meta"
+                    >{t('{on} of {all}', {
+                      on: group.informational ? group.rows.length : n,
+                      all: group.rows.length,
+                    })}</span
+                  >
+                </button>
+                <span class="le-cost"
+                  >{group.tokens === null
+                    ? group.note
+                      ? t(group.note)
+                      : ''
+                    : group.tokens === 0
+                      ? '0'
+                      : group.tokens < 1000
+                        ? kTokens(group.tokens)
+                        : `~${kTokens(group.tokens)}`}</span
+                >
+              </div>
+              {#if open === group.id}
+                <div class="le-rows">
+                  {#if group.notice}
+                    <p class="le-meta">{t(group.notice)}</p>
+                  {/if}
+                  {#each group.rows as row (row.key)}
+                    {#if group.informational}
+                      <div class="le-row">
+                        <span title={row.title ?? row.label}>{row.label}</span>
+                      </div>
+                    {:else}
+                      <label class="le-row" class:off={!row.on}>
+                        <input
+                          type="checkbox"
+                          checked={row.on}
+                          disabled={row.disabled}
+                          title={row.title}
+                          onchange={(e) => row.set(e.currentTarget.checked)}
+                        />
+                        <span title={row.title ?? row.label}>{row.label}</span>
+                      </label>
+                    {/if}
+                  {/each}
+                  {#if group.rows.length === 0 && !group.fixed?.length}
+                    <p class="le-meta">{t('Nothing of this kind.')}</p>
+                  {/if}
+                  {#if group.fixed?.length}
+                    <p class="le-meta">{t(group.fixed[0].note)}</p>
+                    {#each group.fixed as fixed, i (i)}
+                      <label class="le-row">
+                        <input type="checkbox" checked disabled />
+                        <span title={fixed.title}>{fixed.label}</span>
+                      </label>
+                    {/each}
+                  {/if}
+                </div>
+              {/if}
+            </div>
+          {/each}
+        </div>
+      {/if}
+    </div>
+  {:else if phase === 'failed'}
+    <div class="le-editor">
+      <p class="notice" data-tone="error" role="alert">{error}</p>
+      <button type="button" class="action" onclick={() => void load()}
+        >{t('Try again')}</button
+      >
+    </div>
+  {/if}
+</section>

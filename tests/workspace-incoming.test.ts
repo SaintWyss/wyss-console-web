@@ -29,12 +29,11 @@ it.each([
   expect(tIncoming(en)).toBe(es);
 });
 
-it('Workspace no longer exposes a launch mode selector', async () => {
+it('regression: the Native option is marked for translation just like the other modes', async () => {
   const { readFileSync } = await import('node:fs');
   const source = readFileSync(
     'src/lib/features/workspace/LaunchEditor.svelte',
     'utf8',
   );
-  expect(source).not.toContain("t('Native')");
-  expect(source).not.toContain("t('Mode')");
+  expect(source).toContain("<option>{t('Native')}</option>");
 });

@@ -76,6 +76,8 @@ export const ES: Readonly<Record<string, string>> = {
   // Distributors
   'Tool not installed': 'No instalado',
   // Workspace: launch editor
+  'Choose it with Browse… or from the known folders.':
+    'Elegila con Examinar… o entre las carpetas conocidas.',
   'This launch’s folder is not a project the Console knows. Choose it once with Browse… in Workspace, then try again.':
     'La carpeta de este lanzamiento no es un proyecto que la Consola conozca. Elegila una vez con Examinar… en Workspace y volvé a probar.',
   'This launch is saved as {file}.toml. Saving writes {next}.toml and removes {file}.toml.':
@@ -92,6 +94,7 @@ export const ES: Readonly<Record<string, string>> = {
   'Workspace could not be read.': 'No se pudo leer el Workspace.',
   'New launch': 'Lanzamiento nuevo',
   'not measured': 'sin medir',
+  'Account skills': 'Skills de la cuenta',
   'The role could not be saved.': 'No se pudo guardar el rol.',
   'The role could not be deleted.': 'No se pudo borrar el rol.',
   'preset “{name}” (a copy: the other launches keep theirs)':
@@ -103,13 +106,18 @@ export const ES: Readonly<Record<string, string>> = {
   'It could not be saved.': 'No se pudo guardar.',
   '{what} Saved so far: {done}. Nothing else changed.':
     '{what} Se guardó: {done}. Nada más cambió.',
+  'Search launches': 'Buscar lanzamientos',
   Roles: 'Roles',
   basic: 'básico',
   'Delete role {name}': 'Borrar el rol {name}',
+  'New role…': 'Rol nuevo…',
   'New role name': 'Nombre del rol nuevo',
   'Launches of a deleted role become Worker.':
     'Los lanzamientos de un rol borrado pasan a Trabajador.',
   New: 'Nuevo',
+  'of {total} · estimated, MCP and hooks not measured':
+    'de {total} · estimado, MCP y hooks sin medir',
+  'No estimate for Codex yet.': 'Todavía no hay estimación para Codex.',
   'Delete launch': 'Borrar lanzamiento',
   'Save and try': 'Guardar y probar',
   Try: 'Probar',
@@ -117,114 +125,22 @@ export const ES: Readonly<Record<string, string>> = {
     'Este lanzamiento ejecuta los comandos de su archivo. Se inicia desde acá; editá el archivo para cambiarlo.',
   Role: 'Rol',
   Distributor: 'Distribuidor',
+  'Saved and recent folders': 'Carpetas guardadas y recientes',
   'Browse…': 'Examinar…',
   Saved: 'Guardadas',
+  'Recently used': 'Usadas hace poco',
+  'AGENTS.md of your Codex folder: what you told Codex to always follow. Switched off, this launch starts without it.':
+    'El AGENTS.md de tu carpeta de Codex: lo que le dijiste a Codex que siga siempre. Apagado, este lanzamiento arranca sin él.',
+  'A launch that leaves a hook or AGENTS.md out runs in its own Codex folder, with your own Codex sign-in. Codex asks you to approve the hooks the first time in each new folder.':
+    'Un lanzamiento que deja afuera un hook o el AGENTS.md corre en su propia carpeta de Codex, con tu propio inicio de sesión de Codex. Codex pedirá aprobar los hooks la primera vez en cada carpeta nueva.',
+  'Declared in config.toml: these run in every launch and cannot be switched off here.':
+    'Declarados en config.toml: corren en todos los lanzamientos y no se pueden apagar por lanzamiento.',
+  'Codex asks you to approve the hooks the first time in each new folder.':
+    'Codex pedirá aprobar los hooks la primera vez en cada carpeta nueva.',
+  'For Codex a launch chooses skills, AGENTS.md and the hooks of hooks.json. MCP servers and account skills are Claude Code only.':
+    'En Codex, cada lanzamiento elige las skills, AGENTS.md y los hooks de hooks.json. Los servidores MCP y las skills de la cuenta solo se pueden usar en Claude Code.',
   '{on} of {all}': '{on} de {all}',
-  // Workspace: launch editor redesign
-  'Saved launches': 'Lanzamientos guardados',
-  'Launch groups': 'Grupos de lanzamientos',
-  'No launches match this search.':
-    'No hay lanzamientos que coincidan con la búsqueda.',
-  'Initial context estimated {total}': 'Contexto inicial estimado: {total}',
-  Selected: 'Seleccionado',
-  'Initial context: no estimate for Codex':
-    'Contexto inicial: Codex sin estimación',
-  'Initial context': 'Contexto inicial',
-  '{value} percent of available context': '{value} % del contexto disponible',
-  'Launch settings': 'Configuración del lanzamiento',
-  Notices: 'Avisos',
-  Warning: 'Aviso',
-  General: 'General',
-  Summary: 'Resumen',
-  Application: 'Aplicación',
-  'Choose which coding agent this launch starts.':
-    'Elegí qué agente de código inicia este lanzamiento.',
-  'Working directory': 'Carpeta de trabajo',
-  'The agent works with files in this folder.':
-    'El agente trabaja con los archivos de esta carpeta.',
-  'Select a folder': 'Elegir una carpeta',
-  Recent: 'Recientes',
-  Select: 'Elegir',
-  'Only used to group launches in this list.':
-    'Solo se usa para agrupar lanzamientos en esta lista.',
-  'Basic role': 'Rol básico',
-  'Roles could not be read; fix or remove the roles file before saving changes.':
-    'No se pudieron leer los roles; corregí o quitá el archivo de roles antes de guardar cambios.',
-  'The permission this launch requests from its agent.':
-    'El permiso que este lanzamiento solicita para su agente.',
-  'From the project': 'Del proyecto',
-  Load: 'Cargar',
-  Skip: 'Omitir',
-  'Custom text': 'Texto personalizado',
-  'The agent reads the project instructions in addition to these files.':
-    'El agente lee las instrucciones del proyecto además de estos archivos.',
-  'The agent skips the project instructions. These global files follow their switches.':
-    'El agente omite las instrucciones del proyecto. Estos archivos globales siguen sus interruptores.',
-  'The agent reads this custom text instead of the project instructions.':
-    'El agente lee este texto personalizado en lugar de las instrucciones del proyecto.',
-  'No global instruction files are available.':
-    'No hay archivos de instrucciones globales disponibles.',
-  'Only loads when touching matching files.':
-    'Solo se carga al trabajar con archivos que coinciden.',
-  'Show content': 'Mostrar contenido',
-  'Content not available': 'Contenido no disponible',
-  'Not estimated': 'Sin estimar',
-  'Checking skill availability…': 'Comprobando qué skills están disponibles…',
-  'Skill availability could not be checked.':
-    'No se pudo comprobar qué skills están disponibles.',
-  'Filter skills': 'Filtrar skills',
-  Filter: 'Buscar',
-  tokens: 'tokens',
-  'No skills match this filter.': 'Ninguna skill coincide con este filtro.',
-  'Unavailable skill {name}': 'Skill no disponible: {name}',
-  'Toggle all {name}': 'Activar o desactivar todas: {name}',
-  Mixed: 'Algunas',
-  'To add one, ask Claude.': 'Para agregar uno, pedíselo a Claude.',
-  'Your servers': 'Tus servidores',
-  'No MCP servers are configured.': 'No hay servidores MCP configurados.',
-  'Local command': 'Comando local',
-  'npx package': 'Paquete npx',
-  'Your claude.ai account': 'Tu cuenta de claude.ai',
-  'Account connectors': 'Conectores de la cuenta',
-  'Connector names are not available in this window.':
-    'Esta ventana no tiene los nombres de los conectores.',
-  'Connectors and plugins follow the full MCP configuration and cannot be selected individually here.':
-    'Los conectores y plugins siguen la configuración MCP completa y acá no se pueden elegir por separado.',
-  'No context at start. To add one, ask Claude.':
-    'No agrega contexto al inicio. Para sumar uno, pedíselo a Claude.',
-  'No hooks are configured.': 'No hay hooks configurados.',
-  'Unnamed command': 'Comando sin nombre',
-  'Always on': 'Siempre activo',
-  'Custom project text is used.': 'Se usa el texto personalizado del proyecto.',
-  'Project instructions are loaded.':
-    'Se cargan las instrucciones del proyecto.',
-  'Project instructions are skipped.':
-    'Se omiten las instrucciones del proyecto.',
-  'Project instructions are unavailable.':
-    'Las instrucciones del proyecto no están disponibles.',
-  'No estimate available': 'No hay una estimación disponible',
-  'This launch changes nothing: it uses your full ~/.claude (~/.codex)':
-    'Este lanzamiento no cambia nada: usa todo tu ~/.claude (~/.codex)',
-  'Not selected': 'Sin elegir',
-  'Reads first': 'Se lee primero',
-  'Global instructions': 'Instrucciones globales',
-  'Left out': 'Fuera del lanzamiento',
-  'Nothing is left out.': 'No queda nada afuera.',
-  'Update system': 'Actualizar el sistema',
-  Distribution: 'Distribución',
-  'Choose a distribution': 'Elegí una distribución',
-  'Custom distribution ID': 'ID de distribución personalizado',
-  'Clean the package cache': 'Limpiar la caché de paquetes',
-  'Include AUR': 'Incluir AUR',
-  'Include AUR -git packages': 'Incluir paquetes AUR -git',
-  'Skip AUR review': 'Omitir la revisión del AUR',
-  'No confirmation': 'Sin confirmación',
-  'Remove unused packages': 'Quitar paquetes sin uso',
-  'Commands edited by hand: the options no longer change them.':
-    'Editaste los comandos a mano: las opciones ya no los modifican.',
-  'Rebuild from the options': 'Reconstruir según las opciones',
-  'Other distributions': 'Otras distribuciones',
-  'Remove distribution': 'Quitar distribución',
+  'Nothing of this kind.': 'No hay nada de este tipo.',
   // Console: toolbar and session bar
   'Your saved launches': 'Tus lanzamientos guardados',
   'No terminals open.': 'No hay terminales abiertas.',
@@ -1696,7 +1612,7 @@ export const ES: Readonly<Record<string, string>> = {
     'No se pudieron leer las aprobaciones. La autoridad está ocupada; probá de nuevo en un momento.',
   'Approvals could not be read. Nothing is shown rather than something unverified.':
     'No se pudieron leer las aprobaciones. En vez de mostrar datos sin verificar, no se muestra nada.',
-  Start: 'Inicio',
+  Start: 'Iniciar',
 
   Import: 'Importar',
 
@@ -1895,12 +1811,6 @@ export const ES: Readonly<Record<string, string>> = {
   Save: 'Guardar',
   'The launch environment could not be read.':
     'No se pudo leer el entorno de la terminal.',
-  'Global instructions are unavailable because the launch environment could not be read.':
-    'Las instrucciones globales no están disponibles porque no se pudo leer el entorno de la terminal.',
-  'Hook settings are unavailable because the launch environment could not be read.':
-    'Los hooks no están disponibles porque no se pudo leer el entorno de la terminal.',
-  'MCP settings are unavailable because the launch environment could not be read.':
-    'MCP no está disponible porque no se pudo leer el entorno de la terminal.',
   Instructions: 'Instrucciones',
   'No long-lived token is stored, so this terminal will not start. Run claude setup-token in your own terminal and store it with: secret-tool store --label "Claude Code token (Wyss Console)" service wyss-console kind claude-oauth-token':
     'No hay un token de larga duración guardado, así que esta terminal no va a arrancar. Corré claude setup-token en tu propia terminal y guardalo con: secret-tool store --label "Claude Code token (Wyss Console)" service wyss-console kind claude-oauth-token',
@@ -2194,20 +2104,42 @@ export const ES: Readonly<Record<string, string>> = {
   'This skill cannot be imported.': 'Esta skill no se puede importar.',
   // Workspace: a launch's distributions
   'Update Flatpak apps': 'Actualizar apps Flatpak',
+  'No confirmation (--noconfirm)': 'Sin confirmar (--noconfirm)',
+  'Include AUR (paru)': 'Incluir AUR (paru)',
+  'Skip AUR review (--skipreview)': 'Saltar revisión AUR (--skipreview)',
+  'Clean the package cache (paccache -rk2)':
+    'Limpiar caché de paquetes (paccache -rk2)',
+  'No confirmation (-y)': 'Sin confirmar (-y)',
+  'Remove unused packages (autoremove)': 'Quitar paquetes sin uso (autoremove)',
   'This launch has no commands for this distribution. Add one in Workspace.':
     'Este lanzamiento no tiene comandos para esta distribución. Agregala en Workspace.',
+  Distributions: 'Distribuciones',
+  'Detected on this computer: {name} ({id})':
+    'Detectada en esta computadora: {name} ({id})',
+  'This computer’s distribution could not be read (/etc/os-release).':
+    'No se pudo leer la distribución de esta PC (/etc/os-release).',
   'No distribution here matches this computer: the file’s own commands run.':
     'Ninguna distribución coincide con esta computadora. Se ejecutan los comandos propios del archivo.',
   'No distribution here matches this computer: add {id} to start it here.':
     'Ninguna distribución coincide con esta computadora. Agregá una con el ID {id} para iniciar el lanzamiento acá.',
+  'This computer’s distribution: it cannot be deleted.':
+    'Es la distribución de esta PC: no se puede borrar.',
   active: 'activa',
   'os-release ID, e.g. void': 'ID de os-release, p. ej. void',
   'Distribution ID': 'ID de la distribución',
   'Add distribution': 'Agregar distribución',
   'runs on this computer': 'corre en esta PC',
   Options: 'Opciones',
+  'The script was written by hand, so the options are off.':
+    'El script se editó a mano, así que las opciones quedan apagadas.',
+  'Back to options': 'Volver a las opciones',
+  'Script it runs': 'Comandos que ejecuta',
+  'One command per line, typed in a new terminal in {folder}.':
+    'Se ejecuta un comando por línea en una terminal nueva en {folder}.',
   Discard: 'Descartar',
   'No distributions yet.': 'Todavía no hay distribuciones.',
+  'The file’s own commands, for every distribution. Add one to give it its own.':
+    'El archivo ejecuta estos comandos en todas las distribuciones. Agregá una para definir comandos propios para esa distribución.',
   'Adds “flatpak update”: also updates the apps installed from Flathub, which the package manager does not touch.':
     'Agrega «flatpak update»: actualiza también las apps instaladas desde Flathub, que el gestor de paquetes no toca.',
   'Adds -y: answers yes to every question, so the update runs to the end without stopping. Without it, it asks before installing.':
@@ -2232,11 +2164,35 @@ export const ES: Readonly<Record<string, string>> = {
     'Para Fedora. dnf upgrade --refresh vuelve a leer los repositorios e instala todas las actualizaciones.',
   'For openSUSE Tumbleweed and Leap. zypper refresh reads the repositories; zypper dup brings the whole system to their versions.':
     'Para openSUSE Tumbleweed y Leap. zypper refresh lee los repositorios; zypper dup lleva todo el sistema a sus versiones.',
+  'A distribution added by hand: it runs on computers whose os-release ID is {id}.':
+    'Distribución agregada manualmente: se usa en las computadoras con el ID de os-release {id}.',
+  'Include AUR -git packages (--devel)':
+    'Incluir paquetes -git del AUR (--devel)',
   'Adds --devel to paru: also rebuilds AUR packages that follow a repository (-git, -svn…), which a plain update leaves as they are.':
     'Agrega --devel a paru: también recompila los paquetes del AUR que siguen un repositorio (-git, -svn…), que una actualización común deja como están.',
   'Finish with cachy-update': 'Terminar con cachy-update',
   'Adds “cachy-update” at the end: CachyOS’s own updater. It updates whatever is still pending and then offers to clean orphans and old cache, review .pacnew files and restart the services that need it. It asks before each step.':
     'Agrega «cachy-update» al final: el actualizador propio de CachyOS. Actualiza lo que haya quedado pendiente y después ofrece limpiar huérfanos y caché vieja, revisar archivos .pacnew y reiniciar los servicios que lo necesitan. Pregunta antes de cada paso.',
+  'Only for ordering this list: launches are grouped by role. It does not change what the agent does.':
+    'Solo para ordenar esta lista: los lanzamientos se agrupan por rol. No cambia lo que hace el agente.',
+  'Native: the agent runs as its own program in a terminal of the Console, as when you type claude or codex. The other mode, Managed (the Console drives the session), starts from Sessions, not from a launch; that is why it is fixed here.':
+    'Native: el agente corre como su propio programa en una terminal de la Consola, igual que si escribieras claude o codex. El otro modo, Managed (la Consola maneja la sesión), se arranca desde Sesiones, no desde un lanzamiento; por eso acá está fijo.',
+  'Where the agent works: it reads and edits the files of this folder, and its project settings are this folder’s.':
+    'Dónde trabaja el agente: lee y edita los archivos de esta carpeta, y usa la configuración de proyecto de esta carpeta.',
+  'About how much context the agent loads before you write anything, from what is switched on below. The bar compares it with everything switched on. MCP servers and hook output are not measured.':
+    'Estimación del contexto que carga el agente antes de empezar, según las opciones activadas abajo. La barra lo compara con el total activado. No se mide el contenido de los servidores MCP ni la salida de los hooks.',
+  'CLAUDE.md and the rules files Claude Code reads when it starts: what you told it to always follow. Switching one off saves context, and the agent no longer follows it.':
+    'CLAUDE.md y los archivos de reglas que Claude Code lee al arrancar: lo que le pediste que siga siempre. Apagar uno ahorra contexto, y el agente deja de seguirlo.',
+  'Know-how the agent loads when a task needs it. At start only each one’s short description takes context.':
+    'Skills que el agente carga cuando una tarea las necesita. Al iniciar, solo la descripción breve de cada una suma contexto.',
+  'Outside tools the agent can call (browser, docs, Notion…). How much context they take is not measured.':
+    'Herramientas externas que el agente puede usar (navegador, documentación, Notion…). No se mide cuánto contexto ocupan.',
+  'Helpers the agent can hand part of a task to. Unticking one here does not switch it off: the agent loads its installed ones as usual.':
+    'Ayudantes a los que el agente puede delegar parte de una tarea. Destildar uno acá no lo apaga: el agente carga los que tiene instalados como siempre.',
+  'The skills of your Claude account (claude.ai), on top of the ones installed on this computer.':
+    'Las skills de tu cuenta de Claude (claude.ai), además de las instaladas en esta computadora.',
+  'Scripts that run on their own at fixed moments (before a command, when a turn ends…). The script takes no context, but what some of them print (at start, before each message) enters the conversation. Not measured.':
+    'Scripts que corren solos en momentos fijos (antes de un comando, al terminar un turno…). El script no ocupa contexto, pero lo que imprimen algunos (al arrancar, antes de cada mensaje) entra en la conversación. No se mide.',
   Personalization: 'Personalización',
   'Skills, agents, MCP servers and presets: what a session can load.':
     'Skills, agentes, servidores MCP y presets: lo que una sesión puede cargar.',

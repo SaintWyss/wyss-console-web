@@ -14,8 +14,6 @@ export interface Line {
 export interface Switch {
   id: string;
   label: string;
-  /** The command flag or tool name shown separately from the option label. */
-  flag?: string;
   /** What it does, shown on hover. */
   hint: string;
   flags?: Readonly<Record<string, string>>;
@@ -56,8 +54,7 @@ const PACMAN: readonly Line[] = [
 const pacmanSwitches: readonly Switch[] = [
   {
     id: 'noconfirm',
-    label: msg('No confirmation'),
-    flag: '--noconfirm',
+    label: msg('No confirmation (--noconfirm)'),
     hint: msg(
       'Adds --noconfirm to pacman and paru, and -y to flatpak: they answer yes on their own and do not stop to ask. Without it, they show what changes and wait for you.',
     ),
@@ -65,16 +62,14 @@ const pacmanSwitches: readonly Switch[] = [
   },
   {
     id: 'aur',
-    label: msg('Include AUR'),
-    flag: 'paru',
+    label: msg('Include AUR (paru)'),
     hint: msg(
       'Adds “paru -Sua”: after the official packages, updates the ones installed from the AUR (built by the community). Needs paru installed.',
     ),
   },
   {
     id: 'skipreview',
-    label: msg('Skip AUR review'),
-    flag: '--skipreview',
+    label: msg('Skip AUR review (--skipreview)'),
     hint: msg(
       'Adds --skipreview to paru: it does not show each AUR package’s build script before building it. Faster, but you do not see what it runs.',
     ),
@@ -82,8 +77,7 @@ const pacmanSwitches: readonly Switch[] = [
   },
   {
     id: 'devel',
-    label: msg('Include AUR -git packages'),
-    flag: '--devel',
+    label: msg('Include AUR -git packages (--devel)'),
     hint: msg(
       'Adds --devel to paru: also rebuilds AUR packages that follow a repository (-git, -svn…), which a plain update leaves as they are.',
     ),
@@ -91,8 +85,7 @@ const pacmanSwitches: readonly Switch[] = [
   },
   {
     id: 'clean',
-    label: msg('Clean the package cache'),
-    flag: 'paccache -rk2',
+    label: msg('Clean the package cache (paccache -rk2)'),
     hint: msg(
       'Adds a line that deletes old downloaded packages and keeps the last 2 versions of each, to free disk space. Needs pacman-contrib.',
     ),
@@ -150,15 +143,13 @@ export const DISTROS: readonly Distro[] = [
     switches: [
       {
         id: 'yes',
-        label: msg('No confirmation'),
-        flag: '-y',
+        label: msg('No confirmation (-y)'),
         hint: YES_HINT,
         flags: { upgrade: '-y', autoremove: '-y', flatpak: '-y' },
       },
       {
         id: 'autoremove',
-        label: msg('Remove unused packages'),
-        flag: 'autoremove',
+        label: msg('Remove unused packages (autoremove)'),
         hint: AUTOREMOVE_HINT,
       },
       FLATPAK_SWITCH,
@@ -182,15 +173,13 @@ export const DISTROS: readonly Distro[] = [
     switches: [
       {
         id: 'yes',
-        label: msg('No confirmation'),
-        flag: '-y',
+        label: msg('No confirmation (-y)'),
         hint: YES_HINT,
         flags: { dnf: '-y', autoremove: '-y', flatpak: '-y' },
       },
       {
         id: 'autoremove',
-        label: msg('Remove unused packages'),
-        flag: 'autoremove',
+        label: msg('Remove unused packages (autoremove)'),
         hint: AUTOREMOVE_HINT,
       },
       FLATPAK_SWITCH,
@@ -210,8 +199,7 @@ export const DISTROS: readonly Distro[] = [
     switches: [
       {
         id: 'yes',
-        label: msg('No confirmation'),
-        flag: '-y',
+        label: msg('No confirmation (-y)'),
         hint: YES_HINT,
         flags: { dup: '-y', flatpak: '-y' },
       },

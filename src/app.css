@@ -137,54 +137,6 @@
   --shadow-pop: 0 10px 28px rgb(15 23 42 / 0.16), 0 0 0 1px var(--line);
 }
 
-/* Before settings have loaded, let the window follow the system while using the same light tokens. */
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme]) {
-    color-scheme: light;
-    --chrome: #ebebeb;
-    --bg: #f5f5f5;
-    --surface: #ffffff;
-    --surface-subtle: #ffffff;
-    --surface-control: #f5f5f5;
-    --surface-raised: #f5f5f5;
-    --surface-hover: #ececec;
-    --surface-strong: #e0e0e0;
-    --surface-overlay: #ffffff;
-    --surface-inverse: #ebebeb;
-    --line: #d9d9d9;
-    --line-strong: #6b6b6b;
-    --text: #111111;
-    --muted: #3d3d3d;
-    --faint: #525252;
-    --accent: #4a4337;
-    --accent-strong: #2f2a22;
-    --accent-soft: #ebe6dc;
-    --accent-line: #4a4337;
-    --focus: #4a4337;
-    --ok: #176b3a;
-    --ok-soft: #e3f5e9;
-    --ok-line: #176b3a;
-    --pending: #6e4700;
-    --warn: #6e4700;
-    --warn-soft: #fdf1cc;
-    --warn-line: #8a5a00;
-    --error: #a32622;
-    --error-text: #81201c;
-    --error-soft: #fde8e6;
-    --error-line: #a32622;
-    --terminal-bg: #ffffff;
-    --terminal-fg: #111111;
-    --text-on-accent: #ffffff;
-    --shadow-pop: 0 10px 28px rgb(15 23 42 / 0.16), 0 0 0 1px var(--line);
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) {
-    color-scheme: dark;
-  }
-}
-
 :root[data-theme='high_contrast'] {
   color-scheme: dark;
   --chrome: #000000;
@@ -299,14 +251,6 @@ input:not([type='checkbox'], [type='radio'], [type='range']),
 select {
   min-height: var(--control-h);
   padding: 0 10px;
-}
-select {
-  padding-right: 36px;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='m4 6 4 4 4-4' fill='none' stroke='currentColor' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  background-size: 12px 12px;
 }
 textarea {
   padding: 8px 10px;
@@ -3116,11 +3060,329 @@ li.native-row .native-note {
   border-bottom: 1px solid var(--warn-line);
 }
 
+/* Workspace: the launch editor (redesign stage 2). List by role on the left, the launch on the right. */
+.launch-editor {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  /* One row: the list and the editor are as tall as the view, each scrolls on its own, and
+     + New stays in sight however long the launch is. Narrow windows stack them below. */
+  flex-wrap: nowrap;
+  margin: -14px -16px -16px -14px;
+}
+@media (max-width: 760px) {
+  .launch-editor {
+    flex-direction: column;
+  }
+  .launch-editor > .le-list {
+    flex: 0 0 auto;
+    max-height: 40%;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .launch-editor > .le-editor {
+    flex: 1 1 0;
+  }
+}
+.launch-editor[hidden] {
+  display: none;
+}
+.le-list {
+  flex: 0 1 240px;
+  min-width: 200px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  background: var(--chrome);
+  border-right: 1px solid var(--line);
+}
+.le-search,
+.le-folder {
+  position: relative;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.le-input {
+  min-height: 32px;
+  min-width: 0;
+  flex: 1;
+  padding: 0 10px;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+}
+.le-input:disabled {
+  color: var(--faint);
+  background: var(--chrome);
+}
+.le-groups {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.le-role {
+  margin: 0;
+  padding: 10px 10px 4px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.le-item {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 10px;
+  color: var(--text);
+  font-size: var(--text-sm);
+  text-align: left;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+}
+.le-item:hover {
+  background: var(--surface-hover);
+}
+.le-item[aria-current='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+.le-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.le-meta {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+.le-new {
+  min-height: 32px;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-md);
+  background: transparent;
+}
+.le-new:hover {
+  color: var(--text);
+}
+.le-roles {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-overlay);
+}
+.le-role-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: var(--text-sm);
+}
+.le-editor {
+  flex: 999 1 520px;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.le-editor > .notice {
+  margin: 8px 16px 0;
+}
+.le-head {
+  min-height: 52px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.le-title {
+  flex: 1;
+  min-width: 180px;
+  min-height: 34px;
+  padding: 0 8px;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+}
+.le-title:hover,
+.le-title:focus {
+  border-color: var(--line);
+}
+.le-total {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+.le-bar {
+  display: inline-block;
+  width: 90px;
+  height: 5px;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: var(--line);
+}
+.le-bar > span {
+  display: block;
+  height: 5px;
+  background: var(--accent);
+}
+.le-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.le-field {
+  flex: 1 1 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+.le-field.le-wide {
+  flex: 2 1 280px;
+}
+.le-folders {
+  position: absolute;
+  z-index: 20;
+  top: 38px;
+  left: 0;
+  width: min(420px, 100%);
+  max-height: 320px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface-overlay);
+  box-shadow: var(--shadow-pop);
+}
+.le-loads {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.le-pad {
+  padding: 10px 16px 0;
+}
+.le-group {
+  border-bottom: 1px solid var(--surface-raised);
+}
+.le-ghead {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+}
+.le-gtoggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0;
+  color: var(--text);
+  font-size: var(--text-md);
+  font-weight: 500;
+  border: 0;
+  background: transparent;
+}
+.le-chev {
+  display: inline-block;
+  width: 12px;
+  color: var(--muted);
+  transition: transform 150ms ease;
+}
+.le-chev.open {
+  transform: rotate(90deg);
+}
+.le-cost {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+.le-rows {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 2px 16px;
+  padding: 0 16px 12px 42px;
+}
+.le-row {
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text);
+}
+.le-row > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.le-row.off {
+  color: var(--muted);
+}
+.le-ghead input,
+.le-row input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .le-chev {
+    transition: none;
+  }
+}
+
 .launch-tokens {
   margin-left: auto;
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   color: var(--muted);
+}
+
+.le-fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
 
 /* Distributors: one card per maker of a tool, with what the desktop answered about it */
@@ -3346,6 +3608,11 @@ li.native-row .native-note {
   font-family: inherit;
   line-height: 1.5;
 }
+/* A disabled field still shows what it is on hover: the pointer reaches its label. */
+.le-field select:disabled {
+  pointer-events: none;
+}
+
 /* Personalization: its tabs one under another, the open one beside them. The body is a
    bounded column, as .content is for every other view: each view scrolls inside it. */
 .personal {
@@ -3719,6 +3986,12 @@ li.native-row .native-note {
   justify-content: flex-end;
   padding: 12px 0;
 }
+.ars-card .dist-form .le-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 /* Distributors' row buttons: smaller than the app's default control. */
 .dist-actions .action {
   min-height: 30px;
@@ -4149,59 +4422,4 @@ li.native-row .native-note {
   gap: 12px;
   min-height: 44px;
   padding: 4px 8px;
-}
-
-/* Form field shared by Distributors and Arsenal. */
-.le-input {
-  min-height: 32px;
-  min-width: 0;
-  flex: 1;
-  padding: 0 10px;
-  color: var(--text);
-  font: inherit;
-  font-size: var(--text-sm);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  background: var(--bg);
-}
-
-.le-input:disabled {
-  color: var(--faint);
-  background: var(--chrome);
-}
-
-.le-field {
-  flex: 1 1 140px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: var(--text-xs);
-  color: var(--muted);
-}
-
-.le-field select:disabled {
-  pointer-events: none;
-}
-
-/* Workspace: one row grid for every tab (label and help left, control right). */
-.workspace-row {
-  display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
-  gap: 24px;
-  align-items: start;
-  padding: 14px 0;
-  border-bottom: 1px solid var(--line);
-}
-.row-label {
-  display: grid;
-  gap: 4px;
-  color: var(--text);
-  font-size: var(--text-sm);
-  font-weight: 500;
-}
-@media (max-width: 1023px) {
-  .workspace-row {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 8px;
-  }
 }

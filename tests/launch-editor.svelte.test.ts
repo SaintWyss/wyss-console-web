@@ -8,10 +8,6 @@ import type {
   Selection,
   TerminalPlan,
 } from '../src/lib/contracts/arsenal';
-import type {
-  ConfigItem,
-  InventoryReply,
-} from '../src/lib/contracts/configuration';
 import {
   arsenalClient,
   type Roles,
@@ -33,7 +29,6 @@ beforeEach(() => {
   ipc = [];
   mockIPC((command, args) => {
     ipc.push({ command, args });
-    if (command === 'configuration_inventory') return configInventory();
     if (command === 'launch_save') {
       const r = (args as { request: Record<string, unknown> }).request;
       return {
@@ -52,52 +47,6 @@ beforeEach(() => {
     return null;
   });
 });
-
-function configInventory(): InventoryReply {
-  const rule = (
-    id: string,
-    provider: ConfigItem['provider'],
-    source: ConfigItem['source'],
-    name: string,
-    text: string,
-  ): ConfigItem => ({
-    id,
-    provider,
-    source,
-    scope: 'global',
-    kind: 'rule_file',
-    name,
-    persisted: 'present_enabled',
-    effective: 'documented',
-    session_use: 'unknown',
-    not_writable: 'not_in_this_phase',
-    detail: { kind: 'text', value: { text, found: [] } },
-    hash: null,
-  });
-  return {
-    revision: 1,
-    inventory: {
-      sources: [],
-      items: [
-        rule(
-          'a'.repeat(32),
-          'claude_code',
-          'claude_user_rules',
-          'rules/ux.md',
-          '---\ndescription: Workspace guidance\npaths: src/**/*.svelte\n---\n# UX rules\n\nUse accessible controls.',
-        ),
-        rule(
-          'b'.repeat(32),
-          'codex',
-          'codex_user_rules',
-          'AGENTS.md',
-          '# Agent guidance\n\nUse this project guide.',
-        ),
-      ],
-      truncated: false,
-    },
-  };
-}
 
 const lib = (id: string, kind: string, name = id): LibraryItem =>
   ({
@@ -272,13 +221,6 @@ async function show(
   return f;
 }
 const text = (s: string) => document.querySelector(s)?.textContent ?? '';
-function openTab(label: string) {
-  const tab = [
-    ...document.querySelectorAll<HTMLButtonElement>('[role="tab"]'),
-  ].find((item) => item.textContent?.trim().startsWith(label));
-  tab?.click();
-  flushSync();
-}
 const button = (label: string) =>
   [...document.querySelectorAll<HTMLButtonElement>('button')].find(
     (b) => b.textContent?.trim() === label,
@@ -309,7 +251,6 @@ it('shows role text only for own role and writes launch instructions on save', a
 
 it('warns when launch instructions are unreadable and does not overwrite them', async () => {
   await show([session('estudiar', 'Estudio')], { failInstructions: true });
-  openTab('Instructions');
   expect(document.body.textContent).toContain(
     'The launch instructions file cannot be read',
   );
@@ -329,13 +270,14 @@ it('warns when launch instructions are unreadable and does not overwrite them', 
   ).toBe(false);
 });
 
-it('groups System launches before Agents and shows the estimated context', async () => {
+it('groups launches by role and shows the estimated context', async () => {
   await show([session('estudiar', 'Estudio'), session('otro', null)]);
-  const groups = [...document.querySelectorAll('.launch-group h2')].map(
+  const roles = [...document.querySelectorAll('.le-role')].map(
     (r) => r.textContent,
   );
-  expect(groups).toEqual(['System', 'Agents']);
-  expect(text('.context-estimate')).toMatch(/Initial context estimated \d+k/);
+  expect(roles).toEqual(['Worker', 'Researcher']);
+  expect(text('.le-total')).toMatch(/~\d+k/);
+  expect(text('.le-total')).toContain('MCP and hooks not measured');
 });
 
 it('opens a new launch draft from the selected preset and keeps that preset on save', async () => {
@@ -373,12 +315,19 @@ it('copies a shared preset to the launch’s own, and keeps what it does not sho
     session('otro', 'Estudio'),
   ]);
   // Untick one skill of the preset: Estudio is shared with "otro".
-  openTab('Skills');
   document
-    .querySelector<HTMLButtonElement>(
-      '.toggle-row[aria-label="systematic-debugging"]',
-    )!
-    .click();
+    .querySelector<HTMLButtonElement>('.le-gtoggle[aria-expanded="true"]')
+    ?.click();
+  flushSync();
+  const skills = [...document.querySelectorAll('.le-group')].find((g) =>
+    g.textContent?.includes('Skills'),
+  )!;
+  skills.querySelector<HTMLButtonElement>('.le-gtoggle')!.click();
+  flushSync();
+  const row = [...skills.querySelectorAll<HTMLLabelElement>('.le-row')].find(
+    (r) => r.textContent?.includes('systematic-debugging'),
+  )!;
+  row.querySelector('input')!.click();
   flushSync();
   button('Save').click();
   await settle();
@@ -424,11 +373,11 @@ it('opens a launch with commands but does not save over it', async () => {
       template: null,
     },
   ]);
-  expect(text('.distribution-notice.warning')).toContain(
+  expect(text('.notice[data-tone="warn"]')).toContain(
     'the file’s own commands run',
   );
   expect(button('Save').disabled).toBe(true);
-  expect(document.querySelector('.remove-launch')).not.toBeNull();
+  expect(document.querySelector('.le-delete')).toBeNull();
 });
 
 it('says what was saved when a later step fails, and keeps the draft', async () => {
@@ -438,27 +387,31 @@ it('says what was saved when a later step fails, and keeps the draft', async () 
     return null;
   });
   await show([session('estudiar', 'Estudio')]);
-  untickAllSkills();
+  const skills = [...document.querySelectorAll('.le-group')].find((g) =>
+    g.textContent?.includes('Skills'),
+  )!;
+  const first = skills.querySelector<HTMLInputElement>('.le-ghead input')!;
+  first.click();
   flushSync();
   button('Save').click();
   await settle();
-  expect(text('.workspace-notice.error')).toContain(
+  expect(text('.notice[data-tone="error"]')).toContain(
     'Saved so far: preset “Estudio”',
   );
   // The draft is still there to save again.
   expect(button('Save').disabled).toBe(false);
 });
 
-const skillsGroup = () => {
-  openTab('Skills');
-  return document.querySelector<HTMLElement>('.category-group')!;
-};
+const skillsGroup = () =>
+  [...document.querySelectorAll('.le-group')].find((g) =>
+    g.textContent?.includes('Skills'),
+  )!;
 function untickAllSkills() {
-  skillsGroup().querySelector<HTMLButtonElement>('.category-toggle')!.click();
+  skillsGroup().querySelector<HTMLInputElement>('.le-ghead input')!.click();
   flushSync();
 }
 function rename(name: string) {
-  const title = document.querySelector<HTMLInputElement>('.workspace-title')!;
+  const title = document.querySelector<HTMLInputElement>('.le-title')!;
   title.value = name;
   title.dispatchEvent(new Event('input'));
   flushSync();
@@ -469,16 +422,16 @@ it('stops at a failed environment and says the preset was saved, launch untouche
     failEnvironment: true,
   });
   // Memory off is drawn nowhere: change a hook-less thing the editor shows instead.
-  openTab('MCP');
-  document
-    .querySelector<HTMLButtonElement>('.toggle-row[aria-label="context7"]')!
-    .click();
+  const mcp = [...document.querySelectorAll('.le-group')].find((g) =>
+    g.textContent?.includes('MCP servers'),
+  )!;
+  mcp.querySelector<HTMLInputElement>('.le-ghead input')!.click();
   flushSync();
   button('Save').click();
   await settle();
   expect(calls.writeEnvironment).toHaveLength(1);
   expect(ipc.some((c) => c.command === 'launch_save')).toBe(false);
-  expect(text('.workspace-notice.error')).toContain(
+  expect(text('.notice[data-tone="error"]')).toContain(
     'environment.json could not be written.',
   );
 });
@@ -496,8 +449,8 @@ it('on a rename, keeps the old file when the role cannot follow, and says so', a
   expect(calls.writeRole).toEqual([
     { do: 'rename', from: 'estudiar', to: 'estudiar-sig' },
   ]);
-  expect(text('.workspace-notice.error')).toContain('Saved so far:');
-  expect(text('.workspace-notice.error')).toContain('launch');
+  expect(text('.notice[data-tone="error"]')).toContain('Saved so far:');
+  expect(text('.notice[data-tone="error"]')).toContain('launch');
 });
 
 it('on a rename that saves, moves the role before deleting the old file', async () => {
@@ -547,11 +500,11 @@ it('saves the draft as it was when Save was pressed, with the fields disabled me
   untickAllSkills();
   button('Save').click();
   flushSync();
+  expect(document.querySelector<HTMLInputElement>('.le-title')!.disabled).toBe(
+    true,
+  );
   expect(
-    document.querySelector<HTMLInputElement>('.workspace-title')!.disabled,
-  ).toBe(true);
-  expect(
-    document.querySelector<HTMLDivElement>('.workspace-scroll')!.inert,
+    document.querySelector<HTMLFieldSetElement>('.le-fieldset')!.disabled,
   ).toBe(true);
   // Typed while saving: not saved.
   rename('Otro nombre');
@@ -568,12 +521,12 @@ it('says roles.json is damaged and that roles are not saved', async () => {
   await show([session('estudiar', null)], {
     roles: { custom: [], assigned: {}, damaged: true },
   });
-  expect(text('.workspace-notice.warning')).toContain(
+  expect(text('.notice[data-tone="warn"]')).toContain(
     'roles.json could not be read',
   );
 });
 
-it('shows command launches in System without agent settings or an estimate', async () => {
+it('shows a command launch as its name, a notice and Try: no distributor, model or estimate', async () => {
   await show([
     {
       id: 'upd',
@@ -586,16 +539,15 @@ it('shows command launches in System without agent settings or an estimate', asy
       template: null,
     },
   ]);
-  expect(document.querySelector('.workspace-tabs')).toBeNull();
-  expect(document.querySelector('.context-estimate')).toBeNull();
-  expect(text('.distribution-editor')).toContain('No distributions yet.');
-  expect(button('Try').disabled).toBe(true);
-  expect(button('Save').disabled).toBe(true);
+  expect(document.querySelector('.le-fields')).toBeNull();
+  expect(document.querySelector('.le-loads')).toBeNull();
+  expect(text('.le-total')).toBe('');
+  expect(button('Try').disabled).toBe(false);
 });
 
 it('says before saving that a file under another name is written anew and the old one removed', async () => {
   await show([{ ...session('a-mano', null), name: 'Mi Lanzamiento' }]);
-  expect(text('.workspace-notice.warning')).toContain(
+  expect(text('.notice[data-tone="warn"]')).toContain(
     'saved as a-mano.toml. Saving writes mi-lanzamiento.toml and removes a-mano.toml',
   );
 });
@@ -624,89 +576,71 @@ const update: Launch = {
   template: 'system-update',
 };
 const script = () =>
-  document.querySelector<HTMLTextAreaElement>('#launch-commands')!.value;
+  document.querySelector<HTMLTextAreaElement>('.dv-script textarea')!.value;
 const switchOf = (label: string) =>
-  [...document.querySelectorAll<HTMLLabelElement>('.option-row')]
+  [...document.querySelectorAll<HTMLLabelElement>('.dv-switches label')]
     .find((l) => l.textContent?.includes(label))!
     .querySelector('input')!;
 
-it('shows distribution options and flags as read-only', async () => {
+it('a distribution’s switches rewrite its script, and the active one cannot be deleted', async () => {
   await show([update]);
-  expect(
-    (document.querySelector('#launch-distribution') as HTMLSelectElement).value,
-  ).toBe('cachyos');
+  expect(text('.dv-system')).toContain('CachyOS (cachyos)');
   expect(script()).toBe('sudo pacman -Syu\nparu -Sua');
   expect(switchOf('Include AUR').checked).toBe(true);
   expect(switchOf('--noconfirm').checked).toBe(false);
-  expect(switchOf('Include AUR').disabled).toBe(true);
-  expect(switchOf('--noconfirm').disabled).toBe(true);
-  expect(
-    switchOf('--noconfirm').closest('label')?.querySelector('code')
-      ?.textContent,
-  ).toBe('--noconfirm');
-  const removeActive = [
-    ...document.querySelectorAll<HTMLButtonElement>('.variant-list button'),
-  ].find((item) => item.textContent?.includes('CachyOS'));
-  expect(removeActive).toBeUndefined();
-  const area = document.querySelector<HTMLTextAreaElement>('#launch-commands')!;
-  area.value = 'sudo pacman -Syu\necho ready';
-  area.dispatchEvent(new Event('input', { bubbles: true }));
+  switchOf('--noconfirm').click();
   flushSync();
+  expect(script()).toBe('sudo pacman -Syu --noconfirm\nparu -Sua --noconfirm');
+  switchOf('Include AUR').click();
+  flushSync();
+  expect(script()).toBe('sudo pacman -Syu --noconfirm');
+  expect(button('Delete').disabled).toBe(true);
   button('Save').click();
   await settle();
   const saved = ipc.find((c) => c.command === 'launch_save_variants');
-  expect(saved?.args).toMatchObject({
+  expect(saved?.args).toEqual({
     request: {
       id: 'actualizar-sistema',
       variants: [
         update.variants[0],
         {
           distro: 'cachyos',
-          commands: ['sudo pacman -Syu', 'echo ready'],
-          manual: true,
+          commands: ['sudo pacman -Syu --noconfirm'],
+          options: ['noconfirm'],
+          manual: false,
         },
       ],
     },
   });
 });
 
-it('the active distribution cannot be removed while another one is shown', async () => {
+it('a script typed by hand turns the switches off until it goes back to them', async () => {
   await show([update]);
-  choose(
-    document.querySelector<HTMLSelectElement>('#launch-distribution')!,
-    update.variants[0].distro,
-  );
-  flushSync();
-  const items = [...document.querySelectorAll('.variant-list span')];
-  const active = items.find((item) => item.textContent?.includes('CachyOS'));
-  expect(active).toBeDefined();
-  const remove = active!.nextElementSibling as HTMLButtonElement;
-  expect(remove.disabled).toBe(true);
-});
-
-it('warns when commands were edited by hand and rebuilds them from options', async () => {
-  await show([update]);
-  const area = document.querySelector<HTMLTextAreaElement>('#launch-commands')!;
+  const area = document.querySelector<HTMLTextAreaElement>(
+    '.dv-script textarea',
+  )!;
   area.value = 'sudo pacman -Syu\n\necho listo';
   area.dispatchEvent(new Event('input', { bubbles: true }));
   flushSync();
-  expect(text('.manual-notice')).toContain('Commands edited by hand');
   expect(
-    document.querySelector<HTMLFieldSetElement>('.distribution-options')!
-      .disabled,
+    document.querySelector<HTMLFieldSetElement>('.dv-switches')!.disabled,
   ).toBe(true);
-  button('Rebuild from the options').click();
+  button('Back to options').click();
   flushSync();
   expect(script()).toBe('sudo pacman -Syu\nparu -Sua');
-  expect(document.querySelector('.manual-notice')).toBeNull();
-  button('Add distribution').click();
+  // Another distribution can be picked and deleted; a new one is added with its defaults.
+  [...document.querySelectorAll<HTMLButtonElement>('.dv-list .le-item')]
+    .find((b) => b.textContent?.includes('Arch'))!
+    .click();
   flushSync();
-  choose(
-    document.querySelector<HTMLSelectElement>('#new-distribution')!,
-    'fedora',
-  );
-  [...document.querySelectorAll<HTMLButtonElement>('button')]
-    .find((item) => item.textContent?.trim() === 'Add')!
+  expect(button('Delete').disabled).toBe(false);
+  button('Delete').click();
+  flushSync();
+  expect(text('.dv-list')).not.toContain('Arch');
+  button('+ Add distribution').click();
+  flushSync();
+  [...document.querySelectorAll<HTMLButtonElement>('.dv-add .le-item')]
+    .find((b) => b.textContent?.includes('Fedora'))!
     .click();
   flushSync();
   expect(script()).toBe('sudo dnf upgrade --refresh');
@@ -727,52 +661,51 @@ it('a variant edited in its file by hand opens with the switches off', async () 
     } as Launch,
   ]);
   expect(script()).toBe('sysupdate');
-  expect(text('.manual-notice')).toContain('Commands edited by hand');
   expect(
-    document.querySelector<HTMLFieldSetElement>('.distribution-options')!
-      .disabled,
+    document.querySelector<HTMLFieldSetElement>('.dv-switches')!.disabled,
   ).toBe(true);
 });
 
-it('keeps option explanations available without a detected-computer badge', async () => {
+it('hovering a switch or a distribution says what it does', async () => {
   await show([update]);
   expect(
-    [...document.querySelectorAll<HTMLLabelElement>('.option-row')].find((l) =>
-      l.textContent?.includes('--noconfirm'),
+    [...document.querySelectorAll<HTMLLabelElement>('.dv-switches label')].find(
+      (l) => l.textContent?.includes('--noconfirm'),
     )!.title,
   ).toContain('answer yes on their own');
   expect(
-    document.querySelector('.distribution-editor')?.textContent,
-  ).not.toContain('Detected on this computer');
+    [...document.querySelectorAll<HTMLButtonElement>('.dv-list .le-item')].find(
+      (b) => b.textContent?.includes('Arch'),
+    )!.title,
+  ).toContain('Manjaro');
+  expect(text('.dv-hint')).toContain('CachyOS');
 });
 
-it('shows field help in their rows and removes Mode from General', async () => {
+it('hovering each field and each group says what it is', async () => {
   await show([session('estudiar', 'Estudio')]);
-  openTab('General');
   const field = (label: string) =>
-    [...document.querySelectorAll<HTMLElement>('.workspace-row')].find(
-      (row) =>
-        row.querySelector('.row-label label')?.textContent?.trim() === label,
+    [...document.querySelectorAll<HTMLElement>('.le-field')].find(
+      (f) => f.querySelector('span')?.textContent === label,
     )!;
-  expect(field('Role').textContent).toContain(
-    'Only used to group launches in this list.',
-  );
-  expect(field('Working directory').textContent).toContain(
-    'The agent works with files in this folder.',
-  );
-  expect(field('Permissions').querySelector('.permission-help')).not.toBeNull();
-  expect(document.body.textContent).not.toContain('Mode');
+  expect(field('Mode').title).toContain('Managed');
+  expect(field('Permissions').hasAttribute('title')).toBe(false);
+  expect(field('Role').title).toContain('does not change what the agent does');
+  expect(field('Folder').title).toContain('Where the agent works');
+  expect(
+    field('Permissions').querySelector<HTMLSelectElement>('select')!.title,
+  ).toContain('As configured');
+  const toggles = [
+    ...document.querySelectorAll<HTMLButtonElement>('.le-gtoggle'),
+  ];
+  expect(toggles.length).toBeGreaterThan(0);
+  for (const toggle of toggles) expect(toggle.title).not.toBe('');
+  expect(document.querySelector('.dv-info')).toBeNull();
 });
 
-const fieldSelect = (label: string) => {
-  openTab('General');
-  return [...document.querySelectorAll<HTMLElement>('.workspace-row')]
-    .find(
-      (row) =>
-        row.querySelector('.row-label label')?.textContent?.trim() === label,
-    )!
+const fieldSelect = (label: string) =>
+  [...document.querySelectorAll<HTMLElement>('.le-field')]
+    .find((f) => f.querySelector('span')?.textContent === label)!
     .querySelector<HTMLSelectElement>('select')!;
-};
 const optionsOf = (select: HTMLSelectElement) =>
   [...select.options].map((o) => [o.value, o.textContent?.trim()]);
 function choose(select: HTMLSelectElement, value: string) {
@@ -801,9 +734,9 @@ it('the permissions of a launch are chosen directly, and accept edits is offered
   expect(document.body.textContent).not.toContain('Profile');
   expect(permissions.value).toBe('');
   choose(permissions, 'edits');
-  expect(text('.permission-help')).toContain('Claude Code only');
+  expect(permissions.title).toContain('Claude Code only');
   // Codex has no such mode: the option goes, and so does the choice.
-  choose(fieldSelect('Application'), 'codex');
+  choose(fieldSelect('Distributor'), 'codex');
   expect(optionsOf(fieldSelect('Permissions'))).toEqual([
     ['', 'As configured'],
     ['ask', 'Ask before acting'],
@@ -813,15 +746,15 @@ it('the permissions of a launch are chosen directly, and accept edits is offered
   expect(fieldSelect('Permissions').value).toBe('');
   // A permission both agents have follows the change of agent.
   choose(fieldSelect('Permissions'), 'read_only');
-  choose(fieldSelect('Application'), 'claude_code');
+  choose(fieldSelect('Distributor'), 'claude_code');
   expect(fieldSelect('Permissions').value).toBe('read_only');
 });
 
 it('saves the permission as its word, never a profile, and warns what full access costs', async () => {
   await show([session('estudiar', 'Estudio')]);
-  expect(text('.permission-help.warning')).not.toContain('Full access');
+  expect(text('.notice[data-tone="warn"]')).not.toContain('Full access');
   choose(fieldSelect('Permissions'), 'bypass');
-  expect(text('.permission-help.warning')).toContain(
+  expect(text('.notice[data-tone="warn"]')).toContain(
     'Full access: the agent asks nothing',
   );
   button('Save').click();
@@ -838,9 +771,9 @@ it('a launch set back to as configured is saved without a permission', async () 
   await show([
     { ...session('estudiar', 'Estudio'), permission: 'bypass' } as Launch,
   ]);
-  expect(text('.permission-help.warning')).toContain('Full access');
+  expect(text('.notice[data-tone="warn"]')).toContain('Full access');
   choose(fieldSelect('Permissions'), '');
-  expect(text('.permission-help.warning')).not.toContain('Full access');
+  expect(text('.notice[data-tone="warn"]')).not.toContain('Full access');
   button('Save').click();
   await settle();
   expect(savedRequest().permission).toBeNull();
@@ -856,40 +789,35 @@ it('opens a saved launch on the permission its file names', async () => {
 
 it('keeps the hooks of config.toml out of the count and out of "mark all", and saves only the hooks of hooks.json', async () => {
   const { calls } = await show([codexSession()], { codex: true });
-  openTab('Skills');
-  const skillsCount = text('.skill-toolbar').match(/\d+ of \d+/)?.[0];
-  expect(skillsCount).toBeDefined();
-  const tabText = (label: string) =>
-    [...document.querySelectorAll('[role="tab"]')].find((tab) =>
-      tab.textContent?.trim().startsWith(label),
-    )?.textContent ?? '';
-  expect(tabText('Skills')).toContain(skillsCount!);
-  expect(tabText('Hooks')).toContain('3 of 3');
-  openTab('Hooks');
-  const rows = [...document.querySelectorAll<HTMLButtonElement>('.toggle-row')];
-  expect(text('.hooks-toolbar')).toContain('3 of 3');
-  expect(
-    rows.map((row) => [
-      row.getAttribute('aria-label'),
-      row.getAttribute('aria-checked'),
-    ]),
-  ).toEqual([
-    ['orient.sh, Always', 'true'],
-    ['gate.py, Commands', 'true'],
-  ]);
-  expect(document.querySelector('.fixed-hook')?.textContent).toContain(
-    'notify.sh',
+  const hooks = [...document.querySelectorAll('.le-group')].find((g) =>
+    g.querySelector('.le-gtoggle')?.textContent?.includes('Hooks'),
+  )!;
+  // Two hooks in hooks.json; the one config.toml declares is not counted.
+  expect(hooks.querySelector('.le-gtoggle .le-meta')?.textContent).toContain(
+    '2 of 2',
   );
-  expect(document.querySelector('.fixed-hook')?.textContent).toContain(
-    'Always on',
-  );
-  rows.forEach((row) => row.click());
+  hooks.querySelector<HTMLButtonElement>('.le-gtoggle')!.click();
   flushSync();
-  expect(
-    document.querySelectorAll<HTMLButtonElement>(
-      '.toggle-row[aria-checked="false"]',
-    ),
-  ).toHaveLength(2);
+  const rows = () => [
+    ...hooks.querySelectorAll<HTMLInputElement>('.le-row input'),
+  ];
+  // Two rows to switch plus the config.toml one, shown ticked and fixed.
+  expect(rows().map((r) => [r.checked, r.disabled])).toEqual([
+    [true, false],
+    [true, false],
+    [true, true],
+  ]);
+  // "Mark all" off switches the two rows and never the fixed one.
+  hooks.querySelector<HTMLInputElement>('.le-ghead input')!.click();
+  flushSync();
+  expect(hooks.querySelector('.le-gtoggle .le-meta')?.textContent).toContain(
+    '0 of 2',
+  );
+  expect(rows().map((r) => [r.checked, r.disabled])).toEqual([
+    [false, false],
+    [false, false],
+    [true, true],
+  ]);
   button('Save').click();
   await settle();
   // The Codex environment is written to the preset, and never the Claude one.
@@ -904,11 +832,10 @@ it('keeps the hooks of config.toml out of the count and out of "mark all", and s
 
 it('saves AGENTS.md left out of a Codex launch', async () => {
   const { calls } = await show([codexSession()], { codex: true });
-  openTab('Instructions');
-  const agents = [
-    ...document.querySelectorAll<HTMLButtonElement>('.toggle-row'),
-  ].find((row) => row.getAttribute('aria-label')?.includes('AGENTS.md'))!;
-  agents.click();
+  const instructions = [...document.querySelectorAll('.le-group')].find((g) =>
+    g.querySelector('.le-gtoggle')?.textContent?.includes('Instructions'),
+  )!;
+  instructions.querySelector<HTMLInputElement>('.le-ghead input')!.click();
   flushSync();
   button('Save').click();
   await settle();
@@ -925,7 +852,7 @@ it('drops a hook the preset left out that hooks.json no longer has, says so, and
       hooks_off: ['k1', 'gone'],
     }),
   });
-  const warning = document.querySelector('.workspace-notice.warning');
+  const warning = document.querySelector('[role="alert"]');
   expect(warning?.textContent).toContain('no longer in hooks.json');
   // The draft is not the saved one, so Save is open; control below shows it is closed otherwise.
   expect(button('Save').disabled).toBe(false);
@@ -953,87 +880,18 @@ it('does not draw the environment of a preset whose file cannot be read, says so
   });
   const warning = document.querySelector('[role="alert"]');
   expect(warning?.textContent).toContain('environment-codex.json');
-  openTab('Hooks');
-  expect(document.querySelectorAll('.toggle-row')).toHaveLength(0);
-  expect(document.querySelector('.workspace-state')?.textContent).toContain(
-    'could not be read',
-  );
-  openTab('Summary');
-  const unavailableRows = [
-    ...document.querySelectorAll<HTMLElement>('.summary-state'),
-  ];
-  expect(unavailableRows).toHaveLength(2);
   expect(
-    unavailableRows.every(
-      (row) =>
-        row.textContent?.includes('could not be read') &&
-        row.querySelector('[aria-hidden="true"]')?.textContent === '⚠',
+    [...document.querySelectorAll('.le-group')].some((g) =>
+      g.querySelector('.le-gtoggle')?.textContent?.includes('Hooks'),
     ),
-  ).toBe(true);
+    'no hooks drawn as "everything on"',
+  ).toBe(false);
   button('Save').click();
   await settle();
   expect(calls.writeCodexEnvironment).toBeUndefined();
 });
 
-it('does not show MCP or Claude-only permissions in Codex', async () => {
-  await show([codexSession()], { codex: true });
-  expect(
-    [...document.querySelectorAll('[role="tab"]')].map(
-      (tab) => tab.textContent,
-    ),
-  ).not.toContain('MCP');
-  expect(
-    optionsOf(fieldSelect('Permissions')).map((option) => option[0]),
-  ).not.toContain('edits');
-});
-
-it('does not guess an MCP server group when its command is not in the inventory', async () => {
-  await show([session('estudiar', 'Estudio')]);
-  openTab('MCP');
-  const panel = document.querySelector('.workspace-panel')!;
-  expect(panel.textContent).toContain('context7');
-  expect(panel.textContent).toContain('Account connectors');
-  expect(panel.textContent).not.toContain('Local command');
-  expect(panel.textContent).not.toContain('npx package');
-});
-
-it('groups an MCP server under npx package when inventory provides its command', async () => {
-  const reply = configInventory();
-  reply.inventory.items.push({
-    id: 'c'.repeat(32),
-    provider: 'claude_code',
-    source: 'claude_user_settings',
-    scope: 'global',
-    kind: 'mcp_server',
-    name: 'context7',
-    persisted: 'present_enabled',
-    effective: 'documented',
-    session_use: 'unknown',
-    not_writable: 'not_in_this_phase',
-    detail: {
-      kind: 'map',
-      value: [
-        [
-          'command',
-          { kind: 'text', value: { text: 'npx -y context7-mcp', found: [] } },
-        ],
-      ],
-    },
-    hash: null,
-  });
-  mockIPC((command) => (command === 'configuration_inventory' ? reply : null));
-  await show([session('estudiar', 'Estudio')]);
-  openTab('MCP');
-  expect(document.querySelector('.workspace-panel')?.textContent).toContain(
-    'npx package',
-  );
-  expect(document.querySelector('.workspace-panel')?.textContent).not.toContain(
-    'Local command',
-  );
-});
-
 function projectInstructions(mode: 'load' | 'exclude' | 'role') {
-  openTab('Instructions');
   const select = document.querySelector<HTMLSelectElement>(
     'select[aria-label="Project instructions"]',
   )!;
@@ -1097,21 +955,21 @@ it('uses the plan for the folder and provider, unticks unavailable skills and re
     { capability: 'a1', revision: null },
   ]);
   expect(calls.saveSelection).toBeUndefined();
-  openTab('Skills');
-  expect(document.querySelectorAll('.skill-unavailable')).toHaveLength(2);
+  const skills = [...document.querySelectorAll('.le-group')].find((g) =>
+    g.textContent?.includes('Skills'),
+  )!;
+  const inputs = [
+    ...skills.querySelectorAll<HTMLInputElement>('.le-row input'),
+  ];
+  expect(inputs).toHaveLength(2);
+  expect(inputs.every((i) => i.disabled && !i.checked)).toBe(true);
+  expect(inputs.map((i) => i.title)).toEqual([
+    'Installed copy differs',
+    'Not in this folder',
+  ]);
   expect(
-    [...document.querySelectorAll('.skill-unavailable')].every((row) =>
-      row.textContent?.includes('Unavailable:'),
-    ),
-  ).toBe(true);
-  expect(
-    document.querySelectorAll('.skill-unavailable .toggle-row'),
-  ).toHaveLength(0);
-  expect(
-    [...document.querySelectorAll('.toggle-row')].some((row) =>
-      ['s1', 's2'].includes(row.getAttribute('aria-label') ?? ''),
-    ),
-  ).toBe(false);
+    inputs.map((i) => i.parentElement!.querySelector('span')!.title),
+  ).toEqual(['Installed copy differs', 'Not in this folder']);
   button('Save').click();
   await settle();
   expect(calls.saveSelection[0]).toMatchObject({ id: 'sel-1', items: [] });
@@ -1135,7 +993,7 @@ it('ignores a late plan from a previously selected folder', async () => {
     { terminalPlan },
     { choose: async () => '/home/me/Other' },
   );
-  button('Select').click();
+  button('Browse…').click();
   await settle();
   resolve({
     items: [{ capability: 's1', state: 'rejected', reason: 'Old folder' }],
@@ -1147,12 +1005,11 @@ it('ignores a late plan from a previously selected folder', async () => {
     '/home/me/Other',
     undefined,
   );
-  openTab('Skills');
-  const skill = document.querySelector<HTMLButtonElement>(
-    '.toggle-row[aria-label="frontend-design"]',
-  )!;
+  const skill = [
+    ...document.querySelectorAll<HTMLInputElement>('.le-row input'),
+  ].find((i) => i.closest('label')?.textContent?.includes('frontend-design'))!;
   expect(skill.disabled).toBe(false);
-  expect(skill.getAttribute('aria-checked')).toBe('true');
+  expect(skill.checked).toBe(true);
 });
 
 it.each([false, true])(
@@ -1162,7 +1019,7 @@ it.each([false, true])(
       session('estudiar', 'Estudio'),
       ...(shared ? [session('otro', 'Estudio')] : []),
     ]);
-    document.querySelector<HTMLButtonElement>('.remove-launch')!.click();
+    document.querySelector<HTMLButtonElement>('.le-delete')!.click();
     await settle();
     button('Delete').click();
     await settle();
@@ -1181,71 +1038,23 @@ it.each([false, true])(
 
 it('uses the group and select styles, six full-width role lines and only the chosen help', async () => {
   await show([session('estudiar', 'Estudio')]);
-  openTab('Instructions');
-  const group = document.querySelector<HTMLElement>(
-    '.workspace-section[aria-label="From the project"]',
-  )!;
-  expect(group.querySelector('label')?.textContent).toBe(
+  const group = document
+    .querySelector('select[aria-label="Project instructions"]')!
+    .closest('.le-group')!;
+  expect(group.querySelector('.le-ghead')?.textContent).toBe(
     'Project instructions',
   );
-  expect(group.textContent).toContain(
-    'The agent reads the project instructions in addition to these files.',
-  );
-  expect(group.textContent).not.toContain(
-    'The agent skips the project instructions.',
-  );
+  expect(group.textContent).toContain('Loads the project instructions.');
+  expect(group.textContent).not.toContain('Without project instructions,');
   expect(group.textContent).not.toContain('The text applies at start.');
   projectInstructions('exclude');
-  expect(group.textContent).not.toContain(
-    'The agent reads the project instructions in addition to these files.',
-  );
-  expect(group.textContent).toContain(
-    'The agent skips the project instructions.',
-  );
+  expect(group.textContent).not.toContain('Loads the project instructions.');
+  expect(group.textContent).toContain('Without project instructions,');
   expect(group.textContent).not.toContain('The text applies at start.');
   projectInstructions('role');
   expect(group.textContent).toContain('The text applies at start.');
   expect(group.querySelector('textarea')?.rows).toBe(6);
-  expect(
-    group.querySelector('textarea')?.closest('.workspace-row'),
-  ).not.toBeNull();
-});
-
-it('shows projected global instructions as rendered Markdown with filename and description', async () => {
-  await show([session('estudiar', 'Estudio')]);
-  openTab('Instructions');
-  const global = document.querySelector<HTMLElement>(
-    '.workspace-section[aria-label="Global"]',
-  )!;
-  expect(global.textContent).toContain('UX rules');
-  expect(global.textContent).toContain('rules/ux.md');
-  expect(global.textContent).toContain('Workspace guidance');
-  expect(global.textContent).toContain(
-    'Only loads when touching matching files.',
-  );
-  const details = [...global.querySelectorAll<HTMLElement>('details')].find(
-    (item) =>
-      item.querySelector('summary')?.textContent === 'Show content' &&
-      item.previousElementSibling?.textContent?.includes('UX rules'),
-  )!;
-  details.querySelector('summary')!.click();
-  flushSync();
-  expect(details.querySelector('h1')).toBeNull();
-  expect(details.textContent).toContain('Use accessible controls.');
-});
-
-it('shows the global configuration notice in Summary without collapsing other facts', async () => {
-  await show([session('estudiar', null)]);
-  openTab('Summary');
-  expect(document.querySelector('.summary-notice')?.textContent).toContain(
-    'This launch changes nothing',
-  );
-  expect(document.querySelector('.workspace-panel')?.textContent).toContain(
-    'Claude Code',
-  );
-  expect(document.querySelector('.workspace-panel')?.textContent).toContain(
-    'Global instructions',
-  );
+  expect(group.querySelector('textarea')?.closest('.le-field')).not.toBeNull();
 });
 
 it.each(['launch_delete', 'arsenal_launch_instructions_write'])(
@@ -1257,7 +1066,7 @@ it.each(['launch_delete', 'arsenal_launch_instructions_write'])(
       if (command === failure) throw new Error('Fixture failure');
       return null;
     });
-    document.querySelector<HTMLButtonElement>('.remove-launch')!.click();
+    document.querySelector<HTMLButtonElement>('.le-delete')!.click();
     await settle();
     button('Delete').click();
     await settle();
@@ -1301,10 +1110,9 @@ it('regression: previews a library larger than 512 without blocking a small save
 
 it('regression: rechecking a pinned skill keeps the revision that was evaluated', async () => {
   const { calls } = await show([session('estudiar', 'Estudio')]);
-  openTab('Skills');
-  const skill = document.querySelector<HTMLButtonElement>(
-    '.toggle-row[aria-label="frontend-design"]',
-  )!;
+  const skill = [
+    ...document.querySelectorAll<HTMLInputElement>('.le-row input'),
+  ].find((i) => i.closest('label')?.textContent?.includes('frontend-design'))!;
   skill.click();
   flushSync();
   skill.click();
@@ -1317,20 +1125,16 @@ it('regression: rechecking a pinned skill keeps the revision that was evaluated'
 
 it('regression: unreadable instructions are not described as excluded', async () => {
   await show([session('estudiar', 'Estudio')], { failInstructions: true });
-  openTab('Instructions');
   expect(document.body.textContent).toContain(
-    'The launch instructions file cannot be read.',
+    'Not available: the instructions file could not be read.',
   );
-  expect(
-    document.querySelector<HTMLSelectElement>(
-      'select[aria-label="Project instructions"]',
-    )?.disabled,
-  ).toBe(true);
+  expect(document.body.textContent).not.toContain(
+    'Without project instructions,',
+  );
 });
 
 it('regression: a nondefault Claude environment requires the token warning even with project instructions loaded', async () => {
   await show([session('estudiar', 'Estudio')], { tokenStored: false });
-  openTab('Instructions');
   expect(document.body.textContent).toContain('No long-lived token is stored');
 });
 
@@ -1388,34 +1192,36 @@ it('regression: says when unavailable items were removed from the draft', async 
         items: [{ capability: 's1', state: 'missing' }],
       }) as unknown as TerminalPlan,
   });
-  openTab('Summary');
-  expect(document.querySelector('.workspace-panel')?.textContent).toContain(
-    'frontend-design',
+  expect(document.body.textContent).toContain(
+    '1 unavailable items were left out',
   );
 });
 
-it('does not show provider agents as skills or as a separate group', async () => {
+it('shows provider agents as information without changing the saved preset', async () => {
   const { calls } = await show([session('estudiar', 'Estudio')]);
-  openTab('Skills');
-  expect(document.querySelector('.workspace-panel')?.textContent).not.toContain(
-    'Agents',
-  );
+  const agents = [...document.querySelectorAll('.le-group')].find((g) =>
+    g.querySelector('.le-gtoggle')?.textContent?.includes('Agents'),
+  )!;
+  agents.querySelector<HTMLButtonElement>('.le-gtoggle')!.click();
+  flushSync();
+  expect(agents.querySelectorAll('input, select')).toHaveLength(0);
+  expect(agents.querySelectorAll('.le-row')).toHaveLength(1);
   expect(
-    document.querySelector('.toggle-row[aria-label="gsd-executor"]'),
-  ).toBeNull();
+    agents.querySelector<HTMLButtonElement>('.le-gtoggle')!.title,
+  ).toContain('informational');
   choose(fieldSelect('Permissions'), 'ask');
   button('Save').click();
   await settle();
   expect(calls.saveSelection).toBeUndefined();
 });
 
-it('shows the selected permission explanation in its row', async () => {
+it('keeps permission reasons on the select and options without duplicate label help', async () => {
   await show([session('estudiar', null)]);
   const select = fieldSelect('Permissions');
-  choose(select, 'ask');
-  expect(select.title).toBe('');
-  expect(document.querySelector('.permission-help')?.textContent).toContain(
-    'The agent asks before every change.',
+  expect(select.title).not.toBe('');
+  expect(select.closest('label')!.hasAttribute('title')).toBe(false);
+  expect([...select.options].filter((o) => o.value).every((o) => o.title)).toBe(
+    true,
   );
 });
 
@@ -1426,7 +1232,7 @@ it('regression: preserves the cause when deleting a launch fails', async () => {
       throw { code: 'launch_invalid', reasons: ['unknown launch'] };
     return null;
   });
-  document.querySelector<HTMLButtonElement>('.remove-launch')!.click();
+  document.querySelector<HTMLButtonElement>('.le-delete')!.click();
   flushSync();
   button('Delete').click();
   await settle();
@@ -1462,9 +1268,7 @@ it('regression: distribution warnings do not suggest adding an unknown ID or rep
       }),
     },
   );
-  expect(text('.distribution-notice.warning')).toContain(
-    'add one to start it here',
-  );
+  expect(document.body.textContent).toContain('add one to start it here');
   expect(document.body.textContent).not.toContain('add ?');
 });
 
@@ -1482,13 +1286,7 @@ it.each(['', 'arch'])(
         }),
       },
     );
-    expect(
-      (document.querySelector('#launch-distribution') as HTMLSelectElement)
-        .value,
-    ).toBe('arch');
-    expect(document.body.textContent).not.toContain(
-      'Detected on this computer',
-    );
+    expect(text('.dv-system').trim()).toBe('Detected on this computer: arch');
   },
 );
 
@@ -1505,7 +1303,7 @@ it.each(['launch_unavailable', 'internal'])(
         },
       },
     );
-    expect(text('[role="alert"]')).toContain(
+    expect(text('[role="alert"]')).toBe(
       code === 'internal'
         ? 'Something unexpected happened. Try again.'
         : 'The launch folder is not available.',
@@ -1518,13 +1316,11 @@ it('regression: variant save errors translate host codes into sentences', async 
   mockIPC(() => {
     throw { code: 'internal' };
   });
-  const area = document.querySelector<HTMLTextAreaElement>('#launch-commands')!;
-  area.value = 'echo changed';
-  area.dispatchEvent(new Event('input', { bubbles: true }));
+  switchOf('--noconfirm').click();
   flushSync();
   button('Save').click();
   await settle();
-  expect(text('[role="alert"]')).toContain(
+  expect(text('[role="alert"]')).toBe(
     'Something unexpected happened. Try again.',
   );
 });
@@ -1532,30 +1328,31 @@ it('regression: variant save errors translate host codes into sentences', async 
 it('regression: Workspace copy describes the implemented switches in both languages', async () => {
   const { setLanguage } = await import('../src/lib/i18n/index.svelte');
   await show([session('estudiar', null)]);
-  openTab('Instructions');
   const select = document.querySelector<HTMLSelectElement>(
     'select[aria-label="Project instructions"]',
   )!;
   expect([...select.options].map((o) => o.textContent)).toEqual([
-    'Load',
-    'Skip',
-    'Custom text',
+    'Load project instructions',
+    'Skip project instructions',
+    'Custom instructions',
   ]);
-  expect(
-    document.querySelector('.project-control .row-help')?.textContent,
-  ).toContain('The agent reads the project instructions');
-  expect(document.body.textContent).not.toContain('Mode');
-  openTab('Summary');
-  expect(document.querySelector('.workspace-panel')?.textContent).toContain(
-    'Claude Code',
+  expect(fieldSelect('Distributor').closest('label')!.title).toContain(
+    'project instructions',
+  );
+  expect(document.querySelector('.le-total')!.textContent).toContain(
+    'MCP and hooks not measured',
   );
   setLanguage('es');
   flushSync();
   try {
-    expect(document.querySelector('.workspace-panel')?.textContent).toContain(
-      'Claude Code',
+    expect(
+      document.querySelector('select[aria-label="Instrucciones del proyecto"]')
+        ?.textContent,
+    ).toContain('Instrucciones propias');
+    // Native is a named mode in this app, and still goes through t().
+    expect(document.querySelector('select:disabled option')?.textContent).toBe(
+      'Native',
     );
-    expect(document.body.textContent).not.toContain('Native');
   } finally {
     setLanguage('en');
     flushSync();
