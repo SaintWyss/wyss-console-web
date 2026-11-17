@@ -284,7 +284,7 @@ it('does not take the desktop’s answer on faith', async () => {
   expect(item('Hooks')).toBeDefined();
 });
 
-it('opens Arsenal on a folding tree by layers, and the earlier screen is under More', async () => {
+it('opens Arsenal on a folding tree by layers, and the earlier presets screen is gone', async () => {
   const ipc = desktop();
   await openArsenal();
   expect(library().hidden).toBe(false);
@@ -314,16 +314,15 @@ it('opens Arsenal on a folding tree by layers, and the earlier screen is under M
   expect(ipc.count('arsenal_guide')).toBe(1);
   // The Personalization column folds to icons while Arsenal is shown.
   expect(document.querySelector('.personal-tabs.folded')).not.toBeNull();
-  Array.from(
-    document.querySelectorAll<HTMLButtonElement>(
-      '.sidebar .rail-menu .nav-item',
-    ),
-  )
-    .find((b) => b.textContent?.trim() === 'Arsenal presets')!
-    .click();
-  await flush();
-  const arsenal = document.querySelector<HTMLElement>('.arsenal-feature')!;
-  expect(arsenal.hidden).toBe(false);
+  // The earlier presets screen is gone: More no longer offers it.
+  expect(
+    Array.from(
+      document.querySelectorAll<HTMLButtonElement>(
+        '.sidebar .rail-menu .nav-item',
+      ),
+    ).map((b) => b.textContent?.trim()),
+  ).not.toContain('Arsenal presets');
+  expect(document.querySelector('.arsenal-feature')).toBeNull();
 });
 
 it('opens a card in place of the list, ordered short to long, read by id', async () => {
