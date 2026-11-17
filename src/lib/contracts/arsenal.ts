@@ -55,36 +55,6 @@ export interface LibraryItem extends Summary {
   compatibility: Verdict;
 }
 
-export interface RevisionInfo {
-  number: number;
-  tree_hash: string;
-  origin: string;
-  created_at: number;
-  files: number;
-  bytes: number;
-  current: boolean;
-}
-
-export interface FileInfo {
-  path: string;
-  sha256: string;
-  size: number;
-}
-
-export interface Detail {
-  summary: Summary;
-  revision: number;
-  revisions: RevisionInfo[];
-  files: FileInfo[];
-  compatibility: Verdict;
-  dependencies: Dependency[];
-}
-
-export interface FileText {
-  path: string;
-  text: string;
-}
-
 export interface Imported {
   capability: string;
   revision: number;
@@ -94,15 +64,6 @@ export interface Imported {
 export interface Item {
   capability: string;
   revision: number | null;
-}
-
-export interface Preset {
-  id: string;
-  name: string;
-  description: string;
-  items: Item[];
-  created_at: number;
-  updated_at: number;
 }
 
 export interface Selection {
@@ -119,17 +80,6 @@ export interface Selection {
 export interface SourceReport {
   source: string;
   state: SourceState;
-}
-
-export interface Excluded {
-  path: string;
-  reason: string;
-}
-
-export interface FileDigest {
-  path: string;
-  size: number;
-  sha256: string;
 }
 
 /** A composite collection a link is installed from, found through the link's target. */
@@ -162,14 +112,6 @@ export interface Candidate {
   file_count: number;
   excluded_count: number;
   review_count: number;
-}
-
-/** What a chosen capability holds, read on selection from the last scan. */
-export interface CandidateDetail {
-  id: string;
-  files: FileDigest[];
-  excluded: Excluded[];
-  review: Excluded[];
 }
 
 export type CompositeKind = 'gsd_core' | 'claude_plugin' | 'codex_plugin';
@@ -436,12 +378,6 @@ const DEPENDENCY_STATES = [
   'missing',
   'unknown',
 ] as const;
-const PREVIEW_STATES = ['resolved', 'missing', 'revision_missing'] as const;
-const CONFLICT_CODES = [
-  'name_collision',
-  'duplicate_content',
-  'instruction_overlap',
-] as const;
 const OUTCOMES = ['created', 'new_revision', 'unchanged'] as const;
 
 export function parseSummary(value: unknown): Summary {
@@ -487,45 +423,6 @@ export function parseSummaries(value: unknown): LibraryItem[] {
   return list(value, 'capability list', parseLibraryItem);
 }
 
-function parseRevisionInfo(value: unknown): RevisionInfo {
-  const v = record(value, 'revision');
-  return {
-    number: integer(v.number, 'number'),
-    tree_hash: text(v.tree_hash, 'tree_hash'),
-    origin: text(v.origin, 'origin'),
-    created_at: integer(v.created_at, 'created_at'),
-    files: integer(v.files, 'files'),
-    bytes: integer(v.bytes, 'bytes'),
-    current: flag(v.current, 'current'),
-  };
-}
-
-function parseFileInfo(value: unknown): FileInfo {
-  const v = record(value, 'file');
-  return {
-    path: text(v.path, 'path'),
-    sha256: text(v.sha256, 'sha256'),
-    size: integer(v.size, 'size'),
-  };
-}
-
-export function parseDetail(value: unknown): Detail {
-  const v = record(value, 'detail');
-  return {
-    summary: parseSummary(v.summary),
-    revision: integer(v.revision, 'revision'),
-    revisions: list(v.revisions, 'revisions', parseRevisionInfo),
-    files: list(v.files, 'files', parseFileInfo),
-    compatibility: parseVerdict(v.compatibility),
-    dependencies: list(v.dependencies, 'dependencies', parseDependency),
-  };
-}
-
-export function parseFileText(value: unknown): FileText {
-  const v = record(value, 'file text');
-  return { path: text(v.path, 'path'), text: text(v.text, 'text') };
-}
-
 export function parseImported(value: unknown): Imported {
   const v = record(value, 'import reply');
   return {
@@ -541,22 +438,6 @@ function parseItem(value: unknown): Item {
     capability: text(v.capability, 'capability'),
     revision: nullable(v.revision, (number) => integer(number, 'revision')),
   };
-}
-
-export function parsePreset(value: unknown): Preset {
-  const v = record(value, 'preset');
-  return {
-    id: text(v.id, 'id'),
-    name: text(v.name, 'name'),
-    description: text(v.description, 'description'),
-    items: list(v.items, 'items', parseItem),
-    created_at: integer(v.created_at, 'created_at'),
-    updated_at: integer(v.updated_at, 'updated_at'),
-  };
-}
-
-export function parsePresets(value: unknown): Preset[] {
-  return list(value, 'preset list', parsePreset);
 }
 
 export function parseSelection(value: unknown): Selection {
@@ -576,11 +457,6 @@ export function parseSelection(value: unknown): Selection {
 
 export function parseSelections(value: unknown): Selection[] {
   return list(value, 'selection list', parseSelection);
-}
-
-function parseExcluded(value: unknown): Excluded {
-  const e = record(value, 'excluded entry');
-  return { path: text(e.path, 'path'), reason: text(e.reason, 'reason') };
 }
 
 function parseManagedBy(value: unknown): ManagedBy | null {
@@ -620,25 +496,6 @@ function parseCandidate(value: unknown): Candidate {
     file_count: integer(v.file_count, 'file_count'),
     excluded_count: integer(v.excluded_count, 'excluded_count'),
     review_count: integer(v.review_count, 'review_count'),
-  };
-}
-
-function parseFileDigest(value: unknown): FileDigest {
-  const f = record(value, 'file digest');
-  return {
-    path: text(f.path, 'path'),
-    size: integer(f.size, 'size'),
-    sha256: text(f.sha256, 'sha256'),
-  };
-}
-
-export function parseCandidateDetail(value: unknown): CandidateDetail {
-  const v = record(value, 'candidate detail');
-  return {
-    id: text(v.id, 'id'),
-    files: list(v.files, 'files', parseFileDigest),
-    excluded: list(v.excluded, 'excluded', parseExcluded),
-    review: list(v.review, 'review', parseExcluded),
   };
 }
 
@@ -703,44 +560,6 @@ export function parseImportFailure(value: unknown): ArsenalFailure {
   return {
     code: text(v.code, 'code'),
     reason: nullable(v.reason, (reason) => text(reason, 'reason')),
-  };
-}
-
-export function parsePreview(value: unknown): Preview {
-  const v = record(value, 'preview');
-  return {
-    selection: parseSelection(v.selection),
-    status: oneOf(v.status, ['not_applied'] as const, 'status'),
-    items: list(v.items, 'items', (item) => {
-      const i = record(item, 'preview item');
-      return {
-        capability: text(i.capability, 'capability'),
-        state: oneOf(i.state, PREVIEW_STATES, 'state'),
-        kind: text(i.kind, 'kind'),
-        name: text(i.name, 'name'),
-        provider: text(i.provider, 'provider'),
-        revision: nullable(i.revision, (number) => integer(number, 'revision')),
-        pinned: flag(i.pinned, 'pinned'),
-        tree_hash: nullable(i.tree_hash, (hash) => text(hash, 'tree_hash')),
-        compatibility: oneOf(i.compatibility, COMPATIBILITIES, 'compatibility'),
-        reason: text(i.reason, 'reason'),
-        dependencies: list(i.dependencies, 'dependencies', parseDependency),
-      };
-    }),
-    conflicts: list(v.conflicts, 'conflicts', (conflict) => {
-      const c = record(conflict, 'conflict');
-      return {
-        code: oneOf(c.code, CONFLICT_CODES, 'code'),
-        capabilities: list(c.capabilities, 'capabilities', (id) =>
-          text(id, 'capability'),
-        ),
-      };
-    }),
-    dependencies: oneOf(
-      v.dependencies,
-      ['analysed', 'partial'] as const,
-      'dependencies',
-    ),
   };
 }
 
@@ -876,10 +695,6 @@ export function parseBinding(value: unknown): Binding {
       'verification',
     ),
   };
-}
-
-export function parseBindings(value: unknown): Binding[] {
-  return list(value, 'bindings', parseBinding);
 }
 
 /** One thing synchronization reports: a conflict it settled, something refused or still waiting. */

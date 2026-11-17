@@ -43,7 +43,10 @@ beforeEach(() => {
     requests.push(command);
     if (command === 'native_launcher') {
       for (const provider of ['claude', 'codex', 'opencode'])
-        execFileSync(join(root, provider), ['--version']);
+        execFileSync(join(root, provider), ['--version'], {
+          // Version probes need no stdin; an inherited pipe can be unavailable in a sandbox.
+          stdio: ['ignore', 'pipe', 'pipe'],
+        });
       return launcherWithM9('ready');
     }
     if (command === 'native_readiness') {

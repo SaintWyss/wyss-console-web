@@ -11,19 +11,13 @@ import {
   NativeCallError,
   chooseProject,
   forgetNative,
-  previewStart,
-  prepareHandoff,
   readLauncher,
   readReadiness,
-  saveHandoff,
-  type ArsenalStart,
-  type HandoffBrief,
   readNativeSessions,
   restartNative,
   startNative,
   stopNative,
 } from '../../desktop/native-client';
-import { currentWorkspace } from './bridge';
 import {
   START_UNRECORDED,
   STOP_UNRECORDED,
@@ -35,23 +29,13 @@ export interface NativeClient {
   launcher(): Promise<Launcher>;
   readiness(): Promise<Readiness>;
   sessions(sample: boolean): Promise<NativeSession[]>;
-  /** `profile` is the fixed template a permission is sent as (`permissionProfileId`). */
-  preview(
-    agent: AgentId,
-    profile: string | null,
-    arsenal?: ArsenalStart | null,
-  ): Promise<Preview>;
   start(
     agent: AgentId,
     project: string,
     profile: string | null,
     brief?: string | null,
     preview?: Pick<Preview, 'plan_token' | 'provider_version'> | null,
-    arsenal?: ArsenalStart | null,
-    delegation?: boolean,
   ): Promise<StartReply>;
-  prepareHandoff(id: string): Promise<HandoffBrief>;
-  saveHandoff(text: string): Promise<boolean>;
   restart(id: string): Promise<StartReply>;
   stop(id: string): Promise<void>;
   forget(id: string): Promise<void>;
@@ -65,28 +49,8 @@ const desktopClient: NativeClient = {
   launcher: readLauncher,
   readiness: readReadiness,
   sessions: readNativeSessions,
-  preview: previewStart,
-  start: (
-    agent,
-    project,
-    profile,
-    brief = null,
-    preview = null,
-    arsenal = null,
-    delegation = false,
-  ) =>
-    startNative(
-      agent,
-      project,
-      profile,
-      FIRST_SIZE,
-      brief,
-      preview,
-      arsenal,
-      delegation,
-    ),
-  prepareHandoff,
-  saveHandoff,
+  start: (agent, project, profile, brief = null, preview = null) =>
+    startNative(agent, project, profile, FIRST_SIZE, brief, preview),
   restart: (id) => restartNative(id, FIRST_SIZE),
   stop: stopNative,
   forget: forgetNative,
@@ -531,16 +495,6 @@ export class NativeController {
     if (this.failure) this.emit();
     else this.fail(error);
   }
-  /** The retry button coalesces double clicks, but may supersede a stalled confirmation. */
-  checkLauncher() {
-    if (
-      this.disposed ||
-      (this.launcherPending?.seq === this.launcherSeq &&
-        !this.launcherPending.slow)
-    )
-      return;
-    void this.refreshLauncher();
-  }
   clearFailure() {
     this.failure = null;
     this.emit();
@@ -559,22 +513,6 @@ export class NativeController {
       return null;
     }
   }
-  preview(
-    agent: AgentId,
-    profile: string | null,
-    arsenal: ArsenalStart | null = null,
-  ): Promise<Preview> {
-    return arsenal
-      ? this.client.preview(agent, profile, arsenal)
-      : this.client.preview(agent, profile);
-  }
-
-  /** Starts the agent; the window gets its terminal. One start at a time. */
-  /** Whether the next Claude Code or Codex start gets the Wyss delegation tool. */
-  private delegation = false;
-  setDelegation(on: boolean) {
-    this.delegation = on;
-  }
 
   async startAgent(
     agent: AgentId,
@@ -584,23 +522,8 @@ export class NativeController {
     preview: Preview | null = null,
   ): Promise<boolean> {
     return (
-      (await this.startReply(agent, project, profile, brief, preview, null)) !==
-      null
+      (await this.startReply(agent, project, profile, brief, preview)) !== null
     );
-  }
-
-  /**
-   * Starts the agent with an Arsenal selection named, and returns the reply so the caller can
-   * record what the terminal carries. The desktop rebuilds the exclusion; the window never sends it.
-   */
-  async startWithArsenal(
-    agent: AgentId,
-    project: string,
-    profile: string | null,
-    preview: Preview | null,
-    arsenal: ArsenalStart | null,
-  ): Promise<StartReply | null> {
-    return this.startReply(agent, project, profile, null, preview, arsenal);
   }
 
   private async startReply(
@@ -609,7 +532,6 @@ export class NativeController {
     profile: string | null,
     brief: string | null,
     preview: Preview | null,
-    arsenal: ArsenalStart | null,
   ): Promise<StartReply | null> {
     if (this.starting || this.disposed) return null;
     if (this.refuseM9(agent)) return null;
@@ -618,28 +540,13 @@ export class NativeController {
     this.beginMutation();
     this.emit();
     try {
-      const delegation =
-        this.delegation && (agent === 'claude_code' || agent === 'codex');
-      const reply = delegation
-        ? await this.client.start(
-            agent,
-            project,
-            profile,
-            brief,
-            preview,
-            arsenal,
-            true,
-          )
-        : arsenal
-          ? await this.client.start(
-              agent,
-              project,
-              profile,
-              brief,
-              preview,
-              arsenal,
-            )
-          : await this.client.start(agent, project, profile, brief, preview);
+      const reply = await this.client.start(
+        agent,
+        project,
+        profile,
+        brief,
+        preview,
+      );
       if (this.disposed) return null;
       this.afterStart(reply);
       return reply;
@@ -715,23 +622,6 @@ export class NativeController {
       this.endMutation();
     }
   }
-  /** The brief for handing a session's work to another agent; the user reviews it. */
-  async handoff(id: string): Promise<HandoffBrief | null> {
-    try {
-      return await this.client.prepareHandoff(id);
-    } catch (error) {
-      this.fail(error);
-      return null;
-    }
-  }
-  async saveBrief(text: string): Promise<boolean> {
-    try {
-      return await this.client.saveHandoff(text);
-    } catch (error) {
-      this.fail(error);
-      return false;
-    }
-  }
   /**
    * Stops the process. The desktop answers once, and nothing is retried here. Whatever the
    * answer, the launcher and the sessions are read again, so the view shows the store as it is.
@@ -760,18 +650,6 @@ export class NativeController {
     } finally {
       this.endMutation();
     }
-  }
-  /** Whether this window has a tab for the session. */
-  hasTab(id: string): boolean {
-    return !!currentWorkspace()?.tabOf(id);
-  }
-  /** Shows the terminal of a session this window has a tab for. */
-  showTerminal(id: string): boolean {
-    const workspace = currentWorkspace();
-    const tab = workspace?.tabOf(id);
-    if (!workspace || !tab) return false;
-    workspace.activate(tab);
-    return true;
   }
   dispose() {
     this.disposed = true;
