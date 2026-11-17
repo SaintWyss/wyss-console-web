@@ -419,25 +419,6 @@ h1.ws-title {
   cursor: default;
 }
 
-/* Roles editor under the Role row. */
-.ws-roles {
-  display: grid;
-  gap: 4px;
-  margin: 0;
-  padding: 8px 12px;
-  list-style: none;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-}
-.ws-roles > li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  min-height: 32px;
-}
-.ws-roles form {
-  flex: 1;
-}
 
 /* Summary: label and value rows. */
 .ws-facts {

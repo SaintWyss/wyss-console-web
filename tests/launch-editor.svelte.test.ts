@@ -507,13 +507,10 @@ it('saves the draft as it was when Save was pressed, with the fields disabled me
   expect(calls.saveSelection).toHaveLength(1);
 });
 
-it('says roles.json is damaged and that roles are not saved', async () => {
-  await show([session('estudiar', null)], {
-    roles: { custom: [], assigned: {}, damaged: true },
-  });
-  expect(text('.notice[data-tone="warn"]')).toContain(
-    'roles.json could not be read',
-  );
+it('has no role field: the role chose nothing', async () => {
+  await show([session('estudiar', null)]);
+  expect(document.querySelector('#launch-role')).toBeNull();
+  expect(button('Roles')).toBeUndefined();
 });
 
 it('shows a command launch as its name, a notice and Try: no distributor, model or estimate', async () => {
@@ -677,7 +674,6 @@ it('each General field says what it is, and Mode is gone', async () => {
   expect(labels.map((l) => l[0])).toEqual([
     'Application',
     'Working directory',
-    'Role',
     'Permissions',
   ]);
   for (const [, hint] of labels) expect(hint).not.toBe('');

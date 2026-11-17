@@ -16,8 +16,6 @@
     bypass: 'No approvals and no sandbox, with your account’s permissions.',
   };
 
-  let rolesOpen = $state(false);
-  let newRole = $state('');
   const folders = $derived([
     ...new Set([draft.directory, ...ws.saved, ...ws.used.map((u) => u.path)]),
   ]);
@@ -63,65 +61,6 @@
       disabled={ws.busy}
       onclick={() => void ws.browse()}>{t('Select')}</button
     >
-  </div>
-</div>
-
-<div class="ws-row">
-  <div>
-    <label class="ws-label" for="launch-role">{t('Role')}</label>
-    <p class="ws-hint">{t('A label for the launch.')}</p>
-  </div>
-  <div class="ws-control">
-    <div class="ws-pair">
-      <select id="launch-role" disabled={ws.busy} bind:value={draft.role}>
-        {#each ws.allRoles as role (role.id)}<option value={role.id}
-            >{role.name}</option
-          >{/each}
-      </select>
-      <button
-        type="button"
-        class="action"
-        aria-expanded={rolesOpen}
-        onclick={() => (rolesOpen = !rolesOpen)}>{t('Roles')}</button
-      >
-    </div>
-    {#if rolesOpen}
-      <ul class="ws-roles">
-        {#each ws.allRoles as role (role.id)}
-          <li>
-            <span>{role.name}</span>
-            {#if !role.basic}
-              <button
-                type="button"
-                class="ws-link"
-                aria-label={t('Delete role {name}', { name: role.name })}
-                onclick={() => void ws.removeRole(role.id)}
-                >{t('Delete')}</button
-              >
-            {/if}
-          </li>
-        {/each}
-        <li>
-          <form
-            class="ws-pair"
-            onsubmit={(e) => {
-              e.preventDefault();
-              void ws.addRole(newRole).then(() => (newRole = ''));
-            }}
-          >
-            <input
-              aria-label={t('New role name')}
-              placeholder={t('New role')}
-              maxlength="40"
-              bind:value={newRole}
-            />
-            <button type="submit" class="action" disabled={!newRole.trim()}
-              >{t('Add')}</button
-            >
-          </form>
-        </li>
-      </ul>
-    {/if}
   </div>
 </div>
 

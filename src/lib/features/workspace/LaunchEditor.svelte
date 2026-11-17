@@ -532,24 +532,6 @@
       draft.items = draft.items.filter((i) => i.capability !== id);
   }
 
-  async function addRole(raw: string) {
-    const name = raw.trim();
-    if (!name) return;
-    try {
-      roles = await client.writeRole({ do: 'create', name });
-    } catch (e) {
-      error = `${t('The role could not be saved.')} ${errorMessage(e)}`;
-    }
-  }
-  async function removeRole(id: string) {
-    try {
-      roles = await client.writeRole({ do: 'delete', id });
-      if (draft && draft.role === id) draft.role = 'worker';
-    } catch (e) {
-      error = `${t('The role could not be deleted.')} ${errorMessage(e)}`;
-    }
-  }
-
   /** One Save: preset → environment → launch → role. Says what was saved if a step fails. */
   async function save(): Promise<string | null> {
     if (!draft || !canSave || busy) return null;
@@ -763,12 +745,6 @@
     get estimate() {
       return est;
     },
-    get roles() {
-      return roles;
-    },
-    get allRoles() {
-      return allRoles;
-    },
     get saved() {
       return saved;
     },
@@ -778,8 +754,6 @@
     setAgent,
     setItem,
     browse,
-    addRole,
-    removeRole,
     reload: load,
   });
 </script>
@@ -915,13 +889,6 @@
                 <p class="notice" data-tone="error" role="alert">
                   {t(
                     'The launch instructions file cannot be read. It was not modified.',
-                  )}
-                </p>
-              {/if}
-              {#if roles.damaged}
-                <p class="notice" data-tone="warn">
-                  {t(
-                    'roles.json could not be read. Roles are shown as the basic ones and are not saved until the file is fixed or removed.',
                   )}
                 </p>
               {/if}
