@@ -79,6 +79,7 @@
   // shell follows it once; no view asks for it or starts anything for it.
   let lifecycle = $state<LifecycleObservation>(pendingLifecycle);
   let retrying = $state(false);
+  let retryError = $state(false);
   const notice = $derived(lifecycleNotice(lifecycle, authority));
   // One controller for the application's lifetime, whichever view is shown.
   const sessionsController = new SessionsController((next) => {
@@ -350,10 +351,14 @@
   /** The user's Retry: one request at a time. What comes of it arrives as a view. */
   function retry() {
     if (retrying) return;
+    retryError = false;
     retrying = true;
     void retryAuthority().then(
       () => (retrying = false),
-      () => (retrying = false),
+      () => {
+        retrying = false;
+        retryError = true;
+      },
     );
   }
 
@@ -406,6 +411,11 @@
     {/if}
     {#if notice}
       <AuthorityNotice {notice} {retrying} onretry={retry} />
+    {/if}
+    {#if retryError}
+      <p class="notice" data-tone="error" role="alert">
+        {t('Wyss Console could not ask the authority to retry. Try again.')}
+      </p>
     {/if}
     <!-- Mounted on the first visit to the Console, then kept: leaving the Console never ends a terminal. -->
     {#if consoleOpened}

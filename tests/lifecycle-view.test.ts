@@ -366,3 +366,22 @@ it('goes on without a lifecycle the bridge cannot answer', async () => {
   expect(notice()).toBeNull();
   expect(ipc.count('create_terminal')).toBe(1);
 });
+
+it('reports a rejected authority retry without exposing diagnostics and clears it on retry', async () => {
+  const ipc = await launched(
+    views.waiting_absent,
+    lifecycle({ phase: 'failed', failure: 'stopped', revision: 2 }),
+  );
+  ipc.world.retry = () =>
+    Promise.reject({ code: 'busy', diagnostic: 'private diagnostic' });
+  await click(button('Retry', notice()!));
+  const error = () => document.querySelector('main > p[role="alert"]');
+  expect(text(error())).toBe(
+    'Wyss Console could not ask the authority to retry. Try again.',
+  );
+  expect(text(document.body)).not.toContain('private diagnostic');
+  expect(button('Retry', notice()!)!.disabled).toBe(false);
+  ipc.world.retry = () => lifecycle({ phase: 'checking', revision: 3 });
+  await click(button('Retry', notice()!));
+  expect(error()).toBeNull();
+});

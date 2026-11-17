@@ -255,7 +255,14 @@ export function summarizeAgent(
             values: { name, version: agent.runtime_version },
           }
         : { text: msg('{name}'), values: { name } },
-      { text: msg('desired {state}'), values: { state: agent.desired } },
+      {
+        text: msg('desired {state}'),
+        values: {
+          state: {
+            text: agent.desired === 'running' ? msg('running') : msg('stopped'),
+          },
+        },
+      },
       counted(agent.model_count, msg('{count} model'), msg('{count} models')),
       { text: msg('managed by the authority') },
     ],

@@ -142,7 +142,13 @@ export function summarizeLink(
     const quiet = view.failure === 'stopped' || view.failure === 'not_packaged';
     return {
       key: link.key,
-      label: quiet ? msg('Offline') : msg('Failed to start'),
+      label: quiet
+        ? msg('Offline')
+        : view.failure === 'socket_unavailable'
+          ? msg('Not answering')
+          : view.failure === 'socket_unsafe'
+            ? msg('Unsafe')
+            : msg('Failed to start'),
       tone: quiet ? 'idle' : 'error',
       detail: [{ text: FAILURE[view.failure] }],
     };
@@ -233,10 +239,11 @@ export function lifecycleNotice(
 ): LifecycleNotice | null {
   if (lifecycle.state !== 'observed') return null;
   const { view } = lifecycle;
-  // The link is the one that says connected. While it is, nothing failed.
+  // An answering link supersedes an older lifecycle failure, including while it syncs.
   if (
     authority.state === 'observed' &&
-    authority.view.connection === 'connected'
+    (authority.view.connection === 'connected' ||
+      authority.view.connection === 'synchronizing')
   )
     return null;
   const details = [
@@ -268,7 +275,11 @@ export function lifecycleNotice(
     tone: quiet ? 'idle' : 'error',
     title: quiet
       ? msg('The Wyss authority is not running')
-      : msg('The Wyss authority could not start'),
+      : view.failure === 'socket_unavailable'
+        ? msg('The Wyss authority is not answering')
+        : view.failure === 'socket_unsafe'
+          ? msg('The Wyss authority connection is unsafe')
+          : msg('The Wyss authority could not start'),
     text: FAILURE[view.failure],
     retry: view.retry,
     details,

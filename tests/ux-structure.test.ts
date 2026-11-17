@@ -102,7 +102,7 @@ it('names every rail icon for screen readers and marks only the open view', asyn
   const more = document.querySelector<HTMLButtonElement>('.rail-more')!;
   expect(more.getAttribute('aria-controls')).toBe(menu.id);
   // A disclosure, not an ARIA menu: plain buttons in the tab order.
-  expect(menu.getAttribute('role')).toBeNull();
+  expect(menu.getAttribute('role')).toBe('group');
   expect(menu.querySelector('[role="menuitem"]')).toBeNull();
   more.click();
   flushSync();

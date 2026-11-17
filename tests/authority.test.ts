@@ -224,7 +224,7 @@ it('draws the authority and agent sentences in Spanish, with the same places', (
         ).detail,
       ),
     ).toBe(
-      'Codex 0.159.0 · deseado running · 7 modelos · administrado por la autoridad',
+      'Codex 0.159.0 · deseado en curso · 7 modelos · administrado por la autoridad',
     );
   } finally {
     setLanguage('en');

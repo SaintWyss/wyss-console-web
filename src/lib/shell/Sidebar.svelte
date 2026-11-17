@@ -109,6 +109,7 @@
   <div
     id="rail-more-list"
     class="rail-menu"
+    role="group"
     aria-label={t('More')}
     hidden={!moreOpen}
   >
@@ -117,6 +118,7 @@
         type="button"
         class="nav-item rail-menu-item"
         aria-current={active === item.id ? 'page' : undefined}
+        title={t(item.subtitle)}
         onclick={() => pick(item.id)}
       >
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d={item.icon} /></svg>

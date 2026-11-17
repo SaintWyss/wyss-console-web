@@ -108,7 +108,7 @@ export const ES: Readonly<Record<string, string>> = {
   'Reopen {count} lost agents': 'Volver a abrir los {count} agentes perdidos',
   'Clear the registry': 'Limpiar el registro',
   Sessions: 'Sesiones',
-  'Managed agent sessions': 'Sesiones de agentes Managed',
+  'Managed agent sessions': 'Sesiones de agentes administradas',
   Agents: 'Agentes',
   'Work with Codex in a session': 'Trabajar con Codex en una sesión',
 
@@ -203,6 +203,8 @@ export const ES: Readonly<Record<string, string>> = {
   Unknown: 'Desconocido',
   Installing: 'Instalando',
   'Failed to start': 'No pudo iniciar',
+  'Not answering': 'Sin respuesta',
+  stopped: 'detenido',
   'Not checked yet': 'Todavía no se revisó',
 
   // Shell: authority and lifecycle
@@ -259,6 +261,11 @@ export const ES: Readonly<Record<string, string>> = {
     'No la inició esta instalación, así que se deja tal como está. Wyss Console no puede trabajar con ella.',
   'The Wyss authority is not running': 'La autoridad Wyss no está corriendo',
   'The Wyss authority could not start': 'La autoridad Wyss no pudo iniciar',
+  'The Wyss authority is not answering': 'La autoridad Wyss no responde',
+  'The Wyss authority connection is unsafe':
+    'La conexión con la autoridad Wyss no es segura',
+  'Wyss Console could not ask the authority to retry. Try again.':
+    'Wyss Console no pudo pedirle a la autoridad que reintente. Intentá de nuevo.',
   'This build': 'Esta compilación',
   Service: 'Servicio',
   'No Wyss authority is running. Automatic authority management is disabled: opening the GUI does not install or start an authority. Start wyss-control yourself and it is used as soon as it answers.':
