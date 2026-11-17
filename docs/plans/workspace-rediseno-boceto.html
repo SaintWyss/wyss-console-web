@@ -91,6 +91,13 @@ table,.box,.flowline,#skrows,.notice{width:100%;max-width:none}
 select.ctl{appearance:none;-webkit-appearance:none;padding-right:38px;background-repeat:no-repeat;background-position:right 12px center;background-size:14px;
  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23525252' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")}
 :root[data-theme='dark'] select.ctl{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a3a3a3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")}
+
+.grow{display:grid;grid-template-columns:1fr 70px 40px;gap:16px;align-items:start;padding:14px 0;border-bottom:1px solid var(--line)}
+.gt{font-weight:600}.gf{font-family:var(--mono);font-size:13px;color:var(--faint);margin-left:6px}
+.gk{font-family:var(--mono);font-size:13px;color:var(--faint);text-align:right;padding-top:2px}
+.grow .sw{margin-top:2px}
+.grow summary{cursor:pointer;color:var(--accent);font-size:var(--xs);margin-top:6px}
+.gpre{margin:8px 0 0;max-height:360px;overflow:auto;background:var(--control);border-radius:var(--r);padding:12px;font:13px/1.6 var(--mono);white-space:pre-wrap}
 </style></head><body>
 <div class="bar"><b>Boceto Workspace</b> · tokens reales de la app · clickeable
  <button onclick="document.documentElement.dataset.theme=document.documentElement.dataset.theme=='light'?'dark':'light'">Cambiar tema</button>
@@ -126,13 +133,14 @@ select.ctl{appearance:none;-webkit-appearance:none;padding-right:38px;background
    <div class="hint" id="pdesc" style="margin-top:6px"></div></div></div>
   </div>
   <div class="pane" id="ins">
-   <div class="sec">Globales</div>
-   <table><tr><th>Archivo</th><th>Tamaño estimado</th><th></th></tr>
-    <tbody id="insrows"></tbody></table>
    <div class="sec">Del proyecto</div>
-   <div class="row"><div><div class="lbl">Instrucciones del directorio</div><div class="hint">El CLAUDE.md o AGENTS.md de la carpeta de trabajo.</div></div>
-    <div><select class="ctl" onchange="document.getElementById('own').style.display=this.value=='r'?'block':'none'"><option>Cargar</option><option>Omitir</option><option value="r">Reemplazar por texto propio</option></select></div></div>
+   <div class="row"><div><div class="lbl">Instrucciones del directorio</div><div class="hint">El CLAUDE.md o AGENTS.md que tenga la carpeta de trabajo.</div></div>
+    <div style="display:grid;grid-template-columns:240px 1fr;gap:16px;align-items:start">
+     <select class="ctl" id="isel" onchange="idesc()"><option value="l">Cargar</option><option value="o">Omitir</option><option value="r">Texto propio</option></select>
+     <div class="hint" id="idesc" style="margin-top:0;line-height:1.5"></div></div></div>
    <div id="own" style="display:none" class="row"><div><div class="lbl">Texto propio</div><div class="hint">Se lee en lugar del del proyecto.</div></div><textarea placeholder="Instrucciones de este lanzamiento"></textarea></div>
+   <div class="sec" style="margin-top:28px">Globales</div>
+   <div id="insrows"></div>
   </div>
   <div class="pane" id="sk">
    <div class="tool"><input class="ctl" placeholder="Filtrar skills"><button class="btn">Habilitar todas</button><button class="btn">Deshabilitar todas</button><span class="sum" style="margin-left:0">Mismas categorías que Arsenal</span><span class="sum">38 habilitadas · 5 no disponibles · ~3k tokens</span></div>
@@ -198,22 +206,26 @@ cachy-update</textarea>
 </section>
 </div>
 <script>
+const INS={"claude": [["CLAUDE.md", "Algoritmo de trabajo compartido", "Cómo trabajo con vos: rutear cada pedido, cuándo preguntar, riesgo y modelos.", "~4,2k", "", "---\ndescription: Cómo trabajo con vos: rutear cada pedido, cuándo preguntar, riesgo y modelos.\n---\n\n# Algoritmo de trabajo compartido\n\n(contenido real del archivo)"], ["rules/invariantes.md", "Núcleo compartido — Claude y Codex obedecen esto igual", "El método: construir, tests, verificación, cierre y seguridad.", "~7,3k", "", "---\ndescription: El método: construir, tests, verificación, cierre y seguridad.\n---\n\n# Núcleo compartido — Claude y Codex obedecen esto igual\n\n(contenido real del archivo)"], ["rules/ux.md", "Pipeline de UI/UX — en orden, sin saltear", "Pasos y reglas para diseñar interfaces.", "~1,6k", "Solo se carga al tocar archivos de interfaz.", "---\ndescription: Pasos y reglas para diseñar interfaces.\n---\n\n# Pipeline de UI/UX — en orden, sin saltear\n\n(contenido real del archivo)"]], "codex": [["AGENTS.md", "Reglas globales de Codex", "Las mismas reglas para Codex (generado desde CLAUDE.md e invariantes).", "~12,5k", "", "---\ndescription: Las mismas reglas para Codex (generado desde CLAUDE.md e invariantes).\n---\n\n# Reglas globales de Codex\n\n(contenido real del archivo)"]]};
+
 const CAT=[['Diseño e interfaz',[['accessibility',1],['frontend-design',1],['gsap-react',1],['ui-ux-pro-max',1]]],['Estudio y conocimiento',[['cursos-utn',-1,'No instalada para Claude Code'],['obsidian-second-brain',1],['socratic-quiz',-1,'No instalada para Claude Code'],['tutor',-1,'No instalada para Claude Code'],['tutor-setup',-1,'No instalada para Claude Code']]],['Decisiones',[['devils-advocate',1],['junta-ceo',1],['the-fool',1]]],['Revisión y pruebas',[['playwright-cli',1],['vitest',1]]],['Sistema y configuración',[['arsenal',1],['cachyos-kde-workstation',1],['combo',1],['orient',1]]],['Contenido y SEO',[['content-strategy',0]]],['Otros',[['graphify',-1,'La versión instalada no coincide']]]];
 document.getElementById('skrows').innerHTML=CAT.map(([c,items])=>{const on=items.filter(i=>i[1]==1).length;return `<details open style="border-bottom:1px solid var(--line)"><summary style="display:flex;align-items:center;gap:10px;padding:12px 0;cursor:pointer;list-style:none"><span style="font-weight:600;flex:1">▾ ${c}</span><span class="m" style="color:var(--faint);font-size:var(--xs)">${on} de ${items.length}</span><span class="sw ${on?'':'off'}" title="Toda la categoría"></span></summary><table style="margin-bottom:8px">${items.map(([n,st,why])=>st<0?`<tr class="na"><td style="padding-left:22px">${n}</td><td class="m">${why}</td><td class="r">—</td></tr>`:`<tr><td style="padding-left:22px">${n}</td><td class="m"></td><td class="r"><span class="sw ${st?'':'off'}"></span></td></tr>`).join('')}</table></details>`}).join('');
 let agent='claude';
 function setAgent(a){agent=a;
  document.querySelectorAll('.claude-only').forEach(e=>e.style.display=a=='claude'?'':'none');
- document.getElementById('insrows').innerHTML=(a=='claude'?[['CLAUDE.md','~4k'],['rules/invariantes.md','~7k'],['rules/ux.md','~2k']]:[['AGENTS.md','sin estimar']]).map(([f,t])=>`<tr><td class="mono"><a href="#" onclick="event.preventDefault();this.closest('tr').nextElementSibling.hidden^=1">▸ ${f}</a></td><td class="m">${t}</td><td class="r"><span class="sw"></span></td></tr><tr hidden><td colspan=3><pre class="mono" style="margin:0;max-height:220px;overflow:auto;background:var(--control);border-radius:var(--r);padding:12px;white-space:pre-wrap"># ${f}\n\n(contenido real del archivo, solo lectura)\n…</pre><div style="margin-top:6px"><button class="btn">Abrir en el editor</button></div></td></tr>`).join('');
+ document.getElementById('insrows').innerHTML=INS[a].map(([f,t,d,k,n,c])=>`<div class="grow"><div class="gmain"><div><span class="gt">${t}</span> <span class="gf">${f}</span></div><div class="hint">${d}${n?' '+n:''}</div><details><summary>Ver contenido</summary><pre class="gpre"></pre></details></div><span class="gk">${k}</span><span class="sw"></span></div>`).join('');document.querySelectorAll('#insrows .gpre').forEach((e,i)=>e.textContent=INS[a][i][5]);
  document.getElementById('est').innerHTML=a=='claude'?'Contexto inicial estimado <span class="mono">35k</span><span class="meter"><i style="width:100%"></i></span>':'Contexto inicial: sin estimación para Codex';
  document.getElementById('rapp').textContent=document.getElementById('appsel').value=a=='claude'?'Claude Code':'Codex';
  const r=document.querySelector('.tab.on');if(r&&r.style.display=='none')show('gen');}
 const PD=['Usa lo que tenga configurado la aplicación.','Solicita autorización antes de cada acción.','No modifica archivos ni ejecuta comandos.','Edita sin preguntar; solicita autorización para comandos.','Sin aprobaciones ni sandbox, con los permisos de tu cuenta.'];
 function pd(){const v=+document.getElementById('psel').value;const e=document.getElementById('pdesc');e.textContent=PD[v];e.style.color=v==4?'var(--warn)':'';}
+const ID={l:'El agente lee las instrucciones del proyecto además de las tuyas.',o:'El agente no lee las instrucciones ni las reglas del proyecto; las tuyas siguen según sus interruptores.',r:'El agente lee el texto que escribas abajo en lugar de las instrucciones del proyecto.'};
+function idesc(){const v=document.getElementById('isel').value;document.getElementById('idesc').textContent=ID[v];document.getElementById('own').style.display=v=='r'?'grid':'none';}
 function show(p){document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.p==p));document.querySelectorAll('.pane').forEach(x=>x.classList.toggle('on',x.id==p));}
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>show(t.dataset.p));
 document.querySelectorAll('.it').forEach(i=>i.onclick=()=>{document.querySelectorAll('.it').forEach(x=>x.classList.remove('on'));i.classList.add('on');
  const v=i.dataset.v;document.getElementById('sys').style.display=v=='sys'?'':'none';document.getElementById('agent').style.display=v=='sys'?'none':'';
  if(v!='sys'){setAgent(v);const n=i.dataset.n||i.childNodes[0].textContent.trim();document.getElementById('aname').value=n;show('gen');}});
-setAgent('claude');document.getElementById('psel').value='4';pd();
+setAgent('claude');document.getElementById('psel').value='4';pd();idesc();
 </script>
 </body></html>

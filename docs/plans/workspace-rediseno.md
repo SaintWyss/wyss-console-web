@@ -1,6 +1,6 @@
 # Workspace: rediseño (decisiones del dueño, 17/11/2026)
 
-Estado: en diseño. Falta inventario de funciones, contrato UI y boceto único con tokens reales.
+Estado (17/11, dueño): CERRADOS en diseño = lista, pestaña General y Actualizar sistema. FALTAN revisar con el dueño: Instrucciones, Skills, MCP, Hooks, Resumen. NO construir hasta revisar todas. Falta inventario de funciones, contrato UI y boceto único con tokens reales.
 
 ## Decidido
 
@@ -29,6 +29,13 @@ Estado: en diseño. Falta inventario de funciones, contrato UI y boceto único c
 - La consola NO crea MCP/skills/hooks: se crean pidiéndoselo a Claude/Codex; la consola los lee (botón "Volver a leer").
 - Lo nuevo entra PRENDIDO en los lanzamientos existentes (MCP hoy entra apagado: cambiar a la misma regla), con marca "Nuevo".
 - Resumen: vista de solo lectura de la caja (arranque, lee primero, skills, MCP, hooks por momento, fuera).
+
+### Pestaña Instrucciones (en revisión, 17/11)
+- "Del proyecto" arriba: select corto (Cargar / Omitir / Texto propio) + explicación larga al lado; textarea si Texto propio.
+- "Globales" abajo: fila = título (primer `#` del archivo) + nombre de archivo en gris + descripción de una línea + tamaño estimado a la derecha + interruptor. `rules/ux.md` aclara "Solo se carga al tocar archivos de interfaz".
+- Descripción: opción 1 aprobada = línea `description:` en el frontmatter de cada archivo de instrucciones (la IA la escribe en los nuevos).
+- "Ver contenido" muestra el Markdown RENDERIZADO con el mismo parser que Arsenal (`blocks`/`outline` de `src/lib/features/arsenal/guide.ts`, render en `LibraryView.svelte`).
+- Pendiente para cerrar la pestaña: limpieza de las instrucciones globales (CLAUDE.md/AGENTS.md + rules/invariantes.md, ~11,3k tokens) — tarea aparte, R2, con respaldo, inventario de reglas y revisión externa.
 
 ## Inventario del editor de agente (LaunchEditor.svelte, leído 17/11)
 
