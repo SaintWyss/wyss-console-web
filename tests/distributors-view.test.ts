@@ -468,3 +468,177 @@ it('drops the answer of a save whose dialog was closed before it came', async ()
   expect(view().querySelector('.dist-form')).not.toBeNull();
   expect(view().querySelector('[role="alert"]')).toBeNull();
 });
+
+const areaButton = (label: string) =>
+  Array.from(view().querySelectorAll<HTMLButtonElement>('button')).find(
+    (button) => text(button) === label,
+  )!;
+const addedTool = {
+  id: 'kimi-cli',
+  name: 'Kimi CLI',
+  maker: 'Moonshot AI',
+  open: 'kimi',
+  update: null,
+  note: null,
+  executable: 'kimi',
+  found: null,
+};
+
+it('explains the actual reason a known tool cannot be updated, in both languages', async () => {
+  const ipc = desktop();
+  const installed = launcher();
+  installed.agents.push({ ...installed.agents[0], agent_id: 'opencode' });
+  ipc.answers.extra = (command) =>
+    command === 'native_launcher' ? installed : undefined;
+  component = mount(App, { target: document.body });
+  await flush();
+  tab('Distributors').click();
+  await flush();
+  const update = (id: string) =>
+    Array.from(card(id).querySelectorAll<HTMLButtonElement>('button'))[1];
+  expect(update('opencode').disabled).toBe(true);
+  expect(update('opencode').title).toBe(
+    'The Console has no verified update command for this tool.',
+  );
+  expect(update('openai').title).toBe('Tool not installed');
+  setLanguage('es');
+  await flush();
+  expect(update('opencode').title).toBe(
+    'La Consola no tiene un comando de actualización verificado para esta herramienta.',
+  );
+  expect(update('openai').title).toBe('No instalado');
+});
+
+it('shows why Save is disabled and clears the help when the form is valid', async () => {
+  desktop();
+  component = mount(App, { target: document.body });
+  await flush();
+  tab('Distributors').click();
+  await flush();
+  areaButton('Add a tool').click();
+  await flush();
+  const form = view().querySelector<HTMLFormElement>('.dist-form')!;
+  const fields = form.querySelectorAll<HTMLInputElement>('input');
+  const fill = async (index: number, value: string) => {
+    fields[index].value = value;
+    fields[index].dispatchEvent(new Event('input', { bubbles: true }));
+    await flush();
+  };
+  const help = () => text(form.querySelector('[role="status"]'));
+  expect(areaButton('Save').disabled).toBe(true);
+  expect(help()).toBe('Enter a name.');
+  await fill(0, 'Kimi');
+  await fill(2, '$HOME/bin/kimi');
+  expect(areaButton('Save').disabled).toBe(true);
+  expect(help()).toBe(
+    'Command to open must start with a command name (like kimi) or an absolute path.',
+  );
+  setLanguage('es');
+  await flush();
+  expect(help()).toBe(
+    'El comando para abrir debe empezar con el nombre de un comando (como kimi) o su ruta absoluta.',
+  );
+  await fill(2, '/home/me/bin/kimi');
+  expect(areaButton('Guardar').disabled).toBe(false);
+  expect(help()).toBe('');
+});
+
+it.each([
+  ['folder: /tmp/exists-but-is-not-a-folder is not a folder', true],
+  ['a launch with that name exists', false],
+])('only ignores an exact launch conflict: %s', async (reason, visible) => {
+  const ipc = desktop();
+  ipc.answers.extra = (command) => {
+    if (command === 'distributor_save') return addedTool;
+    if (command === 'distributor_make_launch')
+      throw { code: 'distributor_invalid', reasons: [reason] };
+    return undefined;
+  };
+  component = mount(App, { target: document.body });
+  await flush();
+  tab('Distributors').click();
+  await flush();
+  areaButton('Add a tool').click();
+  await flush();
+  areaButton('Kimi CLI').click();
+  await flush();
+  view().querySelector<HTMLFormElement>('.dist-form')!.requestSubmit();
+  await flush();
+  const notice = view().querySelector(':scope > [role="status"]');
+  expect(notice !== null).toBe(visible);
+  if (visible) expect(text(notice)).toContain(reason);
+});
+
+it('does not bring back an automatic launch notice after its dialog was closed', async () => {
+  const ipc = desktop();
+  let reject!: (error: unknown) => void;
+  ipc.answers.extra = (command) => {
+    if (command === 'distributor_save') return addedTool;
+    if (command === 'distributor_make_launch')
+      return new Promise((_, no) => (reject = no));
+    return undefined;
+  };
+  component = mount(App, { target: document.body });
+  await flush();
+  tab('Distributors').click();
+  await flush();
+  areaButton('Add a tool').click();
+  await flush();
+  areaButton('Kimi CLI').click();
+  await flush();
+  view().querySelector<HTMLFormElement>('.dist-form')!.requestSubmit();
+  await flush();
+  areaButton('Cancel').click();
+  await flush();
+  areaButton('Add a tool').click();
+  await flush();
+  reject({ code: 'internal', reasons: [] });
+  await flush();
+  expect(view().querySelector(':scope > [role="status"]')).toBeNull();
+  expect(view().querySelector('.dist-form')).not.toBeNull();
+});
+
+it.each(['success', 'failure'])(
+  'drops a manual launch %s after closing its dialog',
+  async (outcome) => {
+    const ipc = desktop();
+    let settle!: () => void;
+    ipc.answers.extra = (command) => {
+      if (command === 'distributor_list')
+        return {
+          folder: '~/d',
+          distributors: [addedTool],
+          refused: [],
+          home: '/home/me',
+        };
+      if (command === 'distributor_make_launch')
+        return new Promise((resolve, reject) => {
+          settle = () =>
+            outcome === 'success'
+              ? resolve(addedTool.id)
+              : reject({ code: 'internal', reasons: [] });
+        });
+      return undefined;
+    };
+    component = mount(App, { target: document.body });
+    await flush();
+    tab('Distributors').click();
+    await flush();
+    const added = view().querySelector('[data-id="added:kimi-cli"]')!;
+    Array.from(added.querySelectorAll<HTMLButtonElement>('button'))
+      .find((button) => text(button) === 'Edit')!
+      .click();
+    await flush();
+    areaButton('Make launch').click();
+    await flush();
+    areaButton('Cancel').click();
+    await flush();
+    areaButton('Add a tool').click();
+    await flush();
+    settle();
+    await flush();
+    expect(view().hidden).toBe(false);
+    expect(view().querySelector('[role="alert"]')).toBeNull();
+    expect(view().querySelector('.dist-form')).not.toBeNull();
+  },
+);

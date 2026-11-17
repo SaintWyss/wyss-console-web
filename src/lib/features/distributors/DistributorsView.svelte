@@ -1,7 +1,7 @@
 <script lang="ts">
   import { t, tIncoming, tPhrase } from '../../i18n/index.svelte';
   import type { NativeState } from '../native/controller';
-  import { distributorCards, SUGGESTED } from './present';
+  import { distributorCards, formProblem, SUGGESTED } from './present';
   import {
     distributorsClient,
     DistributorError,
@@ -99,12 +99,8 @@
     update: null,
     note: null,
   });
-  const formOk = $derived(
-    form !== null &&
-      form.name.trim() !== '' &&
-      /^(\/|[A-Za-z0-9._-])/.test(form.open.trim()) &&
-      !/[\n\r]/.test(form.open + (form.update ?? '')),
-  );
+  const formIssue = $derived(form ? formProblem(form) : null);
+  const formOk = $derived(form !== null && formIssue === null);
   async function submit() {
     if (!form || !formOk || working) return;
     working = true;
@@ -130,7 +126,7 @@
           await client.makeLaunch(saved.id);
         } catch (e) {
           const original = e instanceof Error ? e.message : '';
-          if (!original.includes('exists')) {
+          if (form === mine && original !== 'a launch with that name exists') {
             const why = hostMessage(e) ?? '';
             notice = t(
               'It was added, but its launch could not be made: {why}',
@@ -175,11 +171,13 @@
   async function makeLaunch(id: string) {
     working = true;
     notice = null;
+    const mine = form;
     try {
       const launch = await client.makeLaunch(id);
-      onlaunch(launch);
+      if (form === mine) onlaunch(launch);
     } catch (e) {
-      addedError = failureMessage(e, 'The launch could not be made.');
+      if (form === mine)
+        addedError = failureMessage(e, 'The launch could not be made.');
     } finally {
       working = false;
     }
@@ -229,12 +227,16 @@
             type="button"
             class="action"
             disabled={!card.update || !card.installed || !home}
-            title={card.update
-              ? t(
-                  'Types “{command}” in a new terminal of the Console, where you see it run.',
-                  { command: card.update },
-                )
-              : ''}
+            title={!card.update
+              ? t('The Console has no verified update command for this tool.')
+              : !card.installed
+                ? tPhrase(card.status)
+                : !home
+                  ? t('The home folder is unavailable.')
+                  : t(
+                      'Types “{command}” in a new terminal of the Console, where you see it run.',
+                      { command: card.update },
+                    )}
             onclick={() =>
               card.update && onrun(card.tool, home, `${card.update}\r`)}
             >{t('Update tool')}</button
@@ -457,6 +459,9 @@
               oninput={(e) => (f.note = e.currentTarget.value)}
             /></label
           >
+          {#if formIssue}
+            <p class="dist-note" role="status">{t(formIssue)}</p>
+          {/if}
           <div class="dist-actions">
             {#if f.id}
               {@const id = f.id}

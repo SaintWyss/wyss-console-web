@@ -1,3 +1,4 @@
+import type { SaveDistributorInput } from '../../desktop/distributors-client';
 import type { AgentId, Launcher } from '../../contracts/native';
 import { msg, type Phrase } from '../../i18n/msg';
 import { AGENT_LABEL } from '../native/present';
@@ -91,4 +92,16 @@ export function distributorCards(launcher: Launcher | null): DistributorCard[] {
       update: UPDATE_COMMAND[d.agent] ?? null,
     };
   });
+}
+
+/** The reason Save is disabled, using the same checks as the form. */
+export function formProblem(form: SaveDistributorInput): string | null {
+  if (!form.name.trim()) return msg('Enter a name.');
+  if (!/^(\/|[A-Za-z0-9._-])/.test(form.open.trim()))
+    return msg(
+      'Command to open must start with a command name (like kimi) or an absolute path.',
+    );
+  if (/[\n\r]/.test(form.open + (form.update ?? '')))
+    return msg('Commands to open and update must each be on one line.');
+  return null;
 }

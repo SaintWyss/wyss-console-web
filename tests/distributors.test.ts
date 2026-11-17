@@ -4,6 +4,7 @@ import { ConfigurationController } from '../src/lib/features/configuration/contr
 import {
   distributorCards,
   distributorOf,
+  formProblem,
   SUGGESTED,
   versionNumber,
 } from '../src/lib/features/distributors/present';
@@ -113,4 +114,26 @@ it('lets a configuration read be waited for, and reports a failed one as older',
   expect(controller.state().reply).toBe(reply);
   expect(controller.state().stale).toBe(true);
   controller.dispose();
+});
+
+it('explains every existing form validation rule without changing which forms can be saved', () => {
+  const form = {
+    id: null,
+    name: 'Kimi',
+    maker: null,
+    open: 'kimi',
+    update: null,
+    note: null,
+  };
+  expect(formProblem(form)).toBeNull();
+  expect(formProblem({ ...form, name: '  ' })).toBe('Enter a name.');
+  expect(formProblem({ ...form, open: '$HOME/kimi' })).toContain('must start');
+  for (const field of ['open', 'update'] as const) {
+    for (const newline of ['\n', '\r']) {
+      expect(formProblem({ ...form, [field]: `kimi${newline}other` })).toBe(
+        'Commands to open and update must each be on one line.',
+      );
+    }
+  }
+  expect(formProblem({ ...form, open: ' /opt/bin/kimi --help ' })).toBeNull();
 });

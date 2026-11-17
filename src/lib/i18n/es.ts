@@ -2189,6 +2189,14 @@ export const ES: Readonly<Record<string, string>> = {
     'Skills, agentes, servidores MCP y presets: lo que una sesión puede cargar.',
   'The API keys each distributor needs, kept sealed.':
     'Las claves de API que necesita cada distribuidor, guardadas selladas.',
+  'The Console has no verified update command for this tool.':
+    'La Consola no tiene un comando de actualización verificado para esta herramienta.',
+  'The home folder is unavailable.': 'La carpeta personal no está disponible.',
+  'Enter a name.': 'Ingresá un nombre.',
+  'Command to open must start with a command name (like kimi) or an absolute path.':
+    'El comando para abrir debe empezar con el nombre de un comando (como kimi) o su ruta absoluta.',
+  'Commands to open and update must each be on one line.':
+    'Los comandos para abrir y actualizar deben estar en una sola línea cada uno.',
   // Distributors: added by the owner
   'The added distributors did not load.':
     'No se pudieron leer los distribuidores agregados.',
