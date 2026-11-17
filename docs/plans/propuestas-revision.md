@@ -84,3 +84,7 @@ npm notice run 'prettier' --check src/lib/features/workspace/LaunchEditor.svelte
 - Retirar el nodo vacío Hooks de OpenCode (OpenCode no lee hooks).
 - Un solo acceso para agregar hooks (hoy hay dos: la lista del evento y la pestaña Hooks).
 - Mostrar una sola vez por página el aviso de confianza de hooks de Codex.
+
+## Ajustes y Credenciales
+
+- Traducir en Rust los diálogos GTK de credenciales (New API key, Replace API key, Delete this API key?, Cancel, Keep…): hoy quedan en inglés con la app en español.

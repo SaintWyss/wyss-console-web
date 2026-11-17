@@ -40,6 +40,7 @@ export class CredentialsController {
   private failure: CredentialFailure | null = null;
   private notice: string | null = null;
   private disposed = false;
+  private reading = 0;
 
   constructor(
     private readonly publish: (state: CredentialsState) => void,
@@ -65,36 +66,54 @@ export class CredentialsController {
     if (visible) void this.refresh();
   }
   async refresh() {
-    if (this.disposed) return;
+    if (this.disposed || this.busy) return;
+    const reading = ++this.reading;
     if (this.phase === 'idle') {
       this.phase = 'loading';
       this.emit();
     }
     try {
-      this.items = await this.client.list();
+      const items = await this.client.list();
+      if (this.disposed || reading !== this.reading) return;
+      this.items = items;
       this.phase = 'ready';
+      this.failure = null;
     } catch (error) {
+      if (this.disposed || reading !== this.reading) return;
       this.phase = 'failed';
       this.fail(error);
     }
     this.emit();
   }
   private async act(work: () => Promise<string | null>) {
-    if (this.busy || this.disposed) return;
+    if (this.busy || this.disposed) return false;
+    // A pre-action read cannot overwrite the list fetched after this action.
+    ++this.reading;
     this.busy = true;
     this.failure = null;
     this.notice = null;
     this.emit();
+    let completed = false;
     try {
       this.notice = await work();
-      this.items = await this.client.list();
+      completed = this.notice !== null;
     } catch (error) {
       this.fail(error);
+    }
+    try {
+      // Even a rejected action invalidated an earlier read. Finish with a current list.
+      this.items = await this.client.list();
+      this.phase = 'ready';
+    } catch (error) {
+      this.phase = 'failed';
+      if (!this.failure) this.fail(error);
     } finally {
       this.busy = false;
       this.emit();
     }
+    return completed;
   }
+
   add(name: string, provider: Provider) {
     return this.act(async () =>
       (await this.client.add(name, provider)) ? msg('Key kept, sealed.') : null,
@@ -120,7 +139,7 @@ export class CredentialsController {
     return this.act(async () =>
       (await this.client.verify(id))
         ? msg('The key opens and matches its checksum.')
-        : msg('The record is damaged: replace the key.'),
+        : msg('The key could not be verified. Replace the key.'),
     );
   }
   dispose() {

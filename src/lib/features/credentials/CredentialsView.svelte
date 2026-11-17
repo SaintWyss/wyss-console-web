@@ -24,10 +24,10 @@
   };
   const FAILURE_TEXT: Record<string, string> = {
     name_invalid: msg(
-      'The name must be 1 to 60 characters, without control characters.',
+      'The name must be 1 to 60 characters, not blank, without control characters.',
     ),
     secret_invalid: msg(
-      'The key may not be empty, hold spaces or line breaks, or be longer than 4096 characters.',
+      'The key may not be empty, contain whitespace or control characters, or be longer than 4096 bytes.',
     ),
     unknown: msg('That key is not kept any more.'),
     too_many: msg('There are too many keys (100).'),
@@ -38,8 +38,8 @@
       'The key that sealed this record is gone from the key store. Replace the key.',
     ),
     damaged: msg('The record is damaged. Replace the key.'),
-    store_unavailable: msg('The Console could not write its own state.'),
-    internal: msg('Something went wrong in the desktop.'),
+    store_unavailable: msg('The key store of Wyss Console is not available.'),
+    internal: msg('Something went wrong in Wyss Console.'),
   };
   let name = $state('');
   let provider = $state<Provider>('anthropic');
@@ -51,8 +51,7 @@
       timeStyle: 'short',
     });
   async function add() {
-    await controller.add(name, provider);
-    if (!credentials.failure) name = '';
+    if (await controller.add(name, provider)) name = '';
   }
 </script>
 
@@ -117,7 +116,7 @@
     <div class="sessions-empty" role="status" aria-busy="true">
       <p class="empty-title">{t('Reading…')}</p>
     </div>
-  {:else if credentials.items.length === 0}
+  {:else if credentials.phase === 'ready' && credentials.items.length === 0}
     <div class="sessions-empty">
       <p class="empty-title">{t('No keys yet')}</p>
       <p>{t('Add one above. Its value is asked for in a separate window.')}</p>
@@ -156,8 +155,8 @@
                 class="action"
                 disabled={credentials.busy || renamed.trim() === ''}
                 onclick={async () => {
-                  await controller.rename(item.id, renamed);
-                  renaming = null;
+                  if (await controller.rename(item.id, renamed))
+                    renaming = null;
                 }}>{t('Save name')}</button
               >
               <button

@@ -351,7 +351,8 @@ it('names the protocol 1 status independently of protocol 2 runtimes', async () 
   expect(pill('authority')?.getAttribute('title')).toContain(
     'Protocol 1 authority',
   );
-  expect(document.querySelector('#settings-authority')?.textContent).toContain(
-    'protocol 1',
-  );
+  // Settings names the section without a fixed protocol number (the observed one is a fact row).
+  expect(
+    document.querySelector('#settings-authority')?.textContent?.trim(),
+  ).toBe('Authority');
 });

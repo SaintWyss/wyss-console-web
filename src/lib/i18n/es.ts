@@ -366,11 +366,12 @@ export const ES: Readonly<Record<string, string>> = {
   'Preferences unavailable': 'Preferencias no disponibles',
   'Saving…': 'Guardando…',
   'Saved on this computer': 'Guardado en esta computadora',
+  'Defaults in use': 'Valores por defecto en uso',
   'Preferences could not be read, so the defaults are shown. Nothing is saved until they can be.':
     'No se pudieron leer las preferencias, así que se muestran los valores por defecto. No se guarda nada hasta que se puedan leer.',
   'Try again': 'Reintentar',
-  'Preferences change how Wyss Console looks and where it opens. They never change what Codex may do: sessions start in Inference, Local Tools is chosen for each session, and every command or file change it proposes waits for your approval.':
-    'Las preferencias cambian cómo se ve Wyss Console y dónde abre. Nunca cambian lo que Codex puede hacer: las sesiones arrancan en Inference, Local Tools se elige en cada sesión, y cada comando o cambio de archivo que propone espera tu aprobación.',
+  'Preferences change how Wyss Console looks and behaves. They never change what Codex may do: sessions start in Inference, Local Tools is chosen for each session, and every command or file change it proposes waits for your approval.':
+    'Las preferencias cambian cómo se ve y se comporta la Consola Wyss. Nunca cambian lo que Codex puede hacer: las sesiones arrancan en Inference, Local Tools se elige en cada sesión, y cada comando o cambio de archivo que propone espera tu aprobación.',
   Appearance: 'Apariencia',
   'Color theme': 'Tema de color',
   Dark: 'Oscuro',
@@ -408,7 +409,6 @@ export const ES: Readonly<Record<string, string>> = {
   Security: 'Seguridad',
   'Only narrows what is shown. The authority records every event either way.':
     'Solo acota lo que se muestra. La autoridad registra todos los eventos igual.',
-  'Authority · protocol 1': 'Autoridad · protocolo 1',
   Retry: 'Reintentar',
   'Retrying…': 'Reintentando…',
   'The protocol 1 authority keeps its sessions, approvals and history, and keeps running when this window is closed. Local terminals and these preferences work without it. Managed runtimes use a separate protocol 2 connection.':
@@ -418,7 +418,6 @@ export const ES: Readonly<Record<string, string>> = {
   'Not available': 'No disponible',
   Build: 'Compilación',
   Platform: 'Plataforma',
-  'Authority protocol': 'Protocolo de la autoridad',
   Reset: 'Restablecer',
   'Reset all preferences to their defaults?':
     '¿Restablecer todas las preferencias a sus valores por defecto?',
@@ -893,10 +892,10 @@ export const ES: Readonly<Record<string, string>> = {
   'API credentials': 'Credenciales de API',
   'API keys for the AI services, kept sealed on this computer (the key that seals them is in your Secret Service). A key is typed in a window of its own and is never shown again, never sent to this page and never written unsealed. Only a name, the service and a short checksum are listed. Nothing here starts an agent with a key.':
     'Claves de API de los servicios de IA, guardadas selladas en esta computadora (la clave que las sella está en tu Secret Service). Una clave se escribe en una ventana propia y nunca se vuelve a mostrar, nunca se envía a esta página y nunca se escribe sin sellar. Solo se listan un nombre, el servicio y un checksum corto. Acá nada arranca un agente con una clave.',
-  'The name must be 1 to 60 characters, without control characters.':
-    'El nombre tiene que tener de 1 a 60 caracteres, sin caracteres de control.',
-  'The key may not be empty, hold spaces or line breaks, or be longer than 4096 characters.':
-    'La clave no puede estar vacía, tener espacios o saltos de línea, ni superar los 4096 caracteres.',
+  'The name must be 1 to 60 characters, not blank, without control characters.':
+    'El nombre tiene que tener de 1 a 60 caracteres, no estar en blanco y no tener caracteres de control.',
+  'The key may not be empty, contain whitespace or control characters, or be longer than 4096 bytes.':
+    'La clave no puede estar vacía, contener espacios en blanco o caracteres de control, ni superar los 4096 bytes.',
   'That key is not kept any more.': 'Esa clave ya no está guardada.',
   'There are too many keys (100).': 'Hay demasiadas claves (100).',
   'No key store (the Secret Service) is available, so nothing was kept. A key is never kept unsealed.':
@@ -907,6 +906,9 @@ export const ES: Readonly<Record<string, string>> = {
     'El registro está dañado. Reemplazá la clave.',
   'The Console could not write its own state.':
     'La consola no pudo escribir su propio estado.',
+  'The key store of Wyss Console is not available.':
+    'El almacén de claves de la Consola Wyss no está disponible.',
+  'Something went wrong in Wyss Console.': 'Algo salió mal en la Consola Wyss.',
   'Something went wrong in the desktop.': 'Algo salió mal en el escritorio.',
   'The folder of this launch could not be prepared, so nothing was started. Your own configuration was not changed. Try again; if it keeps failing, save the launch again in Workspace.':
     'No se pudo preparar la carpeta de este lanzamiento, así que no se inició nada. Tu configuración no se tocó. Probá de nuevo; si sigue fallando, guardá el lanzamiento otra vez en Workspace.',
@@ -950,8 +952,8 @@ export const ES: Readonly<Record<string, string>> = {
   'Key deleted.': 'Clave eliminada.',
   'The key opens and matches its checksum.':
     'La clave se abre y coincide con su checksum.',
-  'The record is damaged: replace the key.':
-    'El registro está dañado: reemplazá la clave.',
+  'The key could not be verified. Replace the key.':
+    'No se pudo verificar la clave. Reemplazá la clave.',
 
   Approve: 'Aprobar',
   Deny: 'Rechazar',

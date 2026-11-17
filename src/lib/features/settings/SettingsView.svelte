@@ -49,7 +49,7 @@
     retrying: boolean;
     onretry: () => void;
     visible: boolean;
-    /** Cards another feature adds to this page (the project workspace's switch). */
+    /** Cards another feature adds to this page. */
     children?: Snippet;
   } = $props();
 
@@ -80,13 +80,6 @@
       .querySelector<HTMLButtonElement>('button[data-reset-cancel]')
       ?.focus();
   });
-  const protocol = $derived(
-    authority.state === 'observed' && authority.view.authority
-      ? t('Version {version}', {
-          version: authority.view.authority.protocol_version,
-        })
-      : null,
-  );
 
   const THEME_LABEL: Record<AppearanceTheme, string> = {
     dark: msg('Dark'),
@@ -185,8 +178,10 @@
           {t('Preferences unavailable')}
         {:else if settings.saving}
           {t('Saving…')}
-        {:else}
+        {:else if settings.view?.storage === 'ready'}
           {t('Saved on this computer')}
+        {:else}
+          {t('Defaults in use')}
         {/if}
       </p>
     </div>
@@ -225,7 +220,7 @@
 
     <p class="settings-lede">
       {t(
-        'Preferences change how Wyss Console looks and where it opens. They never change what Codex may do: sessions start in Inference, Local Tools is chosen for each session, and every command or file change it proposes waits for your approval.',
+        'Preferences change how Wyss Console looks and behaves. They never change what Codex may do: sessions start in Inference, Local Tools is chosen for each session, and every command or file change it proposes waits for your approval.',
       )}
     </p>
 
@@ -396,7 +391,7 @@
     </section>
 
     <section class="settings-section" aria-labelledby="settings-authority">
-      <h3 id="settings-authority">{t('Authority · protocol 1')}</h3>
+      <h3 id="settings-authority">{t('Authority')}</h3>
       <dl class="settings-facts">
         {#each facts as fact (fact.term)}
           <dt>{t(fact.term)}</dt>
@@ -442,10 +437,6 @@
         {/if}
         <dt>{t('Platform')}</dt>
         <dd>{about ? platformLabel(about.platform) : t('Not available')}</dd>
-        {#if protocol}
-          <dt>{t('Authority protocol')}</dt>
-          <dd>{protocol}</dd>
-        {/if}
       </dl>
     </section>
 

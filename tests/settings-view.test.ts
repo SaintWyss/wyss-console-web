@@ -141,7 +141,7 @@ it('opens from the sidebar with every section, in order, and the defaults select
       'Interface',
       'Terminal',
       'Events',
-      'Authority · protocol 1',
+      'Authority',
       'About',
       'Reset',
       'Terminals after the window closes',
@@ -355,7 +355,7 @@ it('is in English until Spanish is chosen, then redraws the page and the shell a
     'Interfaz',
     'Terminal',
     'Eventos',
-    'Autoridad · protocolo 1',
+    'Autoridad',
     'Acerca de',
     'Restablecer',
   ]);
@@ -768,7 +768,7 @@ it('lets the page be read while the authority link is still being made', async (
   expect(facts()['Codex runtime']).toBe('Not available while offline');
 });
 
-it('has an About with the version, the build, the platform and the protocol', async () => {
+it('has an About with the version, the build and the platform', async () => {
   await show();
   const about = Object.fromEntries(
     Array.from(
@@ -779,7 +779,6 @@ it('has an About with the version, the build, the platform and the protocol', as
     'Wyss Console': 'Version 0.2.0-test',
     Build: '0123456789ab',
     Platform: 'Linux (x86_64)',
-    'Authority protocol': 'Version 1',
   });
 });
 
@@ -822,4 +821,39 @@ it('believes no view the desktop gives that is not a view', async () => {
   );
   expect(select('setting-font').disabled).toBe(true);
   expect(text(page())).not.toContain('rm -rf');
+});
+
+it.each(['recovered', 'unsafe', 'newer', 'unavailable'] as const)(
+  'does not claim preferences are saved with %s storage',
+  async (storage) => {
+    await show(new FakeDesktopSettings(undefined, storage));
+    expect(text(page().querySelector('.sessions-count'))).toBe(
+      'Defaults in use',
+    );
+  },
+);
+
+it('uses an authority heading that does not contradict its observed protocol', async () => {
+  await show(undefined, {
+    ...connected,
+    authority: { ...connected.authority, protocol_version: 2 },
+  });
+  expect(text(page().querySelector('#settings-authority'))).toBe('Authority');
+  expect(facts().Protocol).toBe('Version 2');
+});
+
+it('reports the authority protocol once instead of duplicating it in About', async () => {
+  await show();
+  expect(facts().Protocol).toBe('Version 1');
+  expect(
+    text(page().querySelector('[aria-labelledby="settings-about"]')),
+  ).not.toContain('Authority protocol');
+  expect(text(page())).not.toContain('shown in Runtimes');
+});
+
+it('describes preferences beyond appearance and the landing page', async () => {
+  await show();
+  expect(text(page().querySelector('.settings-lede'))).toContain(
+    'looks and behaves.',
+  );
 });
