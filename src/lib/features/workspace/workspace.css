@@ -286,13 +286,11 @@ h1.ws-title {
 /* Sections and one-line rows (skills, MCP, hooks, global instructions). */
 .ws-section {
   margin: 0;
-  padding: 24px 0 8px;
+  padding: 28px 0 10px;
   border-bottom: 1px solid var(--line);
-  font-size: 12px;
+  font-size: var(--text-md);
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--faint);
+  color: var(--text);
 }
 .ws-line {
   display: grid;
@@ -471,8 +469,7 @@ h1.ws-title {
 }
 .ws-fold.ws-section .ws-meta {
   margin-left: auto;
-  letter-spacing: 0;
-  text-transform: none;
+  font-weight: 400;
 }
 .ws-fold-body {
   padding-left: 16px;
@@ -520,4 +517,10 @@ h1.ws-title {
 .ws-line > .ws-link {
   justify-self: start;
   text-align: left;
+}
+
+/* A select with few short choices: sized to them, not to the row. */
+.ws-short > select {
+  width: 240px;
+  max-width: 100%;
 }
