@@ -78,3 +78,9 @@ Exit 0.
 npm notice run wyss-console@0.2.0 npx
 npm notice run 'prettier' --check src/lib/features/workspace/LaunchEditor.svelte src/lib/features/workspace/DistroVariants.svelte src/lib/features/workspace/data.ts src/lib/features/workspace/distros.ts src/lib/features/workspace/messages.ts src/lib/features/workspace
 ```
+
+## Arsenal
+
+- Retirar el nodo vacío Hooks de OpenCode (OpenCode no lee hooks).
+- Un solo acceso para agregar hooks (hoy hay dos: la lista del evento y la pestaña Hooks).
+- Mostrar una sola vez por página el aviso de confianza de hooks de Codex.

@@ -129,6 +129,7 @@ export class ChangesController {
   private panel: Panel = 'items';
   private plan: Plan | null = null;
   private planning = false;
+  private planRead = 0;
   private applying = false;
   private result: Outcome | null = null;
   private lastChange: string | null = null;
@@ -183,6 +184,7 @@ export class ChangesController {
   /** Drafts a change. Nothing is written: a plan is a view of what would be. */
   draft(operation: Operation, target: string) {
     if (this.disposed || this.planning || this.applying) return;
+    const read = ++this.planRead;
     this.planning = true;
     this.failure = null;
     this.result = null;
@@ -190,8 +192,11 @@ export class ChangesController {
     this.notice = null;
     this.emit();
     void this.client.plan(operation, target).then(
-      (plan) => this.hold(plan),
+      (plan) => {
+        if (read === this.planRead) this.hold(plan);
+      },
       (error: unknown) => {
+        if (this.disposed || read !== this.planRead) return;
         this.planning = false;
         this.failure = this.fail(error);
         this.emit();
@@ -205,6 +210,7 @@ export class ChangesController {
    */
   author(make: (client: ChangesClient) => Promise<Plan>) {
     if (this.disposed || this.planning || this.applying) return;
+    const read = ++this.planRead;
     this.planning = true;
     this.failure = null;
     this.result = null;
@@ -212,8 +218,11 @@ export class ChangesController {
     this.notice = null;
     this.emit();
     void make(this.client).then(
-      (plan) => this.hold(plan),
+      (plan) => {
+        if (read === this.planRead) this.hold(plan);
+      },
       (error: unknown) => {
+        if (this.disposed || read !== this.planRead) return;
         this.planning = false;
         const failure = this.fail(error);
         if (failure === 'cancelled') this.notice = 'not_done';
@@ -226,14 +235,18 @@ export class ChangesController {
   /** The change that undoes one in the history, as a plan to confirm. */
   undo(change: string) {
     if (this.disposed || this.planning || this.applying) return;
+    const read = ++this.planRead;
     this.planning = true;
     this.failure = null;
     this.result = null;
     this.lastChange = null;
     this.emit();
     void this.client.undo(change).then(
-      (plan) => this.hold(plan),
+      (plan) => {
+        if (read === this.planRead) this.hold(plan);
+      },
       (error: unknown) => {
+        if (this.disposed || read !== this.planRead) return;
         this.planning = false;
         this.failure = this.fail(error);
         this.emit();
@@ -266,6 +279,8 @@ export class ChangesController {
 
   cancel() {
     if (this.disposed || this.applying) return;
+    this.planRead += 1;
+    this.planning = false;
     this.clearExpiry();
     this.plan = null;
     this.emit();
@@ -375,6 +390,8 @@ export class ChangesController {
 
   loadRecords() {
     if (this.disposed) return;
+    this.failure = null;
+    this.emit();
     void this.client.records().then(
       (records) => {
         if (this.disposed) return;

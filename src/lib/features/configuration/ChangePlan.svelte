@@ -65,15 +65,21 @@
     <p class="event-meta">{t(EFFECT_LABEL[plan.effect])}</p>
     {#if plan.managed_effect}
       <p class="event-meta">
-        {t('Prediction, not a reading: managed Inference')}
-        {t(VERDICT_LABEL[plan.managed_effect.before])}
-        {t('now')}
         {#if plan.managed_effect.before === plan.managed_effect.after}
-          {t('and this change does not alter that.')}
+          {t(
+            'Prediction for managed launches: {verdict}. This change does not alter that.',
+            {
+              verdict: t(VERDICT_LABEL[plan.managed_effect.before]),
+            },
+          )}
         {:else}
-          {t('and would')}
-          {t(VERDICT_LABEL[plan.managed_effect.after])}
-          {t('after it.')}
+          {t(
+            'Prediction for managed launches: before this change, {before}; after this change, {after}.',
+            {
+              before: t(VERDICT_LABEL[plan.managed_effect.before]),
+              after: t(VERDICT_LABEL[plan.managed_effect.after]),
+            },
+          )}
         {/if}
       </p>
     {/if}

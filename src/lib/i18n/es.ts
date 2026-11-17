@@ -971,12 +971,8 @@ export const ES: Readonly<Record<string, string>> = {
     'también puede escribir la carpeta de este archivo. Se acepta porque la nombraste.',
   'This entry holds values that are not shown here.':
     'Esta entrada tiene valores que no se muestran acá.',
-  'Prediction, not a reading: managed Inference':
-    'Predicción, no una lectura: Inference administrado',
-  now: 'ahora',
-  'and this change does not alter that.': 'y este cambio no lo altera.',
-  'and would': 'y',
-  'after it.': 'después de este cambio.',
+  'Prediction for managed launches: {verdict}. This change does not alter that.':
+    'Predicción para los lanzamientos administrados: {verdict}. Este cambio no altera eso.',
   'Waiting for the confirmation window…':
     'Esperando la ventana de confirmación…',
   'Applying…': 'Aplicando…',
@@ -995,7 +991,6 @@ export const ES: Readonly<Record<string, string>> = {
   'The configuration could not be read': 'No se pudo leer la configuración',
   View: 'Vista',
   Items: 'Elementos',
-  'Turned off': 'Desactivados',
   History: 'Historial',
   'Add a hook…': 'Agregar un hook…',
   'Add an MCP server…': 'Agregar un servidor MCP…',
@@ -1038,10 +1033,10 @@ export const ES: Readonly<Record<string, string>> = {
   Undo: 'Deshacer',
   'Older changes': 'Cambios anteriores',
   'Import a kept hook…': 'Importar un hook guardado…',
-  'Nothing is turned off': 'No hay nada desactivado',
-  'A hook you turn off is removed from its file and kept here, so it can be put back exactly.':
-    'Un hook que desactivás se quita de su archivo y queda guardado acá, así se puede restaurar tal cual.',
-  'Turned-off hooks': 'Hooks desactivados',
+  'Nothing is kept aside.': 'No hay nada guardado aparte.',
+  'Entries kept aside are removed from their files and kept here, so they can be put back exactly.':
+    'Las entradas guardadas aparte se quitan de sus archivos y quedan guardadas acá, así se pueden restaurar tal cual.',
+  'Kept entries': 'Entradas guardadas aparte',
   Kept: 'Guardado el',
   encrypted: 'cifrado',
   'not encrypted (no secret in it)': 'sin cifrar (no tiene secretos)',
@@ -1094,7 +1089,6 @@ export const ES: Readonly<Record<string, string>> = {
   'On in the file': 'Activado en el archivo',
   'Off in the file': 'Desactivado en el archivo',
   'Not in the file': 'No está en el archivo',
-  Parked: 'Apartado',
   'Could not be read': 'No se pudo leer',
   'Confirmed active': 'Activo confirmado',
   'Confirmed inactive': 'Inactivo confirmado',
@@ -1129,8 +1123,8 @@ export const ES: Readonly<Record<string, string>> = {
   'Produced by another tool': 'Lo genera otra herramienta',
   'Its folder can be written by a group: read, never changed':
     'Su carpeta la puede escribir un grupo: solo se lee, nunca se cambia',
-  'Read-only for now: changing it is not available yet':
-    'Solo lectura por ahora: cambiarlo todavía no está disponible',
+  'This entry cannot be changed from here.':
+    'Esta entrada no se puede cambiar desde acá.',
   'environment value': 'valor de entorno',
   header: 'encabezado',
   'address credentials': 'credenciales de la dirección',
@@ -1170,7 +1164,7 @@ export const ES: Readonly<Record<string, string>> = {
   'Create this instruction file': 'Crear este archivo de instrucciones',
   'Delete this instruction file (kept encrypted, so it can be put back)':
     'Borrar este archivo de instrucciones (queda guardado cifrado, para poder restaurarlo)',
-  'Turn off this hook': 'Desactivar este hook',
+  'Keep this hook aside': 'Guardar este hook aparte',
   'Put this hook back': 'Volver a poner este hook',
   'Turn off every hook': 'Desactivar todos los hooks',
   'Allow hooks again': 'Volver a permitir los hooks',
@@ -1290,8 +1284,8 @@ export const ES: Readonly<Record<string, string>> = {
     'no puede arrancar: no se puede comprobar el nombre ni la cantidad de un servidor MCP',
   'Exported. Keep the file and the passphrase safe.':
     'Exportado. Guardá el archivo y la frase de paso en un lugar seguro.',
-  'Imported. It is listed under Turned off.':
-    'Importado. Figura en Desactivados.',
+  'Imported. It is listed under Kept aside.':
+    'Importado. Figura en Guardados aparte.',
   'The plan was dropped because it was too old.':
     'Se descartó el plan porque era muy viejo.',
   'Turn off': 'Desactivar',
@@ -2262,7 +2256,6 @@ export const ES: Readonly<Record<string, string>> = {
   Personal: 'Personales',
   'Codex asks you to trust a new or changed hook the next time it starts. Deleting one moves the hooks after it in its event, and Codex asks to trust those again.':
     'Codex te pide confiar en un hook nuevo o cambiado la próxima vez que arranca. Borrar uno corre los que vienen después en su evento, y Codex vuelve a pedir confianza para esos.',
-  'No hook is kept aside.': 'No hay ningún hook guardado aparte.',
   'Kept aside': 'Guardados aparte',
   'When it runs': 'Cuándo corre',
   'When a session opens': 'Al abrir una sesión',
@@ -2282,7 +2275,7 @@ export const ES: Readonly<Record<string, string>> = {
   Actions: 'Acciones',
   'It is kept aside and can be brought back.':
     'Se guarda aparte y se puede recuperar.',
-  'This hook cannot be changed here.':
+  'This hook cannot be changed from here.':
     'Este hook no se puede cambiar desde acá.',
   'See translation': 'Ver traducción',
   'See original': 'Ver original',
@@ -2324,16 +2317,13 @@ export const ES: Readonly<Record<string, string>> = {
   'Use it when': 'Usala cuando',
   'Do not use it when': 'No la uses cuando',
   State: 'Estado',
-  'Switched on': 'Prendida',
-  'Switched off': 'Apagada',
-  'Switch on': 'Prender',
-  'Switch off': 'Apagar',
   'The file could not be read.': 'No se pudo leer el archivo.',
   'Only the first 256 KB are shown.': 'Se muestran solo los primeros 256 KB.',
   'Files ({n})': 'Archivos ({n})',
   'and {n} more': 'y {n} más',
   Scope: 'Alcance',
-  'Codex’s copy is different.': 'La copia de Codex es distinta.',
+  'The copies in Claude Code’s and Codex’s folders are different.':
+    'Las copias de las carpetas de Claude Code y Codex son distintas.',
   'The description is longer: only its beginning is shown.':
     'La descripción es más larga: se muestra solo el comienzo.',
   'The folder holds more files than are counted here.':
@@ -2383,4 +2373,13 @@ export const ES: Readonly<Record<string, string>> = {
   ...ES_NATIVE,
   ...ES_CONFIGURATION,
   ...ES_SCREENS,
+  'Prediction for managed launches: before this change, {before}; after this change, {after}.':
+    'Predicción para los lanzamientos administrados: antes de este cambio, {before}; después de este cambio, {after}.',
+  On: 'Activado',
+  Off: 'Desactivado',
+  '[hidden]': '[oculto]',
+  'Keep aside': 'Guardar aparte',
+  'When a tool fails': 'Cuando falla una herramienta',
+  'When permission is requested': 'Cuando se pide permiso',
+  'When a subagent starts': 'Cuando empieza un subagente',
 };

@@ -192,7 +192,7 @@ describe('changing, in the view', () => {
     );
     expect(changes.calls[0]).toMatch(/^plan:park_hook:/);
     const plan = document.querySelector('.configuration-plan')!;
-    expect(text(plan)).toContain('Turn off this hook: PreToolUse · Bash');
+    expect(text(plan)).toContain('Keep this hook aside: PreToolUse · Bash');
     expect(text(plan.querySelector('.configuration-diff'))).toContain(
       'command: guard.sh',
     );
@@ -294,8 +294,8 @@ describe('changing, in the view', () => {
 
   it('lists what was turned off and puts it back, exports it, forgets it or imports another', async () => {
     const changes = await shown();
-    await click(button('Turned off'));
-    const list = document.querySelector('ul[aria-label="Turned-off hooks"]')!;
+    await click(button('Kept aside'));
+    const list = document.querySelector('ul[aria-label="Kept entries"]')!;
     expect(text(list)).toContain('encrypted');
     await click(button('Put back', list));
     expect(changes.calls.some((c) => c.startsWith('plan:restore_hook:'))).toBe(
@@ -319,9 +319,9 @@ describe('changing, in the view', () => {
     const changes = new FakeChanges();
     changes.records = [];
     await shown(undefined, changes);
-    await click(button('Turned off'));
+    await click(button('Kept aside'));
     expect(text(document.querySelector('.configuration-feature'))).toContain(
-      'Nothing is turned off',
+      'Nothing is kept aside.',
     );
   });
 });
@@ -337,9 +337,9 @@ describe('a Codex plan, in the view', () => {
     );
     const plan = document.querySelector('.configuration-plan')!;
     expect(text(plan)).toContain('Turn off this Codex MCP server');
-    expect(text(plan)).toContain('Prediction, not a reading');
-    expect(text(plan)).toContain('managed Inference can start now');
-    expect(text(plan)).toContain('this change does not alter that');
+    expect(text(plan)).toContain('Prediction for managed launches');
+    expect(text(plan)).toContain('can start');
+    expect(text(plan)).toContain('This change does not alter that');
     expect(text(plan)).toContain('A new Codex process shows the server');
     expect(text(plan.querySelector('.configuration-diff'))).toContain(
       'enabled: false',

@@ -353,7 +353,9 @@ it('opens a card in place of the list, ordered short to long, read by id', async
       text(s),
     ),
   ).toEqual(['Usage']);
-  expect(text(card)).toContain('Codex’s copy is different.');
+  expect(text(card)).toContain(
+    'The copies in Claude Code’s and Codex’s folders are different.',
+  );
   expect(ipc.count('arsenal_guide_body')).toBe(1);
   // A third party's text is shown as text, never as markup.
   expect(card.querySelector('img')).toBeNull();
@@ -407,9 +409,9 @@ it('switches one of Personal off through Configuration’s own plan', async () =
   planned.length = 0;
   await openArsenal();
   const card = await openCard('useful');
-  expect(text(card)).toContain('State Switched on');
+  expect(text(card)).toContain('State On');
   Array.from(card.querySelectorAll<HTMLButtonElement>('button'))
-    .find((b) => b.textContent?.trim() === 'Switch off')!
+    .find((b) => b.textContent?.trim() === 'Turn off')!
     .click();
   await flush();
   // The account's entry, never the open project's skill of the same name.
@@ -432,7 +434,7 @@ it('offers Undo on the card whose change it was, naming that change', async () =
       .click();
   // `useful` is switched off (change 1), then `noisy` is switched on (change 2).
   await openCard('useful');
-  press('Switch off');
+  press('Turn off');
   await flush();
   press('Apply');
   await flush();
@@ -440,7 +442,7 @@ it('offers Undo on the card whose change it was, naming that change', async () =
   await flush();
   await openCard('noisy');
   expect(text(library().querySelector('.ars-card'))).not.toContain('Undo');
-  press('Switch on');
+  press('Turn on');
   await flush();
   press('Apply');
   await flush();
@@ -467,7 +469,7 @@ it('comes back to Arsenal on its tree, with no configuration left open', async (
   expect(library().querySelector('.ab-tree')).not.toBeNull();
 });
 
-it('lists Claude Code’s hooks by event, opens one as a card with Edit and Delete, and adds one from its event', async () => {
+it('lists Claude Code’s hooks by event, opens one as a card with Edit and Keep aside, and adds one from its event', async () => {
   desktop();
   planned.length = 0;
   await openArsenal();
@@ -482,16 +484,16 @@ it('lists Claude Code’s hooks by event, opens one as a card with Edit and Dele
   const card = library().querySelector<HTMLElement>('.ars-card')!;
   expect(text(card.querySelector('h2'))).toBe('guard.sh');
   expect(text(card.querySelector('.ars-meta'))).toBe(
-    'Before a tool runs · PreToolUse · Bash · Switched on',
+    'Before a tool runs · PreToolUse · Bash · On',
   );
   const buttons = Array.from(card.querySelectorAll('button')).map((b) =>
     text(b),
   );
   expect(buttons).toContain('Edit');
-  expect(buttons).toContain('Delete');
-  // Delete keeps it aside through Configuration's own plan.
+  expect(buttons).toContain('Keep aside');
+  // Keep aside uses through Configuration's own plan.
   Array.from(card.querySelectorAll<HTMLButtonElement>('button'))
-    .find((b) => text(b) === 'Delete')!
+    .find((b) => text(b) === 'Keep aside')!
     .click();
   await flush();
   expect(planned).toEqual([
@@ -566,7 +568,7 @@ it('lists Codex’s own hooks like Claude’s, says Codex will ask for trust, an
   const card = library().querySelector<HTMLElement>('.ars-card')!;
   expect(text(card)).toContain('Codex asks you to trust');
   Array.from(card.querySelectorAll<HTMLButtonElement>('button'))
-    .find((b) => text(b) === 'Delete')!
+    .find((b) => text(b) === 'Keep aside')!
     .click();
   await flush();
   expect(planned).toEqual([{ operation: 'park_hook', target: 'c'.repeat(32) }]);

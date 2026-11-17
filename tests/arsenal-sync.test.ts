@@ -195,3 +195,13 @@ it('reports what another computer deleted, and that a copy is kept here', () => 
   expect(text).toContain('Deleted on another computer');
   expect(text).toContain('a copy is kept in');
 });
+
+it('hides the informational single-computer state', () => {
+  expect(summarize(status({ peers: [] }), NOW).tone).toBe('ok');
+  component = mount(SyncLine, {
+    target: document.body,
+    props: { sync: status({ peers: [] }) },
+  });
+  flushSync();
+  expect(document.querySelector('.arsenal-sync')).toBeNull();
+});

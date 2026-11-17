@@ -223,7 +223,6 @@
                 class="ab-item"
                 aria-expanded={folds ? opened.has(node.key) : undefined}
                 aria-current={selected === node.key ? 'page' : undefined}
-                aria-haspopup={node.kind === 'config' ? 'dialog' : undefined}
                 onclick={() => pick(node)}
               >
                 {#if folds}<span class="ab-chev" aria-hidden="true"

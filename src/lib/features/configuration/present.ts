@@ -57,7 +57,7 @@ export const PERSISTED_LABEL: Record<
   present_enabled: { tone: 'ok', label: msg('On in the file') },
   present_disabled: { tone: 'warn', label: msg('Off in the file') },
   absent: { tone: 'idle', label: msg('Not in the file') },
-  parked: { tone: 'idle', label: msg('Parked') },
+  parked: { tone: 'idle', label: msg('Kept aside') },
   unreadable: { tone: 'error', label: msg('Could not be read') },
 };
 
@@ -107,7 +107,7 @@ export const NOT_WRITABLE_LABEL: Record<NotWritable, string> = {
   ),
   generated: msg('Produced by another tool'),
   shared_path: msg('Its folder can be written by a group: read, never changed'),
-  not_in_this_phase: msg('Read-only for now: changing it is not available yet'),
+  not_in_this_phase: msg('This entry cannot be changed from here.'),
 };
 
 export const SECRET_LABEL: Record<SecretClass, string> = {
@@ -343,7 +343,7 @@ export const OPERATION_LABEL: Record<Operation, string> = {
   delete_document: msg(
     'Delete this instruction file (kept encrypted, so it can be put back)',
   ),
-  park_hook: msg('Turn off this hook'),
+  park_hook: msg('Keep this hook aside'),
   restore_hook: msg('Put this hook back'),
   disable_all_hooks: msg('Turn off every hook'),
   enable_all_hooks: msg('Allow hooks again'),
@@ -544,7 +544,7 @@ export const VERDICT_LABEL: Record<Verdict, string> = {
 
 export const NOTICE_LABEL = {
   exported: msg('Exported. Keep the file and the passphrase safe.'),
-  imported: msg('Imported. It is listed under Turned off.'),
+  imported: msg('Imported. It is listed under Kept aside.'),
   not_done: msg('Cancelled. Nothing was changed.'),
   expired: msg('The plan was dropped because it was too old.'),
   launches_not_followed: msg(

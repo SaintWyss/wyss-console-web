@@ -91,7 +91,7 @@ export function syncSummary(sync: SyncStatus, now: number): SyncSummary {
   }
   if (sync.peers.length === 0)
     return {
-      tone: 'neutral',
+      tone: 'ok',
       symbol: '–',
       label: { text: msg('This computer only') },
       text: {

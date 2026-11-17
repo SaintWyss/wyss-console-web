@@ -32,6 +32,7 @@
   import { field, hookCommand, scriptName } from './hook';
   import { eventOf, matcherOf } from './map';
   import {
+    CHANGE_FAILURE_TEXT,
     HOOK_EVENTS,
     NOT_WRITABLE_LABEL,
     SOURCE_LABEL,
@@ -219,7 +220,7 @@
   }
   /** Leaving a card drops a plan it left unconfirmed. */
   function leave() {
-    if (changes.plan && !changes.applying) changesController.cancel();
+    if (!changes.applying) changesController.cancel();
     if (!changes.applying) awaiting = null;
   }
   function choose(entry: GuideEntry) {
@@ -285,6 +286,9 @@
     UserPromptSubmit: msg('When you send a message'),
     PreToolUse: msg('Before a tool runs'),
     PostToolUse: msg('After a tool runs'),
+    PostToolUseFailure: msg('When a tool fails'),
+    PermissionRequest: msg('When permission is requested'),
+    SubagentStart: msg('When a subagent starts'),
     Notification: msg('On a notification'),
     Stop: msg('When the answer ends'),
     SubagentStop: msg('When a subagent ends'),
@@ -297,9 +301,9 @@
       ? null
       : (configItems.find((i) => i.id === openItemId) ?? null),
   );
-  /** Claude Code's hooks kept aside, shown at the side of the tree. */
+  /** Kept entries have no provider or kind in their public metadata. */
   let parkedOpen = $state(false);
-  /** Whose hooks the "Kept aside" page belongs to. */
+  /** The tool used by the add-hook form on the kept-entries page. */
   let parkedTool = $state<'claude_code' | 'codex'>('claude_code');
   const parked = $derived(
     (changes.records ?? []).filter((r) => r.state === 'parked'),
@@ -326,6 +330,9 @@
   const configOpen = $derived(configKinds !== null);
   function openConfig(tool: MapTool, section: 'hooks' | 'mcp' | 'global') {
     showParked(false);
+    leave();
+    openItemId = null;
+    adding = null;
     store.choose({ tool, section });
   }
   function openPresets(tool: ArsenalProvider) {
@@ -355,12 +362,22 @@
 >
   {#snippet parkedPanel()}
     <div class="ars-config-inline">
-      <h2 class="ab-title">{t('Hooks')} · {t('Kept aside')}</h2>
+      <h2 class="ab-title">{t('Kept aside')}</h2>
       {@render listTop(`${parkedTool}/hooks/${addEvent}`)}
       {#if changes.records === null}
-        <p class="lib-muted" role="status">{t('Reading…')}</p>
+        {#if changes.failure}
+          <p role="alert">{t(CHANGE_FAILURE_TEXT[changes.failure])}</p>
+          <button
+            type="button"
+            class="action"
+            onclick={() => changesController.loadRecords()}
+            >{t('Try again')}</button
+          >
+        {:else}
+          <p class="lib-muted" role="status">{t('Reading…')}</p>
+        {/if}
       {:else if parked.length === 0}
-        <p class="lib-muted">{t('No hook is kept aside.')}</p>
+        <p class="lib-muted">{t('Nothing is kept aside.')}</p>
       {:else}
         <ul class="ars-rows">
           {#each parked as record (record.id)}
@@ -375,10 +392,10 @@
                   changesController.draft('restore_hook', record.id);
                 }}>{t('Put back')}</button
               >
+              {#if changedFor === `restore:${record.id}`}
+                <ChangePlan {changes} {changesController} />
+              {/if}
             </li>
-            {#if changedFor === `restore:${record.id}`}
-              <ChangePlan {changes} {changesController} />
-            {/if}
           {/each}
         </ul>
       {/if}
@@ -497,9 +514,7 @@
           {t(HOOK_EVENT_NAME[eventOf(item.name)] ?? eventOf(item.name))} ·
           {eventOf(item.name)} ·
           {matcherOf(item.name) || t('Every tool')} ·
-          {item.persisted === 'present_enabled'
-            ? t('Switched on')
-            : t('Switched off')}
+          {item.persisted === 'present_enabled' ? t('On') : t('Off')}
         </p>
         {#if item.provider === 'codex'}
           <p class="ars-note">
@@ -540,7 +555,7 @@
                 onclick={() =>
                   draftFrom(item.id, () =>
                     changesController.draft(off.operation, item.id),
-                  )}>{t('Delete')}</button
+                  )}>{t('Keep aside')}</button
               >
             {/if}
             {#if applied[item.id] && !changes.plan}
@@ -557,8 +572,9 @@
           </p>
           {#if !authoring && !off}
             <p class="ars-note">
-              {t('This hook cannot be changed here.')}
-              {t(NOT_WRITABLE_LABEL[item.not_writable])}
+              {item.not_writable === 'not_in_this_phase'
+                ? t('This hook cannot be changed from here.')
+                : t(NOT_WRITABLE_LABEL[item.not_writable])}
             </p>
           {/if}
           {#if changedFor === item.id}
@@ -622,8 +638,8 @@
             <p class="ars-state">
               <span
                 >{switchItem.persisted === 'present_disabled'
-                  ? t('Switched off')
-                  : t('Switched on')}</span
+                  ? t('Off')
+                  : t('On')}</span
               >
               <button
                 type="button"
@@ -637,8 +653,8 @@
                     ),
                   )}
                 >{switchItem.persisted === 'present_disabled'
-                  ? t('Switch on')
-                  : t('Switch off')}</button
+                  ? t('Turn on')
+                  : t('Turn off')}</button
               >
               {#if applied[open.id] && !changes.plan}
                 {@const change = applied[open.id]}
@@ -739,7 +755,11 @@
               <p class="ars-note">{t(SCOPE_HELP[open.scope])}</p>
             {/if}
             {#if open.codex_differs}
-              <p class="ars-note">{t('Codex’s copy is different.')}</p>
+              <p class="ars-note">
+                {t(
+                  'The copies in Claude Code’s and Codex’s folders are different.',
+                )}
+              </p>
             {/if}
             <p class="mono ars-where">{open.origin}</p>
             {#if open.linked_to}
@@ -810,6 +830,8 @@
         showParked(false);
         // A plan left unconfirmed in the list just left is dropped.
         leave();
+        store.close();
+        openItemId = null;
         adding = null;
         if (configOpen) store.choose({ section: 'origin:mine' });
       }}

@@ -70,7 +70,15 @@
     });
 
   const reply = $derived(configuration.reply);
-  const allHooks = $derived(allHooksSwitch(reply?.inventory.items ?? []));
+  const allHooks = $derived(
+    allHooksSwitch(
+      visibleItems(
+        reply?.inventory.items ?? [],
+        configuration.provider,
+        'hook',
+      ),
+    ),
+  );
   let query = $state('');
   const items = $derived(
     reply
@@ -103,6 +111,16 @@
   // What the user is about to write: a kind and a place. The text itself is typed in a
   // window of the desktop's own, never here.
   let writing = $state<'hook' | 'mcp' | 'document' | null>(null);
+  $effect(() => {
+    const provider = configuration.provider;
+    const pageKinds = kinds;
+    return () => {
+      if (provider !== configuration.provider || pageKinds !== kinds) {
+        writing = null;
+        writeFromTemplate = false;
+      }
+    };
+  });
   let documentKind = $state<NewDocumentKind>('claude_rule');
   let documentFromTemplate = $state(false);
   let writeFromTemplate = $state(false);
@@ -125,6 +143,11 @@
   let mcpName = $state('');
   let mcpKind = $state<'local' | 'remote'>('local');
   let mcpAgent = $state<'opencode' | 'codex'>('opencode');
+  const embeddedMcpAgent = $derived(
+    configuration.provider === 'codex' || configuration.provider === 'opencode'
+      ? configuration.provider
+      : null,
+  );
   const busy = $derived(changes.planning || changes.applying);
   const problems = $derived(
     (reply?.inventory.sources ?? []).filter(
@@ -231,7 +254,7 @@
         class="action chip"
         aria-pressed={changes.panel === 'parked'}
         onclick={() => changesController.show('parked')}
-        >{t('Turned off')}</button
+        >{t('Kept aside')}</button
       >
       <button
         type="button"
@@ -240,14 +263,14 @@
         onclick={() => changesController.show('history')}>{t('History')}</button
       >
       {#if changes.panel === 'items'}
-        {#if offers('hook')}<button
+        {#if offers('hook') && (!embedded || configuration.provider === 'claude_code' || configuration.provider === 'codex')}<button
             type="button"
             class="action chip"
             aria-pressed={writing === 'hook'}
             onclick={() => (writing = writing === 'hook' ? null : 'hook')}
             >{t('Add a hook…')}</button
           >{/if}
-        {#if offers('mcp_server')}<button
+        {#if offers('mcp_server') && (!embedded || embeddedMcpAgent)}<button
             type="button"
             class="action chip"
             aria-pressed={writing === 'mcp'}
@@ -324,11 +347,19 @@
                 hookMatcher.trim() || null,
                 null,
                 writeFromTemplate,
+                embedded && configuration.provider === 'codex'
+                  ? 'codex'
+                  : 'claude_code',
               ),
             );
           else
             changesController.author((c) =>
-              c.authorMcp(mcpName, mcpKind, mcpAgent, writeFromTemplate),
+              c.authorMcp(
+                mcpName,
+                mcpKind,
+                embedded ? embeddedMcpAgent! : mcpAgent,
+                writeFromTemplate,
+              ),
             );
           writeFromTemplate = false;
           writing = null;
@@ -402,13 +433,15 @@
               'Name the server and say what it is. What it starts or connects to is typed next, in a separate window.',
             )}
           </p>
-          <label
-            >{t('Agent')}
-            <select bind:value={mcpAgent}>
-              <option value="opencode">OpenCode</option>
-              <option value="codex">Codex</option>
-            </select>
-          </label>
+          {#if !embedded}
+            <label
+              >{t('Agent')}
+              <select bind:value={mcpAgent}>
+                <option value="opencode">OpenCode</option>
+                <option value="codex">Codex</option>
+              </select>
+            </label>
+          {/if}
           <label
             >{t('Name')}
             <input
@@ -523,15 +556,15 @@
           </div>
         {:else if parked.length === 0}
           <div class="sessions-empty">
-            <p class="empty-title">{t('Nothing is turned off')}</p>
+            <p class="empty-title">{t('Nothing is kept aside.')}</p>
             <p>
               {t(
-                'A hook you turn off is removed from its file and kept here, so it can be put back exactly.',
+                'Entries kept aside are removed from their files and kept here, so they can be put back exactly.',
               )}
             </p>
           </div>
         {:else}
-          <ul class="events-list" aria-label={t('Turned-off hooks')}>
+          <ul class="events-list" aria-label={t('Kept entries')}>
             {#each parked as record (record.id)}
               <li class="configuration-history-row">
                 <span class="event-title">{record.label}</span>
