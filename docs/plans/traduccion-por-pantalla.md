@@ -87,3 +87,10 @@ Paquete, `install.sh --keep-host`, merge de `wip/traduccion-es` a main/ux y push
 1. Antes de empezar, con este plan.
 2. Después del piloto (pantalla 3, Distribuidores, la más chica).
 3. Antes del merge a main.
+
+## Glosario (decisión del dueño, 2026-11-17)
+
+- Quedan en inglés: **Wyss Console**, **Workspace**, **Arsenal**, **preset**, **hook**, y los nombres de producto (Claude Code, Codex, OpenCode).
+- En español: **Consola** (la pestaña), **Actividad**, **Personalización**, **Ajustes**, **Credenciales**, **Distribuidores**, **lanzamiento**, **autoridad**, **sesión**, **aprobación**, **permiso**.
+- Rioplatense neutro de interfaz: imperativo con voseo solo donde ya se usa en es.ts; si no, infinitivo en botones ("Guardar", "Probar").
+- Corrige el español existente que contradiga este glosario (p. ej. «Console» suelto → «Consola»).
