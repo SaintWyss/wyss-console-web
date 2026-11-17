@@ -34,7 +34,6 @@ import {
   stateLabel,
   switchHint,
 } from '../src/lib/features/native/present';
-import { delegationTally } from '../src/lib/features/native/delegations';
 import {
   detailLines,
   failureText,
@@ -291,18 +290,6 @@ it('draws the native state phrase, facts and notes in Spanish, with their places
   expect(tPhrase(stateLabel(exited).label)).toBe('Failed (2)');
   expect(t(facts.configured)).toBe('not read yet (open Configuration)');
   expect(t(facts.inUse)).toBe('not reported by the agent');
-});
-
-it('draws the delegation tally words in Spanish, counted in English too', () => {
-  const tally = delegationTally([
-    { status: 'running' },
-    { status: 'succeeded' },
-  ] as unknown as Parameters<typeof delegationTally>[0]);
-  const words = () => tally.map((entry) => `${entry.count} ${t(entry.label)}`);
-  setLanguage('es');
-  expect(words()).toEqual(['1 en curso', '1 terminado(s)']);
-  setLanguage('en');
-  expect(words()).toEqual(['1 running', '1 done']);
 });
 
 it('has a Spanish sentence for every sentence the window can show', () => {

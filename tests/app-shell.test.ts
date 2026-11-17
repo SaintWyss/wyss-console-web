@@ -137,7 +137,6 @@ it('maps the terminal workspace to one honest runtime status', () => {
 it('lists every view, and every one of them exists', () => {
   expect(NAV_ITEMS.map((item) => item.label)).toEqual([
     'Console',
-    'Terminal agents',
     'Sessions',
     'Agents',
     'Approvals',
@@ -149,7 +148,6 @@ it('lists every view, and every one of them exists', () => {
   ]);
   expect(NAV_ITEMS.map((item) => item.id)).toEqual([
     'console',
-    'workspace',
     'sessions',
     'agents',
     'approvals',
@@ -197,8 +195,6 @@ it('renders the shell with brand, every view enabled and Console selected', asyn
   );
   expect(more.every((b) => !b.disabled)).toBe(true);
   expect(more.map((b) => b.textContent?.trim())).toEqual([
-    // The Workspace of agents in terminals, by its own name: the rail's Workspace edits launches.
-    'Terminal agents',
     'Sessions',
     'Agents',
     'Approvals',

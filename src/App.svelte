@@ -23,7 +23,6 @@
   import { EventsController } from './lib/features/events/controller';
   import DistributorsView from './lib/features/distributors/DistributorsView.svelte';
   import { NativeController } from './lib/features/native/controller';
-  import WorkspaceView from './lib/features/native/WorkspaceView.svelte';
   import LaunchEditor from './lib/features/workspace/LaunchEditor.svelte';
   import { SettingsController } from './lib/features/settings/controller';
   import SettingsView from './lib/features/settings/SettingsView.svelte';
@@ -156,7 +155,7 @@
   const activity = $derived(activeView === 'activity');
   // The name of the view, alone, over Activity and over the views that draw no heading of
   // their own: there it is the only place that says which view is open. No subtitle.
-  const TITLED: readonly ShownView[] = ['workspace', 'agents'];
+  const TITLED: readonly ShownView[] = ['agents'];
   const title = $derived(
     activity
       ? msg('Activity')
@@ -206,9 +205,7 @@
   });
   // The overview reads the registry (with resources) while it is shown.
   $effect(() => {
-    nativeController.setVisible(
-      activeView === 'workspace' || activeView === 'launches',
-    );
+    nativeController.setVisible(activeView === 'launches');
   });
 
   // The window opens on the view the preferences name, unless the user has already
@@ -435,15 +432,6 @@
       onpresetused={(request) => {
         if (launchToCreate?.request === request) launchToCreate = null;
       }}
-    />
-    <WorkspaceView
-      visible={activeView === 'workspace'}
-      {native}
-      controller={nativeController}
-      onconsole={() => go('console')}
-      onupdate={runInConsole}
-      onarsenal={() => go('arsenal')}
-      configItems={configuration.reply?.inventory.items ?? null}
     />
     <SessionsView
       visible={activeView === 'sessions'}

@@ -32,7 +32,6 @@ export const ES: Readonly<Record<string, string>> = {
     'Se guardó como “{name}”. No se pudo borrar el archivo con el nombre anterior: sigue en la lista.',
   'roles.json could not be read. Roles are shown as the basic ones and are not saved until the file is fixed or removed.':
     'No se pudo leer roles.json. Se muestran los roles básicos y no se guardan hasta que el archivo se arregle o se borre.',
-  'Terminal agents': 'Agentes en terminales',
   Orchestrator: 'Orquestador',
   Worker: 'Trabajador',
   Researcher: 'Investigador',
@@ -109,7 +108,6 @@ export const ES: Readonly<Record<string, string>> = {
   Console: 'Consola',
   'Local terminal workspace': 'Terminales locales',
   Workspace: 'Workspace',
-  'Agents running in your terminals': 'Agentes que corren en tus terminales',
   'Agent actions': 'Acciones del agente',
   'Agent registry': 'Registro de agentes',
   'Start it again': 'Volver a iniciar',
@@ -1457,8 +1455,6 @@ export const ES: Readonly<Record<string, string>> = {
 
   Expired: 'Vencida',
 
-  'Keep running': 'Seguir corriendo',
-
   Folder: 'Carpeta',
 
   Command: 'Comando',
@@ -1648,8 +1644,6 @@ export const ES: Readonly<Record<string, string>> = {
     'Un hook que este preset deja afuera ya no está en hooks.json: se editó o se borró. No se inició nada. Revisá los hooks del preset y guardalo.',
   'A hook this preset left out is no longer in hooks.json: it was edited or removed. A launch with this preset does not start until you check the hooks and save.':
     'Un hook que este preset dejaba afuera ya no está en hooks.json: se editó o se borró. Un lanzamiento con este preset no arranca hasta que revises los hooks y guardes.',
-  'This preset leaves a Codex hook or AGENTS.md out, so the terminal starts only with it applied: started without it, they would load again. It cannot be applied now, so it cannot start.':
-    'Este preset deja afuera un hook de Codex o el AGENTS.md, así que la terminal solo arranca con el preset aplicado: sin aplicarlo volverían a cargarse. Ahora no se puede aplicar, así que no puede arrancar.',
   'The hook was changed, but the launch presets that left it out could not be updated. Until you open each of them in Workspace, check its hooks and save, a launch with one of them may run the changed hook, or (Codex) may not start.':
     'El hook se cambió, pero no se pudieron actualizar los presets de lanzamiento que lo dejaban afuera. Hasta que abras cada uno en Workspace, revises sus hooks y guardes, un lanzamiento con uno de ellos puede correr el hook cambiado o (Codex) no arrancar.',
   'A command before the start did not succeed ({result}); the agent started anyway.':
@@ -1887,31 +1881,16 @@ export const ES: Readonly<Record<string, string>> = {
   'Discard changes': 'Descartar cambios',
   'Keep editing': 'Seguir editando',
   'Unsaved changes': 'Cambios sin guardar',
-  'Save as launch…': 'Guardar como lanzamiento…',
-  'Save as launch': 'Guardar como lanzamiento',
   'Launch name': 'Nombre del lanzamiento',
-  'None — all installed skills': 'Ninguno — todas las skills instaladas',
   'A launch with that name exists.': 'Ya hay un lanzamiento con ese nombre.',
   Replace: 'Reemplazar',
-  'Save launch': 'Guardar lanzamiento',
-  'The launch could not be saved.': 'No se pudo guardar el lanzamiento.',
-  'Launch saved as “{name}”. Find it in Launch ▾.':
-    'Lanzamiento guardado como “{name}”. Está en Launch ▾.',
   'No preset named “{name}” for this agent. Create it in Arsenal, or change the launch file.':
     'No hay un preset llamado “{name}” para este agente. Créalo en Arsenal o cambia el archivo del lanzamiento.',
   'More than one preset is named “{name}” for this agent. Delete the extra ones in Arsenal, then start again.':
     'Hay más de un preset llamado “{name}” para este agente. Borra los sobrantes en Arsenal y vuelve a iniciar.',
-  'Saved launches': 'Lanzamientos guardados',
   'No saved launches yet.': 'Todavía no hay lanzamientos guardados.',
-  'The saved launches did not load.':
-    'Los lanzamientos guardados no se cargaron.',
   'The launch could not be deleted.': 'No se pudo borrar el lanzamiento.',
-  'Starting…': 'Iniciando…',
-  'Terminal commands · {folder}': 'Comandos de terminal · {folder}',
-  'Preset {name}': 'Preset {name}',
   Preset: 'Preset',
-  'Edit in Arsenal': 'Editar en Arsenal',
-  'No presets for {agent}.': 'No hay presets para {agent}.',
 
   Blocked: 'Bloqueado',
 
@@ -1991,55 +1970,14 @@ export const ES: Readonly<Record<string, string>> = {
   'The file could not be written.': 'No se pudo escribir el archivo.',
   Permissions: 'Permisos',
   'As configured': 'Como está configurado',
-  'Hand off to another agent': 'Traspasar el trabajo a otro agente',
-  'Hand off {agent}’s work': 'Traspasar el trabajo de {agent}',
-  'This starts a': 'Esto inicia una',
   new: 'nueva',
-  'session of the agent you choose, in the same folder, with the text below as its first message. It is not a transfer: the new agent has only this text and the files, not {agent}’s context, and nothing is moved or ended. Read it and change it before starting. Secrets found in it were removed.':
-    'sesión del agente que elegís, en la misma carpeta, con el texto de abajo como primer mensaje. No es un traspaso: el agente nuevo tiene solo este texto y los archivos, no el contexto de {agent}, y no se mueve ni se termina nada. Leelo y cambialo antes de iniciar. Los secretos que había en él se quitaron.',
-  'Hermes Native remains available as a separate interactive provider. It is omitted here because its pinned CLI does not expose a verified reviewed first-message interface without entering an effectful one-shot mode.':
-    'Hermes Native sigue disponible como proveedor interactivo aparte. Acá se omite porque su CLI fijada no expone una interfaz de primer mensaje verificada y revisada sin entrar en un modo de una sola ejecución con efectos.',
-  'Preparing the brief…': 'Preparando el brief…',
-  'The screen of that session is no longer held, so the brief has the repository state only.':
-    'La pantalla de esa sesión ya no se conserva, así que el brief tiene solo el estado del repositorio.',
-  'Brief (Markdown, starts with “# ”)': 'Brief (Markdown, empieza con “# ”)',
-  'Longer than 16 KiB: shorten it.': 'Más de 16 KiB: acortalo.',
-  'Start {agent} with this brief': 'Iniciar {agent} con este brief',
-  'Save to a file…': 'Guardar en un archivo…',
   'Delegated agents': 'Agentes delegados',
-  'The terminal host did not list delegated agents.':
-    'El host de terminales no pudo listar los agentes delegados.',
-  'None yet. A Claude Code or Codex session started with delegation on can give a task to the other one.':
-    'Todavía no hay ninguno. Una sesión de Claude Code o Codex iniciada con delegación activada puede darle una tarea a la otra.',
-  'From {provider} session {id}': 'Desde la sesión de {provider} {id}',
-  '{count} agent': '{count} agente',
-  '{count} agents': '{count} agentes',
-  'Timed out': 'Agotado',
-  'configuration verified': 'configuración verificada',
-  'configuration did not match': 'la configuración no coincide',
-  'configuration not checked yet': 'configuración sin verificar todavía',
-  'configuration not verifiable': 'la configuración no se puede verificar',
   done: 'terminado(s)',
-  'timed out': 'agotado(s)',
   cancelled: 'cancelado(s)',
   other: 'otro(s)',
-  '{n} completed step(s)': '{n} paso(s) completado(s)',
-  'Observed:': 'Observado:',
-  'effort not reported': 'esfuerzo no informado',
-  'Preset: {name}': 'Preset: {name}',
-  'Selection: {name}': 'Selección: {name}',
-  'none of your own': 'ninguna propia',
-  '{n} installed skill(s) switched off':
-    '{n} skill(s) instalada(s) desactivada(s)',
   Files: 'Archivos',
   in: 'en',
-  'Stop this agent? Its unfinished work is lost.':
-    '¿Detener este agente? Su trabajo sin terminar se pierde.',
-  'Stop agent': 'Detener agente',
-  'Stopping…': 'Deteniendo…',
   Result: 'Resultado',
-
-  'Choose…': 'Elegir…',
 
   Remove: 'Quitar',
   Provider: 'Proveedor',
@@ -2055,78 +1993,14 @@ export const ES: Readonly<Record<string, string>> = {
   'not observed by this provider configuration view':
     'no lo observa esta vista de configuración del proveedor',
   'not reported by the agent': 'el agente no lo informa',
-  'The launch preview failed.': 'La vista previa del lanzamiento falló.',
-  // ---- workspace ----
-  '{name} · not applied': '{name} · sin aplicar',
-  'Update {agent}': 'Actualizar {agent}',
-  'Started with {name} applied.': 'Iniciado con {name} aplicado.',
-  'Started without applying {name}; the selection is recorded.':
-    'Iniciado sin aplicar {name}; la selección queda registrada.',
-  'ended {time}': 'terminó {time}',
   agent: 'agente',
   'this agent': 'este agente',
-  'Home · {path}': 'Inicio · {path}',
-  'Start {agent}': 'Iniciar {agent}',
-  'Agents started from the Console': 'Agentes iniciados desde la Consola',
-  'Hermes Native is a full-account provider session. Its approval prompts and hooks are not a Wyss security boundary. Hermes planner admission is separately blocked pending tested OS isolation. The installed version is not probed because Hermes version output performs an update check.':
-    'Hermes Native es una sesión de proveedor con toda la cuenta. Sus avisos de aprobación y sus hooks no son una frontera de seguridad de Wyss. La admisión del planificador de Hermes está bloqueada aparte hasta probar un aislamiento del sistema. La versión instalada no se sondea, porque la salida de versión de Hermes hace una comprobación de actualización.',
-  'Looking for your agents…': 'Buscando tus agentes…',
-  'Agents cannot be started here': 'Los agentes no se pueden iniciar aquí',
-  'The desktop did not answer. Nothing was started.':
-    'El escritorio no respondió. No se inició nada.',
-  'OpenCode and Hermes wait until the Console confirms its private M9 session store again.':
-    'OpenCode y Hermes esperan a que la Consola vuelva a confirmar su almacén privado de sesiones M9.',
-  'Check again': 'Revisar de nuevo',
-  'OpenCode and Hermes are blocked: the Console could not confirm its private M9 session store, because a read or a write failed. Claude Code and Codex stay available where the Console allows them.':
-    'OpenCode y Hermes están bloqueados: la Consola no pudo confirmar su almacén privado de sesiones M9, porque falló una lectura o una escritura. Claude Code y Codex siguen disponibles donde la Consola los permite.',
-  'This terminal host predates M9. OpenCode and Hermes Native require a matching M9 host; existing Native sessions remain available.':
-    'Este host de terminal es anterior a M9. OpenCode y Hermes Native requieren un host M9 compatible; las sesiones Native existentes siguen disponibles.',
-  'Start an agent': 'Iniciar un agente',
   installed: 'instalado',
-  'Project folder': 'Carpeta del proyecto',
-  'Retry preview': 'Reintentar vista previa',
   Delegation: 'Delegación',
-  'Let it hand tasks to Claude Code and Codex through Wyss (2 agents at a time, 20 minutes each, writes only in the workspace).':
-    'Permitir que pase tareas a Claude Code y Codex a través de Wyss (de a 2 agentes a la vez, 20 minutos cada uno, escribe solo en el workspace).',
   Change: 'Cambiar',
-  'Checked {date}.': 'Verificado el {date}.',
-  'Interface: {interface}. Format: {format}. Scope: {scope}.':
-    'Interfaz: {interface}. Formato: {format}. Alcance: {scope}.',
-  'Reload: {reload}.': 'Recarga: {reload}.',
-  'Source: {source}.': 'Fuente: {source}.',
-  'Limit: {limit}.': 'Límite: {limit}.',
-  'Runs “{command}” in a new terminal':
-    'Ejecuta “{command}” en una terminal nueva',
-  'Capability evidence and limits': 'Evidencia y límites de capacidades',
-  'Starts through your shell ({family}): same environment as typing the command yourself.':
-    'Inicia a través de tu shell ({family}): mismo entorno que si escribieras el comando vos mismo.',
-  'Starts directly with the Console’s own environment.':
-    'Inicia directamente con el entorno propio de la Consola.',
-  "Native sessions: the provider's own tools, configuration and privileges stay active. The Console does not mediate, contain or approve their effects.":
-    'Sesiones Native: las herramientas, la configuración y los privilegios del proveedor siguen activos. La Consola no media, contiene ni aprueba sus efectos.',
-  'Native plane': 'Plano Native',
-  'Start the lost session again': 'Iniciar de nuevo la sesión perdida',
-  'Start {count} lost sessions again':
-    'Iniciar de nuevo {count} sesiones perdidas',
-  'Remove finished': 'Quitar terminadas',
-  'No agent sessions yet': 'Todavía no hay sesiones de agentes',
-  'Start one above. It opens in the Console as a terminal tab.':
-    'Inicia una arriba. Se abre en la Consola como una pestaña de terminal.',
-  'Two sessions run here and can write the same files. Nothing coordinates them.':
-    'Dos sesiones corren aquí y pueden escribir los mismos archivos. Nada las coordina.',
-  'Sessions in {folder}': 'Sesiones en {folder}',
-  'up {time}': 'activa {time}',
-  'started {date}': 'iniciada {date}',
-  'started directly': 'iniciada directamente',
-  'restart {count}': 'reinicio {count}',
-  'process {pid}': 'proceso {pid}',
-  '{count} processes': '{count} procesos',
   Open: 'Abrir',
   Stop: 'Parar',
   Restart: 'Reiniciar',
-  'Show terminal': 'Mostrar terminal',
-  'Start again': 'Iniciar de nuevo',
-  'Hand off…': 'Transferir…',
   'Native sessions': 'Sesiones Native',
   // ---- arsenal sync ----
   Synchronization: 'Sincronización',
@@ -2145,60 +2019,12 @@ export const ES: Readonly<Record<string, string>> = {
     'aplicó {applied} de {published} cambio(s) de esta computadora',
   'last heard {time}': 'última señal {time}',
   'Check now': 'Comprobar ahora',
-  // ---- sweep ----
-  'Arsenal for this terminal': 'Arsenal para esta terminal',
   'Arsenal selection': 'Selección de Arsenal',
-  'Choose an agent first.': 'Elegí un agente primero.',
-  'Arsenal selections are for Claude Code and Codex. This agent starts as configured.':
-    'Las selecciones de Arsenal son para Claude Code y Codex. Este agente arranca como está configurado.',
-  'None — skills as installed': 'Ninguna: skills como están instaladas',
   Reload: 'Recargar',
-  'No saved selection for this provider. Make one in Arsenal › Selections.':
-    'No hay una selección guardada para este proveedor. Creá una en Arsenal › Selecciones.',
-  'Building the terminal plan…': 'Armando el plan de la terminal…',
-  'Plan ready': 'Plan listo',
-  'Plan partial': 'Plan parcial',
-  'Plan blocked': 'Plan bloqueado',
-  'unidentified build': 'build sin identificar',
   'no project': 'sin proyecto',
-  '{count} prepared': '{count} preparada(s)',
-  '{count} rejected': '{count} rechazada(s)',
-  '{count} not carried': '{count} no incluida(s)',
-  '{count} installed skill(s) stay':
-    '{count} skill(s) instalada(s) se mantienen',
-  '{count} already off in your settings':
-    '{count} ya desactivada(s) en tu configuración',
-  '{count} would be switched off': '{count} se desactivarían',
-  'Items ({count})': 'Ítems ({count})',
-  'Missing capability': 'Capacidad faltante',
-  'revision {rev}': 'revisión {rev}',
   pinned: 'fijada',
-  'Switched off ({count})': 'Desactivadas ({count})',
-  'Nothing.': 'Nada.',
-  'Not changed': 'Sin cambios',
-  'Session flag it would add (with --no-daemon)':
-    'Flag de sesión que agregaría (con --no-daemon)',
-  'Session settings it would write': 'Configuración de sesión que escribiría',
-  'Apply to this terminal (restart required to change it later)':
-    'Aplicar a esta terminal (hace falta reiniciar para cambiarlo después)',
-  'Checking the launch preview…': 'Revisando la vista previa del arranque…',
-  'The launch preview refuses this combination:':
-    'La vista previa del arranque rechaza esta combinación:',
-  'NOT APPLIED: this terminal will start with every installed skill.':
-    'NO APLICADO: esta terminal arrancará con todas las skills instaladas.',
-  'Start without applying it, and record the selection with the terminal':
-    'Arrancar sin aplicarlo, y registrar la selección con la terminal',
-  'Can be applied': 'Se puede aplicar',
-  'Not qualified for this build': 'Build no calificada',
-  'Build not identified': 'Build no identificada',
-  'Installed skills not fully read': 'Skills instaladas no leídas por completo',
   prepared: 'preparada',
-  'not carried': 'no incluida',
   missing: 'faltante',
-  'Same name twice': 'Mismo nombre dos veces',
-  'Same content twice': 'Mismo contenido dos veces',
-  'Several rules': 'Varias reglas',
-  'Two methodologies kept': 'Dos metodologías conservadas',
 
   'Sync error': 'Error de sincronización',
   'The last run failed: {error}.': 'La última corrida falló: {error}.',
@@ -2568,20 +2394,6 @@ export const ES: Readonly<Record<string, string>> = {
   'Make launch': 'Crear lanzamiento',
   'Change its name or its commands.': 'Cambiar su nombre o sus comandos.',
   Edit: 'Editar',
-  // ---- permissions ----
-  'Could not check what this permission would pass. Refresh Native before starting.':
-    'No se pudo comprobar qué pasaría este permiso. Actualizá Native antes de iniciar.',
-  'What the permission passes': 'Qué pasa el permiso',
-  'Could not check what this permission would pass. Start stays disabled until a fresh check succeeds.':
-    'No se pudo comprobar qué pasaría este permiso. Iniciar sigue deshabilitado hasta que una comprobación nueva funcione.',
-  'Checking what this permission would pass…':
-    'Comprobando qué pasaría este permiso…',
-  'The permission changed. Checking what it would pass before Start.':
-    'El permiso cambió. Se comprueba qué pasaría antes de Iniciar.',
-  'This permission cannot be applied to {agent}, so it will not start.':
-    'Este permiso no se puede aplicar a {agent}, así que no se iniciará.',
-  'Model: set in its files {configured} · in use: {inUse} · Effort: set in its files {configuredEffort}':
-    'Modelo: en sus archivos {configured} · en uso: {inUse} · Esfuerzo: en sus archivos {configuredEffort}',
   'This permission cannot be applied to that agent.':
     'Este permiso no se puede aplicar a ese agente.',
   'What this session was started with no longer exists, so it cannot start that way. Start a new one from Workspace.':

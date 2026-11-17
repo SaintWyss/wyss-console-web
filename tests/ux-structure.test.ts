@@ -18,11 +18,6 @@ import type {
   CandidateStatus,
   Compatibility,
 } from '../src/lib/contracts/arsenal';
-import {
-  delegationMark,
-  delegationTally,
-} from '../src/lib/features/native/delegations';
-import type { Delegation } from '../src/lib/desktop/native-client';
 
 let component: ReturnType<typeof mount> | undefined;
 afterEach(() => {
@@ -44,7 +39,6 @@ it('offers six entries on the rail, and every other view under More', () => {
   const all = NAV_ITEMS;
   const more = moreItems(all).map((i) => i.id);
   expect(more).toEqual([
-    'workspace',
     'sessions',
     'agents',
     'approvals',
@@ -137,7 +131,7 @@ it('names every rail icon for screen readers and marks only the open view', asyn
   expect(document.activeElement).toBe(main);
 });
 
-it('draws every compatibility, discovery and delegation state with a symbol, not color alone', () => {
+it('draws every compatibility and discovery state with a symbol, not color alone', () => {
   const compatibility: Compatibility[] = [
     'supported',
     'unsupported',
@@ -155,14 +149,6 @@ it('draws every compatibility, discovery and delegation state with a symbol, not
   const marks = [
     ...compatibility.map(compatibilityMark),
     ...statuses.map(candidateMark),
-    ...[
-      'running',
-      'succeeded',
-      'failed',
-      'cancelled',
-      'timed_out',
-      'interrupted',
-    ].map(delegationMark),
   ];
   for (const mark of marks) {
     expect(mark.symbol.trim()).not.toBe('');
@@ -176,30 +162,6 @@ it('draws every compatibility, discovery and delegation state with a symbol, not
     expect([...tones], `symbol ${symbol}`).toHaveLength(1);
   expect(compatibilityMark('supported').tone).toBe('ok');
   expect(compatibilityMark('unsupported').tone).toBe('error');
-  expect(delegationMark('timed_out').tone).toBe('error');
-});
-
-it('counts delegated agents by their own status, never folding one into another', () => {
-  const d = (status: string) => ({ status }) as Delegation;
-  const tally = delegationTally([
-    d('running'),
-    d('failed'),
-    d('timed_out'),
-    d('interrupted'),
-    d('cancelled'),
-    d('succeeded'),
-    d('something_new'),
-  ]).map((entry) => `${entry.count} ${entry.label}`);
-  expect(tally).toEqual([
-    '1 running',
-    '1 done',
-    '1 failed',
-    '1 timed out',
-    '1 interrupted',
-    '1 cancelled',
-    '1 other',
-  ]);
-  expect(delegationTally([d('cancelled'), d('cancelled')])).toHaveLength(1);
 });
 
 it('never stretches a checkbox or radio across its row in Arsenal forms', () => {

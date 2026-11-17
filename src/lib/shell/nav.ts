@@ -4,7 +4,6 @@ export type ViewId =
   | 'console'
   | 'launches'
   | 'distributors'
-  | 'workspace'
   | 'sessions'
   | 'agents'
   | 'approvals'
@@ -31,12 +30,6 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: msg('Console'),
     subtitle: msg('Local terminal workspace'),
     icon: 'M4 7l4 4-4 4M11 16h7',
-  },
-  {
-    id: 'workspace',
-    label: msg('Terminal agents'),
-    subtitle: msg('Agents running in your terminals'),
-    icon: 'M4 5h16v10H4zM8 19h8M12 15v4M8 9l2 2-2 2M12.5 13H16',
   },
   {
     id: 'sessions',
@@ -196,8 +189,7 @@ export function railOf(shown: ShownView): RailId {
 
 /** Views offered under More: every view of `NAV_ITEMS` that the rail does not open itself,
  * plus Approvals, Events and Settings, which keep their own page there. The
- * Workspace of agents in terminals is there too, by that name: the rail's Workspace is the
- * launch editor. */
+ * rail's Workspace opens the launch editor. */
 export function moreItems(items: readonly NavItem[]): readonly NavItem[] {
   const own = new Set<ViewId>([
     'console',
