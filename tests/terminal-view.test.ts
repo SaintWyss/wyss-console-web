@@ -5,6 +5,8 @@ import TerminalView from '../src/lib/features/terminal/TerminalView.svelte';
 import App from '../src/App.svelte';
 import type { TerminalRenderer } from '../src/lib/features/terminal/renderer';
 import { parseTerminalId } from '../src/lib/contracts/identities';
+import type { NativeState } from '../src/lib/features/native/controller';
+import { session as nativeSession } from './native-harness';
 
 const fakes = vi.hoisted(() => ({ factory: vi.fn() }));
 vi.mock('../src/lib/features/terminal/renderer', () => ({
@@ -151,6 +153,7 @@ it('keeps AppInfo IPC in the minimal application header', async () => {
     '1B-test',
   );
   expect(commands.filter((c) => c === 'get_app_info')).toHaveLength(1);
+  expect(commands).toContain('native_launcher');
 });
 
 it('reports renderer initialization failure without crashing the app', async () => {
@@ -733,6 +736,114 @@ it('lists only the saved launches under + Launch', async () => {
   expect(panel).not.toContain('New terminal');
   expect(panel).not.toContain('Start agent');
 });
+
+it('shows finished native records in + Launch and calls their registry actions', async () => {
+  mockIPC((command) => {
+    commands.push(command);
+    if (command === 'launch_list')
+      return {
+        folder: '/home/me/.config/wyss-console/launch',
+        launches: [],
+        refused: [],
+      };
+    return command === 'terminal_read_output'
+      ? new Promise(() => undefined)
+      : info;
+  });
+  const registry = {
+    phase: 'ready',
+    launcher: null,
+    sessions: [
+      nativeSession({
+        id: '1'.repeat(32),
+        state: 'lost',
+        terminal_id: null,
+        pid: null,
+      }),
+      nativeSession({
+        id: '2'.repeat(32),
+        state: 'stopped',
+        terminal_id: null,
+        pid: null,
+      }),
+      nativeSession({ id: '3'.repeat(32), state: 'running' }),
+      nativeSession({ id: '4'.repeat(32), state: 'requested' }),
+    ],
+    starting: false,
+    failure: { code: 'stop_failed', reasons: [] },
+    m9Uncertain: false,
+    m9Blocked: false,
+    checkingLauncher: false,
+  } satisfies NativeState;
+  const controller = {
+    refreshSessions: vi.fn(),
+    restoreLost: vi.fn(async () => 1),
+    forgetFinished: vi.fn(async () => 2),
+  };
+  component = mount(TerminalView, {
+    target: document.body,
+    props: {
+      native: registry,
+      nativeController:
+        controller as unknown as import('../src/lib/features/native/controller').NativeController,
+    },
+  });
+  await flush();
+  expect(
+    document.querySelector('[role="alert"].workspace-error')?.textContent,
+  ).toContain('The session could not be stopped.');
+  expect(document.querySelector('.launch-registry')).toBeNull();
+  tools()[3]!.click();
+  await flush();
+  const line = document.querySelector('.launch-registry')!;
+  expect(line.textContent?.replace(/\s+/g, ' ')).toContain(
+    '2 agents finished in the registry (1 lost)',
+  );
+  expect(controller.refreshSessions).toHaveBeenCalledOnce();
+  [...line.querySelectorAll('button')]
+    .find((button) => button.textContent?.includes('Reopen'))!
+    .click();
+  [...line.querySelectorAll('button')]
+    .find((button) => button.textContent?.includes('Clear'))!
+    .click();
+  await flush();
+  expect(controller.restoreLost).toHaveBeenCalledOnce();
+  expect(controller.forgetFinished).toHaveBeenCalledOnce();
+});
+
+it('hides the registry line when it has no finished sessions', async () => {
+  mockIPC((command) => {
+    commands.push(command);
+    if (command === 'launch_list')
+      return {
+        folder: '/home/me/.config/wyss-console/launch',
+        launches: [],
+        refused: [],
+      };
+    return command === 'terminal_read_output'
+      ? new Promise(() => undefined)
+      : info;
+  });
+  const native = {
+    phase: 'ready',
+    launcher: null,
+    sessions: [
+      nativeSession({ id: '3'.repeat(32), state: 'running' }),
+      nativeSession({ id: '4'.repeat(32), state: 'requested' }),
+    ],
+    starting: false,
+    failure: null,
+    m9Uncertain: false,
+    m9Blocked: false,
+    checkingLauncher: false,
+  } satisfies NativeState;
+  component = mount(TerminalView, { target: document.body, props: { native } });
+  await flush();
+  tools()[3]!.click();
+  await flush();
+  expect(document.querySelector('.launch-registry')).toBeNull();
+});
+
 it('opens a terminal with Ctrl+Shift+T while tabs are open', async () => {
   component = mount(TerminalView, { target: document.body });
   await flush();

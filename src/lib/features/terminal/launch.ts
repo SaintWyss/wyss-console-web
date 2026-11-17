@@ -148,14 +148,14 @@ export function launchBlock(
     if (match.state === 'none')
       return new LaunchRefusal(
         msg(
-          'No preset named “{name}” for this agent. Create it in Arsenal, or change the launch file.',
+          'No preset named “{name}” for this agent. Create it in Workspace, or change the launch file.',
         ),
         { name: launch.preset },
       );
     if (match.state === 'several')
       return new LaunchRefusal(
         msg(
-          'More than one preset is named “{name}” for this agent. Delete the extra ones in Arsenal, then start again.',
+          'More than one preset is named “{name}” for this agent. Delete the extra ones in Workspace, then start again.',
         ),
         { name: launch.preset },
       );

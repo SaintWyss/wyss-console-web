@@ -20,7 +20,10 @@ import {
 } from '../../desktop/arsenal-client';
 import { msg, type Phrase } from '../../i18n/msg';
 import { failureMessage, importMessage, phrase } from './messages';
+import { eligibleCandidates, importEligible, type BulkRun } from './import';
 import { planKey, type CustomCategory } from './presets';
+
+export type { BulkRun } from './import';
 
 /** The sentence a refused group move shows on its row. */
 const GROUP_NOT_SAVED = msg('Could not be saved. Nothing changed.');
@@ -42,26 +45,6 @@ export interface DraftPlan {
   preview: Preview | null;
   failed: boolean;
 }
-
-/** One bulk import run: what each entry did, and what stayed out and why. */
-export interface BulkRun {
-  total: number;
-  done: number;
-  created: number;
-  newRevision: number;
-  unchanged: number;
-  failures: { name: string; text: string }[];
-  /** Why the run stopped early, when the library itself refused writes. */
-  stopped: string | null;
-  finished: boolean;
-}
-
-/** Codes that say the library cannot take writes at all: the run stops instead of failing item by item. */
-const LIBRARY_STOPS = new Set([
-  'storage_unavailable',
-  'storage_corrupt',
-  'storage_unsupported',
-]);
 
 export interface ArsenalState {
   tab: ArsenalTab;
@@ -159,6 +142,7 @@ export class ArsenalController {
     this.visible = visible;
     if (visible) {
       void this.refresh();
+      void this.loadSelections();
       if (this.state.tab === 'presets') void this.loadPresets();
       // The scan says which providers are installed and which composites exist for presets.
       if (this.state.discover === null) void this.discover();
@@ -392,12 +376,8 @@ export class ArsenalController {
    */
   async importEligible() {
     if (this.state.busy !== null) return;
-    const eligible = (this.state.discover?.candidates ?? []).filter(
-      (candidate) =>
-        candidate.importable &&
-        (candidate.status === 'not_imported' ||
-          candidate.status === 'source_changed'),
-    );
+    const candidates = this.state.discover?.candidates ?? [];
+    const eligible = eligibleCandidates(candidates);
     if (eligible.length === 0) {
       this.set({
         notice: {
@@ -411,43 +391,16 @@ export class ArsenalController {
       });
       return;
     }
-    const run: BulkRun = {
-      total: eligible.length,
-      done: 0,
-      created: 0,
-      newRevision: 0,
-      unchanged: 0,
-      failures: [],
-      stopped: null,
-      finished: false,
-    };
-    this.set({ busy: 'import', notice: null, bulk: { ...run } });
-    for (const candidate of eligible) {
-      try {
-        const imported = await this.client.importSkill({
-          id: candidate.id,
-          kind: candidate.kind,
-          source: candidate.source,
-          name: candidate.name,
-        });
-        if (imported.outcome === 'created') run.created += 1;
-        else if (imported.outcome === 'new_revision') run.newRevision += 1;
-        else run.unchanged += 1;
-      } catch (error) {
-        if (LIBRARY_STOPS.has(failureOf(error))) {
-          run.stopped = failureMessage(error);
-          break;
-        }
-        run.failures.push({
-          name: candidate.name,
-          text: failureMessage(error),
-        });
-      }
-      run.done += 1;
-      this.set({ bulk: { ...run, failures: [...run.failures] } });
+    this.set({ busy: 'import', notice: null });
+    const run = await importEligible(
+      candidates,
+      this.client.importSkill,
+      (next) => this.set({ bulk: next }),
+    );
+    if (!run) {
+      this.set({ busy: null });
+      return;
     }
-    run.finished = true;
-    this.set({ bulk: { ...run, failures: [...run.failures] } });
     await this.discover();
     await this.refresh();
     const failed = run.failures.length + (run.stopped ? 1 : 0);

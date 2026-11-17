@@ -7,6 +7,7 @@ import type {
   ArsenalProvider,
   Guide,
   GuideEntry,
+  Selection,
 } from '../../contracts/arsenal';
 import type { ConfigItem } from '../../contracts/configuration';
 import { GROUP_LABEL, type Group } from './groups';
@@ -42,6 +43,13 @@ export type MapNode =
       count: number;
       tool: MapTool;
       section: 'hooks' | 'mcp' | 'global';
+    }
+  | {
+      kind: 'presets';
+      key: string;
+      label: string;
+      count: number;
+      tool: ArsenalProvider;
     };
 
 export interface MapText {
@@ -56,6 +64,7 @@ export interface MapText {
   hookEvent: (event: string) => string;
   mcp: string;
   configuration: string;
+  presets: string;
   setName: (key: string) => string;
   category: (label: string) => string;
 }
@@ -108,6 +117,7 @@ export function mapOf(
   configItems: readonly ConfigItem[],
   tools: readonly MapTool[],
   text: MapText,
+  selections: readonly Selection[] = [],
 ): MapNode[] {
   return tools
     .map((tool): MapNode => {
@@ -155,6 +165,14 @@ export function mapOf(
               byGroup(`${tool}/agents`, agents, 'mine', text),
             ),
           );
+        kinds.push({
+          kind: 'presets',
+          key: `${tool}/presets`,
+          label: text.presets,
+          count: selections.filter((selection) => selection.provider === tool)
+            .length,
+          tool,
+        });
       }
       // Hooks are a branch like skills: by event, then each hook (Claude Code and Codex).
       const withHooks = tool === 'claude_code' || tool === 'codex';

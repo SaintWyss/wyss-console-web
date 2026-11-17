@@ -4,6 +4,7 @@
   import type { GuideEntry } from '../../contracts/arsenal';
   import { firstSentence, matches } from './guide';
   import { hookCommand, scriptName } from './hook';
+  import type { ArsenalProvider } from '../../contracts/arsenal';
   import type { MapNode, MapTool } from './map';
 
   /**
@@ -24,10 +25,14 @@
     onlist = () => undefined,
     onitem = () => undefined,
     onparked = () => undefined,
+    onpresets = () => undefined,
     listTop,
+    presetsView,
   }: {
     /** Hooks kept aside were chosen: they show at the side like a configuration page. */
     onparked?: (key: string) => void;
+    onpresets?: (tool: ArsenalProvider) => void;
+    presetsView?: import('svelte').Snippet;
     /** A configuration item (a hook) was chosen: its card opens like an entry's. */
     onitem?: (item: import('../../contracts/configuration').ConfigItem) => void;
     /** Drawn over the list of a branch, with its key: e.g. "Add a hook" over a hook event. */
@@ -75,16 +80,21 @@
     opened = new Set(path);
   });
 
-  function find(nodes: MapNode[], key: string): Branch | null {
+  function findNode(nodes: MapNode[], key: string): MapNode | null {
     for (const n of nodes) {
-      if (n.kind !== 'branch') continue;
       if (n.key === key) return n;
-      const inner = find(n.children, key);
-      if (inner) return inner;
+      if (n.kind === 'branch') {
+        const inner = findNode(n.children, key);
+        if (inner) return inner;
+      }
     }
     return null;
   }
-  const shown = $derived(selected ? find(roots, selected) : null);
+  const selectedNode = $derived(selected ? findNode(roots, selected) : null);
+  const shown = $derived(selectedNode?.kind === 'branch' ? selectedNode : null);
+  const presetsShown = $derived(
+    selectedNode?.kind === 'presets' ? selectedNode : null,
+  );
   const entries = $derived(
     shown
       ? shown.children.filter(
@@ -154,6 +164,11 @@
       selected = node.key;
       return onconfig(node.tool, node.section);
     }
+    if (node.kind === 'presets') {
+      selected = node.key;
+      query = '';
+      return onpresets(node.tool);
+    }
     if (node.kind !== 'branch') return;
     if (isList(node)) {
       selected = node.key;
@@ -219,6 +234,8 @@
                   <span class="ab-count">{node.count}</span>
                 {:else if node.kind === 'config'}
                   <span class="ab-count">{node.count}</span>
+                {:else if node.kind === 'presets'}
+                  <span class="ab-count">{node.count}</span>
                 {/if}
               </button>
               {#if folds && node.kind === 'branch' && opened.has(node.key)}
@@ -237,6 +254,8 @@
       {@render configView()}
     {:else if openId !== null}
       <!-- The card says where it is: no list title over it. -->
+    {:else if presetsShown}
+      <!-- The preset panel supplies its own heading. -->
     {:else if query.trim() !== ''}
       <h2 class="ab-title">
         {t('{n} found for “{q}”', { n: found.length, q: query.trim() })}
@@ -246,8 +265,11 @@
         {shown.label}
         <span class="ars-count">{entries.length + items.length}</span>
       </h2>
-    {:else if listed.length === 0}
+    {:else if !presetsShown && listed.length === 0}
       <p class="lib-muted">{t('Choose a category in the tree.')}</p>
+    {/if}
+    {#if presetsShown && presetsView && !configShown && openId === null}
+      {@render presetsView()}
     {/if}
     {#if shown && listTop && openId === null && query.trim() === '' && !configShown}
       {@render listTop(shown.key)}

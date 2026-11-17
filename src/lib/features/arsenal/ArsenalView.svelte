@@ -1058,10 +1058,7 @@
         class="arsenal-panel"
       >
         {#if arsenal.sync?.enabled}
-          <SyncLine
-            sync={arsenal.sync}
-            onsyncnow={() => controller.syncNow()}
-          />
+          <SyncLine sync={arsenal.sync} />
         {/if}
         <p class="configuration-note">
           {t(

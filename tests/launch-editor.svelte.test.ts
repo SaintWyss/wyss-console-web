@@ -277,6 +277,35 @@ it('groups launches by role and shows the estimated context', async () => {
   expect(text('.le-total')).toContain('MCP not measured');
 });
 
+it('opens a new launch draft from the selected preset and keeps that preset on save', async () => {
+  const onpresetused = vi.fn();
+  const { calls } = await show(
+    [],
+    {},
+    {
+      createPreset: { request: 12, selection: sel },
+      onpresetused,
+    },
+  );
+  expect(onpresetused).toHaveBeenCalledWith(12);
+  expect(
+    document.querySelector<HTMLInputElement>('[aria-label="Launch name"]')
+      ?.value,
+  ).toBe('Estudio');
+  rename('Estudio nuevo');
+  button('Save').click();
+  await settle();
+  const saved = ipc.find((call) => call.command === 'launch_save')!.args as {
+    request: Record<string, unknown>;
+  };
+  expect(saved.request).toMatchObject({
+    name: 'Estudio nuevo',
+    agent: 'claude_code',
+    preset: 'Estudio',
+  });
+  expect(calls.saveSelection).toBeUndefined();
+});
+
 it('copies a shared preset to the launch’s own, and keeps what it does not show', async () => {
   const { calls } = await show([
     session('estudiar', 'Estudio'),

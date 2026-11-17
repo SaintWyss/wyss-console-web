@@ -8,6 +8,8 @@
   import { parserNote } from './parser-status';
   import { t, tPhrase } from '../../i18n/index.svelte';
   import { tabStartedWith } from '../native/present';
+  import type { NativeSession } from '../../contracts/native';
+  import type { NativeController } from '../native/controller';
   let {
     session,
     tabId,
@@ -17,6 +19,10 @@
     searching,
     manager,
     onsearchclose,
+    nativeRecord = null,
+    nativeController = null,
+    nativeStarting = false,
+    m9Blocked = false,
   }: {
     session: TerminalSession;
     /** The tab the pane belongs to: the panel is labelled by it. */
@@ -30,11 +36,27 @@
     searching: boolean;
     manager: TerminalSessionManager;
     onsearchclose: () => void;
+    nativeRecord?: NativeSession | null;
+    nativeController?: Pick<
+      NativeController,
+      'clearFailure' | 'stop' | 'restart' | 'forget'
+    > | null;
+    nativeStarting?: boolean;
+    m9Blocked?: boolean;
   } = $props();
   let host: HTMLDivElement;
   const note = $derived(parserNote(session.view));
   /** The permission a native session was started with; none when it started as configured. */
   const startedWith = $derived(tabStartedWith(session.native?.profile ?? null));
+  const nativeActionState = $derived(
+    !session.native || !nativeRecord
+      ? null
+      : nativeRecord.state === 'running'
+        ? 'running'
+        : nativeRecord.state === 'requested'
+          ? null
+          : 'finished',
+  );
   let query = $state('');
   let caseSensitive = $state(false);
   let result = $state({ total: 0, current: 0 });
@@ -61,6 +83,36 @@
       event.preventDefault();
       find(event.shiftKey ? -1 : 1);
     }
+  }
+  async function stopNative() {
+    if (!nativeController || !session.native || nativeActionState !== 'running')
+      return;
+    nativeController.clearFailure();
+    await nativeController.stop(session.native.sessionId);
+  }
+  async function restartNative() {
+    if (
+      !nativeController ||
+      !session.native ||
+      nativeActionState === null ||
+      nativeStarting ||
+      m9Blocked
+    )
+      return;
+    nativeController.clearFailure();
+    if (await nativeController.restart(session.native.sessionId))
+      await manager.closeTab(tabId);
+  }
+  async function forgetNative() {
+    if (
+      !nativeController ||
+      !session.native ||
+      nativeActionState !== 'finished'
+    )
+      return;
+    nativeController.clearFailure();
+    await nativeController.forget(session.native.sessionId);
+    await manager.closeTab(tabId);
   }
 </script>
 
@@ -124,6 +176,35 @@
       >
         {t(note.text, note.values)}
       </p>
+    {/if}
+    {#if nativeActionState && nativeController}
+      <div
+        class="native-panel-actions"
+        role="group"
+        aria-label={t('Agent actions')}
+      >
+        {#if nativeActionState === 'running'}
+          <button type="button" class="action" onclick={() => void stopNative()}
+            >{t('Stop')}</button
+          >
+        {/if}
+        <button
+          type="button"
+          class="action"
+          disabled={nativeStarting || m9Blocked}
+          onclick={() => void restartNative()}
+          >{nativeActionState === 'running'
+            ? t('Restart')
+            : t('Start it again')}</button
+        >
+        {#if nativeActionState === 'finished'}
+          <button
+            type="button"
+            class="action"
+            onclick={() => void forgetNative()}>{t('Forget')}</button
+          >
+        {/if}
+      </div>
     {/if}
   </div>
   {#if session.view.inputNotice}

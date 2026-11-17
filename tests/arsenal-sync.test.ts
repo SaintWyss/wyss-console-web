@@ -94,10 +94,9 @@ it('puts errors, waiting changes and recent conflicts before anything else', () 
   }
 });
 
-it('shows the line with its details and asks for a run on request', () => {
+it('shows the line with its details and has no manual sync button', () => {
   vi.useFakeTimers();
   vi.setSystemTime(NOW * 1000);
-  const onsyncnow = vi.fn();
   component = mount(SyncLine, {
     target: document.body,
     props: {
@@ -111,7 +110,6 @@ it('shows the line with its details and asks for a run on request', () => {
           },
         ],
       }),
-      onsyncnow,
     },
   });
   flushSync();
@@ -122,10 +120,18 @@ it('shows the line with its details and asks for a run on request', () => {
   expect(text).toContain('leaky');
   expect(text).not.toContain('Deleted on another computer');
   expect(document.querySelector('[role="status"]')).not.toBeNull();
-  [...document.querySelectorAll('button')]
-    .find((b) => b.textContent === 'Check now')!
-    .click();
-  expect(onsyncnow).toHaveBeenCalledOnce();
+  expect(document.querySelector('button')).toBeNull();
+});
+
+it('hides the status line while synchronization is healthy', () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(NOW * 1000);
+  component = mount(SyncLine, {
+    target: document.body,
+    props: { sync: status() },
+  });
+  flushSync();
+  expect(document.querySelector('.arsenal-sync')).toBeNull();
 });
 
 it('reads the library again when synchronization changed it, and only then', async () => {
@@ -182,7 +188,7 @@ it('reports what another computer deleted, and that a copy is kept here', () => 
   );
   component = mount(SyncLine, {
     target: document.body,
-    props: { sync: status({ removed }), onsyncnow: () => {} },
+    props: { sync: status({ removed }) },
   });
   flushSync();
   const text = document.body.textContent?.replace(/\s+/g, ' ') ?? '';

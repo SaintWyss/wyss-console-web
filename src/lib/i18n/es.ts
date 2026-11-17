@@ -110,6 +110,13 @@ export const ES: Readonly<Record<string, string>> = {
   'Local terminal workspace': 'Terminales locales',
   Workspace: 'Workspace',
   'Agents running in your terminals': 'Agentes que corren en tus terminales',
+  'Agent actions': 'Acciones del agente',
+  'Agent registry': 'Registro de agentes',
+  'Start it again': 'Volver a iniciar',
+  '{finished} agents finished in the registry ({lost} lost)':
+    '{finished} agentes terminados en el registro ({lost} perdidos)',
+  'Reopen {count} lost agents': 'Volver a abrir los {count} agentes perdidos',
+  'Clear the registry': 'Limpiar el registro',
   Sessions: 'Sesiones',
   'Managed agent sessions': 'Sesiones de agentes Managed',
   Agents: 'Agentes',
@@ -121,6 +128,33 @@ export const ES: Readonly<Record<string, string>> = {
   'What the authority recorded': 'Lo que registró la autoridad',
   Arsenal: 'Arsenal',
   'Installed capabilities': 'Capacidades instaladas',
+  'Library: {imported} imported · {new} new on disk':
+    'Biblioteca: {imported} importadas · {new} nuevas en disco',
+  'Searching for new capabilities…': 'Buscando capacidades nuevas…',
+  'New capabilities could not be read.':
+    'No se pudieron leer las capacidades nuevas.',
+  'Import the {count} new capabilities':
+    'Importar las {count} capacidades nuevas',
+  'No presets for this tool.': 'No hay presets para esta herramienta.',
+  'Duplicate preset names block launches using that name.':
+    'Los nombres de preset duplicados impiden iniciar lanzamientos que los usan.',
+  'Duplicate name': 'Nombre duplicado',
+  'Edit launch {name} in Workspace':
+    'Editar el lanzamiento {name} en Workspace',
+  'No launch uses this preset.': 'Ningún lanzamiento usa este preset.',
+  'Create launch with it': 'Crear un lanzamiento con este preset',
+  'Remove duplicate preset names before creating a launch.':
+    'Borrá los presets con nombres duplicados antes de crear un lanzamiento.',
+  'No launch on this computer uses this preset. Deleting it syncs to the other computer; its launches are not visible here.':
+    'Ningún lanzamiento de esta computadora usa este preset. Al borrarlo, el cambio se sincroniza con la otra computadora; sus lanzamientos no se ven acá.',
+  'Deleting this preset stops {launches} from starting. The deletion syncs to the other computer; its launches are not visible here.':
+    'Al borrar este preset, {launches} dejarán de iniciar. El borrado se sincroniza con la otra computadora; sus lanzamientos no se ven acá.',
+  'That preset is no longer available. Refresh and try again.':
+    'Ese preset ya no está disponible. Actualizá la lista y volvé a probar.',
+  'No preset named “{name}” for this agent. Create it in Workspace, or change the launch file.':
+    'No hay un preset llamado “{name}” para este agente. Crealo en Workspace o cambiá el archivo del lanzamiento.',
+  'More than one preset is named “{name}” for this agent. Delete the extra ones in Workspace, then start again.':
+    'Hay más de un preset llamado “{name}” para este agente. Borrá los sobrantes en Workspace y volvé a iniciar.',
   Configuration: 'Configuración',
   Models: 'Modelos',
 
@@ -2086,7 +2120,7 @@ export const ES: Readonly<Record<string, string>> = {
   'process {pid}': 'proceso {pid}',
   '{count} processes': '{count} procesos',
   Open: 'Abrir',
-  Stop: 'Detener',
+  Stop: 'Parar',
   Restart: 'Reiniciar',
   'Show terminal': 'Mostrar terminal',
   'Start again': 'Iniciar de nuevo',

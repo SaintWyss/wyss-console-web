@@ -1,9 +1,11 @@
 <script lang="ts">
   import { currentLanguage, msg, t } from '../../i18n/index.svelte';
   import type {
+    ArsenalProvider,
     GuideEntry,
     GuideSet,
     GuideSetKind,
+    Selection,
   } from '../../contracts/arsenal';
   import type { ConfigItem } from '../../contracts/configuration';
   import ConfigurationView from '../configuration/ConfigurationView.svelte';
@@ -25,6 +27,8 @@
     type Block as MdBlock,
   } from './guide';
   import ArsenalBrowser from './ArsenalBrowser.svelte';
+  import PresetsPanel from './PresetsPanel.svelte';
+  import SyncLine from './SyncLine.svelte';
   import { field, hookCommand, scriptName } from './hook';
   import { eventOf, matcherOf } from './map';
   import {
@@ -35,6 +39,7 @@
   } from '../configuration/present';
   import { mapOf, type MapNode, type MapTool } from './map';
   import type { GuideStore, GuideTool } from './guide-store.svelte';
+  import type { ArsenalController, ArsenalState } from './controller';
 
   /**
    * Arsenal as a guide (arsenal-UI-SPEC "Etapa 4", plan arsenal-skills-guia, step 1): the tool on
@@ -48,6 +53,10 @@
     configurationController,
     changes,
     changesController,
+    arsenal,
+    arsenalController,
+    oneditlaunch,
+    oncreatelaunch,
   }: {
     visible: boolean;
     store: GuideStore;
@@ -55,9 +64,14 @@
     configurationController: ConfigurationController;
     changes: ChangesState;
     changesController: ChangesController;
+    arsenal: ArsenalState;
+    arsenalController: ArsenalController;
+    oneditlaunch: (id: string) => void;
+    oncreatelaunch: (selection: Selection) => void;
   } = $props();
 
   const configItems = $derived(configuration.reply?.inventory.items ?? []);
+  let presetsProvider = $state<ArsenalProvider>('claude_code');
   const TOOLS = $derived.by(() => {
     const tools: { id: GuideTool; name: string }[] = [
       { id: 'claude_code', name: 'Claude Code' },
@@ -225,27 +239,34 @@
   /** The map's root: Arsenal, then each tool that has anything. */
   const mapRoots = $derived.by((): MapNode[] => {
     const tools: MapTool[] = TOOLS.map((x) => x.id);
-    const children = mapOf(store.guide, configItems, tools, {
-      tool: {
-        claude_code: 'Anthropic · Claude Code',
-        codex: 'OpenAI · Codex',
-        opencode: 'OpenCode',
+    const children = mapOf(
+      store.guide,
+      configItems,
+      tools,
+      {
+        tool: {
+          claude_code: 'Anthropic · Claude Code',
+          codex: 'OpenAI · Codex',
+          opencode: 'OpenCode',
+        },
+        skills: t('Skills'),
+        agents: t('Agents'),
+        personal: t('Personal'),
+        sets: t('Sets'),
+        hooks: t('Hooks'),
+        keptAside: t('Kept aside'),
+        hookEvent: (event) => t(HOOK_EVENT_NAME[event] ?? event),
+        mcp: t('MCP'),
+        configuration: t('Configuration'),
+        presets: t('Presets'),
+        setName: (key) => {
+          const set = store.guide?.sets.find((x) => x.key === key);
+          return set ? setTitle(set) : key;
+        },
+        category: (label) => t(label),
       },
-      skills: t('Skills'),
-      agents: t('Agents'),
-      personal: t('Personal'),
-      sets: t('Sets'),
-      hooks: t('Hooks'),
-      keptAside: t('Kept aside'),
-      hookEvent: (event) => t(HOOK_EVENT_NAME[event] ?? event),
-      mcp: t('MCP'),
-      configuration: t('Configuration'),
-      setName: (key) => {
-        const set = store.guide?.sets.find((x) => x.key === key);
-        return set ? setTitle(set) : key;
-      },
-      category: (label) => t(label),
-    });
+      arsenal.selections,
+    );
     return [
       {
         kind: 'branch',
@@ -307,6 +328,14 @@
     showParked(false);
     store.choose({ tool, section });
   }
+  function openPresets(tool: ArsenalProvider) {
+    showParked(false);
+    leave();
+    store.close();
+    openItemId = null;
+    presetsProvider = tool;
+    store.choose({ tool, section: 'origin:mine' });
+  }
 </script>
 
 <svelte:window
@@ -365,6 +394,21 @@
         controller={configurationController}
         {changes}
         {changesController}
+      />
+    </div>
+  {/snippet}
+  {#snippet presetsPanel()}
+    <div class="ars-config-inline">
+      {#if arsenal.sync}
+        <SyncLine sync={arsenal.sync} />
+      {/if}
+      <PresetsPanel
+        {visible}
+        provider={presetsProvider}
+        {arsenal}
+        controller={arsenalController}
+        onedit={oneditlaunch}
+        oncreate={oncreatelaunch}
       />
     </div>
   {/snippet}
@@ -740,6 +784,8 @@
       roots={mapRoots[0]?.kind === 'branch' ? mapRoots[0].children : []}
       onentry={choose}
       onconfig={openConfig}
+      onpresets={openPresets}
+      presetsView={presetsPanel}
       openId={open?.id ?? openItem?.id ?? null}
       onclose={() => (openItem ? closeItem() : back())}
       card={openItem ? itemBody : cardBody}

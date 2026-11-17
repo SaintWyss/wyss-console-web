@@ -955,6 +955,18 @@ code,
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   background: var(--surface);
 }
+.native-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-left: auto;
+}
+.native-panel-actions .action,
+.launch-registry-actions .action {
+  min-height: 28px;
+  padding-inline: 9px;
+  font-size: var(--text-xs);
+}
 /* Where the keyboard goes, when there is more than one pane to tell apart. */
 .pane-area:has(> .terminal-panel:not([hidden]) ~ .terminal-panel:not([hidden]))
   .terminal-panel.focused
@@ -1261,12 +1273,30 @@ code,
   background: transparent;
 }
 .launch-foot {
+  display: grid;
+  gap: 8px;
+  padding: 4px 4px 0;
+  border-top: 1px solid var(--line);
+}
+.launch-registry {
+  display: grid;
+  gap: 6px;
+}
+.launch-registry p {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+.launch-registry-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.launch-foot-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 4px 4px 0;
-  border-top: 1px solid var(--line);
 }
 .launch-foot .launch-folder {
   min-width: 0;

@@ -9,6 +9,7 @@
     WorkspaceState,
   } from './session-manager';
   import type { ConsoleSessionId } from '../../contracts/identities';
+  import type { NativeController, NativeState } from '../native/controller';
   import { registerWorkspace } from '../native/bridge';
   import TerminalPanel from './TerminalPanel.svelte';
   import { listLaunches, type LaunchList } from '../../desktop/launch-client';
@@ -17,6 +18,7 @@
     BYPASS_WARNING,
     PERMISSION_LABEL,
     failureText,
+    restorable,
   } from '../native/present';
   import { workspaceErrorText } from './failure-words';
   import {
@@ -36,11 +38,24 @@
   } from '../workspace/data';
   import { kTokens } from '../workspace/estimate';
   import { terminalGitStatus } from '../../desktop/terminal-client';
+
+  const EMPTY_NATIVE: NativeState = {
+    phase: 'idle',
+    launcher: null,
+    sessions: [],
+    starting: false,
+    failure: null,
+    m9Uncertain: false,
+    m9Blocked: false,
+    checkingLauncher: false,
+  };
   let {
     onworkspace,
     visible = true,
     legend = $bindable(false),
     launchesOpen = $bindable(false),
+    native = EMPTY_NATIVE,
+    nativeController = null,
   }: {
     onworkspace?: (state: WorkspaceState) => void;
     /** False while another view is shown. The terminals keep running. */
@@ -49,6 +64,8 @@
     legend?: boolean;
     /** The Launch menu, opened from the Console's toolbar. */
     launchesOpen?: boolean;
+    native?: NativeState;
+    nativeController?: NativeController | null;
   } = $props();
   let workspace = $state<WorkspaceState>({
     sessions: [],
@@ -73,6 +90,12 @@
   } | null>(null);
   let launchOrder = $state<string[]>(loadOrder());
   let reordering = $state(false);
+  const finishedNative = $derived(
+    native.sessions.filter(
+      (session) => session.state !== 'running' && session.state !== 'requested',
+    ),
+  );
+  const lostNative = $derived(restorable(native.sessions));
   const ordered = $derived(
     Array.isArray(launches?.launches)
       ? applyOrder(launches.launches, launchOrder)
@@ -153,6 +176,7 @@
   export async function toggleLaunches() {
     launchesOpen = !launchesOpen;
     if (!launchesOpen) return;
+    nativeController?.refreshSessions();
     launchError = null;
     try {
       launches = await listLaunches();
@@ -502,17 +526,55 @@
           </p>
         {/each}
         <div class="launch-foot">
-          <span class="launch-folder"
-            >{t('Files in {folder}', { folder: launches.folder })}</span
-          >
-          {#if ordered.length > 1}
-            <button
-              class="launch-order"
-              aria-pressed={reordering}
-              onclick={() => (reordering = !reordering)}
-              >{reordering ? t('Done') : t('Order')}</button
+          {#if finishedNative.length > 0}
+            <div
+              class="launch-registry"
+              role="group"
+              aria-label={t('Agent registry')}
             >
+              <p>
+                {t('{finished} agents finished in the registry ({lost} lost)', {
+                  finished: finishedNative.length,
+                  lost: lostNative.length,
+                })}
+              </p>
+              <div class="launch-registry-actions">
+                {#if lostNative.length > 0 && nativeController}
+                  <button
+                    type="button"
+                    class="action"
+                    disabled={native.starting}
+                    onclick={() => void nativeController.restoreLost()}
+                    >{t('Reopen {count} lost agents', {
+                      count: lostNative.length,
+                    })}</button
+                  >
+                {/if}
+                {#if nativeController}
+                  <button
+                    type="button"
+                    class="action"
+                    disabled={native.starting}
+                    onclick={() => void nativeController.forgetFinished()}
+                    >{t('Clear the registry')}</button
+                  >
+                {/if}
+              </div>
+            </div>
           {/if}
+          <div class="launch-foot-row">
+            <span class="launch-folder"
+              >{t('Files in {folder}', { folder: launches.folder })}</span
+            >
+            {#if ordered.length > 1}
+              <button
+                class="launch-order"
+                aria-pressed={reordering}
+                onclick={() => (reordering = !reordering)}
+                >{reordering ? t('Done') : t('Order')}</button
+              >
+            {/if}
+          </div>
         </div>
       {/if}
     </div>
@@ -535,6 +597,14 @@
           ? tIncoming(launchError.text)
           : launchError.text}
     </p>{/if}
+  {#if native.failure}
+    <p role="alert" class="workspace-error">
+      {t(failureText(native.failure.code))}
+      {#each native.failure.reasons as reason (reason)}
+        <br />{tIncoming(reason)}
+      {/each}
+    </p>
+  {/if}
   {#if launchNote}<p role="status" class="launch-note">
       {#each launchNote as note, index (index)}{index > 0 ? ' ' : ''}{t(
           note.text,
@@ -548,8 +618,17 @@
     {#if manager}
       {#each workspace.sessions as session (session.id)}
         {@const tab = tabOf(session.id)}
+        {@const nativeRecord = session.native
+          ? (native.sessions.find(
+              (record) => record.id === session.native?.sessionId,
+            ) ?? null)
+          : null}
         <TerminalPanel
           {session}
+          {nativeRecord}
+          {nativeController}
+          nativeStarting={native.starting}
+          m9Blocked={native.m9Blocked}
           tabId={tab?.id ?? ''}
           visible={!!tab && tab.id === workspace.activeTab}
           focused={workspace.active === session.id}

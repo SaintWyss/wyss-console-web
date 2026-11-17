@@ -63,6 +63,8 @@
     choose,
     onopen,
     select = null,
+    createPreset = null,
+    onpresetused = () => undefined,
     client = arsenalClient,
     launches: loadLaunches = listLaunches,
   }: {
@@ -75,6 +77,9 @@
     onopen: (id: string) => void;
     /** A launch to show when it appears: one just made elsewhere (a distributor's). */
     select?: string | null;
+    /** A new launch prefilled from an existing Arsenal preset. */
+    createPreset?: { request: number; selection: Selection } | null;
+    onpresetused?: (request: number) => void;
     client?: ArsenalClient;
     launches?: typeof listLaunches;
   } = $props();
@@ -166,6 +171,7 @@
   let foldersOpen = $state(false);
   /** The draft dropped a hook its preset left out that hooks.json no longer has. */
   let staleHooks = $state(false);
+  let usedPresetRequest: number | null = null;
   let itemPlan = $state<PlanItem[]>([]);
   let itemPlanState = $state<'loading' | 'ready' | 'failed'>('loading');
   const unavailable = (item: PlanItem) =>
@@ -252,6 +258,24 @@
     const found = launches.find((l) => l.id === id);
     if (found) untrack(() => selected !== found.id && pick(found));
   });
+  $effect(() => {
+    const request = createPreset;
+    if (
+      !visible ||
+      phase !== 'ready' ||
+      !request ||
+      usedPresetRequest === request.request
+    )
+      return;
+    usedPresetRequest = request.request;
+    const selection = data.selections.find(
+      (candidate) => candidate.id === request.selection.id,
+    );
+    if (selection) pickPreset(selection);
+    else
+      error = t('That preset is no longer available. Refresh and try again.');
+    onpresetused(request.request);
+  });
 
   function draftOf(launch: Launch | null): LaunchDraft {
     if (!launch || launch.kind !== 'session') {
@@ -336,6 +360,58 @@
         staleHooks = true;
       }
     }
+    draft = fresh;
+    error = null;
+    notice = null;
+    confirming = false;
+  }
+  function freeLaunchName(name: string): string {
+    const base = name.trim() || t('New launch');
+    const usedIds = new Set(launches.map((launch) => launch.id));
+    for (let suffix = 1; suffix < 10_000; suffix++) {
+      const addition = suffix === 1 ? '' : ` ${suffix}`;
+      const stem = base.slice(0, Math.max(1, 36 - addition.length)).trimEnd();
+      const candidate = `${stem}${addition}`;
+      const id = launchId(candidate);
+      if (id && !usedIds.has(id)) return candidate;
+    }
+    return t('New launch');
+  }
+  function pickPreset(selection: Selection) {
+    const fresh = draftOf(null);
+    fresh.name = freeLaunchName(selection.name);
+    fresh.agent = selection.provider;
+    fresh.selection = selection;
+    fresh.items = selection.items.map((item) => ({ ...item }));
+    fresh.composites = [...selection.composites];
+    fresh.spec =
+      selection.provider === 'claude_code' &&
+      !unreadableFor(selection, 'claude_code')
+        ? { ...(data.environments.get(selection.id) ?? DEFAULT_SPEC) }
+        : null;
+    fresh.codexSpec =
+      selection.provider === 'codex' && !unreadableFor(selection, 'codex')
+        ? {
+            ...(data.codexEnvironments.get(selection.id) ?? DEFAULT_CODEX_SPEC),
+          }
+        : null;
+    fresh.instructions = data.instructionsFailed?.has(selection.id)
+      ? null
+      : (data.launchInstructions?.get(selection.id) ?? { project: 'load' });
+
+    staleHooks = false;
+    const listed = data.codexOptions?.hooks.map((hook) => hook.key);
+    if (fresh.codexSpec && listed) {
+      const kept = fresh.codexSpec.hooks_off.filter((key) =>
+        listed.includes(key),
+      );
+      if (kept.length !== fresh.codexSpec.hooks_off.length) {
+        fresh.codexSpec = { ...fresh.codexSpec, hooks_off: kept };
+        staleHooks = true;
+      }
+    }
+    selected = 'new';
+    baseline = JSON.stringify(fresh);
     draft = fresh;
     error = null;
     notice = null;

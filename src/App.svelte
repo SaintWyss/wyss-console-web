@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
+  import type { Selection } from './lib/contracts/arsenal';
   import type { ManagedSessionId } from './lib/contracts/identities';
   import type { SessionSummary } from './lib/contracts/sessions';
   import { getAppInfo } from './lib/desktop/client';
@@ -246,6 +247,7 @@
   onMount(() => {
     let active = true;
     settingsController.start();
+    nativeController.start0();
     void getAppInfo().then(
       (info) => {
         if (active) version = info.version;
@@ -283,6 +285,11 @@
 
   /** A launch just made from a distributor: Workspace opens on it. */
   let launchToOpen = $state<string | null>(null);
+  let launchToCreate = $state<{
+    request: number;
+    selection: Selection;
+  } | null>(null);
+  let createLaunchRequest = 0;
   // The Personalization tab last visited: the rail opens it again.
   let personalTab = $state<ViewId>('distributors');
   $effect(() => {
@@ -412,6 +419,8 @@
         bind:this={terminal}
         bind:legend
         bind:launchesOpen={launchOpen}
+        {native}
+        {nativeController}
         visible={activeView === 'console'}
         onworkspace={observeWorkspace}
       />
@@ -422,6 +431,10 @@
       choose={() => nativeController.choose()}
       onopen={(id) => void openInConsole(id)}
       select={launchToOpen}
+      createPreset={launchToCreate}
+      onpresetused={(request) => {
+        if (launchToCreate?.request === request) launchToCreate = null;
+      }}
     />
     <WorkspaceView
       visible={activeView === 'workspace'}
@@ -487,6 +500,18 @@
           {configurationController}
           {changes}
           {changesController}
+          {arsenal}
+          {arsenalController}
+          oneditlaunch={(id) => {
+            launchToCreate = null;
+            launchToOpen = id;
+            go('launches');
+          }}
+          oncreatelaunch={(selection) => {
+            launchToOpen = null;
+            launchToCreate = { request: ++createLaunchRequest, selection };
+            go('launches');
+          }}
         />
         <ArsenalView
           visible={activeView === 'arsenal-presets'}

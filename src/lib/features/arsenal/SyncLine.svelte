@@ -3,13 +3,7 @@
   import { msg, t, tPhrase } from '../../i18n/index.svelte';
   import { ago, syncSummary } from './sync-present';
 
-  let {
-    sync,
-    onsyncnow,
-  }: {
-    sync: SyncStatus;
-    onsyncnow: () => void;
-  } = $props();
+  let { sync }: { sync: SyncStatus } = $props();
 
   const now = () => Math.floor(Date.now() / 1000);
   const summary = $derived(syncSummary(sync, now()));
@@ -23,68 +17,67 @@
   );
 </script>
 
-<section
-  class="arsenal-sync stripe"
-  data-tone={summary.tone}
-  aria-label={t('Synchronization')}
->
-  <p class="arsenal-sync-line" role="status" aria-live="polite">
-    <span class="badge" data-tone={summary.tone}
-      ><span aria-hidden="true">{summary.symbol}</span>
-      {tPhrase(summary.label)}</span
-    >
-    <span class="arsenal-sync-text">{tPhrase(summary.text)}</span>
-  </p>
-  <details class="arsenal-sync-details">
-    <summary>{t('Synchronization details')}</summary>
-    <dl class="sync-facts">
-      <dt>{t('This computer')}</dt>
-      <dd>
-        {t('{host} · {count} change(s) published', {
-          host: sync.host,
-          count: sync.published,
-        })}
-      </dd>
-      <dt>{t('Shared folder')}</dt>
-      <dd><code>{sync.folder}</code> {t('(Syncthing carries it)')}</dd>
-      <dt>{t('Last check')}</dt>
-      <dd>
-        {sync.last_success
-          ? tPhrase(ago(sync.last_success, now()))
-          : t('not yet')}
-      </dd>
-      {#each sync.peers as peer (peer.device)}
-        <dt>{peer.host}</dt>
+{#if summary.tone !== 'ok'}
+  <section
+    class="arsenal-sync stripe"
+    data-tone={summary.tone}
+    aria-label={t('Synchronization')}
+  >
+    <p class="arsenal-sync-line" role="status" aria-live="polite">
+      <span class="badge" data-tone={summary.tone}
+        ><span aria-hidden="true">{summary.symbol}</span>
+        {tPhrase(summary.label)}</span
+      >
+      <span class="arsenal-sync-text">{tPhrase(summary.text)}</span>
+    </p>
+    <details class="arsenal-sync-details">
+      <summary>{t('Synchronization details')}</summary>
+      <dl class="sync-facts">
+        <dt>{t('This computer')}</dt>
         <dd>
-          {t('applied {applied} of {published} change(s) from here', {
-            applied: peer.applied_mine,
-            published: peer.published_mine,
+          {t('{host} · {count} change(s) published', {
+            host: sync.host,
+            count: sync.published,
           })}
-          {#if peer.last_heard}· {t('last heard {time}', {
-              time: ago(peer.last_heard, now()),
-            })}{/if}
         </dd>
-      {/each}
-    </dl>
-    {#each notes as group (group.title)}
-      <h4>{t(group.title)}</h4>
-      <ul class="arsenal-sync-notes">
-        {#each group.items as item (item.at + item.kind + item.name + item.detail)}
-          <li>
-            <strong>{item.name}</strong>
-            <span class="sync-muted"
-              >({item.kind}, {tPhrase(ago(item.at, now()))})</span
-            >
-            — {item.detail}
-          </li>
+        <dt>{t('Shared folder')}</dt>
+        <dd><code>{sync.folder}</code> {t('(Syncthing carries it)')}</dd>
+        <dt>{t('Last check')}</dt>
+        <dd>
+          {sync.last_success
+            ? tPhrase(ago(sync.last_success, now()))
+            : t('not yet')}
+        </dd>
+        {#each sync.peers as peer (peer.device)}
+          <dt>{peer.host}</dt>
+          <dd>
+            {t('applied {applied} of {published} change(s) from here', {
+              applied: peer.applied_mine,
+              published: peer.published_mine,
+            })}
+            {#if peer.last_heard}· {t('last heard {time}', {
+                time: ago(peer.last_heard, now()),
+              })}{/if}
+          </dd>
         {/each}
-      </ul>
-    {/each}
-    <button class="action" type="button" onclick={onsyncnow}
-      >{t('Check now')}</button
-    >
-  </details>
-</section>
+      </dl>
+      {#each notes as group (group.title)}
+        <h4>{t(group.title)}</h4>
+        <ul class="arsenal-sync-notes">
+          {#each group.items as item (item.at + item.kind + item.name + item.detail)}
+            <li>
+              <strong>{item.name}</strong>
+              <span class="sync-muted"
+                >({item.kind}, {tPhrase(ago(item.at, now()))})</span
+              >
+              — {item.detail}
+            </li>
+          {/each}
+        </ul>
+      {/each}
+    </details>
+  </section>
+{/if}
 
 <style>
   .arsenal-sync {
@@ -129,11 +122,6 @@
     gap: 4px;
     font-size: var(--text-sm);
     overflow-wrap: anywhere;
-  }
-  .arsenal-sync-details .action {
-    justify-self: start;
-    min-height: 30px;
-    font-size: var(--text-sm);
   }
   .sync-facts {
     display: grid;

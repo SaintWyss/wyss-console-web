@@ -254,7 +254,6 @@
     return () => clearInterval(timer);
   });
   onMount(() => {
-    controller.start0();
     void readBindings();
   });
 
