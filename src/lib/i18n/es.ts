@@ -13,6 +13,29 @@ import { ES_SCREENS } from './screens';
  * Tools, Native, Managed).
  */
 export const ES: Readonly<Record<string, string>> = {
+  'Not available: the instructions file could not be read.':
+    'No disponible: no se pudo leer el archivo de instrucciones.',
+  'This skills choice cannot be applied now: {reason} Check it before starting.':
+    'Esta selección de skills no se puede aplicar ahora: {reason} Revisala antes de iniciar.',
+  '{count} unavailable items were left out: {items}':
+    'Se excluyeron {count} ítems no disponibles: {items}',
+  'Files that could not be read': 'Archivos que no se pudieron leer',
+  'Detected on this computer: {id}': 'Detectada en esta computadora: {id}',
+  'No distribution here matches this computer: add one to start it here.':
+    'Ninguna distribución de acá coincide con esta computadora: agregá una para iniciarlo acá.',
+  'The launch folder is not available.':
+    'La carpeta de lanzamientos no está disponible.',
+  'Something unexpected happened. Try again.':
+    'Ocurrió algo inesperado. Volvé a intentarlo.',
+  'That folder is not registered. Choose it with Browse… and try again.':
+    'Esa carpeta no está registrada. Elegila con Examinar… y volvé a intentarlo.',
+  'This agent does not support launch plans.':
+    'Este agente no admite planes de lanzamiento.',
+  'The preset “{name}” cannot be applied: {reason} Nothing was started.':
+    'El preset «{name}» no se puede aplicar: {reason} No se inició nada.',
+  'Conflicting names: {names}.': 'Nombres en conflicto: {names}.',
+  'Conflicting methodologies: {names}.': 'Metodologías en conflicto: {names}.',
+
   // Console: terminal labels and the host's exact lifecycle explanations.
   Native: 'Native',
   '{agent} in {directory}': '{agent} en {directory}',
@@ -92,8 +115,8 @@ export const ES: Readonly<Record<string, string>> = {
   'Launches of a deleted role become Worker.':
     'Los lanzamientos de un rol borrado pasan a Trabajador.',
   New: 'Nuevo',
-  'of {total} · estimated, MCP not measured':
-    'de {total} · estimado, MCP sin medir',
+  'of {total} · estimated, MCP and hooks not measured':
+    'de {total} · estimado, MCP y hooks sin medir',
   'No estimate for Codex yet.': 'Todavía no hay estimación para Codex.',
   'Delete launch': 'Borrar lanzamiento',
   'Save and try': 'Guardar y probar',
@@ -114,8 +137,8 @@ export const ES: Readonly<Record<string, string>> = {
     'Declarados en config.toml: corren en todos los lanzamientos y no se pueden apagar por lanzamiento.',
   'Codex asks you to approve the hooks the first time in each new folder.':
     'Codex pedirá aprobar los hooks la primera vez en cada carpeta nueva.',
-  'For Codex a launch chooses skills, agents, AGENTS.md and the hooks of hooks.json. MCP servers and account skills are Claude Code only.':
-    'En Codex un lanzamiento elige skills, agentes, el AGENTS.md y los hooks de hooks.json. Los servidores MCP y las skills de la cuenta son solo de Claude Code.',
+  'For Codex a launch chooses skills, AGENTS.md and the hooks of hooks.json. MCP servers and account skills are Claude Code only.':
+    'En Codex un lanzamiento elige skills, AGENTS.md y los hooks de hooks.json. Los servidores MCP y las skills de la cuenta son solo de Claude Code.',
   '{on} of {all}': '{on} de {all}',
   'Nothing of this kind.': 'No hay nada de este tipo.',
   // Console: toolbar and session bar
@@ -2114,8 +2137,8 @@ export const ES: Readonly<Record<string, string>> = {
     'Agrega -y: responde que sí a todo, así la actualización corre hasta el final sin frenar. Sin esto, pregunta antes de instalar.',
   'Adds a line that removes packages nothing needs any more (left behind by earlier updates).':
     'Agrega una línea que borra paquetes que ya nada usa (los que dejaron actualizaciones anteriores).',
-  'Adds --noconfirm to pacman and paru: they answer yes on their own and do not stop to ask. Without it, they show what changes and wait for you.':
-    'Agrega --noconfirm a pacman y paru: responden que sí solos y no frenan a preguntar. Sin esto, te muestran qué cambia y esperan tu OK.',
+  'Adds --noconfirm to pacman and paru, and -y to flatpak: they answer yes on their own and do not stop to ask. Without it, they show what changes and wait for you.':
+    'Agrega --noconfirm a pacman y paru, y -y a flatpak: responden que sí automáticamente y no se detienen a preguntar. Sin eso, muestran los cambios y esperan tu confirmación.',
   'Adds “paru -Sua”: after the official packages, updates the ones installed from the AUR (built by the community). Needs paru installed.':
     'Agrega «paru -Sua»: después de los paquetes oficiales, actualiza los instalados desde el AUR (los arma la comunidad). Necesita paru instalado.',
   'Adds --skipreview to paru: it does not show each AUR package’s build script before building it. Faster, but you do not see what it runs.':
@@ -2147,16 +2170,16 @@ export const ES: Readonly<Record<string, string>> = {
     'Native: el agente corre como su propio programa en una terminal de la Consola, igual que si escribieras claude o codex. El otro modo, Managed (la Consola maneja la sesión), se arranca desde Sesiones, no desde un lanzamiento; por eso acá está fijo.',
   'Where the agent works: it reads and edits the files of this folder, and its project settings are this folder’s.':
     'Dónde trabaja el agente: lee y edita los archivos de esta carpeta, y usa la configuración de proyecto de esta carpeta.',
-  'About how much context the agent loads before you write anything, from what is switched on below. The bar compares it with everything switched on. MCP servers are not counted.':
-    'Cuánto contexto carga el agente, más o menos, antes de que escribas nada, según lo que esté prendido abajo. La barra lo compara con todo prendido. Los servidores MCP no se cuentan.',
+  'About how much context the agent loads before you write anything, from what is switched on below. The bar compares it with everything switched on. MCP servers and hook output are not measured.':
+    'Aproximadamente cuánto contexto carga el agente antes de que escribas algo, según lo que está activado abajo. La barra lo compara con todo activado. No se miden los servidores MCP ni la salida de los hooks.',
   'CLAUDE.md and the rules files Claude Code reads when it starts: what you told it to always follow. Switching one off saves context, and the agent no longer follows it.':
     'CLAUDE.md y los archivos de reglas que Claude Code lee al arrancar: lo que le pediste que siga siempre. Apagar uno ahorra contexto, y el agente deja de seguirlo.',
   'Know-how the agent loads when a task needs it. At start only each one’s short description takes context.':
     'Conocimientos que el agente carga cuando una tarea los necesita. Al arrancar solo ocupa contexto la descripción corta de cada uno.',
   'Outside tools the agent can call (browser, docs, Notion…). How much context they take is not measured.':
     'Herramientas externas que el agente puede usar (navegador, documentación, Notion…). No se mide cuánto contexto ocupan.',
-  'Helpers the agent can hand part of a task to, each with its own instructions.':
-    'Ayudantes a los que el agente puede pasarles parte de una tarea, cada uno con sus propias instrucciones.',
+  'Helpers the agent can hand part of a task to. Unticking one here does not switch it off: the agent loads its installed ones as usual.':
+    'Ayudantes a los que el agente puede delegar parte de una tarea. Destildar uno acá no lo apaga: el agente carga los que tiene instalados como siempre.',
   'The skills of your Claude account (claude.ai), on top of the ones installed on this computer.':
     'Las skills de tu cuenta de Claude (claude.ai), además de las instaladas en esta PC.',
   'Scripts that run on their own at fixed moments (before a command, when a turn ends…). The script takes no context, but what some of them print (at start, before each message) enters the conversation. Not measured.':
@@ -2217,8 +2240,8 @@ export const ES: Readonly<Record<string, string>> = {
   'What the agent may do without asking you. “As configured” passes nothing: the agent starts with the permissions of its own settings. The model and the effort are chosen inside the agent.':
     'Qué puede hacer el agente sin preguntarte. “Como está configurado” no pasa nada: el agente arranca con los permisos de su propia configuración. El modelo y el esfuerzo se eligen dentro del agente.',
   'Profile {name}': 'Perfil {name}',
-  'Which agent the launch starts: Claude Code (Anthropic) or Codex (OpenAI). Changing it starts the preset and the environment over, and a permission the other agent does not have.':
-    'Qué agente arranca el lanzamiento: Claude Code (Anthropic) o Codex (OpenAI). Si lo cambiás, el preset y el entorno vuelven a cero, y también un permiso que el otro agente no tiene.',
+  'Which agent the launch starts: Claude Code (Anthropic) or Codex (OpenAI). Changing it resets the preset, skills, environment and project instructions; the permission stays if the other agent has it too.':
+    'Qué agente inicia el lanzamiento: Claude Code (Anthropic) o Codex (OpenAI). Cambiarlo reinicia el preset, las skills, el entorno y las instrucciones del proyecto; el permiso se conserva si el otro agente también lo admite.',
   'The agent asks before every change.':
     'El agente pregunta antes de cada cambio.',
   'The agent reads and plans; it changes nothing.':
@@ -2307,9 +2330,9 @@ export const ES: Readonly<Record<string, string>> = {
     'La descripción es más larga: se muestra solo el comienzo.',
   'The folder holds more files than are counted here.':
     'La carpeta tiene más archivos de los que se cuentan acá.',
-  "Load the project's": 'Cargar las del proyecto',
-  "Without the project's": 'Sin las del proyecto',
-  'Own role': 'Rol propio',
+  'Load project instructions': 'Cargar instrucciones del proyecto',
+  'Skip project instructions': 'Omitir instrucciones del proyecto',
+  'Custom instructions': 'Instrucciones propias',
   'Without project instructions, the agent does not read the project instructions or rules. Your global instructions follow their switch.':
     'Sin las instrucciones del proyecto, el agente no lee sus instrucciones ni reglas. Tus instrucciones globales siguen su interruptor.',
   'The text applies at start. Another open terminal of this launch may see it change; resuming a conversation keeps what it already had.':
@@ -2327,8 +2350,8 @@ export const ES: Readonly<Record<string, string>> = {
   'The combined global instructions and role are too long for Codex. Nothing was started.':
     'Las instrucciones globales y el rol juntos son demasiado largos para Codex. No se inició nada.',
   'Loads the project instructions.': 'Carga las instrucciones del proyecto.',
-  'The launch plan could not be read. Check the folder and try again.':
-    'No se pudo leer el plan del lanzamiento. Revisá la carpeta y volvé a intentarlo.',
+  'The launch plan could not be read: {reason}':
+    'No se pudo leer el plan del lanzamiento: {reason}',
   'The preset “{name}” cannot be applied because these items are missing or rejected: {items}, and {count} more. Uncheck them or restore them in Arsenal. Nothing was started.':
     'El preset «{name}» no se puede aplicar porque estos ítems faltan o fueron rechazados: {items}, y {count} más. Destildalos o restauralos en el Arsenal. No se inició nada.',
   'The preset “{name}” cannot be applied because these items are missing or rejected: {items}. Uncheck them or restore them in Arsenal. Nothing was started.':

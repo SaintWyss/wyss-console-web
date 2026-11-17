@@ -8,6 +8,7 @@ import type { Selection, TerminalPlan } from '../../contracts/arsenal';
 import type { ArsenalStart } from '../../desktop/native-client';
 import type { BeforeOutcome, Launch } from '../../desktop/launch-client';
 import { msg } from '../../i18n/msg';
+import { t, tIncoming } from '../../i18n/index.svelte';
 import { HOME_FOLDER_REFUSED } from '../native/present';
 
 /** Item failures take precedence over the provider's independent enforcement verdict. */
@@ -16,6 +17,27 @@ function blockedItemsRefusal(plan: TerminalPlan): LaunchRefusal | null {
   const items = plan.items.filter(
     (i) => i.state === 'missing' || i.state === 'rejected',
   );
+  if (items.length === 0) {
+    const conflicts = plan.conflicts
+      .filter((c) => c.blocking)
+      .map((c) =>
+        t(
+          c.code === 'name_collision'
+            ? 'Conflicting names: {names}.'
+            : 'Conflicting methodologies: {names}.',
+          { names: c.names.join(', ') },
+        ),
+      );
+    return new LaunchRefusal(
+      msg(
+        'The preset “{name}” cannot be applied: {reason} Nothing was started.',
+      ),
+      {
+        name: plan.selection_name,
+        reason: conflicts.join(' ') || tIncoming(plan.enforcement.reason),
+      },
+    );
+  }
   return new LaunchRefusal(
     items.length > 5
       ? msg(

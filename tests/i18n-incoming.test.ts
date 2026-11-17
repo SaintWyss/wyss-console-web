@@ -17,7 +17,9 @@ function rustSources(): string {
     for (const name of readdirSync(dir)) {
       const path = join(dir, name);
       if (statSync(path).isDirectory()) walk(path);
-      else if (name.endsWith('.rs')) all += readFileSync(path, 'utf8');
+      // Rust writes a quote inside a string as \"; compare the sentence as it is shown.
+      else if (name.endsWith('.rs'))
+        all += readFileSync(path, 'utf8').replaceAll('\\"', '"');
     }
   };
   walk(join(process.cwd(), 'src-tauri/src'));

@@ -102,6 +102,8 @@ const env: HomeSpec = {
 function fake(
   over: Partial<{
     roles: Roles;
+    library: LibraryItem[];
+    tokenStored: boolean;
     launches: Launch[];
     failRole: boolean;
     failEnvironment: boolean;
@@ -133,13 +135,14 @@ function fake(
       return roles;
     },
     capabilities: async () =>
-      over.codex
+      over.library ??
+      (over.codex
         ? [{ ...lib('c1', 'skill', 'codex-skill'), provider: 'codex' }]
         : [
             lib('s1', 'skill', 'frontend-design'),
             lib('s2', 'skill', 'systematic-debugging'),
             lib('a1', 'agent', 'gsd-executor'),
-          ],
+          ]),
     selections: async () => (over.codex ? [codexSel] : [sel]),
     codexEnvironmentOptions: async () => ({
       hooks: [
@@ -162,7 +165,7 @@ function fake(
       rules: ['ux.md'],
       account_skills: [],
       instructions: true,
-      token_stored: true,
+      token_stored: over.tokenStored ?? true,
       sizes: { instructions: 8000, 'rule:ux.md': 400 },
     }),
     environment: async () => env,
@@ -274,7 +277,7 @@ it('groups launches by role and shows the estimated context', async () => {
   );
   expect(roles).toEqual(['Worker', 'Researcher']);
   expect(text('.le-total')).toMatch(/~\d+k/);
-  expect(text('.le-total')).toContain('MCP not measured');
+  expect(text('.le-total')).toContain('MCP and hooks not measured');
 });
 
 it('opens a new launch draft from the selected preset and keeps that preset on save', async () => {
@@ -997,10 +1000,10 @@ it('ignores a late plan from a previously selected folder', async () => {
   } as TerminalPlan);
   await settle();
   expect(terminalPlan).toHaveBeenLastCalledWith(
-    '',
+    'sel-1',
     'claude_code',
     '/home/me/Other',
-    expect.any(Array),
+    undefined,
   );
   const skill = [
     ...document.querySelectorAll<HTMLInputElement>('.le-row input'),
@@ -1081,3 +1084,291 @@ it.each(['launch_delete', 'arsenal_launch_instructions_write'])(
     }
   },
 );
+
+it('regression: previews a library larger than 512 without blocking a small saved preset', async () => {
+  const terminalPlan = vi.fn(async (_selection, _agent, _directory, items) => {
+    items ??= [];
+    if (items.length > 512) throw new Error('invalid_request');
+    return {
+      items: items.map((i: { capability: string }) => ({
+        ...i,
+        state: 'prepared',
+      })),
+    } as TerminalPlan;
+  }) as unknown as ReturnType<typeof vi.fn<ArsenalClient['terminalPlan']>>;
+  await show([session('estudiar', 'Estudio')], {
+    library: Array.from({ length: 600 }, (_, i) => lib(`s${i + 1}`, 'skill')),
+    terminalPlan,
+  });
+  await settle();
+  expect(terminalPlan.mock.calls.some((c) => c[3]?.length === 512)).toBe(true);
+  expect(terminalPlan.mock.calls.some((c) => c[3]?.length === 88)).toBe(true);
+  choose(fieldSelect('Permissions'), 'ask');
+  expect(button('Save').disabled).toBe(false);
+  expect(document.body.textContent).not.toContain('could not be read');
+});
+
+it('regression: rechecking a pinned skill keeps the revision that was evaluated', async () => {
+  const { calls } = await show([session('estudiar', 'Estudio')]);
+  const skill = [
+    ...document.querySelectorAll<HTMLInputElement>('.le-row input'),
+  ].find((i) => i.closest('label')?.textContent?.includes('frontend-design'))!;
+  skill.click();
+  flushSync();
+  skill.click();
+  flushSync();
+  choose(fieldSelect('Permissions'), 'ask');
+  button('Save').click();
+  await settle();
+  expect(calls.saveSelection).toBeUndefined(); // No unpinning, so the preset stays unchanged.
+});
+
+it('regression: unreadable instructions are not described as excluded', async () => {
+  await show([session('estudiar', 'Estudio')], { failInstructions: true });
+  expect(document.body.textContent).toContain(
+    'Not available: the instructions file could not be read.',
+  );
+  expect(document.body.textContent).not.toContain(
+    'Without project instructions,',
+  );
+});
+
+it('regression: a nondefault Claude environment requires the token warning even with project instructions loaded', async () => {
+  await show([session('estudiar', 'Estudio')], { tokenStored: false });
+  expect(document.body.textContent).toContain('No long-lived token is stored');
+});
+
+it('regression: warns when the draft cannot apply its skills choice', async () => {
+  await show([session('estudiar', 'Estudio')], {
+    terminalPlan: async () =>
+      ({
+        items: [],
+        can_apply: false,
+        enforcement: { reason: 'Unqualified build' },
+        conflicts: [],
+      }) as unknown as TerminalPlan,
+  });
+  await settle();
+  expect(document.body.textContent).toContain(
+    'This skills choice cannot be applied now: Unqualified build',
+  );
+});
+
+it('regression: exposes the real plan error instead of always blaming the folder', async () => {
+  const { ArsenalCallError } =
+    await import('../src/lib/desktop/arsenal-client');
+  await show([session('estudiar', 'Estudio')], {
+    terminalPlan: async () => {
+      throw new ArsenalCallError({ code: 'agent_not_installed', reason: null });
+    },
+  });
+  expect(document.body.textContent).toContain(
+    'That agent is not installed on this computer.',
+  );
+  expect(document.body.textContent).not.toContain(
+    'Check the folder and try again',
+  );
+});
+
+it('regression: lists launch files refused by the reader', async () => {
+  await show(
+    [session('estudiar', null)],
+    {},
+    {
+      launches: async () => ({
+        launches: [session('estudiar', null)],
+        refused: [{ id: 'broken.toml', error: 'not a launch file' }],
+      }),
+    },
+  );
+  expect(document.body.textContent).toContain('Files that could not be read');
+  expect(document.body.textContent).toContain('broken.toml: not a launch file');
+});
+
+it('regression: says when unavailable items were removed from the draft', async () => {
+  await show([session('estudiar', 'Estudio')], {
+    terminalPlan: async () =>
+      ({
+        items: [{ capability: 's1', state: 'missing' }],
+      }) as unknown as TerminalPlan,
+  });
+  expect(document.body.textContent).toContain(
+    '1 unavailable items were left out',
+  );
+});
+
+it('regression: the agent estimate does not shrink when an individual agent is unchecked', async () => {
+  await show([session('estudiar', null)]);
+  const agents = [...document.querySelectorAll('.le-group')].find((g) =>
+    g.querySelector('.le-gtoggle')?.textContent?.includes('Agents'),
+  )!;
+  agents.querySelector<HTMLButtonElement>('.le-gtoggle')!.click();
+  flushSync();
+  const cost = agents.querySelector('.le-cost')!.textContent;
+  agents.querySelector<HTMLInputElement>('.le-row input')!.click();
+  flushSync();
+  expect(agents.querySelector('.le-cost')!.textContent).toBe(cost);
+  expect(
+    agents.querySelector<HTMLButtonElement>('.le-gtoggle')!.title,
+  ).toContain('does not switch it off');
+});
+
+it('regression: preserves the cause when deleting a launch fails', async () => {
+  await show([session('estudiar', 'Estudio')]);
+  mockIPC((command) => {
+    if (command === 'launch_delete')
+      throw { code: 'launch_invalid', reasons: ['unknown launch'] };
+    return null;
+  });
+  document.querySelector<HTMLButtonElement>('.le-delete')!.click();
+  flushSync();
+  button('Delete').click();
+  await settle();
+  expect(document.body.textContent).toContain(
+    'The launch could not be deleted. unknown launch',
+  );
+});
+
+it('regression: punctuates host fragments before listing partially saved steps', async () => {
+  await show([session('estudiar', 'Estudio')]);
+  mockIPC((command) => {
+    if (command === 'launch_save')
+      throw { code: 'launch_invalid', reasons: ['directory not found'] };
+    return null;
+  });
+  projectInstructions('exclude');
+  button('Save').click();
+  await settle();
+  expect(document.body.textContent).toContain(
+    'Directory not found. Saved so far:',
+  );
+});
+
+it('regression: distribution warnings do not suggest adding an unknown ID or repeat an ID as the name', async () => {
+  await show(
+    [{ ...update, active: null, commands: [] }],
+    {},
+    {
+      launches: async () => ({
+        launches: [{ ...update, active: null, commands: [] }],
+        refused: [],
+        system: { id: '', name: '', like: [] },
+      }),
+    },
+  );
+  expect(document.body.textContent).toContain('add one to start it here');
+  expect(document.body.textContent).not.toContain('add ?');
+});
+
+it.each(['', 'arch'])(
+  'regression: a distribution with name %s displays its ID only once',
+  async (name) => {
+    await show(
+      [update],
+      {},
+      {
+        launches: async () => ({
+          launches: [update],
+          refused: [],
+          system: { id: 'arch', name, like: [] },
+        }),
+      },
+    );
+    expect(text('.dv-system').trim()).toBe('Detected on this computer: arch');
+  },
+);
+
+it.each(['launch_unavailable', 'internal'])(
+  'regression: list failures with code %s show a sentence',
+  async (code) => {
+    const { LaunchError } = await import('../src/lib/desktop/launch-client');
+    await show(
+      [],
+      {},
+      {
+        launches: async () => {
+          throw new LaunchError(code);
+        },
+      },
+    );
+    expect(text('[role="alert"]')).toBe(
+      code === 'internal'
+        ? 'Something unexpected happened. Try again.'
+        : 'The launch folder is not available.',
+    );
+  },
+);
+
+it('regression: variant save errors translate host codes into sentences', async () => {
+  await show([update]);
+  mockIPC(() => {
+    throw { code: 'internal' };
+  });
+  switchOf('--noconfirm').click();
+  flushSync();
+  button('Save').click();
+  await settle();
+  expect(text('[role="alert"]')).toBe(
+    'Something unexpected happened. Try again.',
+  );
+});
+
+it('regression: Workspace copy describes the implemented switches in both languages', async () => {
+  const { setLanguage } = await import('../src/lib/i18n/index.svelte');
+  await show([session('estudiar', null)]);
+  const select = document.querySelector<HTMLSelectElement>(
+    'select[aria-label="Project instructions"]',
+  )!;
+  expect([...select.options].map((o) => o.textContent)).toEqual([
+    'Load project instructions',
+    'Skip project instructions',
+    'Custom instructions',
+  ]);
+  expect(fieldSelect('Distributor').closest('label')!.title).toContain(
+    'project instructions',
+  );
+  expect(document.querySelector('.le-total')!.textContent).toContain(
+    'MCP and hooks not measured',
+  );
+  setLanguage('es');
+  flushSync();
+  try {
+    expect(
+      document.querySelector('select[aria-label="Instrucciones del proyecto"]')
+        ?.textContent,
+    ).toContain('Instrucciones propias');
+    // Native is a named mode in this app, and still goes through t().
+    expect(document.querySelector('select:disabled option')?.textContent).toBe(
+      'Native',
+    );
+  } finally {
+    setLanguage('en');
+    flushSync();
+  }
+});
+
+it('regression: the advisory verdict reads the saved preset and its composites when the items are unchanged', async () => {
+  const terminalPlan = vi.fn(
+    async () => ({ items: [] }) as unknown as TerminalPlan,
+  );
+  await show([session('estudiar', 'Estudio')], { terminalPlan });
+  await settle();
+  expect(terminalPlan).toHaveBeenLastCalledWith(
+    'sel-1',
+    'claude_code',
+    '/home/me/UTN',
+    undefined,
+  );
+});
+
+it('regression: a failure reading the selection verdict is visible even when library availability succeeded', async () => {
+  const terminalPlan = vi.fn(async (selection: string) => {
+    if (selection) throw new Error('Selection verdict failed');
+    return { items: [] } as unknown as TerminalPlan;
+  });
+  await show([session('estudiar', 'Estudio')], { terminalPlan });
+  await settle();
+  expect(document.body.textContent).toContain(
+    'The launch plan could not be read: Selection verdict failed',
+  );
+});

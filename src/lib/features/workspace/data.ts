@@ -78,7 +78,10 @@ export function estimateOf(
   const chosen = new Set(items.map((i) => i.capability));
   const of = (kind: string) =>
     libraryItems(data.library, agent)
-      .filter((item) => item.kind === kind && chosen.has(item.id))
+      .filter(
+        (item) =>
+          item.kind === kind && (kind === 'agent' || chosen.has(item.id)),
+      )
       .map((item) => ({ name: item.name, description: item.description }));
   return estimate({
     spec: spec ?? DEFAULT_SPEC,

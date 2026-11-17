@@ -65,3 +65,13 @@ it('every distribution and every switch says what it does', () => {
   ]);
   expect(distroOf('arch')!.switches.some((s) => s.id === 'cachy')).toBe(false);
 });
+
+it('regression: the confirmation hint names the Flatpak flag it also adds', () => {
+  const distro = distroOf('arch')!;
+  expect(compose(distro, ['noconfirm', 'flatpak'])).toContain(
+    'flatpak update -y',
+  );
+  expect(distro.switches.find((s) => s.id === 'noconfirm')!.hint).toContain(
+    '-y to flatpak',
+  );
+});

@@ -5,11 +5,9 @@
   import { permissionsFor, type Permission } from '../../contracts/native';
   import {
     arsenalClient,
-    ArsenalCallError,
     type ArsenalClient,
     type Roles,
   } from '../../desktop/arsenal-client';
-  import { failureMessage } from '../arsenal/messages';
   import {
     deleteLaunch,
     listLaunches,
@@ -23,6 +21,7 @@
     DEFAULT_CODEX_SPEC,
     DEFAULT_SPEC,
     hookLabel,
+    isDefault,
     toggle,
   } from '../arsenal/environment';
   import { distributorOf } from '../distributors/present';
@@ -30,9 +29,12 @@
     AS_CONFIGURED,
     BYPASS_WARNING,
     PERMISSION_LABEL,
+    PERMISSION_HELP,
   } from '../native/present';
   import { ENVIRONMENT_UNREADABLE } from '../terminal/launch';
   import { kTokens } from './estimate';
+  import { previewItems } from './preview';
+  import { errorMessage, sentence } from './messages';
   import { BASIC_ROLES as BASIC } from './plan';
   import {
     loadOrder,
@@ -90,11 +92,9 @@
       'Only for ordering this list: launches are grouped by role. It does not change what the agent does.',
     ),
     distributor: msg(
-      'Which agent the launch starts: Claude Code (Anthropic) or Codex (OpenAI). Changing it starts the preset and the environment over, and a permission the other agent does not have.',
+      'Which agent the launch starts: Claude Code (Anthropic) or Codex (OpenAI). Changing it resets the preset, skills, environment and project instructions; the permission stays if the other agent has it too.',
     ),
-    permission: msg(
-      'What the agent may do without asking you. “As configured” passes nothing: the agent starts with the permissions of its own settings. The model and the effort are chosen inside the agent.',
-    ),
+    permission: PERMISSION_HELP,
     mode: msg(
       'Native: the agent runs as its own program in a terminal of the Console, as when you type claude or codex. The other mode, Managed (the Console drives the session), starts from Sessions, not from a launch; that is why it is fixed here.',
     ),
@@ -102,7 +102,7 @@
       'Where the agent works: it reads and edits the files of this folder, and its project settings are this folder’s.',
     ),
     estimate: msg(
-      'About how much context the agent loads before you write anything, from what is switched on below. The bar compares it with everything switched on. MCP servers are not counted.',
+      'About how much context the agent loads before you write anything, from what is switched on below. The bar compares it with everything switched on. MCP servers and hook output are not measured.',
     ),
   } as const;
   const GROUP_HINT: Record<string, string> = {
@@ -116,7 +116,7 @@
       'Outside tools the agent can call (browser, docs, Notion…). How much context they take is not measured.',
     ),
     agents: msg(
-      'Helpers the agent can hand part of a task to, each with its own instructions.',
+      'Helpers the agent can hand part of a task to. Unticking one here does not switch it off: the agent loads its installed ones as usual.',
     ),
     account: msg(
       'The skills of your Claude account (claude.ai), on top of the ones installed on this computer.',
@@ -154,6 +154,7 @@
 
   let phase = $state<'idle' | 'loading' | 'ready' | 'failed'>('idle');
   let launches = $state<Launch[]>([]);
+  let refused = $state<{ id: string; error: string }[]>([]);
   let system = $state<SystemInfo>({ id: '', like: [], name: '' });
   let roles = $state<Roles>({ custom: [], assigned: {}, damaged: false });
   let data = $state<EstimateData>(NO_DATA);
@@ -173,6 +174,12 @@
   let staleHooks = $state(false);
   let usedPresetRequest: number | null = null;
   let itemPlan = $state<PlanItem[]>([]);
+  let leftOut = $state<PlanItem[]>([]);
+  let selectionPlanError = $state('');
+  let itemPlanError = $state('');
+  let selectionPlan = $state<
+    import('../../contracts/arsenal').TerminalPlan | null
+  >(null);
   let itemPlanState = $state<'loading' | 'ready' | 'failed'>('loading');
   const unavailable = (item: PlanItem) =>
     item.state === 'missing' || item.state === 'rejected';
@@ -193,20 +200,66 @@
     let active = true;
     itemPlanState = 'loading';
     itemPlan = [];
-    void client
-      .terminalPlan('', agent, directory, items)
-      .then((plan) => {
+    leftOut = [];
+    itemPlanError = '';
+    void previewItems(client, agent, directory, items)
+      .then((items) => {
         if (!active || !draft) return;
-        itemPlan = plan.items;
+        itemPlan = items;
         const blocked = new Set(
-          plan.items.filter(unavailable).map((i) => i.capability),
+          items.filter(unavailable).map((i) => i.capability),
+        );
+        leftOut = items.filter(
+          (i) =>
+            unavailable(i) &&
+            draft!.items.some(
+              (selected) => selected.capability === i.capability,
+            ),
         );
         draft.items = draft.items.filter((i) => !blocked.has(i.capability));
         itemPlanState = 'ready';
       })
-      .catch(() => {
-        if (active) itemPlanState = 'failed';
+      .catch((e: unknown) => {
+        if (active) {
+          itemPlanState = 'failed';
+          itemPlanError = errorMessage(e);
+        }
       });
+    return () => {
+      active = false;
+    };
+  });
+
+  // Availability batches are not a launch plan: their exclusions/conflicts differ from the draft.
+  // Read the actual draft separately for the advisory enforcement verdict, never merge batch verdicts.
+  $effect(() => {
+    selectionPlan = null;
+    selectionPlanError = '';
+    if (!draft || itemPlanState !== 'ready') return;
+    const agent = draft.agent;
+    const directory = draft.directory;
+    const items = $state.snapshot(draft.items) as Item[];
+    if (items.length > 512) return;
+    let active = true;
+    const selection = draft.selection;
+    // Saved presets also carry composites, which an item-only preview cannot represent.
+    const unchanged =
+      selection && JSON.stringify(items) === JSON.stringify(selection.items);
+    void client
+      .terminalPlan(
+        unchanged ? selection.id : '',
+        agent,
+        directory,
+        unchanged ? undefined : items,
+      )
+      .then(
+        (plan) => {
+          if (active) selectionPlan = plan;
+        },
+        (e: unknown) => {
+          if (active) selectionPlanError = errorMessage(e);
+        },
+      );
     return () => {
       active = false;
     };
@@ -236,6 +289,7 @@
       if (!Array.isArray(list?.launches))
         throw new Error(t('Workspace could not be read.'));
       launches = list.launches;
+      refused = list.refused ?? [];
       system = list.system ?? system;
       roles = r;
       data = read;
@@ -243,10 +297,7 @@
       if (!selected && launches[0]) pick(launches[0]);
     } catch (e) {
       phase = 'failed';
-      error =
-        e instanceof Error
-          ? tIncoming(e.message)
-          : t('Workspace could not be read.');
+      error = errorMessage(e);
     }
   }
   // Read on the first visit, and again on each later one: a launch made elsewhere appears.
@@ -509,7 +560,15 @@
       return;
     const has = draft.items.some((i) => i.capability === id);
     if (on && !has)
-      draft.items = [...draft.items, { capability: id, revision: null }];
+      draft.items = [
+        ...draft.items,
+        {
+          capability: id,
+          revision:
+            draft.selection?.items.find((i) => i.capability === id)?.revision ??
+            null,
+        },
+      ];
     if (!on && has)
       draft.items = draft.items.filter((i) => i.capability !== id);
   }
@@ -708,16 +767,16 @@
     try {
       roles = await client.writeRole({ do: 'create', name });
       newRole = '';
-    } catch {
-      error = t('The role could not be saved.');
+    } catch (e) {
+      error = `${t('The role could not be saved.')} ${errorMessage(e)}`;
     }
   }
   async function removeRole(id: string) {
     try {
       roles = await client.writeRole({ do: 'delete', id });
       if (draft && draft.role === id) draft.role = 'worker';
-    } catch {
-      error = t('The role could not be deleted.');
+    } catch (e) {
+      error = `${t('The role could not be deleted.')} ${errorMessage(e)}`;
     }
   }
 
@@ -838,15 +897,11 @@
       const exists = e instanceof LaunchError && e.code === 'exists';
       const what = exists
         ? t('A launch with that name exists.')
-        : e instanceof ArsenalCallError
-          ? t(failureMessage(e))
-          : e instanceof Error
-            ? tIncoming(e.message)
-            : t('It could not be saved.');
+        : errorMessage(e);
       error =
         done.length > 0
           ? t('{what} Saved so far: {done}. Nothing else changed.', {
-              what,
+              what: sentence(what),
               done: done.join(', '),
             })
           : what;
@@ -889,17 +944,18 @@
       selected = null;
       draft = null;
       await load();
-    } catch {
+    } catch (e) {
       if (deleted) {
         selected = null;
         draft = null;
         await load();
       }
-      error = t(
-        deleted
-          ? 'The launch was deleted, but its instructions or role could not be cleared.'
-          : 'The launch could not be deleted.',
-      );
+      error =
+        t(
+          deleted
+            ? 'The launch was deleted, but its instructions or role could not be cleared.'
+            : 'The launch could not be deleted.',
+        ) + ` ${errorMessage(e)}`;
     } finally {
       busy = false;
       confirming = false;
@@ -1002,6 +1058,14 @@
         <p class="le-meta">{t('No saved launches yet.')}</p>
       {/if}
     </div>
+    {#if refused.length > 0}
+      <div class="notice" data-tone="warn">
+        <p>{t('Files that could not be read')}</p>
+        {#each refused as file (file.id)}
+          <p>{file.id}: {tIncoming(file.error)}</p>
+        {/each}
+      </div>
+    {/if}
     <button type="button" class="le-new" onclick={() => pick(null)}
       >+ {t('New')}</button
     >
@@ -1028,7 +1092,7 @@
               ></span></span
             >
             <span class="le-meta"
-              >{t('of {total} · estimated, MCP not measured', {
+              >{t('of {total} · estimated, MCP and hooks not measured', {
                 total: kTokens(ceiling.total),
               })}</span
             >
@@ -1173,9 +1237,10 @@
                         };
                 }}
               >
-                <option value="load">{t("Load the project's")}</option>
-                <option value="exclude">{t("Without the project's")}</option>
-                <option value="role">{t('Own role')}</option>
+                <option value="load">{t('Load project instructions')}</option>
+                <option value="exclude">{t('Skip project instructions')}</option
+                >
+                <option value="role">{t('Custom instructions')}</option>
               </select>
             </label>
             {#if d.instructions?.project === 'role'}
@@ -1183,16 +1248,18 @@
                 <textarea
                   class="le-input"
                   rows="6"
-                  aria-label={t('Own role')}
+                  aria-label={t('Custom instructions')}
                   bind:value={d.instructions.role}></textarea>
               </label>
             {/if}
             <div class="le-field">
               <span
                 >{t(
-                  d.instructions?.project === 'load'
-                    ? 'Loads the project instructions.'
-                    : 'Without project instructions, the agent does not read the project instructions or rules. Your global instructions follow their switch.',
+                  !d.instructions
+                    ? 'Not available: the instructions file could not be read.'
+                    : d.instructions.project === 'load'
+                      ? 'Loads the project instructions.'
+                      : 'Without project instructions, the agent does not read the project instructions or rules. Your global instructions follow their switch.',
                 )}</span
               >
               {#if d.instructions?.project === 'role'}
@@ -1202,7 +1269,7 @@
                   )}</span
                 >
               {/if}
-              {#if d.agent === 'claude_code' && d.instructions?.project === 'role' && data.options && !data.options.token_stored}
+              {#if d.agent === 'claude_code' && (d.instructions?.project === 'role' || (d.spec && !isDefault(d.spec))) && data.options && !data.options.token_stored}
                 <span class="notice" data-tone="warn" role="alert"
                   >{t(
                     'No long-lived token is stored, so this terminal will not start. Run claude setup-token in your own terminal and store it with: secret-tool store --label "Claude Code token (Wyss Console)" service wyss-console kind claude-oauth-token',
@@ -1212,11 +1279,38 @@
             </div>
           </div>
         </fieldset>
-        {#if itemPlanState === 'failed'}
+        {#if itemPlanState === 'failed' || selectionPlanError}
           <p class="notice" data-tone="error" role="alert">
+            {t('The launch plan could not be read: {reason}', {
+              reason: itemPlanError || selectionPlanError,
+            })}
+          </p>
+        {/if}
+        {#if selectionPlan && selectionPlan.can_apply === false}
+          <p class="notice" data-tone="warn" role="status">
             {t(
-              'The launch plan could not be read. Check the folder and try again.',
+              'This skills choice cannot be applied now: {reason} Check it before starting.',
+              {
+                reason:
+                  selectionPlan.conflicts
+                    ?.filter((c) => c.blocking)
+                    .map((c) => c.names.join(', '))
+                    .join('; ') || tIncoming(selectionPlan.enforcement.reason),
+              },
             )}
+          </p>
+        {/if}
+        {#if leftOut.length > 0}
+          <p class="notice" data-tone="warn" role="status">
+            {t('{count} unavailable items were left out: {items}', {
+              count: leftOut.length,
+              items: leftOut
+                .map(
+                  (i) =>
+                    `${i.name || i.capability}${i.reason ? `: ${tIncoming(i.reason)}` : ''}`,
+                )
+                .join('; '),
+            })}
           </p>
         {/if}
         <fieldset class="le-fieldset" disabled={busy}>
@@ -1273,7 +1367,7 @@
             <label class="le-field" title={t(HINT.mode)}
               ><span>{t('Mode')}</span>
               <select class="le-input" disabled>
-                <option>Native</option>
+                <option>{t('Native')}</option>
               </select>
             </label>
             <div class="le-field le-wide" title={t(HINT.folder)}>
@@ -1345,7 +1439,7 @@
           {#if d.agent === 'codex'}
             <p class="le-meta le-pad">
               {t(
-                'For Codex a launch chooses skills, agents, AGENTS.md and the hooks of hooks.json. MCP servers and account skills are Claude Code only.',
+                'For Codex a launch chooses skills, AGENTS.md and the hooks of hooks.json. MCP servers and account skills are Claude Code only.',
               )}
             </p>
           {/if}

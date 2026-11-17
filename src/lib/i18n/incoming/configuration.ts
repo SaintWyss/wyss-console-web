@@ -56,4 +56,67 @@ export const INCOMING: Readonly<Record<string, string>> = {
   'not a plain file': 'No es un archivo común.',
   'larger than {size} KiB': 'Supera el límite de {size} KiB.',
   'not UTF-8': 'No tiene una codificación UTF-8 válida.',
+  'no preset named “{preset}” for this agent':
+    'no hay un preset llamado «{preset}» para este agente',
+  'the launch could not be written: {e}':
+    'no se pudo escribir el lanzamiento: {e}',
+  'directory not found': 'no se encontró la carpeta',
+  'directory is not a folder': 'la ruta no es una carpeta',
+  'directory must be ~, ~/… or an absolute path':
+    'la carpeta debe ser ~, ~/… o una ruta absoluta',
+  'a launch with that file name is not a plain file':
+    'el lanzamiento con ese nombre de archivo no es un archivo común',
+  "preset must be a preset's name": 'preset debe ser el nombre de un preset',
+  "preset must be a preset's name, 1–{n} characters on one line":
+    'preset debe ser el nombre de un preset, de 1 a {n} caracteres en una sola línea',
+  'agent must be claude_code or codex': 'agent debe ser claude_code o codex',
+  'session agent must be claude_code or codex':
+    'el agente de la sesión debe ser claude_code o codex',
+  'only a launch saved from Workspace can be deleted here; edit the others in their file':
+    'acá solo se puede borrar un lanzamiento guardado desde Workspace; editá los demás en su archivo',
+  'the launch could not be deleted': 'no se pudo borrar el lanzamiento',
+  'unknown launch': 'lanzamiento desconocido',
+  'launch folder: {e}': 'carpeta de lanzamientos: {e}',
+  'only a commands launch has distributions':
+    'solo un lanzamiento de comandos tiene distribuciones',
+  'not a launch file': 'no es un archivo de lanzamiento',
+  'not a launch file: {message}': 'no es un archivo de lanzamiento: {message}',
+  "distro.{id} is this computer's distribution and stays":
+    'distro.{id} es la distribución de esta computadora y se conserva',
+  'options are short lowercase names':
+    'las opciones son nombres cortos en minúscula',
+  'each distribution once': 'cada distribución debe aparecer una sola vez',
+  'a launch needs commands or at least one distribution':
+    'un lanzamiento necesita comandos o al menos una distribución',
+  'a distribution is its os-release ID: lowercase letters, digits, - or _':
+    'una distribución se identifica por su ID de os-release: letras minúsculas, dígitos, - o _',
+  'distro.{id}: an os-release ID is lowercase letters, digits, - or _':
+    'distro.{id}: un ID de os-release contiene letras minúsculas, dígitos, - o _',
+  'distro.{id} needs at least one command':
+    'distro.{id} necesita al menos un comando',
+  'distro.{id}: options are short lowercase names':
+    'distro.{id}: las opciones son nombres cortos en minúscula',
+  'at most {n} commands, each one line of at most {m} characters':
+    'como máximo {n} comandos, cada uno en una línea de hasta {m} caracteres',
+  'distro and template belong to a commands launch':
+    'distro y template pertenecen a un lanzamiento de comandos',
+  'a launch has commands or a session, not both':
+    'un lanzamiento tiene comandos o una sesión, no ambos',
+  'a launch needs commands or a session':
+    'un lanzamiento necesita comandos o una sesión',
+  'before belongs to a session; put the commands in order instead':
+    'before pertenece a una sesión; ordená los comandos en su lugar',
+  'at most {n} distributions': 'como máximo {n} distribuciones',
+  'at most {n} before commands, each one line of at most {m} characters':
+    'como máximo {n} comandos previos, cada uno en una línea de hasta {m} caracteres',
+  'distro.{id}: at most {n} commands, each one line of at most {m} characters':
+    'distro.{id}: como máximo {n} comandos, cada uno en una línea de hasta {m} caracteres',
+  'a session names permission or profile, not both: profiles were removed, keep permission':
+    'una sesión indica permission o profile, no ambos: los perfiles se eliminaron, conservá permission',
+  'permission must be "ask", "read_only", "edits" or "bypass"':
+    'permission debe ser "ask", "read_only", "edits" o "bypass"',
+  'permission = "edits" is only for claude_code':
+    'permission = "edits" es solo para claude_code',
+  'profiles were removed: set permission = "ask", "read_only", "edits" or "bypass" in this launch, or remove the profile line to start as configured':
+    'los perfiles se eliminaron: usá permission = "ask", "read_only", "edits" o "bypass" en este lanzamiento, o quitá la línea profile para iniciar según la configuración propia',
 };

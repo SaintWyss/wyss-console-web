@@ -872,3 +872,38 @@ it('identifies a removed capability when its plan no longer has a name', async (
   );
   await expect(openLaunch('codex', d)).rejects.toThrow('removed-skill');
 });
+
+it.each(['name_collision', 'methodology_conflict', 'exclusion_limit'] as const)(
+  'regression: blocked by %s reports its cause without inventing missing items',
+  async (cause) => {
+    const { d } = deps(session(), undefined, { selection: 'sel-1' });
+    d.plan = vi.fn(
+      async () =>
+        ({
+          selection: 'sel-1',
+          selection_name: 'Work',
+          can_apply: false,
+          status: 'blocked',
+          items: [],
+          conflicts:
+            cause === 'exclusion_limit'
+              ? []
+              : [{ code: cause, blocking: true, names: ['Alpha', 'Beta'] }],
+          enforcement: {
+            reason: 'More than 512 installed skills would be switched off.',
+          },
+          launch_instructions: { project: 'exclude', role: '' },
+        }) as never,
+    );
+    const refusal = (await openLaunch('codex', d).catch(
+      (e: unknown) => e,
+    )) as LaunchRefusal;
+    expect(refusal).toBeInstanceOf(LaunchRefusal);
+    expect(refusal.message).toContain(
+      cause === 'exclusion_limit' ? 'More than 512' : 'Alpha, Beta',
+    );
+    expect(refusal.message).not.toContain('missing or rejected');
+    expect(refusal.message).toContain('Nothing was started.');
+    expect(d.start).not.toHaveBeenCalled();
+  },
+);

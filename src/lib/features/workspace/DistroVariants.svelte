@@ -1,11 +1,12 @@
 <script lang="ts">
-  import { t, tIncoming } from '../../i18n/index.svelte';
+  import { t } from '../../i18n/index.svelte';
   import {
     saveVariants,
     type Launch,
     type SystemInfo,
     type Variant,
   } from '../../desktop/launch-client';
+  import { errorMessage } from './messages';
   import {
     compose,
     DISTROS,
@@ -161,8 +162,7 @@
       notice = t('Saved.');
       return true;
     } catch (e) {
-      error =
-        e instanceof Error ? tIncoming(e.message) : t('It could not be saved.');
+      error = errorMessage(e);
       return false;
     } finally {
       busy = false;
@@ -177,10 +177,12 @@
 <div class="dv" aria-label={t('Distributions')}>
   <p class="dv-system">
     {#if system.id}
-      {t('Detected on this computer: {name} ({id})', {
-        name: system.name || system.id,
-        id: system.id,
-      })}
+      {system.name && system.name !== system.id
+        ? t('Detected on this computer: {name} ({id})', {
+            name: system.name,
+            id: system.id,
+          })
+        : t('Detected on this computer: {id}', { id: system.id })}
     {:else}
       {t('This computer’s distribution could not be read (/etc/os-release).')}
     {/if}
@@ -195,12 +197,14 @@
         ? t(
             'No distribution here matches this computer: the file’s own commands run.',
           )
-        : t(
-            'No distribution here matches this computer: add {id} to start it here.',
-            {
-              id: system.id || '?',
-            },
-          )}
+        : system.id
+          ? t(
+              'No distribution here matches this computer: add {id} to start it here.',
+              { id: system.id },
+            )
+          : t(
+              'No distribution here matches this computer: add one to start it here.',
+            )}
     </p>
   {/if}
   <div class="dv-body">

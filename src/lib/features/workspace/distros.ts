@@ -56,7 +56,7 @@ const pacmanSwitches: readonly Switch[] = [
     id: 'noconfirm',
     label: msg('No confirmation (--noconfirm)'),
     hint: msg(
-      'Adds --noconfirm to pacman and paru: they answer yes on their own and do not stop to ask. Without it, they show what changes and wait for you.',
+      'Adds --noconfirm to pacman and paru, and -y to flatpak: they answer yes on their own and do not stop to ask. Without it, they show what changes and wait for you.',
     ),
     flags: { pacman: '--noconfirm', paru: '--noconfirm', flatpak: '-y' },
   },
