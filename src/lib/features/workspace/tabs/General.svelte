@@ -3,6 +3,7 @@
   import { permissionsFor, type Permission } from '../../../contracts/native';
   import { AS_CONFIGURED, PERMISSION_LABEL } from '../../native/present';
   import { workspace } from '../context';
+  import Instructions from './Instructions.svelte';
   import type { Agent } from '../plan';
 
   const ws = workspace();
@@ -151,3 +152,13 @@
       bind:value={draft.instructions.role}></textarea>
   </div>
 {/if}
+
+<div class="ws-row">
+  <div>
+    <span class="ws-label">{t('Global instructions')}</span>
+    <p class="ws-hint">
+      {t('Your own instruction files. Open one to read it.')}
+    </p>
+  </div>
+  <div class="ws-control"><Instructions /></div>
+</div>

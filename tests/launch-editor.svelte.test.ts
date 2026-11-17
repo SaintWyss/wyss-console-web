@@ -703,6 +703,7 @@ it('each General field says what it is, and Mode is gone', async () => {
     'Working directory',
     'Permissions',
     'Project instructions',
+    'Global instructions',
   ]);
   for (const [, hint] of labels) expect(hint).not.toBe('');
 });
@@ -822,7 +823,7 @@ it('keeps the hooks of config.toml out of the count and switchless, and saves on
 
 it('saves AGENTS.md left out of a Codex launch', async () => {
   const { calls } = await show([codexSession()], { codex: true });
-  openTab('Instructions');
+  openTab('General');
   switchNamed('AGENTS.md')!.click();
   flushSync();
   button('Save').click();
@@ -1176,7 +1177,7 @@ it('regression: says when unavailable items were removed from the draft', async 
 
 it('lists no provider agents: the launch does not choose them', async () => {
   await show([session('estudiar', 'Estudio')]);
-  for (const label of ['General', 'Instructions', 'Skills', 'MCP', 'Hooks']) {
+  for (const label of ['General', 'Skills', 'MCP', 'Hooks']) {
     openTab(label);
     expect(switchNamed('gsd-executor')).toBeUndefined();
   }
@@ -1388,7 +1389,7 @@ it('shows a global instruction file’s text in a dialog', async () => {
       client: { ...client, instructionText: read } as ArsenalClient,
     },
   );
-  openTab('Instructions');
+  openTab('General');
   HTMLDialogElement.prototype.showModal ??= function (this: HTMLDialogElement) {
     this.open = true;
   };

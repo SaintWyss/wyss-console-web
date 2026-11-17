@@ -21,7 +21,6 @@
   import { provideWorkspace } from './context';
   import { tabCounts } from './model';
   import General from './tabs/General.svelte';
-  import Instructions from './tabs/Instructions.svelte';
   import Skills from './tabs/Skills.svelte';
   import Mcp from './tabs/Mcp.svelte';
   import Hooks from './tabs/Hooks.svelte';
@@ -427,18 +426,10 @@
             64 * 1024)),
   );
 
-  const TABS = [
-    'general',
-    'instructions',
-    'skills',
-    'mcp',
-    'hooks',
-    'summary',
-  ] as const;
+  const TABS = ['general', 'skills', 'mcp', 'hooks', 'summary'] as const;
   type Tab = (typeof TABS)[number];
   const TAB_LABEL: Record<Tab, string> = {
     general: msg('General'),
-    instructions: msg('Instructions'),
     skills: msg('Skills'),
     mcp: msg('MCP'),
     hooks: msg('Hooks'),
@@ -951,7 +942,6 @@
                 </p>{/if}
             </div>
             {#if tab === 'general'}<General />
-            {:else if tab === 'instructions'}<Instructions />
             {:else if tab === 'skills'}<Skills />
             {:else if tab === 'mcp'}<Mcp />
             {:else if tab === 'hooks'}<Hooks />
