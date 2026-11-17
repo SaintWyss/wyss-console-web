@@ -9,7 +9,6 @@ export type ViewId =
   | 'approvals'
   | 'events'
   | 'arsenal'
-  | 'arsenal-presets'
   | 'configuration'
   | 'models'
   | 'credentials'
@@ -59,12 +58,6 @@ export const NAV_ITEMS: readonly NavItem[] = [
     id: 'arsenal',
     label: msg('Arsenal'),
     subtitle: msg('Installed capabilities'),
-    icon: 'M4 5h16v14H4zM8 9h8M8 13h8M8 17h5',
-  },
-  {
-    id: 'arsenal-presets',
-    label: msg('Arsenal presets'),
-    subtitle: msg('The earlier Arsenal screen: presets by provider'),
     icon: 'M4 5h16v14H4zM8 9h8M8 13h8M8 17h5',
   },
   {

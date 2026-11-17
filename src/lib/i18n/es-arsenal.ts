@@ -14,10 +14,6 @@ export const ES_AREA: Readonly<Record<string, string>> = {
     '{name} ya está importada en la revisión {revision}. No hubo cambios.',
   'Nothing to import: every eligible skill is already in the library.':
     'No hay nada para importar: todas las skills aptas ya están en la biblioteca.',
-  'Preset deleted.': 'Se eliminó el preset.',
-  'Revision {revision} is current again. No new revision was made.':
-    'La revisión {revision} vuelve a ser la actual. No se creó una revisión nueva.',
-  'Saved preset {name}.': 'Se guardó el preset {name}.',
   'Selection deleted.': 'Se eliminó la selección.',
   '{summary} Stopped: {reason}': '{summary} Se detuvo: {reason}',
 };

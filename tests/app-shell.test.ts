@@ -142,7 +142,6 @@ it('lists every view, and every one of them exists', () => {
     'Approvals',
     'Events',
     'Arsenal',
-    'Arsenal presets',
     'Credentials',
     'Settings',
   ]);
@@ -153,7 +152,6 @@ it('lists every view, and every one of them exists', () => {
     'approvals',
     'events',
     'arsenal',
-    'arsenal-presets',
     'credentials',
     'settings',
   ]);
@@ -199,7 +197,6 @@ it('renders the shell with brand, every view enabled and Console selected', asyn
     'Agents',
     'Approvals',
     'Events',
-    'Arsenal presets',
     'Settings',
   ]);
   // No item is a placeholder.

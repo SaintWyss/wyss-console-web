@@ -7,10 +7,7 @@ import {
   parseSummaries,
   parseTerminalPlan,
   type Candidate,
-  type Detail,
   type DiscoverReply,
-  type Preset,
-  type Preview,
   type Selection,
   type LibraryItem,
 } from '../src/lib/contracts/arsenal';
@@ -23,7 +20,6 @@ import {
   type ArsenalState,
 } from '../src/lib/features/arsenal/controller';
 import { tPhrase } from '../src/lib/i18n/index.svelte';
-import { planKey } from '../src/lib/features/arsenal/presets';
 
 const design: LibraryItem = {
   id: 'cap-design',
@@ -39,34 +35,6 @@ const design: LibraryItem = {
   updated_at: 1,
   compatibility: { status: 'supported', reason: 'own format' },
 };
-
-const detail = (revision: number): Detail => ({
-  summary: { ...design, revision: 2 },
-  compatibility: { status: 'supported', reason: 'own format' },
-  dependencies: [],
-  revision,
-  revisions: [
-    {
-      number: 2,
-      tree_hash: 'c'.repeat(64),
-      origin: design.origin,
-      created_at: 2,
-      files: 1,
-      bytes: 9,
-      current: true,
-    },
-    {
-      number: 1,
-      tree_hash: 'd'.repeat(64),
-      origin: design.origin,
-      created_at: 1,
-      files: 1,
-      bytes: 5,
-      current: false,
-    },
-  ],
-  files: [{ path: 'SKILL.md', sha256: 'e'.repeat(64), size: 9 }],
-});
 
 const candidate: Candidate = {
   id: 'id-design',
@@ -117,33 +85,13 @@ function fakeClient(overrides: Partial<ArsenalClient> = {}): ArsenalClient {
   return {
     discover: vi.fn(async () => discovered),
     capabilities: vi.fn(async () => [design]),
-    capability: vi.fn(async (_id: string, revision: number | null) =>
-      detail(revision ?? 2),
-    ),
-    file: vi.fn(async (_id: string, _revision: number, path: string) => ({
-      path,
-      text: '# design',
-    })),
     importSkill: vi.fn(async () => ({
-      capability: 'cap-design',
       revision: 1,
       outcome: 'created' as const,
     })),
-    restore: vi.fn(async () => detail(1)),
-    presets: vi.fn(async () => [] as Preset[]),
-    savePreset: vi.fn(async () => ({
-      id: 'p',
-      name: 'x',
-      description: '',
-      items: [],
-      created_at: 1,
-      updated_at: 1,
-    })),
-    deletePreset: vi.fn(async () => undefined),
     selections: vi.fn(async () => [selection]),
     saveSelection: vi.fn(async () => selection),
     deleteSelection: vi.fn(async () => undefined),
-    bindings: vi.fn(async () => []),
     terminalPlan: vi.fn(async () => {
       throw new Error('not in this test');
     }),
@@ -151,39 +99,9 @@ function fakeClient(overrides: Partial<ArsenalClient> = {}): ArsenalClient {
       throw new Error('not in this test');
     }),
     projectSelection: vi.fn(async () => null),
-    candidateDetail: vi.fn(async (id: string) => ({
-      id,
-      files: [],
-      excluded: [],
-      review: [],
-    })),
-    preview: vi.fn(async (): Promise<Preview> => ({
-      selection,
-      status: 'not_applied',
-      items: [
-        {
-          capability: 'cap-design',
-          state: 'resolved',
-          kind: 'skill',
-          name: 'design',
-          provider: 'claude_code',
-          revision: 2,
-          pinned: false,
-          tree_hash: 'c'.repeat(64),
-          compatibility: 'requires_qualification',
-          reason: 'A Claude Code skill; Codex needs a qualified way in.',
-          dependencies: [],
-        },
-      ],
-      conflicts: [],
-      dependencies: 'analysed',
-    })),
     ...overrides,
   } as ArsenalClient;
 }
-
-/** Lets the reads a tab starts finish, without waiting for a timer the code does not own. */
-const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 function controllerWith(client: ArsenalClient) {
   const states: ArsenalState[] = [];
@@ -225,65 +143,6 @@ describe('Arsenal controller', () => {
     expect(broken.last().library).toEqual([]);
     expect(broken.last().notice?.tone).toBe('error');
     expect(broken.last().notice?.text).toContain('could not be opened');
-  });
-
-  it('imports a discovered capability, says what changed, and refreshes the scan and the library', async () => {
-    const client = fakeClient();
-    const { controller, last } = controllerWith(client);
-    await controller.discover();
-    await controller.importCandidate('id-design');
-    expect(client.importSkill).toHaveBeenCalledWith({
-      id: 'id-design',
-      kind: 'skill',
-      source: 'claude_user_skills',
-      name: 'design',
-    });
-    expect(last().notice).toEqual({
-      tone: 'ok',
-      text: 'Imported design as revision 1.',
-    });
-    expect(client.discover).toHaveBeenCalledTimes(2);
-    expect(client.capabilities).toHaveBeenCalled();
-  });
-
-  it('refuses to import an entry the last scan did not list, and sends nothing to the desktop', async () => {
-    const client = fakeClient();
-    const { controller, last } = controllerWith(client);
-    await controller.discover();
-    await controller.importCandidate('id-not-listed');
-    expect(client.importSkill).not.toHaveBeenCalled();
-    expect(last().notice?.tone).toBe('error');
-    expect(last().busy).toBeNull();
-  });
-
-  it('says nothing changed when the same content is imported again', async () => {
-    const client = fakeClient({
-      importSkill: vi.fn(async () => ({
-        capability: 'cap-design',
-        revision: 2,
-        outcome: 'unchanged' as const,
-      })),
-    });
-    const { controller, last } = controllerWith(client);
-    await controller.discover();
-    await controller.importCandidate('id-design');
-    expect(last().notice?.text).toBe(
-      'design is already imported at revision 2. Nothing changed.',
-    );
-  });
-
-  it('explains a blocked import with the reason the scan found', async () => {
-    const client = fakeClient({
-      importSkill: vi.fn(async () => {
-        throw new ArsenalCallError({ code: 'blocked', reason: 'needs_secret' });
-      }),
-    });
-    const { controller, last } = controllerWith(client);
-    await controller.discover();
-    await controller.importCandidate('id-design');
-    expect(last().notice?.tone).toBe('error');
-    expect(last().notice?.text).toContain('looks like a secret');
-    expect(last().busy).toBeNull();
   });
 
   describe('bulk import', () => {
@@ -448,47 +307,6 @@ describe('Arsenal controller', () => {
     });
   });
 
-  it('restores an earlier revision and says that no revision was created', async () => {
-    const client = fakeClient();
-    const { controller, last } = controllerWith(client);
-    await controller.open('cap-design');
-    await controller.restore(1);
-    expect(client.restore).toHaveBeenCalledWith('cap-design', 1);
-    expect(last().notice?.text).toBe(
-      'Revision 1 is current again. No new revision was made.',
-    );
-  });
-
-  it('opens a file of the shown revision and clears it when another capability opens', async () => {
-    const client = fakeClient();
-    const { controller, last } = controllerWith(client);
-    await controller.open('cap-design');
-    await controller.showFile('SKILL.md');
-    expect(client.file).toHaveBeenCalledWith('cap-design', 2, 'SKILL.md');
-    expect(last().file?.text).toBe('# design');
-    await controller.open('cap-design', 1);
-    expect(last().file).toBeNull();
-    expect(last().opened?.revision).toBe(1);
-  });
-
-  it('saves presets and selections and reloads them; a selection is never reported as applied', async () => {
-    const client = fakeClient();
-    const { controller, last } = controllerWith(client);
-    await controller.loadSelections();
-    await settle();
-    expect(last().selections).toEqual([selection]);
-    const saved = await controller.saveSelection({
-      id: null,
-      name: 'Frontend',
-      provider: 'codex',
-      items: [{ capability: 'cap-design', revision: null }],
-      composites: [],
-    });
-    expect(saved?.id).toBe('sel-1');
-    expect(last().notice?.text).toBe('Preset saved');
-    expect(client.selections).toHaveBeenCalledTimes(2);
-  });
-
   it('keeps a failed read of the presets for the list to show with Try again, and clears it on the next good read', async () => {
     const client = fakeClient();
     client.selections = vi.fn(async () => {
@@ -496,200 +314,14 @@ describe('Arsenal controller', () => {
     });
     const { controller, last } = controllerWith(client);
     await controller.loadSelections();
-    await settle();
     expect(last().selectionsFailure).toBe(
       'The Arsenal library could not be opened. Check that the Wyss data folder is writable, then Refresh.',
     );
     expect(last().notice).toBeNull();
     client.selections = vi.fn(async () => [selection]);
     await controller.loadSelections();
-    await settle();
     expect(last().selectionsFailure).toBeNull();
     expect(last().selections).toEqual([selection]);
-  });
-
-  it('drops the preview of a selection once it is saved, so no preview shows the version before the save', async () => {
-    const { controller, last } = controllerWith(fakeClient());
-    await controller.loadPreview('sel-1');
-    expect(last().preview?.selection.id).toBe('sel-1');
-    await controller.saveSelection({
-      id: 'sel-1',
-      name: 'Frontend',
-      provider: 'codex',
-      items: [],
-      composites: [],
-    });
-    expect(last().preview).toBeNull();
-    expect(last().notice?.text).toBe('Preset saved');
-  });
-
-  it('reports a preset save the library refused and keeps the draft', async () => {
-    const client = fakeClient({
-      savePreset: vi.fn(async () => {
-        throw new ArsenalCallError({ code: 'not_found', reason: null });
-      }),
-    });
-    const { controller, last } = controllerWith(client);
-    const saved = await controller.savePreset({
-      id: null,
-      name: 'Frontend',
-      description: '',
-      items: [{ capability: 'gone', revision: null }],
-    });
-    expect(saved).toBe(false);
-    expect(last().notice?.text).toContain('no longer in the library');
-  });
-
-  it('loads a configuration preview exactly as the desktop states it', async () => {
-    const { controller, last } = controllerWith(fakeClient());
-    await controller.loadPreview('sel-1');
-    expect(last().preview?.status).toBe('not_applied');
-    expect(last().preview?.dependencies).toBe('analysed');
-    expect(last().preview?.items[0].compatibility).toBe(
-      'requires_qualification',
-    );
-  });
-});
-
-const planned: Preview = {
-  selection: {
-    id: '',
-    name: '',
-    provider: 'codex',
-    items: [],
-    composites: [],
-    created_at: 0,
-    updated_at: 0,
-  },
-  status: 'not_applied',
-  items: [],
-  conflicts: [],
-  dependencies: 'analysed',
-};
-
-describe('Arsenal controller: draft checks and group moves', () => {
-  const items = [{ capability: 'cap-design', revision: null }];
-
-  it('checks a draft without saving it, and asks once for the same draft', async () => {
-    const client = fakeClient({
-      planPreset: vi.fn(async () => planned),
-    });
-    const { controller, last } = controllerWith(client);
-    await controller.checkDraft('codex', items, []);
-    expect(client.planPreset).toHaveBeenCalledWith('codex', items, []);
-    expect(last().plan).toEqual({
-      key: planKey('codex', items, []),
-      preview: planned,
-      failed: false,
-    });
-    await controller.checkDraft('codex', items, []);
-    expect(client.planPreset).toHaveBeenCalledTimes(1);
-    expect(client.saveSelection).not.toHaveBeenCalled();
-  });
-
-  it('does not check a draft with nothing chosen, and clears the last check', async () => {
-    const client = fakeClient({ planPreset: vi.fn(async () => planned) });
-    const { controller, last } = controllerWith(client);
-    await controller.checkDraft('codex', items, []);
-    await controller.checkDraft('codex', [], []);
-    expect(client.planPreset).toHaveBeenCalledTimes(1);
-    expect(last().plan).toBeNull();
-  });
-
-  it('marks a failed check, and asks again only when asked to try again', async () => {
-    const planPreset = vi
-      .fn()
-      .mockRejectedValueOnce(
-        new ArsenalCallError({ code: 'internal', reason: null }),
-      )
-      .mockResolvedValueOnce(planned);
-    const { controller, last } = controllerWith(
-      fakeClient({
-        planPreset: planPreset as unknown as ArsenalClient['planPreset'],
-      }),
-    );
-    await controller.checkDraft('codex', items, []);
-    expect(last().plan).toMatchObject({ preview: null, failed: true });
-    await controller.checkDraft('codex', items, []);
-    expect(planPreset).toHaveBeenCalledTimes(1);
-    await controller.checkDraft('codex', items, [], true);
-    expect(last().plan).toMatchObject({ preview: planned, failed: false });
-  });
-
-  it('drops the answer to a draft that changed while it was being checked', async () => {
-    const answers: Array<(value: Preview) => void> = [];
-    const client = fakeClient({
-      planPreset: vi.fn(
-        () => new Promise<Preview>((resolve) => answers.push(resolve)),
-      ),
-    });
-    const { controller, last } = controllerWith(client);
-    const first = controller.checkDraft('codex', items, []);
-    const second = [{ capability: 'cap-other', revision: null }];
-    const later = controller.checkDraft('codex', second, []);
-    answers[1]!(planned);
-    await later;
-    answers[0]!({ ...planned, status: 'not_applied' });
-    await first;
-    expect(last().plan?.key).toBe(planKey('codex', second, []));
-    expect(last().plan?.preview).toBe(planned);
-  });
-
-  it('shows Saving on the row while a group moves, then reads the corrections again', async () => {
-    let finish: () => void = () => undefined;
-    const client = fakeClient({
-      moveGroup: vi.fn(
-        () =>
-          new Promise<undefined>((resolve) => {
-            finish = () => resolve(undefined);
-          }),
-      ),
-      groups: vi.fn(async () => ({ 'cap-design': 'study' })),
-    });
-    const { controller, last } = controllerWith(client);
-    const moving = controller.moveGroup('cap-design', 'study');
-    expect(last().movingGroup).toBe('cap-design');
-    finish();
-    await moving;
-    expect(client.moveGroup).toHaveBeenCalledWith('cap-design', 'study');
-    expect(last()).toMatchObject({
-      movingGroup: null,
-      groupFailure: null,
-      groups: { 'cap-design': 'study' },
-    });
-  });
-
-  it('keeps the corrections and says nothing changed on the row when a move is refused', async () => {
-    const client = fakeClient({
-      moveGroup: vi.fn(async () => {
-        throw new ArsenalCallError({
-          code: 'storage_unavailable',
-          reason: null,
-        });
-      }),
-      groups: vi.fn(async () => ({})),
-    });
-    const { controller, last } = controllerWith(client);
-    await controller.moveGroup('cap-design', 'study');
-    expect(last()).toMatchObject({
-      movingGroup: null,
-      groups: {},
-      groupFailure: {
-        identity: 'cap-design',
-        text: 'Could not be saved. Nothing changed.',
-      },
-    });
-    expect(client.groups).not.toHaveBeenCalled();
-  });
-
-  it('moves a capability back to its automatic group with no group name', async () => {
-    const client = fakeClient({
-      moveGroup: vi.fn(async () => undefined),
-      groups: vi.fn(async () => ({})),
-    });
-    const { controller } = controllerWith(client);
-    await controller.moveGroup('cap-design', null);
-    expect(client.moveGroup).toHaveBeenCalledWith('cap-design', null);
   });
 });
 

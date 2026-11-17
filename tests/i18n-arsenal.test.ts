@@ -16,13 +16,11 @@ afterEach(() => setLanguage('en'));
 
 it('draws Arsenal and Workspace text in Spanish and preserves English', () => {
   setLanguage('es');
-  expect(t('Arsenal sections')).toBe('Secciones de Arsenal');
   expect(t('Workspace could not be read.')).toBe(
     'No se pudo leer el Workspace.',
   );
 
   setLanguage('en');
-  expect(t('Arsenal sections')).toBe('Arsenal sections');
   expect(t('Workspace could not be read.')).toBe(
     'Workspace could not be read.',
   );

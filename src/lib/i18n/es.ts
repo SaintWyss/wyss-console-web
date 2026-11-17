@@ -80,14 +80,6 @@ export const ES: Readonly<Record<string, string>> = {
     'Un lanzamiento que deja afuera un hook o el AGENTS.md corre en su propia carpeta de Codex, con tu propio inicio de sesión de Codex. Codex pedirá aprobar los hooks la primera vez en cada carpeta nueva.',
   'Declared in config.toml: these run in every launch and cannot be switched off here.':
     'Declarados en config.toml: corren en todos los lanzamientos y no se pueden apagar por lanzamiento.',
-  'What this preset loads besides its skills. Anything unticked is not loaded in that terminal.':
-    'Lo que carga este preset además de sus skills. Lo desmarcado no se carga en esa terminal.',
-  'No hooks in hooks.json.': 'No hay hooks en hooks.json.',
-  'Hooks of config.toml': 'Hooks de config.toml',
-  'This terminal gets its own Codex folder and signs in with your own Codex sign-in. Your own hooks.json and config.toml are not changed.':
-    'Esta terminal tiene su propia carpeta de Codex e inicia sesión con tu propio inicio de sesión de Codex. Tu hooks.json y tu config.toml no cambian.',
-  'This terminal uses your own Codex configuration as it is.':
-    'Esta terminal usa tu configuración de Codex tal como está.',
   'Codex asks you to approve the hooks the first time in each new folder.':
     'Codex pedirá aprobar los hooks la primera vez en cada carpeta nueva.',
   'For Codex a launch chooses skills, agents, AGENTS.md and the hooks of hooks.json. MCP servers and account skills are Claude Code only.':
@@ -311,7 +303,6 @@ export const ES: Readonly<Record<string, string>> = {
   'Reading preferences': 'Leyendo preferencias',
   'Preferences unavailable': 'Preferencias no disponibles',
   'Saving…': 'Guardando…',
-  'Loading…': 'Cargando…',
   'Saved on this computer': 'Guardado en esta computadora',
   'Preferences could not be read, so the defaults are shown. Nothing is saved until they can be.':
     'No se pudieron leer las preferencias, así que se muestran los valores por defecto. No se guarda nada hasta que se puedan leer.',
@@ -865,8 +856,6 @@ export const ES: Readonly<Record<string, string>> = {
     'Con este cambio, un archivo de entornos de lanzamiento quedaría demasiado largo, así que no se guardó. Dejá menos cosas afuera o borrá presets que ya no uses.',
   'Skill exclusion is not qualified for this exact Codex build, so nothing was started with it. Start without applying the selection, or use a qualified Codex build.':
     'Sacar skills no está calificado para esta versión exacta de Codex, así que no se inició nada con eso. Arrancá sin aplicar la selección o usá una versión de Codex calificada.',
-  'The launch environment could not be saved: the file of launch environments cannot be read. It was not changed.':
-    'No se pudo guardar el entorno de lanzamiento: el archivo de entornos no se puede leer. No se modificó.',
   Other: 'Otro',
   'Add a key': 'Agregar una clave',
   'Enter the key…': 'Ingresar la clave…',
@@ -880,8 +869,6 @@ export const ES: Readonly<Record<string, string>> = {
   'What it does': 'Qué hace',
   Yes: 'Sí',
   'Arsenal presets': 'Presets de Arsenal',
-  'The earlier Arsenal screen: presets by provider':
-    'La pantalla anterior de Arsenal: presets por proveedor',
   'No keys yet': 'Todavía no hay claves',
   'Add one above. Its value is asked for in a separate window.':
     'Agregá una arriba. Su valor se pide en una ventana aparte.',
@@ -1722,52 +1709,19 @@ export const ES: Readonly<Record<string, string>> = {
     'El host no confirmó la última entrada: puede que haya llegado al programa o no. No se volvió a enviar, y la entrada que seguía esperando se descartó. Revisá la pantalla antes de seguir escribiendo.',
   'That input was not sent: with what is already waiting it is more than a terminal holds (64 KiB). Nothing of it reached the program; what was waiting before it still goes.':
     'Esa entrada no se envió: con lo que ya está esperando, supera lo que cabe en una terminal (64 KiB). Nada de ella llegó al programa; lo que esperaba antes sigue su curso.',
-  'Preset saved': 'Preset guardado',
-  'Could not be saved. Nothing changed.': 'No se pudo guardar. No cambió nada.',
   Presets: 'Presets',
-  'New preset': 'Nuevo preset',
-  'Reading presets…': 'Leyendo presets…',
-  'No presets for {provider} yet.': 'Todavía no hay presets para {provider}.',
   Duplicate: 'Duplicar',
   'Delete {name}?': '¿Borrar {name}?',
   'Deleting…': 'Borrando…',
-  'Copy of {name}': 'Copia de {name}',
   Choose: 'Elegir',
-  'Search capabilities': 'Buscar capacidades',
   Rules: 'Reglas',
   Family: 'Familia',
-  'No capabilities match.': 'Ninguna capacidad coincide.',
   'Move to group…': 'Mover a grupo…',
-  'Shows everything at once, of every type.':
-    'Muestra todo junto, de todos los tipos.',
-  'A hook is a script that runs by itself at a moment of the session, such as before a command or when it starts. It can stop a command or add context, without being asked.':
-    'Un hook es un script que corre solo en un momento de la sesión, como antes de un comando o al arrancar. Puede frenar un comando o sumar contexto sin que se lo pidas.',
-  'An MCP server connects the agent to an outside tool, such as Notion, a browser or library docs, and gives it new actions to use.':
-    'Un servidor MCP conecta al agente con una herramienta de afuera, como Notion, un navegador o la documentación de una librería, y le da acciones nuevas para usar.',
-  'A plugin is a package that brings several pieces together (skills, agents, hooks, MCP servers) and is switched on or off as a whole.':
-    'Un plugin es un paquete que trae varias piezas juntas (skills, agentes, hooks, servidores MCP) y se prende o apaga entero.',
-  'A command is a /name you type to run a saved prompt. Here only your own command files are listed; most /commands are skills.':
-    'Un comando es un /nombre que escribís para correr un prompt guardado. Acá se listan solo tus archivos de comandos; la mayoría de los /comandos son skills.',
   MCP: 'MCP',
   Commands: 'Comandos',
-  'Part of {name}': 'Parte de {name}',
-  'No custom commands. Your /commands are skills here.':
-    'No tenés comandos propios. Acá tus /comandos son skills.',
-  'A rule is a file of permanent instructions, such as invariantes.md. The agent reads it when every session starts and follows it the whole time. It does not run anything.':
-    'Una regla es un archivo de instrucciones permanentes, como invariantes.md. El agente lo lee al arrancar cada sesión y lo cumple todo el tiempo. No ejecuta nada.',
-  'A skill is a how-to manual for one kind of task, such as designing a screen or finding a bug. The agent opens it only when the task you give it needs it.':
-    'Una skill es un manual de cómo hacer un tipo de tarea, como diseñar una pantalla o encontrar un error. El agente la abre solo cuando la tarea que le das la necesita.',
-  'An agent is a helper with a job of its own, such as reviewing code. The main agent hands it part of the work; it does it on its own and returns the result.':
-    'Un agente es un ayudante con un trabajo propio, como revisar código. El agente principal le pasa una parte del trabajo; él la hace por su cuenta y devuelve el resultado.',
-  'Only changes where it is listed on this screen, not what it does. Saved on this computer.':
-    'Solo cambia dónde aparece en esta pantalla, no lo que hace. Se guarda en esta computadora.',
-  'Back to automatic group': 'Volver al grupo automático',
-  'No description in its file': 'Su archivo no trae descripción',
   Rule: 'Regla',
   Supported: 'Compatible',
   Unverified: 'Sin verificar',
-  'Needs provider qualification': 'Necesita calificación del provider',
-  'Missing dependency': 'Falta una dependencia',
   Conflicting: 'En conflicto',
   Unsupported: 'No compatible',
   'Fixing bugs': 'Depuración',
@@ -1781,46 +1735,14 @@ export const ES: Readonly<Record<string, string>> = {
     'Servidores MCP: conexiones a herramientas de afuera como Notion, un navegador o la documentación de una librería.',
   'Hooks that run by themselves at moments of the session and are not about security.':
     'Hooks que corren solos en momentos de la sesión y no son de seguridad.',
-  'How it works': 'Cómo trabaja',
-  'Before building': 'Antes de construir',
   After: 'Después',
   Environment: 'Entorno',
-  'Category name': 'Nombre de la categoría',
   Save: 'Guardar',
-  'Delete {name}? Its {n} capabilities go back to their default category.':
-    '¿Borrar {name}? Sus {n} capacidades vuelven a su categoría automática.',
-  'Terminal environment': 'Entorno de la terminal',
   'The launch environment could not be read.':
     'No se pudo leer el entorno de la terminal.',
-  'The launch environment could not be saved.':
-    'No se pudo guardar el entorno de la terminal.',
-  'What this preset loads besides its skills. Anything unticked is not loaded in that terminal, and costs no context.':
-    'Lo que este preset carga además de sus skills. Lo que destildes no se carga en esa terminal y no gasta contexto.',
   Instructions: 'Instrucciones',
-  'Auto memory': 'Memoria automática',
-  'Agents and account skills': 'Agentes y skills de la cuenta',
-  'Your agents (~/.claude/agents, GSD included)':
-    'Tus agentes (~/.claude/agents, incluido GSD)',
-  'No hooks in your settings.': 'No hay hooks en tu configuración.',
-  'All servers, plugins and claude.ai connectors included':
-    'Todos los servidores, incluidos los de plugins y conectores de claude.ai',
-  'No plugins enabled.': 'No hay plugins activados.',
-  'This terminal gets its own launch folder and signs in with your stored long-lived token. Your own ~/.claude is not changed.':
-    'Esta terminal arranca con su propia carpeta y entra con tu token de larga duración guardado. Tu ~/.claude no se toca.',
-  'This terminal uses your own configuration as it is.':
-    'Esta terminal usa tu configuración tal como está.',
-  "Always loaded: the project's instructions (CLAUDE.md, CLAUDE.local.md, .claude/rules and the CLAUDE.md of each folder it reads in), its skills and hooks, and Claude Code's built-in plugins.":
-    'Siempre carga: las instrucciones del proyecto (CLAUDE.md, CLAUDE.local.md, .claude/rules y el CLAUDE.md de cada carpeta donde lee), sus skills y hooks, y los plugins incluidos en Claude Code.',
   'No long-lived token is stored, so this terminal will not start. Run claude setup-token in your own terminal and store it with: secret-tool store --label "Claude Code token (Wyss Console)" service wyss-console kind claude-oauth-token':
     'No hay un token de larga duración guardado, así que esta terminal no va a arrancar. Corré claude setup-token en tu propia terminal y guardalo con: secret-tool store --label "Claude Code token (Wyss Console)" service wyss-console kind claude-oauth-token',
-  'Save environment': 'Guardar entorno',
-  'Not selectable yet': 'Todavía no se elige',
-  'Nothing here yet.': 'Todavía no hay nada acá.',
-  'New category': 'Nueva categoría',
-  'The category could not be deleted. Try again.':
-    'No se pudo borrar la categoría. Probá de nuevo.',
-  'That name cannot be used: it is empty, longer than 40 characters, or already in this section.':
-    'Ese nombre no sirve: está vacío, tiene más de 40 caracteres o ya existe en esta sección.',
   'Checks for security problems: audits, threat reviews and guards against dangerous commands.':
     'Controles de seguridad: auditorías, revisión de amenazas y frenos ante comandos peligrosos.',
   'Finding why something fails: method to chase a bug down to its cause.':
@@ -1859,28 +1781,8 @@ export const ES: Readonly<Record<string, string>> = {
   'Planning and method': 'Planificación y método',
   Building: 'Construcción',
   'System and setup': 'Sistema y entorno',
-  'How it is put together': 'Cómo está armado',
-  'Name the preset': 'Poné un nombre al preset',
-  'Nothing chosen yet. Tick a group or a capability.':
-    'Todavía no elegiste nada. Marcá un grupo o una capacidad.',
-  'Checking…': 'Verificando…',
-  'Could not be checked.': 'No se pudo verificar.',
-  '{on} on · {off} off': '{on} activas · {off} apagadas',
-  'Keep {name} ({count} skills)': 'Mantener {name} ({count} skills)',
   '{count} conflict': '{count} conflicto',
   '{count} conflicts': '{count} conflictos',
-  'Same name': 'Mismo nombre',
-  'Same content': 'Mismo contenido',
-  'Two rules for one provider': 'Dos reglas para un mismo provider',
-  'Two methodologies': 'Dos metodologías',
-  'Installed in account and project': 'Instalada en la cuenta y en el proyecto',
-  'How it starts': 'Cómo arranca',
-  '{agent} starts with {on} capabilities from this preset. The other {off} installed skills are switched off in that terminal.':
-    '{agent} arranca con {on} capacidades de este preset. Las otras {off} skills instaladas quedan apagadas en esa terminal.',
-  'Save preset': 'Guardar preset',
-  'Discard changes': 'Descartar cambios',
-  'Keep editing': 'Seguir editando',
-  'Unsaved changes': 'Cambios sin guardar',
   'Launch name': 'Nombre del lanzamiento',
   'A launch with that name exists.': 'Ya hay un lanzamiento con ese nombre.',
   Replace: 'Reemplazar',
@@ -2021,7 +1923,6 @@ export const ES: Readonly<Record<string, string>> = {
   'Check now': 'Comprobar ahora',
   'Arsenal selection': 'Selección de Arsenal',
   Reload: 'Recargar',
-  'no project': 'sin proyecto',
   pinned: 'fijada',
   prepared: 'preparada',
   missing: 'faltante',
@@ -2065,159 +1966,26 @@ export const ES: Readonly<Record<string, string>> = {
   Discover: 'Descubrir',
   Composites: 'Composites',
   Account: 'Cuenta',
-  'Not imported': 'No importada',
-  'Source changed': 'El origen cambió',
   'Read only': 'Solo lectura',
   Tool: 'Herramienta',
   File: 'Archivo',
-  'declared, not checked offline': 'declarada, sin verificar sin conexión',
   present: 'presente',
   unknown: 'desconocida',
-  'A hook runs code. Arsenal lists it and never copies or runs it.':
-    'Un hook ejecuta código. Arsenal lo lista y nunca lo copia ni lo ejecuta.',
-  'An MCP definition can hold credentials. Arsenal lists it and never copies it.':
-    'Una definición MCP puede tener credenciales. Arsenal la lista y nunca la copia.',
-  'A plugin brings code and hooks. Arsenal lists it; importing plugins is not available yet.':
-    'Un plugin trae código y hooks. Arsenal lo lista; importar plugins todavía no está disponible.',
-  'GSD Core payload': 'Contenido de GSD Core',
-  'Claude Code plugin': 'Plugin de Claude Code',
-  'Codex plugin': 'Plugin de Codex',
-  'Claude user skills': 'Skills de usuario de Claude',
-  'Codex user skills': 'Skills de usuario de Codex',
-  'Codex home skills': 'Skills de la carpeta de Codex',
-  'Codex system skills': 'Skills del sistema de Codex',
-  'Claude project skills': 'Skills de proyecto de Claude',
-  'Codex project skills': 'Skills de proyecto de Codex',
-  'Claude user agents': 'Agentes de usuario de Claude',
-  'Codex user agents': 'Agentes de usuario de Codex',
-  'Claude project agents': 'Agentes de proyecto de Claude',
-  'Codex project agents': 'Agentes de proyecto de Codex',
-  'Claude user rules': 'Reglas de usuario de Claude',
-  'Codex user rules': 'Reglas de usuario de Codex',
-  'Claude project rules': 'Reglas de proyecto de Claude',
-  'Codex project rules': 'Reglas de proyecto de Codex',
-  'Credential file, not copied': 'Archivo de credenciales, no se copia',
-  'Hidden, not copied': 'Oculto, no se copia',
-  'Link, not followed': 'Enlace, no se sigue',
-  'Binary, not copied': 'Binario, no se copia',
-  'May hold a secret': 'Puede tener un secreto',
-  'Special file, not copied': 'Archivo especial, no se copia',
-  'Nested too deep, not copied': 'Anidado demasiado profundo, no se copia',
-  'Name is not UTF-8, not copied': 'El nombre no es UTF-8, no se copia',
   read: 'leída',
-  'not present': 'no está',
   'could not be read': 'no se pudo leer',
-  'Importing…': 'Importando…',
-  'Already imported': 'Ya importada',
-  'Import as new revision': 'Importar como revisión nueva',
-  'Installed does not mean imported. A selection reaches a terminal only when you start one with it from Workspace.':
-    'Instalada no quiere decir importada. Un preset llega a una terminal solo cuando la iniciás con él desde Workspace.',
-  'Arsenal sections': 'Secciones de Arsenal',
-  'Reading the Arsenal library…': 'Leyendo la biblioteca de Arsenal…',
-  'The Arsenal library could not be opened. Refresh after the Wyss data folder is writable.':
-    'No se pudo abrir la biblioteca de Arsenal. Actualizá cuando la carpeta de datos de Wyss se pueda escribir.',
-  'The library did not load completely. Try Refresh.':
-    'La biblioteca no se cargó completa. Probá Actualizar.',
-  'Library sections': 'Secciones de la biblioteca',
   Search: 'Buscar',
-  'Name, description or origin': 'Nombre, descripción u origen',
-  'Nothing is imported yet. Open Discover to import a capability you already have.':
-    'Todavía no hay nada importado. Abrí Descubrir para importar una capacidad que ya tenés.',
-  'No capabilities match these filters.':
-    'Ninguna capacidad coincide con estos filtros.',
   '{count} imported': '{count} importadas',
-  '{shown} of {total} imported': '{shown} de {total} importadas',
-  'Imported capabilities': 'Capacidades importadas',
-  'Revision {revision}': 'Revisión {revision}',
-  'Capability details': 'Detalle de la capacidad',
-  'Revision {current} of {total}': 'Revisión {current} de {total}',
-  '{files} files · {bytes} B': '{files} archivos · {bytes} B',
   Revisions: 'Revisiones',
   Current: 'Actual',
-  'Restoring…': 'Restaurando…',
-  'Restore revision {revision}': 'Restaurar la revisión {revision}',
-  'Show files of revision {revision}':
-    'Ver los archivos de la revisión {revision}',
-  'Imported from': 'Importada desde',
   Content: 'Contenido',
-  'Use in a session': 'Uso en una sesión',
-  'Only through a terminal plan: Workspace shows, per terminal, whether this revision is installed and whether it can be applied.':
-    'Solo a través del plan de una terminal: Workspace muestra, por terminal, si esta revisión está instalada y si se puede aplicar.',
-  'Its files declare and point at nothing Arsenal can check.':
-    'Sus archivos no declaran nada que Arsenal pueda verificar.',
-  'Files in revision {revision}': 'Archivos de la revisión {revision}',
-  'Account and project': 'Cuenta y proyecto',
   'Scan again': 'Escanear de nuevo',
   'Importing {done} of {total}…': 'Importando {done} de {total}…',
-  'Import {count} eligible': 'Importar {count} elegibles',
   'Bulk import progress': 'Progreso de la importación',
-  'Reading installed capabilities…': 'Leyendo las capacidades instaladas…',
-  'No project selected. Project capabilities are not listed; select a project in Configuration.':
-    'No hay proyecto elegido. Las capacidades de proyecto no se listan; elegí un proyecto en Configuración.',
-  'Capability folders': 'Carpetas de capacidades',
-  'The folders have more entries than the scan shows. Some are not listed.':
-    'Las carpetas tienen más entradas de las que muestra el escaneo. Algunas no se listan.',
-  '{count} composite collection(s) installed.':
-    '{count} colección(es) compuesta(s) instalada(s).',
-  'Open Composites': 'Abrir Composites',
-  'No capabilities found in your Claude, Codex or project folders.':
-    'No se encontraron capacidades en tus carpetas de Claude, Codex o de proyecto.',
-  'Discovered capabilities': 'Capacidades encontradas',
-  'Duplicate content': 'Contenido duplicado',
-  'Name collision': 'Nombre repetido',
-  'Capability to import': 'Capacidad para importar',
-  'Read from': 'Leída desde',
-  'Listed only. Arsenal does not copy it.':
-    'Solo listada. Arsenal no la copia.',
-  'Contains scripts. Arsenal copies them and never runs them.':
-    'Tiene scripts. Arsenal los copia y nunca los ejecuta.',
-  'Same content as {names}.': 'Mismo contenido que {names}.',
-  'Another capability here has the same name. Both can be imported; they stay separate.':
-    'Otra capacidad de acá tiene el mismo nombre. Se pueden importar las dos; quedan separadas.',
-  'Files that will be copied': 'Archivos que se van a copiar',
-  'Files in this capability': 'Archivos de esta capacidad',
-  'Not copied': 'No se copia',
-  'Review before importing': 'Revisar antes de importar',
-  'These files use a credential word. They are copied; check that none holds a real value.':
-    'Estos archivos usan una palabra de credencial. Se copian; revisá que ninguno tenga un valor real.',
-  'Mentions a credential word': 'Menciona una palabra de credencial',
-  'This is a link into {composite} {version}. It is read only: GSD Core installs it, so Arsenal does not copy it.':
-    'Es un enlace a {composite} {version}. Es solo lectura: lo instala GSD Core, así que Arsenal no lo copia.',
-  'A composite is installed by its own tool: GSD Core by its installer, a plugin by Claude Code or Codex. Arsenal describes it and never copies it.':
-    'Un composite lo instala su propia herramienta: GSD Core con su instalador, un plugin con Claude Code o Codex. Arsenal lo describe y nunca lo copia.',
-  'Reading installed composites…': 'Leyendo los composites instalados…',
-  'No composite collection is installed in your Claude or Codex folders.':
-    'No hay ninguna colección composite instalada en tus carpetas de Claude o Codex.',
-  'Enabled in your settings': 'Habilitado en tu configuración',
-  'Disabled in your settings': 'Deshabilitado en tu configuración',
   Methodology: 'Metodología',
-  'Not importable': 'No importable',
   Members: 'Miembros',
-  '{skills} skills · {agents} agents': '{skills} skills · {agents} agentes',
-  '{count} commands': '{count} comandos',
-  '{count} artifacts in its manifest': '{count} artefactos en su manifiesto',
-  'Runs code': 'Ejecuta código',
-  'Yes: it registers hooks.': 'Sí: registra hooks.',
-  'Its hooks and engine belong to the GSD Core install.':
-    'Sus hooks y su motor pertenecen a la instalación de GSD Core.',
-  'No hooks declared.': 'No declara hooks.',
-  'It declares MCP servers.': 'Declara servidores MCP.',
   Manifest: 'Manifiesto',
   Limits: 'Límites',
-  'Skills ({count})': 'Skills ({count})',
-  'Agents ({count})': 'Agentes ({count})',
-  "What each terminal started with, recorded right after its start from the host's own session record. Applied means the host launched it with that exact exclusion; whether the provider then used each skill is not observed.":
-    'Con qué arrancó cada terminal, anotado justo después de su inicio desde el registro de sesión del propio host. Aplicado quiere decir que el host la lanzó con esa exclusión exacta; no se observa si el provider después usó cada skill.',
-  'Terminal configurations': 'Configuraciones de terminal',
   APPLIED: 'APLICADO',
-  'NOT APPLIED': 'NO APLICADO',
-  'Use not observed': 'Uso no observado',
-  '{prepared} prepared · {excluded} installed skills switched off · {kept} kept':
-    '{prepared} preparadas · {excluded} skills instaladas apagadas · {kept} conservadas',
-  '{prepared} prepared · {excluded} installed skills would have been switched off · {kept} kept':
-    '{prepared} preparadas · {excluded} skills instaladas que se habrían apagado · {kept} conservadas',
-  'No terminal has started with a selection yet. Choose one in Workspace when starting Claude Code or Codex.':
-    'Ninguna terminal arrancó todavía con un preset. Elegí uno en Workspace al iniciar Claude Code o Codex.',
   'The Arsenal library could not be opened. Check that the Wyss data folder is writable, then Refresh.':
     'No se pudo abrir la biblioteca de Arsenal. Revisá que la carpeta de datos de Wyss se pueda escribir y después actualizá.',
   'The Arsenal library is damaged, so nothing was changed. Keep the file and report it.':

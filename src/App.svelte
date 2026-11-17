@@ -8,7 +8,6 @@
   import { AgentController } from './lib/features/agent/controller';
   import ApprovalsView from './lib/features/approvals/ApprovalsView.svelte';
   import { ApprovalsController } from './lib/features/approvals/controller';
-  import ArsenalView from './lib/features/arsenal/ArsenalView.svelte';
   import LibraryView from './lib/features/arsenal/LibraryView.svelte';
   import {
     GuideStore,
@@ -184,9 +183,7 @@
     configurationController.setVisible(activeView === 'arsenal');
   });
   $effect(() => {
-    arsenalController.setVisible(
-      activeView === 'arsenal' || activeView === 'arsenal-presets',
-    );
+    arsenalController.setVisible(activeView === 'arsenal');
   });
   $effect(() => {
     sessionsController.setVisible(activeView === 'sessions');
@@ -500,11 +497,6 @@
             launchToCreate = { request: ++createLaunchRequest, selection };
             go('launches');
           }}
-        />
-        <ArsenalView
-          visible={activeView === 'arsenal-presets'}
-          {arsenal}
-          controller={arsenalController}
         />
         <CredentialsView
           visible={activeView === 'credentials'}
