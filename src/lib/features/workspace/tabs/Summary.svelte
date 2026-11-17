@@ -3,6 +3,7 @@
   import { kTokens } from '../estimate';
   import { workspace } from '../context';
   import { buildWorkspaceSummary, eventText } from '../model';
+  import Fold from '../Fold.svelte';
 
   const ws = workspace();
   const s = $derived(
@@ -28,57 +29,62 @@
   </p>
 {/if}
 
-<h2 class="ws-section">{t('At start')}</h2>
-<dl class="ws-facts">
-  <dt>{t('Application')}</dt>
-  <dd>{s.application}</dd>
-  <dt>{t('Working directory')}</dt>
-  <dd class="ws-mono">{s.directory}</dd>
-  <dt>{t('Permissions')}</dt>
-  <dd>{t(s.permission)}</dd>
-  <dt>{t('Initial context')}</dt>
-  <dd>
-    {s.context.kind === 'estimated'
-      ? `~${kTokens(s.context.total)} ${t('tokens')}`
-      : t('Not estimated')}
-  </dd>
-</dl>
+<Fold label={t('At start')}>
+  <dl class="ws-facts">
+    <dt>{t('Application')}</dt>
+    <dd>{s.application}</dd>
+    <dt>{t('Working directory')}</dt>
+    <dd class="ws-mono">{s.directory}</dd>
+    <dt>{t('Permissions')}</dt>
+    <dd>{t(s.permission)}</dd>
+    <dt>{t('Initial context')}</dt>
+    <dd>
+      {s.context.kind === 'estimated'
+        ? `~${kTokens(s.context.total)} ${t('tokens')}`
+        : t('Not estimated')}
+    </dd>
+  </dl>
+</Fold>
 
-<h2 class="ws-section">{t('Reads first')}</h2>
-<dl class="ws-facts">
-  {#each s.globalInstructions as file, i (file)}
-    <dt>{i + 1}</dt>
-    <dd class="ws-mono">{file}</dd>
-  {/each}
-  <dt>{s.globalInstructions.length + 1}</dt>
-  <dd>{t(PROJECT[s.projectInstructions])}</dd>
-</dl>
+<Fold label={t('Reads first')}>
+  <dl class="ws-facts">
+    {#each s.globalInstructions as file, i (file)}
+      <dt>{i + 1}</dt>
+      <dd class="ws-mono">{file}</dd>
+    {/each}
+    <dt>{s.globalInstructions.length + 1}</dt>
+    <dd>{t(PROJECT[s.projectInstructions])}</dd>
+  </dl>
+</Fold>
 
-<h2 class="ws-section">{t('Skills')}</h2>
-<dl class="ws-facts">
-  {#each s.skills as section (section.label)}
-    <dt>{t(section.label)}</dt>
-    <dd>{list(section.categories.flatMap((c) => c.names))}</dd>
-  {/each}
-</dl>
+<Fold label={t('Skills')}>
+  <dl class="ws-facts">
+    {#each s.skills as section (section.label)}
+      <dt>{t(section.label)}</dt>
+      <dd>{list(section.categories.flatMap((c) => c.names))}</dd>
+    {/each}
+  </dl>
+</Fold>
 
 {#if s.mcp}
-  <h2 class="ws-section">{t('MCP')}</h2>
-  <dl class="ws-facts">
-    <dt>{t('Your servers')}</dt>
-    <dd>{list(s.mcp.servers)}</dd>
-    <dt>{t('Account connectors')}</dt>
-    <dd>{s.mcp.connectors ? t('On') : t('Off')}</dd>
-  </dl>
+  <Fold label={t('MCP')}>
+    <dl class="ws-facts">
+      <dt>{t('Your servers')}</dt>
+      <dd>{list(s.mcp.servers)}</dd>
+      <dt>{t('Account connectors')}</dt>
+      <dd>{s.mcp.connectors ? t('On') : t('Off')}</dd>
+    </dl>
+  </Fold>
 {/if}
 
-<h2 class="ws-section">{t('Hooks')}</h2>
-<dl class="ws-facts">
-  {#each s.hooks as moment (moment.event)}
-    <dt>{t(eventText(moment.event))}</dt>
-    <dd class="ws-mono">{list(moment.names)}</dd>
-  {:else}
-    <dt>—</dt>
-    <dd>{t('None')}</dd>
-  {/each}
-</dl>
+<Fold label={t('Hooks')}>
+  <dl class="ws-facts">
+    {#each s.hooks as moment (moment.event)}
+      <dt>{t(eventText(moment.event))}</dt>
+      <dd class="ws-mono">{list(moment.names)}</dd>
+    {:else}
+      <dt>—</dt>
+      <dd>{t('None')}</dd>
+    {/each}
+  </dl>
+</Fold>
