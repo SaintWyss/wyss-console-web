@@ -576,10 +576,17 @@ const update: Launch = {
 };
 const script = () =>
   document.querySelector<HTMLTextAreaElement>('#launch-commands')!.value;
-const switchOf = (label: string) =>
-  [...document.querySelectorAll<HTMLLabelElement>('.ws-options label')]
-    .find((l) => l.textContent?.includes(label))!
-    .querySelector('input')!;
+const switchOf = (label: string) => {
+  const row = [
+    ...document.querySelectorAll<HTMLElement>('.ws-options .ws-line'),
+  ].find((l) => l.textContent?.includes(label))!;
+  const toggle = row.querySelector<HTMLButtonElement>('[role="switch"]')!;
+  return Object.assign(toggle, {
+    get checked() {
+      return toggle.getAttribute('aria-checked') === 'true';
+    },
+  }) as HTMLButtonElement & { readonly checked: boolean };
+};
 
 it('a distribution’s switches rewrite its script, and the active one cannot be removed', async () => {
   await show([update]);
@@ -620,7 +627,11 @@ it('a script typed by hand turns the switches off until it goes back to them', a
   area.dispatchEvent(new Event('input', { bubbles: true }));
   flushSync();
   expect(
-    document.querySelector<HTMLFieldSetElement>('.ws-options')!.disabled,
+    [
+      ...document.querySelectorAll<HTMLButtonElement>(
+        '.ws-options [role="switch"]',
+      ),
+    ].every((s) => s.disabled),
   ).toBe(true);
   button('Rebuild from the options').click();
   flushSync();
@@ -664,14 +675,18 @@ it('a variant edited in its file by hand opens with the switches off', async () 
   ]);
   expect(script()).toBe('sysupdate');
   expect(
-    document.querySelector<HTMLFieldSetElement>('.ws-options')!.disabled,
+    [
+      ...document.querySelectorAll<HTMLButtonElement>(
+        '.ws-options [role="switch"]',
+      ),
+    ].every((s) => s.disabled),
   ).toBe(true);
 });
 
 it('hovering an option says what it does', async () => {
   await show([update]);
   expect(
-    [...document.querySelectorAll<HTMLLabelElement>('.ws-options label')].find(
+    [...document.querySelectorAll<HTMLElement>('.ws-options .ws-line')].find(
       (l) => l.textContent?.includes('--noconfirm'),
     )!.title,
   ).toContain('answer yes on their own');
@@ -1380,4 +1395,15 @@ it('shows a global instruction file’s text in a dialog', async () => {
   await settle();
   expect(read).toHaveBeenCalledWith('CLAUDE.md');
   expect(text('.ws-dialog pre')).toBe('# Kernel\nrules');
+});
+
+it('regression: a launch without a preset is not changed by dropping unavailable skills', async () => {
+  await show([session('otro', null)], {
+    terminalPlan: async () =>
+      ({
+        items: [{ capability: 's1', state: 'missing', reason: 'Not here' }],
+      }) as unknown as TerminalPlan,
+  });
+  expect(button('Save').disabled).toBe(true);
+  expect(document.body.textContent).not.toContain('unavailable skills');
 });

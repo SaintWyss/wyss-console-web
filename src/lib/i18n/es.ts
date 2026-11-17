@@ -2108,7 +2108,7 @@ export const ES: Readonly<Record<string, string>> = {
   'What this launch does not give the agent: switched off by you, or not available here.':
     'Lo que este lanzamiento no le da al agente: lo que apagaste o lo que no está disponible acá.',
   '{count} unavailable skills are removed from this launch on save.':
-    'Al guardar se quitan de este lanzamiento {count} skills no disponibles.',
+    'Este preset tiene {count} skills que no están disponibles acá (ver Skills). Al guardar se quitan del preset.',
   'At start': 'Arranque',
   'Writing/editing': 'Escritura y edición',
   'Reading files': 'Lectura de archivos',

@@ -7,6 +7,7 @@
     type Variant,
   } from '../../desktop/launch-client';
   import { errorMessage } from './messages';
+  import Toggle from './Toggle.svelte';
   import {
     compose,
     DISTROS,
@@ -275,22 +276,20 @@
               {t('Each option changes the commands below.')}
             </p>
           </div>
-          <fieldset class="ws-options" disabled={busy || r.manual}>
-            <legend class="visually-hidden">{t('Options')}</legend>
+          <div class="ws-options" role="group" aria-label={t('Options')}>
             {#each d.switches as s (s.id)}
-              <label title={t(s.hint)}>
-                <input
-                  type="checkbox"
-                  checked={r.options.includes(s.id)}
-                  onchange={(e) => setSwitch(s.id, e.currentTarget.checked)}
+              <div class="ws-line" title={t(s.hint)}>
+                <span>{t(s.label)}</span>
+                <code class="ws-meta">{s.flag ?? ''}</code>
+                <Toggle
+                  label={t(s.label)}
+                  on={r.options.includes(s.id)}
+                  disabled={busy || r.manual}
+                  onchange={(on) => setSwitch(s.id, on)}
                 />
-                <span>
-                  {t(s.label)}
-                  {#if s.flag}<code>{s.flag}</code>{/if}
-                </span>
-              </label>
+              </div>
             {/each}
-          </fieldset>
+          </div>
         </div>
       {/if}
 

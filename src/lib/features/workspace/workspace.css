@@ -237,30 +237,15 @@ h1.ws-title {
 
 /* System update: options in a scrolling box, two columns, the flag beside its text. */
 .ws-options {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 4px 24px;
-  max-height: 260px;
-  margin: 0;
-  padding: 8px 14px;
+  max-height: 320px;
+  padding: 0 14px;
   overflow-y: auto;
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   background: var(--surface);
 }
-.ws-options label {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: baseline;
-  gap: 10px;
-  min-height: 32px;
-  padding-top: 5px;
-  font-size: var(--text-sm);
-}
 .ws-options code {
-  font: 13px var(--font-mono);
-  color: var(--faint);
-  white-space: nowrap;
+  font-family: var(--font-mono);
 }
 .ws-commands {
   min-height: 150px;

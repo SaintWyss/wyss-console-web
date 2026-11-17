@@ -142,9 +142,14 @@
         const blocked = new Set(
           items.filter(unavailable).map((i) => i.capability),
         );
-        // What cannot load leaves the draft; Save says so and removes it from the preset.
-        dropped = draft.items.filter((i) => blocked.has(i.capability)).length;
+        // What cannot load leaves the draft. Only a saved preset holds it: then Save says so and
+        // removes it. A launch without a preset never saved it, so dropping it is no change.
+        const untouched = JSON.stringify(draft) === baseline;
+        dropped = draft.selection
+          ? draft.items.filter((i) => blocked.has(i.capability)).length
+          : 0;
         draft.items = draft.items.filter((i) => !blocked.has(i.capability));
+        if (untouched && !draft.selection) baseline = JSON.stringify(draft);
         itemPlanState = 'ready';
       })
       .catch((e: unknown) => {
