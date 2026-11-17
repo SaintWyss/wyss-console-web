@@ -32,7 +32,7 @@ Los inventarios están en `docs/research/limpieza/`. Son de solo lectura y los a
 2. **Pantallas hoja:** U1 Remote, U2 Providers, U3 Pipelines, U4 Runtimes, U5 Projects.
 3. **Mudanza y borrado:** diseño para el dueño, después la mudanza, después U6 Arsenal presets y U7 Terminal agents.
 4. **Cierre de la limpieza:** shell, CSS y una segunda pasada de exports.
-5. **Dependencias:** primero menores y parches, después cada mayor por separado. Tauri sube junto en el front y en el back.
+5. **Dependencias (hecho el 2026-11-17):** npm, menores y parches; Tauri 2.12.5 en el front y en el back; `cargo update`; jsdom 31. TypeScript 7 queda **pendiente**: `svelte-check` 4.7.8 y `typescript-eslint` 8.73 todavía exigen TS menor que 6.1, así que el typecheck y el lint se rompen. Se reintenta cuando lo soporten.
 6. **App real:** recorrido de todas las pantallas en el display aislado :78.
 7. **Revisión por áreas:** la hace Codex Sol Medium y la revisa Claude Opus. Es decisión del dueño del 2026-11-16: Fable ya no se usa. Antes de arrancar este paso se le avisa al dueño y se para.
 8. **Docs:** se ponen al día.
