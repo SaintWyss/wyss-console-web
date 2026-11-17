@@ -79,8 +79,6 @@
 .ws-body > *,
 .ws-foot {
   width: 100%;
-  max-width: 944px;
-  margin-inline: auto;
   padding-inline: 32px;
 }
 .ws-head {
@@ -237,7 +235,8 @@ h1.ws-title {
 
 /* System update: options in a scrolling box, two columns, the flag beside its text. */
 .ws-options {
-  max-height: 320px;
+  /* Fixed share of the window: more options or a smaller window scroll inside the box. */
+  max-height: clamp(160px, 32vh, 320px);
   padding: 0 14px;
   overflow-y: auto;
   border: 1px solid var(--line);
