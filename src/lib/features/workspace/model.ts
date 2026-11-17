@@ -267,7 +267,6 @@ export interface WorkspaceSummary {
   skills: { label: string; categories: { label: string; names: string[] }[] }[];
   mcp: { servers: string[]; connectors: boolean } | null;
   hooks: { event: string; names: string[] }[];
-  leftOut: { name: string; reason?: string }[];
 }
 
 /** Builds the Summary tab from its inputs without reading or writing application state. */
@@ -323,53 +322,6 @@ export function buildWorkspaceSummary(
         `${row.script} (${row.matchers.length ? row.matchers.map(matcherText).join(', ') : matcherText('')})`,
     ),
   }));
-  const leftOut: WorkspaceSummary['leftOut'] = data.library
-    .filter((item) => item.provider === draft.agent && item.kind === 'skill')
-    .flatMap((item) => {
-      const missing = planFor(item.id);
-      if (missing && missing.state !== 'prepared')
-        return [
-          {
-            name: item.name,
-            reason:
-              missing.reason ||
-              missing.compatibility?.reason ||
-              'Not available',
-          },
-        ];
-      return selected.has(item.id) ? [] : [{ name: item.name }];
-    });
-  if (claude && draft.spec) {
-    leftOut.push(
-      ...(data.options?.account_skills ?? [])
-        .filter((name) => draft.spec?.account_skills_off.includes(name))
-        .map((name) => ({ name })),
-    );
-    if (!draft.spec.instructions)
-      leftOut.push({ name: 'CLAUDE.md and global rules' });
-    else
-      leftOut.push(
-        ...(data.options?.rules ?? [])
-          .filter((rule) => draft.spec?.rules_off.includes(rule))
-          .map((rule) => ({ name: `rules/${rule}` })),
-      );
-    leftOut.push(
-      ...(data.options?.mcp ?? [])
-        .filter(
-          (name) =>
-            draft.spec?.mcp !== null && !draft.spec?.mcp?.includes(name),
-        )
-        .map((name) => ({ name })),
-    );
-  }
-  if (!claude && draft.codexSpec?.instructions === false)
-    leftOut.push({ name: 'AGENTS.md' });
-  leftOut.push(
-    ...hooks
-      .filter((hook) => hooksOff.includes(hook.key))
-      .map((hook) => ({ name: workspaceScriptName(hook.command) })),
-  );
-
   return {
     noChanges: launchChangesNothing(draft.agent, draft.spec, draft.codexSpec),
     application: claude ? 'Claude Code' : 'Codex',
@@ -413,7 +365,6 @@ export function buildWorkspaceSummary(
         }
       : null,
     hooks: activeHooks,
-    leftOut,
   };
 }
 

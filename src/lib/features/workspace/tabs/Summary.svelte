@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { t, tIncoming } from '../../../i18n/index.svelte';
+  import { t } from '../../../i18n/index.svelte';
   import { kTokens } from '../estimate';
   import { workspace } from '../context';
   import { buildWorkspaceSummary, eventText } from '../model';
@@ -82,18 +82,3 @@
     <dd>{t('None')}</dd>
   {/each}
 </dl>
-
-{#if s.leftOut.length > 0}
-  <h2 class="ws-section">{t('Not loaded')}</h2>
-  <p class="ws-hint">
-    {t(
-      'What this launch does not give the agent: switched off by you, or not available here.',
-    )}
-  </p>
-  <dl class="ws-facts">
-    {#each s.leftOut as item (item.name)}
-      <dt>{t(item.name)}</dt>
-      <dd>{item.reason ? tIncoming(item.reason) : t('Switched off')}</dd>
-    {/each}
-  </dl>
-{/if}
