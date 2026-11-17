@@ -37,6 +37,17 @@ Estado (17/11, dueño): CERRADOS en diseño = lista, pestaña General y Actualiz
 - "Ver contenido" muestra el Markdown RENDERIZADO con el mismo parser que Arsenal (`blocks`/`outline` de `src/lib/features/arsenal/guide.ts`, render en `LibraryView.svelte`).
 - Pendiente para cerrar la pestaña: limpieza de las instrucciones globales (CLAUDE.md/AGENTS.md + rules/invariantes.md, ~11,3k tokens) — tarea aparte, R2, con respaldo, inventario de reglas y revisión externa.
 
+### Pestaña Skills (cerrada, 17/11)
+- Barra: filtro + contador + "Volver a leer". Sin "Habilitar/Deshabilitar todas", sin columna de estado; motivo solo en no disponibles.
+- Orden de generales a concretas por las secciones de Arsenal (`SECTION_OF`): Generales · Por tipo de trabajo · Entorno · Temas propios. Categoría por `groupFor` (gsap → Animación y video).
+- Filas 40px, categorías 48px, una línea entre categorías, chevron SVG.
+
+### Pestaña MCP (en revisión, 17/11)
+- Sin descripción por servidor (no existe en `~/.claude.json`): nombre + interruptor.
+- Agrupados por origen como Skills: Tus servidores (Comando local · Paquete npx) · De tu cuenta de claude.ai (conectores: Gmail, Notion, Drive…) · De plugins (por plugin).
+- Los conectores de claude.ai y de plugins TIENEN que aparecer con interruptor (el dueño no quiere que todo lanzamiento lea Gmail/Notion).
+- A VERIFICAR antes de construir: si Claude Code permite elegir conectores de claude.ai/plugins de a uno por sesión. Hoy `--strict-mcp-config` los saca todos juntos.
+
 ## Inventario del editor de agente (LaunchEditor.svelte, leído 17/11)
 
 | Control hoy | Qué hace de verdad | Claude / Codex | Propuesta |
