@@ -55,7 +55,9 @@
           ? msg(
               'This system does not expose a lingering setting the Console can read.',
             )
-          : msg('The setting could not be changed. Nothing was changed.');
+          : msg(
+              'The lingering change could not be confirmed. Check the current state.',
+            );
       await load();
     } finally {
       busy = false;
@@ -93,7 +95,7 @@
           <tr data-current={event.current}>
             <td>{TITLES[event.id] ? t(TITLES[event.id]) : event.id}</td>
             <td data-outcome={event.outcome}>{t(WORDS[event.outcome])}</td>
-            <td title={event.known_by}>{event.basis}</td>
+            <td title={t(event.known_by)}>{t(event.basis)}</td>
           </tr>
         {/each}
       </tbody>
@@ -154,6 +156,6 @@
         >
       {/if}
     {/if}
-    {#if message}<p role="status">{t(message)}</p>{/if}
   {/if}
+  {#if message}<p role="status">{t(message)}</p>{/if}
 </section>

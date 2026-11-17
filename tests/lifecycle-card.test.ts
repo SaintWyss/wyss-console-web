@@ -3,6 +3,9 @@ import { flushSync, mount, unmount } from 'svelte';
 import { mockIPC } from '@tauri-apps/api/mocks';
 import LifecycleCard from '../src/lib/features/terminal/LifecycleCard.svelte';
 import { parseHostLifecycle } from '../src/lib/contracts/terminal';
+import { readFileSync } from 'node:fs';
+import { setLanguage } from '../src/lib/i18n/index.svelte';
+import { ES } from '../src/lib/i18n/es';
 
 const event = (id: string, outcome: string, current = true) => ({
   id,
@@ -48,6 +51,7 @@ afterEach(() => {
   if (component) void unmount(component);
   component = undefined;
   document.body.innerHTML = '';
+  setLanguage('en');
 });
 const open = async () => {
   component = mount(LifecycleCard, { target: document.body });
@@ -120,3 +124,61 @@ it('decodes only an exact lifecycle answer', () => {
   ])
     expect(() => parseHostLifecycle(bad)).toThrow();
 });
+
+it('translates every lifecycle explanation and evidence tooltip actually emitted by the host', async () => {
+  const source = readFileSync('src-tauri/src/host/persistence.rs', 'utf8');
+  const rows = [
+    ...source.matchAll(
+      /id: "([^"]+)",[\s\S]*?basis: "([^"]+)",\s*known_by: "([^"]+)",/g,
+    ),
+  ];
+  expect(rows).toHaveLength(8);
+  current.events = rows.map(([, id, basis, known_by]) => ({
+    id,
+    basis,
+    known_by,
+    outcome: 'survives',
+    current: true,
+  }));
+  setLanguage('es');
+  await open();
+  const cells = [...document.querySelectorAll('tbody tr td:last-child')];
+  for (const [index, [, , basis, knownBy]] of rows.entries()) {
+    expect(ES[basis], basis).toBeDefined();
+    expect(ES[knownBy], knownBy).toBeDefined();
+    expect(cells[index].textContent).toBe(ES[basis]);
+    expect(cells[index].getAttribute('title')).toBe(ES[knownBy]);
+    expect(cells[index].textContent).not.toBe(basis);
+  }
+  setLanguage('en');
+  await settle();
+  expect(cells[0].textContent).toBe(rows[0][2]);
+  expect(cells[0].getAttribute('title')).toBe(rows[0][3]);
+});
+
+it.each([false, true])(
+  'reports an unconfirmed lingering change even if reloading fails (%s)',
+  async (reloadFails) => {
+    await open();
+    mockIPC((command) => {
+      if (command === 'host_lingering') {
+        // The operation ran, but the host could not confirm its result.
+        current = facts(true);
+        return Promise.reject({ code: 'not_applied' });
+      }
+      if (reloadFails) return Promise.reject({ code: 'unavailable' });
+      return current;
+    });
+    button(/Keep terminals after logout/)!.click();
+    await settle();
+    button(/Turn lingering on/)!.click();
+    await settle();
+    expect(document.querySelector('[role="status"]')?.textContent).toBe(
+      'The lingering change could not be confirmed. Check the current state.',
+    );
+    expect(document.body.textContent).not.toContain('Nothing was changed');
+    if (reloadFails)
+      expect(document.body.textContent).toContain('could not be read');
+    else expect(button(/Turn lingering off/)).toBeDefined();
+  },
+);

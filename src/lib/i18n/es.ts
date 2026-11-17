@@ -13,6 +13,38 @@ import { ES_SCREENS } from './screens';
  * Tools, Native, Managed).
  */
 export const ES: Readonly<Record<string, string>> = {
+  // Console: terminal labels and the host's exact lifecycle explanations.
+  Native: 'Native',
+  '{agent} in {directory}': '{agent} en {directory}',
+  'The host is a separate process with a group of its own; closing the window signals nothing in it.':
+    'El host es un proceso separado con su propio grupo; cerrar la ventana no envía ninguna señal a sus procesos.',
+  'tested: a terminal outlives the client that made it':
+    'probado: una terminal sigue viva después de que termina el cliente que la creó',
+  'A window that leaves detaches its terminals; the host closes none of them.':
+    'Al salir, la ventana se desconecta de sus terminales; el host no cierra ninguna.',
+  'tested: a late client sees what was printed':
+    'probado: un cliente que se conecta después ve lo que se imprimió',
+  'Locking the screen keeps the session and changes no process.':
+    'Bloquear la pantalla conserva la sesión y no cambia ningún proceso.',
+  'reasoned from what locking does; not exercised here':
+    'deducido del funcionamiento del bloqueo de pantalla; no se probó acá',
+  "With lingering the user's manager keeps running after the last session ends.":
+    'Con lingering, el gestor de servicios del usuario sigue corriendo después de que termina la última sesión.',
+  "this machine's facts (where the host runs, logind's setting)":
+    'datos de esta máquina (dónde corre el host y la configuración de logind)',
+  "Without lingering the user's manager stops with the last session, and what runs inside it stops too.":
+    'Sin lingering, el gestor de servicios del usuario se detiene con la última sesión, junto con lo que corre dentro de él.',
+  'Suspend freezes processes and resume continues them; programs that watch a clock or a network see the gap.':
+    'La suspensión pausa los procesos y la reanudación los continúa; los programas que consultan un reloj o la red perciben la interrupción.',
+  'reasoned from what suspend does; not exercised here':
+    'deducido del funcionamiento de la suspensión; no se probó acá',
+  "The host owns every terminal's PTY: when it stops, they close. Nothing relaunches a command.":
+    'El host es dueño de la PTY de cada terminal: cuando se detiene, se cierran. Ningún comando se vuelve a ejecutar por sí solo.',
+  'reading of the code: the host is the PTY owner':
+    'lectura del código: el host es dueño de la PTY',
+  'No process survives a reboot or a loss of power, and nothing is started again by itself afterwards.':
+    'Ningún proceso sobrevive a un reinicio o un corte de energía, y nada vuelve a iniciarse por sí solo después.',
+  'what a reboot is': 'por el funcionamiento de un reinicio',
   // Shell: navigation
   Terminals: 'Terminales',
   System: 'Sistema',
@@ -145,8 +177,8 @@ export const ES: Readonly<Record<string, string>> = {
     'No hay un preset llamado “{name}” para este agente. Crealo en Workspace o cambiá el archivo del lanzamiento.',
   'More than one preset is named “{name}” for this agent. Delete the extra presets in Arsenal › Presets, then start again.':
     'Hay más de un preset llamado “{name}” para este agente. Borrá los demás en Arsenal › Presets y volvé a iniciar.',
-  'The Arsenal selection “{name}” cannot be applied with this permission. Choose the preset for this launch in Workspace, then try again. Nothing was started.':
-    'No se puede aplicar la selección “{name}” de Arsenal con este permiso. Elegí el preset de este lanzamiento en Workspace y volvé a probar. No se inició nada.',
+  'The Arsenal selection “{name}” cannot be applied with this permission. Choose the preset for this launch in Workspace, then try again. The agent was not started.':
+    'No se puede aplicar la selección “{name}” de Arsenal con este permiso. Elegí el preset de este lanzamiento en Workspace y volvé a probar. No se inició el agente.',
   Configuration: 'Configuración',
   Models: 'Modelos',
 
@@ -1569,8 +1601,8 @@ export const ES: Readonly<Record<string, string>> = {
     'Lingering está desactivado para tu cuenta.',
   'This system does not expose a lingering setting the Console can read.':
     'Este sistema no expone una opción de lingering que la Consola pueda leer.',
-  'The setting could not be changed. Nothing was changed.':
-    'No se pudo cambiar la opción. No se cambió nada.',
+  'The lingering change could not be confirmed. Check the current state.':
+    'No se pudo confirmar el cambio de lingering. Revisá el estado actual.',
   'Terminals after the window closes':
     'Terminales después de cerrar la ventana',
   'What survives what could not be read from the host.':

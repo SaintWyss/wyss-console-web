@@ -405,6 +405,32 @@ describe('a session launch and the Arsenal selection its folder remembers', () =
     await expect(openLaunch('codex', d)).rejects.toThrow('Work');
     expect(d.start).not.toHaveBeenCalled();
   });
+
+  it('does not claim nothing ran when before commands preceded a permission refusal', async () => {
+    const { d } = deps(session(), undefined, {
+      selection: 'sel-1',
+      canStart: false,
+    });
+    const refusal = (await openLaunch('codex', d).catch(
+      (error: unknown) => error,
+    )) as LaunchRefusal;
+    expect(d.runBefore).toHaveBeenCalledOnce();
+    expect(d.start).not.toHaveBeenCalled();
+    expect(refusal).toBeInstanceOf(LaunchRefusal);
+    expect(t(refusal.template, refusal.values)).toContain(
+      'The agent was not started.',
+    );
+    expect(t(refusal.template, refusal.values)).not.toContain(
+      'Nothing was started.',
+    );
+    setLanguage('es');
+    expect(t(refusal.template, refusal.values)).toContain(
+      'No se inició el agente.',
+    );
+    expect(t(refusal.template, refusal.values)).not.toContain(
+      'No se inició nada.',
+    );
+  });
 });
 
 it('refuses every unappliable custom instruction plan before running commands', async () => {

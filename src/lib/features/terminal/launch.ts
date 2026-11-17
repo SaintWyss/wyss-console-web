@@ -293,7 +293,7 @@ export async function openLaunch(
   if (apply && !preview.can_start)
     throw new LaunchRefusal(
       msg(
-        'The Arsenal selection “{name}” cannot be applied with this permission. Choose the preset for this launch in Workspace, then try again. Nothing was started.',
+        'The Arsenal selection “{name}” cannot be applied with this permission. Choose the preset for this launch in Workspace, then try again. The agent was not started.',
       ),
       { name: plan!.selection_name },
     );

@@ -6,6 +6,7 @@ import { currentWorkspace } from '../src/lib/features/native/bridge';
 import type { TerminalRenderer } from '../src/lib/features/terminal/renderer';
 import { launcher, reply, session } from './native-harness';
 import NativeTerminalHarness from './NativeTerminalHarness.svelte';
+import * as i18n from '../src/lib/i18n/index.svelte';
 
 const fakes = vi.hoisted(() => ({ factory: vi.fn() }));
 vi.mock('../src/lib/features/terminal/renderer', () => ({
@@ -17,6 +18,7 @@ let controller: NativeController | undefined;
 let commands: string[];
 let records: ReturnType<typeof session>[];
 let terminalNumber: number;
+let withPermission: boolean;
 const launch = {
   id: 'daily',
   name: 'Daily work',
@@ -92,6 +94,7 @@ beforeEach(() => {
   commands = [];
   records = [];
   terminalNumber = 0;
+  withPermission = false;
   controller = undefined;
   fakes.factory.mockImplementation((): TerminalRenderer => ({
     fit: () => ({ rows: 24, cols: 80 }),
@@ -127,7 +130,15 @@ beforeEach(() => {
           provider_version: '2.1.303 (Claude Code)',
         };
       case 'native_start': {
-        const started = reply();
+        const started = reply({
+          profile: withPermission
+            ? {
+                id: 'template-full-access',
+                name: 'Full access (bypass)',
+                version: 1,
+              }
+            : null,
+        });
         records = [started.session];
         return started;
       }
@@ -198,10 +209,35 @@ afterEach(async () => {
   await settle();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+  i18n.setLanguage('en');
   document.body.innerHTML = '';
 });
 
 describe('native terminal actions in the Console', () => {
+  it('routes the Native pill through the translation function', async () => {
+    const translate = vi.spyOn(i18n, 't');
+    await mountAndLaunch();
+    expect(translate).toHaveBeenCalledWith('Native');
+  });
+
+  it('shows the native agent and starting permission once in the session bar', async () => {
+    withPermission = true;
+    const workspace = await mountAndLaunch();
+    const pane = workspace.tabOf('a'.repeat(32))!;
+    const panel = document.getElementById(`panel-${pane}`)!;
+    const bar = document.querySelector('.session-bar')!;
+    expect(bar.textContent).toContain('Claude Code');
+    expect(bar.textContent).toContain('Full access');
+    expect(panel.querySelector('.terminal-toolbar')?.textContent).not.toContain(
+      'Claude Code',
+    );
+    expect(panel.querySelector('.terminal-toolbar')?.textContent).not.toContain(
+      'Full access',
+    );
+    expect(panelButton(pane, 'Stop')).toBeDefined();
+    expect(panelButton(pane, 'Restart')).toBeDefined();
+  });
+
   it('refreshes the registry after the first launch from an empty registry', async () => {
     const workspace = await mountAndLaunch();
     const pane = workspace.tabOf('a'.repeat(32));

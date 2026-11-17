@@ -7,6 +7,7 @@ import type { TerminalRenderer } from '../src/lib/features/terminal/renderer';
 import { parseTerminalId } from '../src/lib/contracts/identities';
 import type { NativeState } from '../src/lib/features/native/controller';
 import { session as nativeSession } from './native-harness';
+import { setLanguage } from '../src/lib/i18n/index.svelte';
 
 const fakes = vi.hoisted(() => ({ factory: vi.fn() }));
 vi.mock('../src/lib/features/terminal/renderer', () => ({
@@ -83,6 +84,7 @@ afterEach(async () => {
   await flush();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+  setLanguage('en');
 });
 it('mounts one PTY, renders running state, closes once and disposes renderer', async () => {
   component = mount(TerminalView, { target: document.body });
@@ -736,6 +738,92 @@ it('lists only the saved launches under + Launch', async () => {
   expect(panel).not.toContain('New terminal');
   expect(panel).not.toContain('Start agent');
 });
+
+it('translates saved session launch tooltips with and without a permission', async () => {
+  mockIPC((command) => {
+    if (command === 'launch_list')
+      return {
+        folder: '/launch',
+        launches: [null, 'read_only'].map((permission, index) => ({
+          id: `session-${index}`,
+          name: `Session ${index}`,
+          directory: '/project',
+          kind: 'session',
+          agent: 'claude_code',
+          permission,
+          before: [],
+          preset: null,
+        })),
+        refused: [],
+      };
+    return command === 'terminal_read_output'
+      ? new Promise(() => undefined)
+      : info;
+  });
+  setLanguage('es');
+  component = mount(TerminalView, { target: document.body });
+  await flush();
+  tools()[3].click();
+  await flush();
+  expect(
+    [...document.querySelectorAll('.launch-item')].map((item) =>
+      item.getAttribute('title'),
+    ),
+  ).toEqual([
+    'Claude Code en /project',
+    'Claude Code · Solo lectura en /project',
+  ]);
+});
+
+it.each(['success', 'failure'] as const)(
+  'ignores an older launch-list %s after the menu is reopened',
+  async (outcome) => {
+    let resolveOld!: (value: unknown) => void;
+    let rejectOld!: (reason: unknown) => void;
+    const old = new Promise((resolve, reject) => {
+      resolveOld = resolve;
+      rejectOld = reject;
+    });
+    let reads = 0;
+    const list = (name: string) => ({
+      folder: '/launch',
+      launches: [
+        {
+          id: 'cmd',
+          name,
+          directory: '/project',
+          kind: 'commands',
+          commands: ['ls'],
+        },
+      ],
+      refused: [],
+    });
+    mockIPC((command) => {
+      if (command === 'launch_list')
+        return ++reads === 1 ? old : list('Current launch');
+      return command === 'terminal_read_output'
+        ? new Promise(() => undefined)
+        : info;
+    });
+    component = mount(TerminalView, { target: document.body });
+    await flush();
+    tools()[3].click();
+    await flush();
+    tools()[3].click();
+    tools()[3].click();
+    await flush();
+    expect(document.querySelector('.launch-name')?.textContent).toBe(
+      'Current launch',
+    );
+    if (outcome === 'success') resolveOld(list('Outdated launch'));
+    else rejectOld(new Error('Outdated error'));
+    await flush();
+    expect(document.querySelector('.launch-name')?.textContent).toBe(
+      'Current launch',
+    );
+    expect(document.body.textContent).not.toContain('Outdated');
+  },
+);
 
 it('shows finished native records in + Launch and calls their registry actions', async () => {
   mockIPC((command) => {

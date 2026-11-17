@@ -496,6 +496,26 @@ describe('real IPC bridge plus terminal lifecycle controller', () => {
       error: 'write_failed',
     });
   });
+  it('keeps polling output when an input busy retry overlaps the idle delay', async () => {
+    let writes = 0;
+    handle = (command) => {
+      if (command === 'terminal_read_output') return output();
+      if (command === 'terminal_write')
+        return ++writes === 1 ? Promise.reject({ code: 'busy' }) : 1;
+      return info;
+    };
+    await controller.start();
+    await flush();
+    render.text('x');
+    await flush();
+    await vi.advanceTimersByTimeAsync(100);
+    expect(writes).toBe(2);
+    expect(count('terminal_read_output')).toBeGreaterThan(2);
+    expect(states.at(-1)?.state).toBe('running');
+    await controller.dispose();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it('offers a write the host did not take (busy) again and keeps the terminal', async () => {
     // Another window was writing at that moment: nothing of this write reached the terminal.
     let tries = 0;

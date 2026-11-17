@@ -69,7 +69,7 @@ export class TerminalController {
   private metricsCleanup?: () => void;
   private observer?: ResizeObserver;
   private resizeTimer?: ReturnType<typeof setTimeout>;
-  private sleepTimer?: ReturnType<typeof setTimeout>;
+  private readonly sleepers = new Set<() => void>();
   private wakeSleep?: () => void;
   private desiredSize?: TerminalSize;
   private sentSize?: TerminalSize;
@@ -383,16 +383,19 @@ export class TerminalController {
       this.writing = false;
     }
   }
-  private sleep(ms: number): Promise<void> {
+  private sleep(ms: number, wakeOnInput = false): Promise<void> {
     return new Promise((resolve) => {
       const done = () => {
-        clearTimeout(this.sleepTimer);
-        this.sleepTimer = undefined;
-        this.wakeSleep = undefined;
+        clearTimeout(timer);
+        this.sleepers.delete(done);
+        if (this.wakeSleep === done) this.wakeSleep = undefined;
         resolve();
       };
-      this.wakeSleep = done;
-      this.sleepTimer = setTimeout(done, ms);
+      // Output pacing and a busy input retry may wait at the same time. Each
+      // owns its timer; completing one must never cancel the other.
+      const timer = setTimeout(done, ms);
+      this.sleepers.add(done);
+      if (wakeOnInput) this.wakeSleep = done;
     });
   }
   private processed(data: Uint8Array): Promise<boolean> {
@@ -454,7 +457,7 @@ export class TerminalController {
           // An answer that came at once is paced as before, so a desktop that does not wait
           // is not asked in a tight loop.
           idle = Math.min(idle * 2, 320);
-          await this.sleep(idle);
+          await this.sleep(idle, true);
         }
       }
     } catch (error) {
@@ -488,7 +491,7 @@ export class TerminalController {
     this.observer = undefined;
     clearTimeout(this.resizeTimer);
     this.resizeTimer = undefined;
-    this.wakeSleep?.();
+    for (const done of this.sleepers) done();
     this.inputs = [];
     this.inputBytes = 0;
   }

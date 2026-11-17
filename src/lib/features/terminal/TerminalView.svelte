@@ -90,6 +90,7 @@
   } | null>(null);
   let launchOrder = $state<string[]>(loadOrder());
   let reordering = $state(false);
+  let launchRead = 0;
   const finishedNative = $derived(
     native.sessions.filter(
       (session) => session.state !== 'running' && session.state !== 'requested',
@@ -176,12 +177,18 @@
   export async function toggleLaunches() {
     launchesOpen = !launchesOpen;
     if (!launchesOpen) return;
+    const read = ++launchRead;
     nativeController?.refreshSessions();
     launchError = null;
     try {
-      launches = await listLaunches();
-      void loadEstimateData(arsenalClient).then((data) => (estimates = data));
+      const listed = await listLaunches();
+      if (read !== launchRead) return;
+      launches = listed;
+      void loadEstimateData(arsenalClient).then((data) => {
+        if (read === launchRead) estimates = data;
+      });
     } catch (error) {
+      if (read !== launchRead) return;
       launches = null;
       launchError = explain(error);
     }
@@ -475,7 +482,10 @@
                   aria-busy={launchBusy === launch.id}
                   title={launch.kind === 'commands'
                     ? launch.commands.join(' ; ')
-                    : `${launch.agent === 'claude_code' ? 'Claude Code' : 'Codex'}${launch.permission ? ` · ${t(PERMISSION_LABEL[launch.permission])}` : ''} in ${launch.directory}`}
+                    : t('{agent} in {directory}', {
+                        agent: `${launch.agent === 'claude_code' ? 'Claude Code' : 'Codex'}${launch.permission ? ` · ${t(PERMISSION_LABEL[launch.permission])}` : ''}`,
+                        directory: launch.directory,
+                      })}
                   onclick={() => void open(launch.id)}
                 >
                   <span class="launch-name"

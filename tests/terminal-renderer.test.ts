@@ -343,3 +343,25 @@ it('searches the text on screen and in the scrollback, steps through matches, an
   expect(renderer.search!('', { caseSensitive: false, step: 0 }).total).toBe(0);
   renderer.clearSearch!();
 });
+
+it('clears the previous selection when the search query becomes empty', async () => {
+  await renderer.write(new TextEncoder().encode('alpha beta\r\n'));
+  expect(renderer.search!('beta', { caseSensitive: false, step: 0 })).toEqual({
+    total: 1,
+    current: 1,
+  });
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  expect(
+    host.querySelector('.xterm-selection')?.children.length,
+  ).toBeGreaterThan(0);
+  expect(renderer.search!('', { caseSensitive: false, step: 0 })).toEqual({
+    total: 0,
+    current: 0,
+  });
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  expect(host.querySelector('.xterm-selection')?.children.length).toBe(0);
+  // Starting the same search again starts from the first match.
+  expect(
+    renderer.search!('beta', { caseSensitive: false, step: 1 }).current,
+  ).toBe(1);
+});

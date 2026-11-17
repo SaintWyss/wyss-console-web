@@ -217,7 +217,13 @@ export function createRenderer(host: HTMLElement): TerminalRenderer {
       if (!disposed) term.focus();
     },
     search(query, options) {
-      if (disposed || query === '') return { total: 0, current: 0 };
+      if (disposed) return { total: 0, current: 0 };
+      if (query === '') {
+        term.clearSelection();
+        searchAt = -1;
+        searchQuery = '';
+        return { total: 0, current: 0 };
+      }
       const buffer = term.buffer.active;
       const needle = options.caseSensitive ? query : query.toLowerCase();
       const found: { row: number; col: number }[] = [];
