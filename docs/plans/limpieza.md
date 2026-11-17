@@ -34,6 +34,6 @@ Los inventarios están en `docs/research/limpieza/`. Son de solo lectura y los a
 4. **Cierre de la limpieza:** shell, CSS y una segunda pasada de exports.
 5. **Dependencias (hecho el 2026-11-17):** npm, menores y parches; Tauri 2.12.5 en el front y en el back; `cargo update`; jsdom 31. TypeScript 7 queda **pendiente**: `svelte-check` 4.7.8 y `typescript-eslint` 8.73 todavía exigen TS menor que 6.1, así que el typecheck y el lint se rompen. Se reintenta cuando lo soporten.
 6. **App real:** recorrido de todas las pantallas en el display aislado :78.
-7. **Revisión por áreas:** la hace Codex Sol Medium y la revisa Claude Opus. Es decisión del dueño del 2026-11-16: Fable ya no se usa. Antes de arrancar este paso se le avisa al dueño y se para.
-8. **Docs:** se ponen al día.
+7. **Revisión por áreas (hecho el 2026-11-17):** Shell, Consola, Workspace y Distribuidores, Arsenal y Configuración, y Ajustes y Credenciales los corrigió Codex Sol Medium y los revisó Claude Opus; Actividad, Sessions y Agents los hizo Claude Opus por pedido del dueño, porque Codex no tenía cuota (commits `233e268`..`bed2db7`). Las propuestas para el dueño están en `propuestas-revision.md`.
+8. **Docs (hecho el 2026-11-17):** `STATUS.md` (sección Desktop screens), `ARCHITECTURE.md`, `contracts/interface.md` (barra, Más, títulos) y `contracts/acceptance.md` (enlaces a tests borrados) describen la ventana actual. `PRODUCT.md`, `REQUIREMENTS.md` y `ROADMAP.md` llevan una nota de las pantallas retiradas: su alcance es decisión del dueño.
 9. **Traducción:** se retoma.

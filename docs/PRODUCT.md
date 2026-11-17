@@ -4,6 +4,12 @@ Wyss Console is Santiago's personal native development workspace for CachyOS/KDE
 It combines useful offline terminals, real provider configuration and supervised
 agent work. The goal is a complete personal product.
 
+> **Desktop screens retired on 2026-11-17.** The screens for Remote PCs, Providers (M3),
+> Pipelines, Runtimes (F8), Projects, Terminal agents and Arsenal presets were removed from
+> the window; their Rust backends remain. Requirements below that name one of those screens
+> have no desktop surface now and need a new one before they can be accepted. Current
+> screens: [STATUS](STATUS.md#desktop-screens).
+
 ## Scope
 
 - Projects organize workspaces, terminals, sessions and coordination. Global

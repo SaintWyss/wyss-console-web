@@ -5,6 +5,12 @@ Only unfinished work belongs here. Current capabilities and evidence live in
 [DECISIONS](DECISIONS.md#open-decisions). Remove a task when its acceptance is
 complete. If implementation exists, retain only its missing validation or change.
 
+> **Desktop screens retired on 2026-11-17.** The screens for Remote PCs, Providers (M3),
+> Pipelines, Runtimes (F8), Projects, Terminal agents and Arsenal presets were removed from
+> the window; their Rust backends remain. Requirements below that name one of those screens
+> have no desktop surface now and need a new one before they can be accepted. Current
+> screens: [STATUS](STATUS.md#desktop-screens).
+
 ## Engineering corrections
 
 These are source-confirmed next slices from the architecture review. READY means specified

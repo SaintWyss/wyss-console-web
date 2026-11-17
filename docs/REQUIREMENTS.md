@@ -14,6 +14,12 @@ A case is not PASS because code or a similarly named test exists. The
 [current evidence map](contracts/acceptance.md#functional-case-evidence-map) identifies
 review locations and still-required qualification without claiming those tests were run.
 
+> **Desktop screens retired on 2026-11-17.** The screens for Remote PCs, Providers (M3),
+> Pipelines, Runtimes (F8), Projects, Terminal agents and Arsenal presets were removed from
+> the window; their Rust backends remain. Requirements below that name one of those screens
+> have no desktop surface now and need a new one before they can be accepted. Current
+> screens: [STATUS](STATUS.md#desktop-screens).
+
 ## 1. Product and context
 
 <a id="fp-ctx-01"></a>

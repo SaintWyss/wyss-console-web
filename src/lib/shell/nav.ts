@@ -74,7 +74,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   },
 ];
 
-/** The rail: six entries. Each opens a view of its own; Activity shows two, Personalization six as tabs. */
+/** The rail: six entries. Each opens a view of its own; Activity shows two, Personalization three as tabs. */
 export type RailId =
   | 'console'
   | 'workspace'
