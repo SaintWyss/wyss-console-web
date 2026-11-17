@@ -7,8 +7,10 @@ agent work. The goal is a complete personal product.
 > **Desktop screens retired on 2026-11-17.** The screens for Remote PCs, Providers (M3),
 > Pipelines, Runtimes (F8), Projects, Terminal agents and Arsenal presets were removed from
 > the window; their Rust backends remain. Requirements below that name one of those screens
-> have no desktop surface now and need a new one before they can be accepted. Current
-> screens: [STATUS](STATUS.md#desktop-screens).
+> have no desktop surface now and need a new one before they can be accepted. The owner
+> decided on 2026-11-17 to keep them as pending, not to drop them:
+> [ROADMAP](ROADMAP.md#pending-screens-to-rebuild). Current screens:
+> [STATUS](STATUS.md#desktop-screens).
 
 ## Scope
 

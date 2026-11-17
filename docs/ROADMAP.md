@@ -8,8 +8,23 @@ complete. If implementation exists, retain only its missing validation or change
 > **Desktop screens retired on 2026-11-17.** The screens for Remote PCs, Providers (M3),
 > Pipelines, Runtimes (F8), Projects, Terminal agents and Arsenal presets were removed from
 > the window; their Rust backends remain. Requirements below that name one of those screens
-> have no desktop surface now and need a new one before they can be accepted. Current
-> screens: [STATUS](STATUS.md#desktop-screens).
+> have no desktop surface now and need a new one before they can be accepted. The owner
+> decided on 2026-11-17 to keep them as pending, not to drop them:
+> [ROADMAP](#pending-screens-to-rebuild). Current screens:
+> [STATUS](STATUS.md#desktop-screens).
+
+## Pending screens to rebuild
+
+Requirements stay in force; each needs a new desktop surface before acceptance. Terminal
+agents and Arsenal presets are not listed: their functions moved to Workspace and Arsenal.
+
+| Retired screen | Backend kept | Next step                                |
+| -------------- | ------------ | ---------------------------------------- |
+| Remote PCs     | yes (Rust)   | design a surface inside the current rail |
+| Providers (M3) | yes (Rust)   | decide if it joins Personalization       |
+| Pipelines      | yes (Rust)   | design a surface                         |
+| Runtimes (F8)  | yes (Rust)   | decide if it joins Personalization       |
+| Projects       | yes (Rust)   | design a surface                         |
 
 ## Engineering corrections
 
