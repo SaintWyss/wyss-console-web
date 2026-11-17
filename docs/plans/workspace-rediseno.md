@@ -48,6 +48,16 @@ Estado (17/11, dueño): CERRADOS en diseño = lista, pestaña General y Actualiz
 - Los conectores de claude.ai y de plugins TIENEN que aparecer con interruptor (el dueño no quiere que todo lanzamiento lea Gmail/Notion).
 - A VERIFICAR antes de construir: si Claude Code permite elegir conectores de claude.ai/plugins de a uno por sesión. Hoy `--strict-mcp-config` los saca todos juntos.
 
+### Pestaña Hooks (cerrada, 17/11)
+- Agrupados por momento en orden: Al iniciar la sesión · Antes de usar una herramienta · Después de usar una herramienta.
+- Fila = script (no la entrada de settings): nombre en mono + disparador en palabras + interruptor + "Ver contenido" con el código del script. Un script registrado varias veces = una fila.
+- Conectores de la cuenta (pestaña MCP): un solo interruptor global "Conectores de tu cuenta"; el detalle se ve después.
+
+### Pestaña Resumen (cerrada, 17/11)
+- Solo lectura, mismas filas etiqueta/valor: aviso si el lanzamiento usa la config global completa · Arranque · Lee primero (orden) · Skills por sección · MCP · Hooks por momento · Fuera.
+
+Estado: TODAS las pestañas cerradas en diseño. Siguiente: reescribir `workspace-rediseno-contrato.md` con estas decisiones y construir con OK del dueño.
+
 ## Inventario del editor de agente (LaunchEditor.svelte, leído 17/11)
 
 | Control hoy | Qué hace de verdad | Claude / Codex | Propuesta |
