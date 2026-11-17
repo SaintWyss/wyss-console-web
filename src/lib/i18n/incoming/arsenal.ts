@@ -26,7 +26,7 @@ export const INCOMING: Readonly<Record<string, string>> = {
   'A {kind} is not switched per session. The provider loads its installed ones as usual.':
     'El proveedor carga los elementos instalados de este tipo como siempre; no se pueden activar ni desactivar por sesión (tipo: {kind}).',
   'Not installed for this provider. Adding stored content to one session needs a qualified session plugin, which is not available.':
-    'Esta habilidad no está instalada para este proveedor. Para agregar contenido guardado a una sesión hace falta un plugin de sesión verificado, que no está disponible.',
+    'Esta skill no está instalada para este proveedor. Para agregar contenido guardado a una sesión hace falta un plugin de sesión verificado, que no está disponible.',
   'The installed copy is exactly revision {revision}. It stays exposed.':
     'La copia instalada corresponde exactamente a la revisión {revision}. Sigue disponible.',
   'Installed as a link, so its content cannot be compared with this revision.':
@@ -47,17 +47,17 @@ export const INCOMING: Readonly<Record<string, string>> = {
   '{name}: missing {kind} "{dependency}".':
     '{name}: falta {kind} «{dependency}».',
   'Some installed skills could not be read, so the exclusion would be incomplete. Nothing is applied.':
-    'No se pudieron leer algunas habilidades instaladas; la exclusión quedaría incompleta y no se aplicaría ningún cambio.',
+    'No se pudieron leer algunas skills instaladas, así que la exclusión quedaría incompleta. No se aplica ningún cambio.',
   'More than {count} installed skills would be switched off.':
-    'Se desactivarían más de {count} habilidades instaladas.',
+    'Se desactivarían más de {count} skills instaladas.',
   'The installed provider build could not be identified. Nothing is applied.':
     'No se pudo identificar la versión instalada del proveedor. No se aplica.',
   'Skill exclusion is qualified for {version}. Start applies it to this terminal only.':
-    'La opción para desactivar habilidades está verificada para la versión {version}. Al iniciar, se aplica solo a esta terminal.',
+    'La opción para desactivar skills está verificada para la versión {version}. Al iniciar, se aplica solo a esta terminal.',
   '{provider} has no qualified per-session skill switch: the session layer of [[skills.config]] and the shared app-server daemon are not proven. The selection can be recorded, not applied.':
-    'No hay una opción verificada para desactivar habilidades por sesión en {provider}: no se comprobó la capa de sesión de [[skills.config]] ni el servidor app-server compartido. La selección se puede guardar, pero no aplicar.',
+    'No hay una opción verificada para desactivar skills por sesión en {provider}: no se comprobó la capa de sesión de [[skills.config]] ni el servidor app-server compartido. La selección se puede guardar, pero no aplicar.',
   'Skill exclusion is not qualified for Claude Code {version}. The selection can be recorded, not applied.':
-    'La opción para desactivar habilidades no está verificada para Claude Code {version}. La selección se puede guardar, pero no aplicar.',
+    'La opción para desactivar skills no está verificada para Claude Code {version}. La selección se puede guardar, pero no aplicar.',
   'Started with this exact exclusion. Whether the provider used it is not observed.':
     'Se inició con esta exclusión exacta. No se observó si el proveedor la usó.',
   'Started without applying the selection.':

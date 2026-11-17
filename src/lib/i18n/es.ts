@@ -16,7 +16,7 @@ export const ES: Readonly<Record<string, string>> = {
   'Not available: the instructions file could not be read.':
     'No disponible: no se pudo leer el archivo de instrucciones.',
   'This skills choice cannot be applied now: {reason} Check it before starting.':
-    'Esta selección de habilidades no se puede aplicar ahora: {reason} Revisala antes de iniciar.',
+    'Esta selección de skills no se puede aplicar ahora: {reason} Revisala antes de iniciar.',
   '{count} unavailable items were left out: {items}':
     'Se excluyeron {count} ítems no disponibles: {items}',
   'Files that could not be read': 'Archivos que no se pudieron leer',
@@ -94,7 +94,7 @@ export const ES: Readonly<Record<string, string>> = {
   'Workspace could not be read.': 'No se pudo leer el Workspace.',
   'New launch': 'Lanzamiento nuevo',
   'not measured': 'sin medir',
-  'Account skills': 'Habilidades de la cuenta',
+  'Account skills': 'Skills de la cuenta',
   'The role could not be saved.': 'No se pudo guardar el rol.',
   'The role could not be deleted.': 'No se pudo borrar el rol.',
   'preset “{name}” (a copy: the other launches keep theirs)':
@@ -138,7 +138,7 @@ export const ES: Readonly<Record<string, string>> = {
   'Codex asks you to approve the hooks the first time in each new folder.':
     'Codex pedirá aprobar los hooks la primera vez en cada carpeta nueva.',
   'For Codex a launch chooses skills, AGENTS.md and the hooks of hooks.json. MCP servers and account skills are Claude Code only.':
-    'En Codex, cada lanzamiento elige las habilidades, AGENTS.md y los hooks de hooks.json. Los servidores MCP y las habilidades de la cuenta solo se pueden usar en Claude Code.',
+    'En Codex, cada lanzamiento elige las skills, AGENTS.md y los hooks de hooks.json. Los servidores MCP y las skills de la cuenta solo se pueden usar en Claude Code.',
   '{on} of {all}': '{on} de {all}',
   'Nothing of this kind.': 'No hay nada de este tipo.',
   // Console: toolbar and session bar
@@ -899,7 +899,7 @@ export const ES: Readonly<Record<string, string>> = {
   'API keys for the AI services, kept sealed on this computer (the key that seals them is in your Secret Service). A key is typed in a window of its own and is never shown again, never sent to this page and never written unsealed. Only a name, the service and a short checksum are listed. Nothing here starts an agent with a key.':
     'Claves de API de los servicios de IA, almacenadas de forma sellada en esta computadora (la clave que las sella está en tu Secret Service). La clave se ingresa en una ventana aparte y después no vuelve a mostrarse, no se envía a esta página ni se guarda sin sellar. Solo se muestran el nombre, el servicio y una suma de verificación breve. Acá no se inicia ningún agente con una clave.',
   'The name must be 1 to 60 characters, not blank, without control characters.':
-    'El nombre debe tener entre 1 y 60 caracteres, no estar vacío ni contener caracteres de control.',
+    'El nombre debe tener entre 1 y 60 caracteres, no estar en blanco ni contener caracteres de control.',
   'The key may not be empty, contain whitespace or control characters, or be longer than 4096 bytes.':
     'La clave no puede estar vacía, contener espacios en blanco o caracteres de control, ni superar los 4096 bytes.',
   'That key is not kept any more.': 'Esa clave ya no está guardada.',
@@ -1730,7 +1730,7 @@ export const ES: Readonly<Record<string, string>> = {
   'Output was missed while the screen was kept':
     'Se perdió parte de la salida mientras se conservaba el estado de la pantalla',
   'The program printed faster than the screen could be kept. The terminal itself is complete; a window opened later may show a screen that differs until the program draws again.':
-    'El programa generó salida más rápido de lo que se podía conservar la pantalla. El contenido de la terminal está completo, pero una ventana que abras después puede mostrar otra pantalla hasta que el programa vuelva a dibujarla.',
+    'El programa generó salida más rápido de lo que se podía conservar la pantalla. La terminal en sí está completa, pero una ventana que abras después puede mostrar otra pantalla hasta que el programa vuelva a dibujarla.',
   'Screen parser restarting': 'Reiniciando el analizador de pantalla',
   'The terminal itself is not affected. The screen state is being rebuilt from the output the host still holds.':
     'La terminal en sí no se ve afectada. El estado de pantalla se está reconstruyendo desde la salida que todavía tiene el host.',
@@ -2184,13 +2184,13 @@ export const ES: Readonly<Record<string, string>> = {
   'CLAUDE.md and the rules files Claude Code reads when it starts: what you told it to always follow. Switching one off saves context, and the agent no longer follows it.':
     'CLAUDE.md y los archivos de reglas que Claude Code lee al arrancar: lo que le pediste que siga siempre. Apagar uno ahorra contexto, y el agente deja de seguirlo.',
   'Know-how the agent loads when a task needs it. At start only each one’s short description takes context.':
-    'Habilidades que el agente carga cuando una tarea las necesita. Al iniciar, solo la descripción breve de cada una suma contexto.',
+    'Skills que el agente carga cuando una tarea las necesita. Al iniciar, solo la descripción breve de cada una suma contexto.',
   'Outside tools the agent can call (browser, docs, Notion…). How much context they take is not measured.':
     'Herramientas externas que el agente puede usar (navegador, documentación, Notion…). No se mide cuánto contexto ocupan.',
   'Helpers the agent can hand part of a task to. Unticking one here does not switch it off: the agent loads its installed ones as usual.':
     'Ayudantes a los que el agente puede delegar parte de una tarea. Destildar uno acá no lo apaga: el agente carga los que tiene instalados como siempre.',
   'The skills of your Claude account (claude.ai), on top of the ones installed on this computer.':
-    'Las habilidades de tu cuenta de Claude (claude.ai), además de las instaladas en esta computadora.',
+    'Las skills de tu cuenta de Claude (claude.ai), además de las instaladas en esta computadora.',
   'Scripts that run on their own at fixed moments (before a command, when a turn ends…). The script takes no context, but what some of them print (at start, before each message) enters the conversation. Not measured.':
     'Scripts que corren solos en momentos fijos (antes de un comando, al terminar un turno…). El script no ocupa contexto, pero lo que imprimen algunos (al arrancar, antes de cada mensaje) entra en la conversación. No se mide.',
   Personalization: 'Personalización',

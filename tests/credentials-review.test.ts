@@ -195,7 +195,7 @@ it('keeps an unsuccessful rename open with its draft so it can be corrected', as
 it.each([
   [
     'name_invalid',
-    'El nombre debe tener entre 1 y 60 caracteres, no estar vacío ni contener caracteres de control.',
+    'El nombre debe tener entre 1 y 60 caracteres, no estar en blanco ni contener caracteres de control.',
   ],
   [
     'secret_invalid',
