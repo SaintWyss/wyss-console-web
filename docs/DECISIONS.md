@@ -26,11 +26,32 @@ Detailed rules: [personal scope](PRODUCT.md),
 
 ## Foundation and integration taxonomy
 
-The product remains desktop/Linux/local-first, using Tauri 2, stable Rust, Svelte,
-TypeScript, Vite and a mature frontend terminal renderer. Keep explicit typed
-IPC/DTO boundaries, a dedicated frontend client and the current single application
-crate; do not add speculative services or empty crates. npm is the frontend package
-manager, lockfiles are tracked and generated build/runtime data stay ignored.
+The product remains desktop/Linux/local-first on stable Rust. The interface is migrating
+from Tauri 2 + WebKitGTK (Svelte, TypeScript, Vite, xterm.js) to native GTK4 drawn by GSK
+on the GPU, with `alacritty_terminal` as terminal state; plan and phases in
+[migracion-gtk4.md](plans/migracion-gtk4.md). Decided 2026-11-17 by the owner:
+
+- **Look:** plain GTK4 with the Console's own CSS (graphite/light/high-contrast), not libadwaita.
+- **Coexistence:** screens not yet ported open the Tauri app as a separate process on demand.
+- **Svelte frozen:** the Tauri interface receives fixes only; new interface work is GTK4.
+- **Order:** terminal engine → host connection → native Console → package → Workspace →
+  Arsenal/Distributors/Credentials → Activity/Sessions/Settings → remove Tauri.
+
+**Performance budgets** (owner goal: terminals lighter than Warp and faster than Ghostty).
+Measured on the same PC and load with the prototype's `bench.sh`; never lowered silently:
+
+| Metric | Budget |
+| --- | --- |
+| GUI process RSS, window + 1 terminal | ≤ Ghostty on the same PC (183 MB on 2026-11-17) |
+| Marginal RSS per extra terminal | ≤ 5 MB |
+| `cat` of 100 MB until exit | ≤ Ghostty (1.3 s on 2026-11-17) |
+| Key-to-pixel latency, median | ≤ Ghostty |
+| Idle CPU with 10 terminals | < 0.5 % |
+
+Keep explicit typed boundaries between interface and services and the current single
+application crate; do not add speculative services or empty crates. During coexistence npm
+remains the Tauri frontend package manager, lockfiles are tracked and generated
+build/runtime data stay ignored.
 
 A model provider supplies inference; an agent runtime supplies its workflow;
 an adapter translates a specific runtime surface. Configuration adapters are

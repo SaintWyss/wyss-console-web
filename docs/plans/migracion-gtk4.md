@@ -1,6 +1,6 @@
 # Plan de migración: interfaz Tauri/WebKit → GTK4 nativo
 
-Estado: BORRADOR, decisiones D1–D4 abiertas (dueño). Rama: `proto/gtk4-terminal`.
+Estado: APROBADO 2026-11-17 (D1–D4 = recomendadas). M0 hecho; en curso M1. Rama: `proto/gtk4-terminal`.
 
 ## Objetivo medible
 
