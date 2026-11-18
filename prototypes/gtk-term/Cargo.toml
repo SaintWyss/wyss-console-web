@@ -8,7 +8,11 @@ publish = false
 
 [dependencies]
 gtk = { package = "gtk4", version = "0.11.5", features = ["v4_14"] }
-alacritty_terminal = "0.26.0"
 
 [profile.release]
 debug = false
+
+[[bin]]
+name = "parsebench"
+path = "src/bin/parsebench.rs"
+test = false

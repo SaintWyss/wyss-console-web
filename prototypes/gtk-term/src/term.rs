@@ -1,29 +1,28 @@
-//! A terminal widget: `alacritty_terminal` keeps the screen state, GTK's scene graph (GSK) draws it
-//! on the GPU. No WebView, no DOM.
+//! A terminal widget: libghostty-vt keeps the screen state, GTK's scene graph (GSK) draws it on the
+//! GPU. No WebView, no DOM. Output flows PTY -> reader thread -> `ghostty::Terminal` (behind a fair
+//! lock); the GTK thread snapshots it into a `RenderState` and rebuilds only the dirty rows.
 
 use std::cell::{Cell as StdCell, RefCell};
 use std::collections::HashMap;
+use std::io::{Read, Write};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, MutexGuard};
 
-use alacritty_terminal::event::{Event, EventListener, WindowSize};
-use alacritty_terminal::event_loop::{EventLoop, EventLoopSender, Msg};
-use alacritty_terminal::grid::Dimensions;
-use alacritty_terminal::sync::FairMutex;
-use alacritty_terminal::term::cell::Flags;
-use alacritty_terminal::term::test::TermSize;
-use alacritty_terminal::term::{Config, Term, TermMode};
-use alacritty_terminal::tty;
-use alacritty_terminal::vte::ansi::{Color, NamedColor, Rgb};
 use gtk::prelude::*;
-use gtk::{gdk, glib, graphene, pango};
+use gtk::{gdk, glib, graphene, gsk, pango};
 
+use crate::ghostty::{self, Cell, CursorStyle, Dirty, Rgb, Wide};
+use crate::palette;
+use crate::pty::Pty;
 use crate::keys;
 use crate::view::TermView;
 
 const FONT: &str = "Monospace 11";
 const PAD: f32 = 4.0;
+const SCROLLBACK_LINES: usize = 10_000;
+const READ_BLOCK: usize = 256 * 1024;
+const WHEEL_LINES: f64 = 3.0;
 
 thread_local! {
     /// Widgets by id, reachable from the PTY thread through `MainContext::invoke`.
@@ -31,41 +30,36 @@ thread_local! {
     static ON_EXIT: RefCell<HashMap<u64, Box<dyn Fn()>>> = RefCell::new(HashMap::new());
 }
 
-#[derive(Clone)]
-struct Listener {
-    id: u64,
-    pending: Arc<AtomicBool>,
+/// The terminal shared between the reader thread (writes output) and the GTK thread (snapshots it,
+/// scrolls, resizes). `next` makes the lock fair: a waiter queues on `next` first, so the reader
+/// cannot starve the draw while output floods in.
+struct Shared {
+    term: Mutex<ghostty::Terminal>,
+    next: Mutex<()>,
+    /// A redraw is already requested and not yet painted.
+    pending: AtomicBool,
 }
 
-impl EventListener for Listener {
-    fn send_event(&self, event: Event) {
-        let id = self.id;
-        match event {
-            Event::Wakeup => {
-                // Coalesce: one redraw request per frame no matter how much output arrived.
-                if !self.pending.swap(true, Ordering::AcqRel) {
-                    let pending = self.pending.clone();
-                    glib::MainContext::default().invoke(move || {
-                        pending.store(false, Ordering::Release);
-                        VIEWS.with(|v| {
-                            if let Some(w) = v.borrow().get(&id).and_then(|w| w.upgrade()) {
-                                w.queue_draw();
-                            }
-                        });
-                    });
+impl Shared {
+    fn lock(&self) -> MutexGuard<'_, ghostty::Terminal> {
+        let queue = self.next.lock().unwrap_or_else(|e| e.into_inner());
+        let guard = self.term.lock().unwrap_or_else(|e| e.into_inner());
+        drop(queue);
+        guard
+    }
+}
+
+/// Requests one redraw per frame: the flag stays set until `draw` clears it, so a flood of output
+/// costs a single main-loop dispatch per painted frame.
+fn request_redraw(shared: &Shared, id: u64) {
+    if !shared.pending.swap(true, Ordering::AcqRel) {
+        glib::MainContext::default().invoke(move || {
+            VIEWS.with(|v| {
+                if let Some(w) = v.borrow().get(&id).and_then(|w| w.upgrade()) {
+                    w.queue_draw();
                 }
-            }
-            Event::Exit | Event::ChildExit(_) => {
-                glib::MainContext::default().invoke(move || {
-                    ON_EXIT.with(|m| {
-                        if let Some(f) = m.borrow_mut().remove(&id) {
-                            f();
-                        }
-                    });
-                });
-            }
-            _ => {}
-        }
+            });
+        });
     }
 }
 
@@ -73,50 +67,95 @@ pub struct Terminal {
     pub widget: TermView,
 }
 
+/// GTK-thread side of the drawing: the render state and the node cached for each viewport row.
+struct Frame {
+    rs: ghostty::RenderState,
+    rows: Vec<Option<gsk::RenderNode>>,
+    size: (u16, u16),
+}
+
 struct State {
-    term: Arc<FairMutex<Term<Listener>>>,
-    sender: EventLoopSender,
+    shared: Arc<Shared>,
+    pty: Pty,
+    input: Arc<std::fs::File>,
     cell_w: StdCell<f64>,
     cell_h: StdCell<f64>,
-    ascent: StdCell<f64>,
     size: StdCell<(usize, usize)>,
     pango: RefCell<Option<pango::Context>>,
+    frame: RefCell<Frame>,
 }
 
 impl State {
-    fn write(&self, bytes: Vec<u8>) {
-        let _ = self.sender.send(Msg::Input(bytes.into()));
+    /// User input: snaps the view back to the bottom, then goes to the child.
+    fn write(&self, bytes: &[u8]) {
+        {
+            let mut t = self.shared.lock();
+            if !t.viewport_active() {
+                t.scroll_bottom();
+            }
+        }
+        let _ = (&*self.input).write_all(bytes);
     }
 }
 
 impl Terminal {
     pub fn new(id: u64, on_exit: impl Fn() + 'static) -> Terminal {
-        let listener = Listener { id, pending: Arc::new(AtomicBool::new(false)) };
         let (cols, lines) = (80usize, 24usize);
-        let term = Arc::new(FairMutex::new(Term::new(
-            Config::default(),
-            &TermSize::new(cols, lines),
-            listener.clone(),
-        )));
-        let ws = WindowSize { num_lines: lines as u16, num_cols: cols as u16, cell_width: 8, cell_height: 16 };
         // GTKTERM_CMD runs one command instead of the login shell (used by the benchmarks).
-        let mut opts = tty::Options::default();
-        if let Ok(cmd) = std::env::var("GTKTERM_CMD") {
-            opts.shell = Some(tty::Shell::new("/bin/sh".into(), vec!["-c".into(), cmd]));
+        let cmd = std::env::var("GTKTERM_CMD").ok();
+        let (pty, reader) = Pty::spawn(cols as u16, lines as u16, 8, 16, cmd.as_deref()).expect("spawn shell");
+        let input = pty.writer();
+
+        // What the terminal answers to queries (DA, cursor position, mode reports) goes to the child.
+        let reply_to = input.clone();
+        let mut term = ghostty::Terminal::new(
+            cols as u16,
+            lines as u16,
+            SCROLLBACK_LINES,
+            Box::new(move |bytes| {
+                let _ = (&*reply_to).write_all(bytes);
+            }),
+        );
+        term.set_colors(palette::FG, palette::BG, &palette::table());
+        let shared = Arc::new(Shared { term: Mutex::new(term), next: Mutex::new(()), pending: AtomicBool::new(false) });
+
+        // Reader thread: big blocks from the PTY straight into the interpreter.
+        {
+            let shared = shared.clone();
+            std::thread::spawn(move || {
+                let mut reader = reader;
+                let mut buf = vec![0u8; READ_BLOCK];
+                loop {
+                    match reader.file.read(&mut buf) {
+                        Ok(0) => break,
+                        Ok(n) => {
+                            shared.lock().write(&buf[..n]);
+                            request_redraw(&shared, id);
+                        }
+                        Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+                        Err(_) => break, // EIO: the child closed the slave side
+                    }
+                }
+                reader.reap();
+                glib::MainContext::default().invoke(move || {
+                    ON_EXIT.with(|m| {
+                        if let Some(f) = m.borrow_mut().remove(&id) {
+                            f();
+                        }
+                    });
+                });
+            });
         }
-        let pty = tty::new(&opts, ws, id).expect("spawn shell");
-        let event_loop = EventLoop::new(term.clone(), listener, pty, false, false).expect("pty loop");
-        let sender = event_loop.channel();
-        event_loop.spawn();
 
         let state = Rc::new(State {
-            term,
-            sender,
+            shared: shared.clone(),
+            pty,
+            input,
             cell_w: StdCell::new(8.0),
             cell_h: StdCell::new(16.0),
-            ascent: StdCell::new(12.0),
             size: StdCell::new((cols, lines)),
             pango: RefCell::new(None),
+            frame: RefCell::new(Frame { rs: ghostty::RenderState::new(), rows: Vec::new(), size: (0, 0) }),
         });
 
         let area = {
@@ -137,16 +176,16 @@ impl Terminal {
         im.set_client_widget(Some(&area));
         {
             let state = state.clone();
-            im.connect_commit(move |_, text| state.write(text.as_bytes().to_vec()));
+            im.connect_commit(move |_, text| state.write(text.as_bytes()));
         }
         let keyc = gtk::EventControllerKey::new();
         keyc.set_im_context(Some(&im));
         {
             let state = state.clone();
             keyc.connect_key_pressed(move |_, key, _, mods| {
-                let app_cursor = state.term.lock().mode().contains(TermMode::APP_CURSOR);
+                let app_cursor = state.shared.lock().app_cursor();
                 if let Some(bytes) = keys::encode(key, mods, app_cursor) {
-                    state.write(bytes);
+                    state.write(&bytes);
                     return glib::Propagation::Stop;
                 }
                 glib::Propagation::Proceed
@@ -168,6 +207,25 @@ impl Terminal {
         });
         area.add_controller(click);
 
+        // Mouse wheel scrolls the scrollback.
+        let wheel = gtk::EventControllerScroll::new(gtk::EventControllerScrollFlags::VERTICAL);
+        {
+            let state = state.clone();
+            let area_w = area.downgrade();
+            wheel.connect_scroll(move |_, _dx, dy| {
+                let mut rows = (dy * WHEEL_LINES).round() as isize;
+                if rows == 0 && dy != 0.0 {
+                    rows = dy.signum() as isize;
+                }
+                state.shared.lock().scroll_delta(rows);
+                if let Some(a) = area_w.upgrade() {
+                    a.queue_draw();
+                }
+                glib::Propagation::Stop
+            });
+        }
+        area.add_controller(wheel);
+
         // Paste with Ctrl+Shift+V.
         let paste = gtk::ShortcutController::new();
         {
@@ -180,7 +238,7 @@ impl Terminal {
                         let state = state.clone();
                         a.clipboard().read_text_async(None::<&gtk::gio::Cancellable>, move |r| {
                             if let Ok(Some(t)) = r {
-                                state.write(t.as_bytes().to_vec());
+                                state.write(t.as_bytes());
                             }
                         });
                     }
@@ -204,7 +262,6 @@ fn measure_font(area: &TermView, state: &State) {
     let scale = pango::SCALE as f64;
     state.cell_w.set(metrics.approximate_digit_width() as f64 / scale);
     state.cell_h.set(((metrics.ascent() + metrics.descent()) as f64 / scale).ceil());
-    state.ascent.set(metrics.ascent() as f64 / scale);
 }
 
 fn resize(state: &State, w: i32, h: i32) {
@@ -214,143 +271,197 @@ fn resize(state: &State, w: i32, h: i32) {
         return;
     }
     state.size.set((cols, lines));
-    state.term.lock().resize(TermSize::new(cols, lines));
-    let ws = WindowSize {
-        num_lines: lines as u16,
-        num_cols: cols as u16,
-        cell_width: state.cell_w.get() as u16,
-        cell_height: state.cell_h.get() as u16,
-    };
-    let _ = state.sender.send(Msg::Resize(ws));
+    let (cw, ch) = (state.cell_w.get() as u16, state.cell_h.get() as u16);
+    state.shared.lock().resize(cols as u16, lines as u16, cw as u32, ch as u32);
+    state.pty.resize(cols as u16, lines as u16, cw, ch);
 }
 
-fn rgb(c: Rgb) -> gdk::RGBA {
+fn rgba(c: Rgb) -> gdk::RGBA {
     gdk::RGBA::new(c.r as f32 / 255.0, c.g as f32 / 255.0, c.b as f32 / 255.0, 1.0)
 }
 
-fn palette(i: usize) -> Rgb {
-    const BASE: [(u8, u8, u8); 16] = [
-        (0x1d, 0x1f, 0x21), (0xcc, 0x66, 0x66), (0xb5, 0xbd, 0x68), (0xf0, 0xc6, 0x74),
-        (0x81, 0xa2, 0xbe), (0xb2, 0x94, 0xbb), (0x8a, 0xbe, 0xb7), (0xc5, 0xc8, 0xc6),
-        (0x66, 0x66, 0x66), (0xd5, 0x4e, 0x53), (0xb9, 0xca, 0x4a), (0xe7, 0xc5, 0x47),
-        (0x7a, 0xa6, 0xda), (0xc3, 0x97, 0xd8), (0x70, 0xc0, 0xb1), (0xea, 0xea, 0xea),
-    ];
-    if i < 16 {
-        let (r, g, b) = BASE[i];
-        return Rgb { r, g, b };
-    }
-    if i < 232 {
-        let i = i - 16;
-        let v = |x: usize| if x == 0 { 0 } else { (x * 40 + 55) as u8 };
-        return Rgb { r: v(i / 36), g: v((i / 6) % 6), b: v(i % 6) };
-    }
-    let g = (8 + (i - 232) * 10) as u8;
-    Rgb { r: g, g, b: g }
+fn mix(a: Rgb, b: Rgb) -> Rgb {
+    let m = |x: u8, y: u8| ((x as u16 + y as u16) / 2) as u8;
+    Rgb { r: m(a.r, b.r), g: m(a.g, b.g), b: m(a.b, b.b) }
 }
 
-const FG: Rgb = Rgb { r: 0xc5, g: 0xc8, b: 0xc6 };
-const BG: Rgb = Rgb { r: 0x16, g: 0x18, b: 0x1a };
+/// Text accumulated for one pango layout: narrow cells in a row share a run; each wide cell gets its
+/// own, so a fallback-font glyph can never push the following cells off the grid.
+struct Run {
+    col: usize,
+    text: String,
+    attrs: pango::AttrList,
+    ink: bool,
+}
 
-fn resolve(c: Color, colors: &alacritty_terminal::term::color::Colors, fg: bool) -> Rgb {
-    match c {
-        Color::Spec(rgb) => rgb,
-        Color::Indexed(i) => colors[i as usize].unwrap_or_else(|| palette(i as usize)),
-        Color::Named(n) => {
-            let i = n as usize;
-            if let Some(c) = colors[i] {
-                return c;
-            }
-            match n {
-                NamedColor::Foreground | NamedColor::BrightForeground | NamedColor::DimForeground => FG,
-                NamedColor::Background => BG,
-                NamedColor::Cursor => FG,
-                _ if i < 16 => palette(i),
-                _ if i >= NamedColor::DimBlack as usize => palette(i - NamedColor::DimBlack as usize),
-                _ => if fg { FG } else { BG },
+impl Run {
+    fn new() -> Run {
+        Run { col: 0, text: String::new(), attrs: pango::AttrList::new(), ink: false }
+    }
+}
+
+/// Inserts `attr` into `list`, limited to the byte range `start..end`.
+macro_rules! add {
+    ($list:expr, $attr:expr, $start:expr, $end:expr) => {{
+        let mut a = $attr;
+        a.set_start_index($start as u32);
+        a.set_end_index($end as u32);
+        $list.insert(a);
+    }};
+}
+
+/// Builds the render node of one viewport row (coordinates relative to the row's top-left corner).
+fn build_row(ctx: &pango::Context, font: &pango::FontDescription, cells: &[Cell], cw: f32, ch: f32) -> Option<gsk::RenderNode> {
+    let snap = gtk::Snapshot::new();
+    let mut run = Run::new();
+    let mut bg_run: Option<(usize, Rgb)> = None; // (first column, color)
+
+    let flush_run = |snap: &gtk::Snapshot, run: &mut Run| {
+        if run.ink {
+            let layout = pango::Layout::new(ctx);
+            layout.set_font_description(Some(font));
+            layout.set_text(&run.text);
+            layout.set_attributes(Some(&run.attrs));
+            snap.save();
+            snap.translate(&graphene::Point::new(PAD + run.col as f32 * cw, 0.0));
+            snap.append_layout(&layout, &rgba(palette::FG));
+            snap.restore();
+        }
+        *run = Run::new();
+    };
+    let flush_bg = |snap: &gtk::Snapshot, bg: &mut Option<(usize, Rgb)>, end: usize| {
+        if let Some((start, c)) = bg.take() {
+            snap.append_color(&rgba(c), &graphene::Rect::new(PAD + start as f32 * cw, 0.0, (end - start) as f32 * cw, ch));
+        }
+    };
+
+    for (col, cell) in cells.iter().enumerate() {
+        let mut fg = cell.fg.unwrap_or(palette::FG);
+        let mut bg = cell.bg;
+        if cell.inverse {
+            let f = fg;
+            fg = bg.unwrap_or(palette::BG);
+            bg = Some(f);
+        }
+        if cell.faint {
+            fg = mix(fg, bg.unwrap_or(palette::BG));
+        }
+        // Backgrounds: merge neighbours of the same color into one rectangle.
+        let bg = bg.filter(|b| *b != palette::BG);
+        match (&bg_run, bg) {
+            (Some((_, c)), Some(b)) if *c == b => {}
+            _ => {
+                flush_bg(&snap, &mut bg_run, col);
+                if let Some(b) = bg {
+                    bg_run = Some((col, b));
+                }
             }
         }
+        if cell.wide == Wide::Spacer {
+            continue;
+        }
+        let wide = cell.wide == Wide::Wide;
+        if wide {
+            flush_run(&snap, &mut run);
+        }
+        if run.text.is_empty() {
+            run.col = col;
+        }
+        let t = if cell.text().is_empty() || cell.invisible { " " } else { cell.text() };
+        let start = run.text.len();
+        run.text.push_str(t);
+        let end = run.text.len();
+        let blank = t == " " && !cell.underline && !cell.strike;
+        if !blank {
+            run.ink = true;
+        }
+        if fg != palette::FG {
+            add!(run.attrs, pango::AttrColor::new_foreground(fg.r as u16 * 257, fg.g as u16 * 257, fg.b as u16 * 257), start, end);
+        }
+        if cell.bold {
+            add!(run.attrs, pango::AttrInt::new_weight(pango::Weight::Bold), start, end);
+        }
+        if cell.italic {
+            add!(run.attrs, pango::AttrInt::new_style(pango::Style::Italic), start, end);
+        }
+        if cell.underline {
+            add!(run.attrs, pango::AttrInt::new_underline(pango::Underline::Single), start, end);
+        }
+        if cell.strike {
+            add!(run.attrs, pango::AttrInt::new_strikethrough(true), start, end);
+        }
+        if wide {
+            flush_run(&snap, &mut run);
+        }
     }
+    flush_run(&snap, &mut run);
+    flush_bg(&snap, &mut bg_run, cells.len());
+    snap.to_node()
 }
 
 fn draw(snap: &gtk::Snapshot, state: &State, w: f32, h: f32) {
     if std::env::var_os("GTKTERM_NODRAW").is_some() {
         return;
     }
-    snap.append_color(&rgb(BG), &graphene::Rect::new(0.0, 0.0, w, h));
+    snap.append_color(&rgba(palette::BG), &graphene::Rect::new(0.0, 0.0, w, h));
     let cw = state.cell_w.get() as f32;
     let ch = state.cell_h.get() as f32;
-    let term = state.term.lock();
-    let content = term.renderable_content();
-    let colors = content.colors;
-    let cursor = content.cursor.point;
-    let offset = content.display_offset as i32;
-    let cols = term.columns();
 
-    let font = font_desc();
-    let mut line_text = String::with_capacity(cols * 2);
-    let mut attrs = pango::AttrList::new();
-    let mut current_line: i32 = i32::MIN;
-    let mut ctx: Option<pango::Context> = state.pango.borrow().clone();
+    // Clear the request flag before capturing, so output arriving from here on asks for a new frame.
+    state.shared.pending.store(false, Ordering::Release);
+    let mut frame = state.frame.borrow_mut();
+    let Frame { rs, rows, size } = &mut *frame;
+    {
+        let term = state.shared.lock();
+        rs.update(&term);
+    }
+    let new_size = rs.size();
+    let all = *size != new_size;
+    if all {
+        *size = new_size;
+        rows.clear();
+        rows.resize(new_size.1 as usize, None);
+    }
 
-    let flush = |snap: &gtk::Snapshot, line: i32, text: &mut String, attrs: &mut pango::AttrList, ctx: &mut Option<pango::Context>| {
-        if line == i32::MIN || text.is_empty() {
-            return;
+    // Rebuild only the dirty rows (every row after a resize), then mark the frame clean.
+    if all || rs.dirty() != Dirty::Clean {
+        let ctx = state.pango.borrow().clone();
+        if let Some(ctx) = ctx {
+            let font = font_desc();
+            rs.for_rows(all, |y, cells| {
+                if let Some(slot) = rows.get_mut(y as usize) {
+                    *slot = build_row(&ctx, &font, cells, cw, ch);
+                }
+            });
         }
-        let Some(c) = ctx.as_ref() else { return };
-        let layout = pango::Layout::new(c);
-        layout.set_font_description(Some(&font));
-        layout.set_text(text);
-        layout.set_attributes(Some(attrs));
-        snap.save();
-        snap.translate(&graphene::Point::new(PAD, PAD + (line + offset) as f32 * ch));
-        snap.append_layout(&layout, &rgb(FG));
-        snap.restore();
-        text.clear();
-        *attrs = pango::AttrList::new();
-    };
+        rs.clean();
+    }
 
-    for cell in content.display_iter {
-        let line = cell.point.line.0;
-        if line != current_line {
-            flush(snap, current_line, &mut line_text, &mut attrs, &mut ctx);
-            current_line = line;
-        }
-        let mut fg = resolve(cell.fg, colors, true);
-        let mut bg = resolve(cell.bg, colors, false);
-        if cell.flags.contains(Flags::INVERSE) {
-            std::mem::swap(&mut fg, &mut bg);
-        }
-        let x = PAD + cell.point.column.0 as f32 * cw;
-        let y = PAD + (line + offset) as f32 * ch;
-        if bg != BG {
-            snap.append_color(&rgb(bg), &graphene::Rect::new(x, y, cw, ch));
-        }
-        if cell.flags.intersects(Flags::WIDE_CHAR_SPACER | Flags::LEADING_WIDE_CHAR_SPACER) {
-            continue;
-        }
-        // Pad skipped columns so text stays on the grid.
-        let start = line_text.len() as u32;
-        let ch_ = if cell.c == '\0' { ' ' } else { cell.c };
-        line_text.push(ch_);
-        let end = line_text.len() as u32;
-        if fg != FG {
-            let mut a = pango::AttrColor::new_foreground(fg.r as u16 * 257, fg.g as u16 * 257, fg.b as u16 * 257);
-            a.set_start_index(start);
-            a.set_end_index(end);
-            attrs.insert(a);
-        }
-        if cell.flags.contains(Flags::BOLD) {
-            let mut a = pango::AttrInt::new_weight(pango::Weight::Bold);
-            a.set_start_index(start);
-            a.set_end_index(end);
-            attrs.insert(a);
+    for (y, node) in rows.iter().enumerate() {
+        if let Some(n) = node {
+            snap.save();
+            snap.translate(&graphene::Point::new(0.0, PAD + y as f32 * ch));
+            snap.append_node(n);
+            snap.restore();
         }
     }
-    flush(snap, current_line, &mut line_text, &mut attrs, &mut ctx);
 
-    // Block cursor.
-    let x = PAD + cursor.column.0 as f32 * cw;
-    let y = PAD + (cursor.line.0 + offset) as f32 * ch;
-    snap.append_color(&gdk::RGBA::new(0.77, 0.78, 0.78, 0.55), &graphene::Rect::new(x, y, cw, ch));
+    // Cursor, in the style the application asked for.
+    let cur = rs.cursor();
+    if let (true, Some((cx, cy))) = (cur.visible, cur.pos) {
+        let (cx, span) = if cur.wide_tail { (cx.saturating_sub(1), 2.0) } else { (cx, 1.0) };
+        let (x, y, cwid) = (PAD + cx as f32 * cw, PAD + cy as f32 * ch, cw * span);
+        let col = gdk::RGBA::new(0.77, 0.78, 0.78, 0.55);
+        match cur.style {
+            CursorStyle::Block => snap.append_color(&col, &graphene::Rect::new(x, y, cwid, ch)),
+            CursorStyle::Bar => snap.append_color(&col, &graphene::Rect::new(x, y, 2.0, ch)),
+            CursorStyle::Underline => snap.append_color(&col, &graphene::Rect::new(x, y + ch - 2.0, cwid, 2.0)),
+            CursorStyle::BlockHollow => {
+                snap.append_color(&col, &graphene::Rect::new(x, y, cwid, 1.0));
+                snap.append_color(&col, &graphene::Rect::new(x, y + ch - 1.0, cwid, 1.0));
+                snap.append_color(&col, &graphene::Rect::new(x, y, 1.0, ch));
+                snap.append_color(&col, &graphene::Rect::new(x + cwid - 1.0, y, 1.0, ch));
+            }
+        }
+    }
 }
-

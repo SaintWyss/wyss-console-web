@@ -1,7 +1,10 @@
-//! Prototype: GPU-drawn terminal tabs (GTK4 + GSK + alacritty_terminal), no WebView.
+//! Prototype: GPU-drawn terminal tabs (GTK4 + GSK + libghostty-vt), no WebView.
 //! `gtk-term [N]` opens N tabs. Ctrl+Shift+T opens another, Ctrl+Shift+W closes the current one.
 
+mod ghostty;
 mod keys;
+mod palette;
+mod pty;
 mod term;
 mod view;
 
