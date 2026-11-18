@@ -249,7 +249,6 @@ pub fn parse_screen(v: &Value) -> Result<Option<Screen>, HostError> {
 mod tests {
     use super::*;
     use std::os::unix::net::UnixListener;
-    use std::path::Path;
 
     #[test]
     fn frame_roundtrip_and_limits() {
@@ -471,10 +470,9 @@ mod tests {
     impl IsolatedHost {
         fn start() -> IsolatedHost {
             use std::os::unix::fs::DirBuilderExt;
-            let base = if Path::new("/tmp/claude-1000").is_dir() { "/tmp/claude-1000" } else { "/tmp" };
             // One tree per host: tests of this process run in parallel.
             static N: AtomicU64 = AtomicU64::new(0);
-            let dir = PathBuf::from(format!("{base}/wh-t{}-{}", std::process::id(), N.fetch_add(1, Ordering::Relaxed)));
+            let dir = std::env::temp_dir().join(format!("wh-t{}-{}", std::process::id(), N.fetch_add(1, Ordering::Relaxed)));
             for sub in ["", "run", "home", "state", "data", "config", "cache"] {
                 std::fs::DirBuilder::new().recursive(true).mode(0o700).create(dir.join(sub)).unwrap();
             }

@@ -773,7 +773,7 @@ fn build_row(ctx: &pango::Context, font: &pango::FontDescription, cells: &[Cell]
         if cell.wide == Wide::Spacer {
             continue;
         }
-        let wide = cell.wide == Wide::Wide;
+        let wide = cell.wide == Wide::Double;
         if wide {
             flush_run(&mut layouts, &mut run);
         }

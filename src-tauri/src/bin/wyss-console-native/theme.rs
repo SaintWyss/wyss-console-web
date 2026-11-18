@@ -31,6 +31,10 @@ impl Theme {
         }
     }
 
+    pub fn prefers_dark(self) -> bool {
+        matches!(self, Self::Dark | Self::HighContrast)
+    }
+
     /// The `data-theme` the Console sets (none for dark).
     #[cfg(test)]
     fn css_selector(self) -> &'static str {
@@ -57,6 +61,7 @@ pub const TOKENS: &[(&str, [&str; 3])] = &[
     ("muted", ["#a3a3a3", "#3d3d3d", "#ffffff"]),
     ("faint", ["#737373", "#525252", "#ededed"]),
     ("accent", ["#e8e3d8", "#4a4337", "#ffffff"]),
+    ("accent-strong", ["#f5f1e8", "#2f2a22", "#ffff00"]),
     ("accent-soft", ["#232220", "#ebe6dc", "#1a1a1a"]),
     ("accent-line", ["#4a463f", "#4a4337", "#ffffff"]),
     ("ok", ["#5ee39a", "#176b3a", "#73ff73"]),
@@ -132,6 +137,13 @@ mod tests {
         assert!(d.contains("@define-color bg #f5f5f5;"));
         assert_eq!(d.lines().count(), TOKENS.len());
         assert!(defines(Theme::HighContrast).contains("@define-color warn #ffff00;"));
+    }
+
+    #[test]
+    fn gtk_variant_matches_the_app_background() {
+        assert!(Theme::Dark.prefers_dark());
+        assert!(!Theme::Light.prefers_dark());
+        assert!(Theme::HighContrast.prefers_dark());
     }
 
     #[test]

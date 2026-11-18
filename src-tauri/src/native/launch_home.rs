@@ -62,6 +62,9 @@ pub struct HomeSpec {
     /// (`--strict-mcp-config`), which also leaves out plugin and claude.ai servers.
     #[serde(default)]
     pub mcp: Option<Vec<String>>,
+    /// Inventory when the owner chose this list. Absent for older strict presets.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mcp_seen: Option<Vec<String>>,
     /// Plugins switched off, by their `name@marketplace` id.
     #[serde(default)]
     pub plugins_off: Vec<String>,
@@ -88,6 +91,7 @@ impl Default for HomeSpec {
             rules_off: Vec::new(),
             hooks_off: Vec::new(),
             mcp: None,
+            mcp_seen: None,
             plugins_off: Vec::new(),
             memory: true,
             agents: true,
@@ -114,10 +118,12 @@ pub(super) fn key_ok(key: &str) -> bool {
 impl HomeSpec {
     pub fn validate(&self) -> Result<(), &'static str> {
         let mcp = self.mcp.as_deref().unwrap_or(&[]);
+        let seen = self.mcp_seen.as_deref().unwrap_or(&[]);
         let unique = |list: &[String]| list.iter().collect::<BTreeSet<_>>().len() == list.len();
         if self.rules_off.len()
             + self.hooks_off.len()
             + mcp.len()
+            + seen.len()
             + self.plugins_off.len()
             + self.account_skills_off.len()
             > MAX_NAMES
@@ -134,10 +140,26 @@ impl HomeSpec {
                 .iter()
                 .all(|l| unique(l))
             || !unique(mcp)
+            || !unique(seen)
+            || !seen.iter().all(|n| name_ok(n))
+            || self.mcp_seen.is_some() && self.mcp.is_none()
         {
             return Err("home_invalid");
         }
         Ok(())
+    }
+
+    pub fn mcp_is_new(&self, name: &str) -> bool {
+        self.mcp_seen
+            .as_ref()
+            .is_some_and(|seen| !seen.iter().any(|known| known == name))
+    }
+
+    pub fn mcp_enabled(&self, name: &str) -> bool {
+        self.mcp
+            .as_ref()
+            .is_none_or(|kept| kept.iter().any(|server| server == name))
+            || self.mcp_is_new(name)
     }
 
     /// The preset changes nothing: the launch can use the owner's own folder.
@@ -365,7 +387,18 @@ pub fn build(owner: &Owner, dir: &Path, spec: &HomeSpec) -> io::Result<Built> {
         None => None,
         Some(kept) => {
             let owner_json = read_json(&owner.json).unwrap_or(Value::Object(Map::new()));
-            let config = mcp_config(&owner_json, kept).map_err(io::Error::other)?;
+            let mut effective = kept.clone();
+            if let Some(servers) = owner_json.get("mcpServers").and_then(Value::as_object) {
+                effective.extend(
+                    servers
+                        .keys()
+                        .filter(|name| {
+                            name_ok(name) && spec.mcp_is_new(name) && !kept.contains(name)
+                        })
+                        .cloned(),
+                );
+            }
+            let config = mcp_config(&owner_json, &effective).map_err(io::Error::other)?;
             let path = dir.join("mcp.json");
             store::write_atomic(
                 &path,
@@ -414,6 +447,10 @@ pub struct HookOption {
 pub struct Options {
     pub hooks: Vec<HookOption>,
     pub mcp: Vec<String>,
+    #[serde(skip)]
+    pub mcp_groups: std::collections::BTreeMap<String, &'static str>,
+    #[serde(skip)]
+    pub mcp_plugin_servers: std::collections::BTreeMap<String, Vec<String>>,
     pub plugins: Vec<String>,
     pub rules: Vec<String>,
     /// Skills the account syncs from claude.ai, by their loaded name.
@@ -626,11 +663,27 @@ pub fn options(owner: &Owner) -> Options {
         }
     }
     plugins.sort();
-    let mcp = read_json(&owner.json)
+    let mcp_groups: std::collections::BTreeMap<_, _> = read_json(&owner.json)
         .ok()
         .and_then(|json| json.get("mcpServers").and_then(Value::as_object).cloned())
-        .map(|servers| servers.keys().filter(|n| name_ok(n)).cloned().collect())
-        .unwrap_or_default();
+        .into_iter()
+        .flatten()
+        .filter(|(name, _)| name_ok(name))
+        .map(|(name, fields)| {
+            let group = match fields
+                .get("command")
+                .and_then(Value::as_str)
+                .and_then(|command| Path::new(command).file_name())
+                .and_then(|command| command.to_str())
+            {
+                Some("npx") => "npx",
+                Some(_) => "local",
+                None => "remote",
+            };
+            (name, group)
+        })
+        .collect();
+    let mcp = mcp_groups.keys().cloned().collect();
     let mut rules: Vec<String> = fs::read_dir(owner.dir.join("rules"))
         .into_iter()
         .flatten()
@@ -663,9 +716,22 @@ pub fn options(owner: &Owner) -> Options {
         );
     }
     let roots = plugin_roots(owner);
+    let mut mcp_plugin_servers = std::collections::BTreeMap::new();
     for plugin in &plugins {
         if let Some(root) = roots.get(plugin) {
             sizes.insert(format!("plugin:{plugin}"), plugin_bytes(root));
+            if let Ok(value) = read_json(&root.join(".mcp.json"))
+                && let Some(servers) = value.get("mcpServers").unwrap_or(&value).as_object()
+            {
+                let names = servers
+                    .iter()
+                    .filter(|(name, server)| name_ok(name) && server.is_object())
+                    .map(|(name, _)| name.clone())
+                    .collect::<Vec<_>>();
+                if !names.is_empty() {
+                    mcp_plugin_servers.insert(plugin.clone(), names);
+                }
+            }
         }
     }
     for org in fs::read_dir(owner.dir.join("skills/synced"))
@@ -683,6 +749,8 @@ pub fn options(owner: &Owner) -> Options {
     Options {
         hooks,
         mcp,
+        mcp_groups,
+        mcp_plugin_servers,
         plugins,
         rules,
         account_skills,
@@ -978,6 +1046,28 @@ mod tests {
         // The owner's folder is untouched.
         assert!(owner.dir.join(".credentials.json").is_file());
         fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn a_strict_preset_loads_new_servers_only_when_it_has_a_snapshot() {
+        let root = temp("new-mcp");
+        let owner = owner(&root);
+        let home = root.join("homes/p");
+        let mut spec = HomeSpec {
+            mcp: Some(vec![]),
+            ..HomeSpec::default()
+        };
+        let config = |spec: &HomeSpec| {
+            let built = build(&owner, &home, spec).unwrap();
+            read_json(&built.mcp_config.unwrap()).unwrap()["mcpServers"].clone()
+        };
+        assert_eq!(config(&spec), serde_json::json!({}));
+        spec.mcp_seen = Some(vec!["notebooklm".into()]);
+        assert_eq!(
+            config(&spec),
+            serde_json::json!({"context7": {"url": "https://x"}})
+        );
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

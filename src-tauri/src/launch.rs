@@ -293,13 +293,18 @@ pub(crate) fn display(path: &Path, home: &Path) -> String {
     }
 }
 
-fn directory(spec: Option<&str>, home: &Path) -> Result<PathBuf, &'static str> {
+fn directory_path(spec: Option<&str>, home: &Path) -> Result<PathBuf, &'static str> {
     let path = match spec {
         None | Some("~") => home.to_path_buf(),
         Some(text) if text.starts_with("~/") => home.join(&text[2..]),
         Some(text) if Path::new(text).is_absolute() => PathBuf::from(text),
         Some(_) => return Err("directory must be ~, ~/… or an absolute path"),
     };
+    Ok(path)
+}
+
+fn directory(spec: Option<&str>, home: &Path) -> Result<PathBuf, &'static str> {
+    let path = directory_path(spec, home)?;
     let path = fs::canonicalize(&path).map_err(|_| "directory not found")?;
     if !path.is_dir() {
         return Err("directory is not a folder");
@@ -391,6 +396,16 @@ fn variants_of(
 }
 
 fn parse(id: &str, text: &str, home: &Path, system: &System) -> Result<Launch, String> {
+    parse_for_editor(id, text, home, system, false)
+}
+
+fn parse_for_editor(
+    id: &str,
+    text: &str,
+    home: &Path,
+    system: &System,
+    allow_missing_directory: bool,
+) -> Result<Launch, String> {
     let spec: Spec = toml::from_str(text).map_err(|e| {
         let message = e.message().to_owned();
         format!("not a launch file: {message}")
@@ -398,7 +413,12 @@ fn parse(id: &str, text: &str, home: &Path, system: &System) -> Result<Launch, S
     if !text_ok(&spec.name, MAX_NAME) {
         return Err(format!("name must be 1–{MAX_NAME} characters on one line"));
     }
-    let folder = directory(spec.directory.as_deref(), home)?;
+    let folder = match directory(spec.directory.as_deref(), home) {
+        Err("directory not found") if allow_missing_directory => {
+            directory_path(spec.directory.as_deref(), home)?
+        }
+        result => result?,
+    };
     let runs = !spec.commands.is_empty() || !spec.distro.is_empty();
     if spec.session.is_some() && (!spec.distro.is_empty() || spec.template.is_some()) {
         return Err("distro and template belong to a commands launch".into());
@@ -518,6 +538,15 @@ fn upgrade(folder: &Path) {
 }
 
 pub fn list(places: &Places) -> Result<List, String> {
+    list_inner(places, false)
+}
+
+/// The editor can open a launch to fix its directory. Execution uses strict validation.
+pub fn list_for_editor(places: &Places) -> Result<List, String> {
+    list_inner(places, true)
+}
+
+fn list_inner(places: &Places, allow_missing_directory: bool) -> Result<List, String> {
     seed(&places.folder).map_err(|e| format!("launch folder: {e}"))?;
     upgrade(&places.folder);
     let system = places.system();
@@ -547,7 +576,9 @@ pub fn list(places: &Places) -> Result<List, String> {
             });
             continue;
         }
-        match read_one(&path).and_then(|text| parse(&id, &text, &places.home, &system)) {
+        match read_one(&path).and_then(|text| {
+            parse_for_editor(&id, &text, &places.home, &system, allow_missing_directory)
+        }) {
             Ok(launch) => launches.push(launch),
             Err(error) => refused.push(Refused { id, error }),
         }
@@ -563,11 +594,25 @@ pub fn list(places: &Places) -> Result<List, String> {
 
 /// One launch by its id, read again from its file: the window's copy is never trusted.
 pub fn get(places: &Places, id: &str) -> Result<Launch, String> {
+    get_inner(places, id, false)
+}
+
+pub fn get_for_editor(places: &Places, id: &str) -> Result<Launch, String> {
+    get_inner(places, id, true)
+}
+
+fn get_inner(places: &Places, id: &str, allow_missing_directory: bool) -> Result<Launch, String> {
     if !id_ok(id) {
         return Err("unknown launch".into());
     }
     let text = read_one(&places.folder.join(format!("{id}.toml")))?;
-    parse(id, &text, &places.home, &places.system())
+    parse_for_editor(
+        id,
+        &text,
+        &places.home,
+        &places.system(),
+        allow_missing_directory,
+    )
 }
 
 /// What the window sends to replace a commands launch's distributions. The name, the folder,
@@ -575,29 +620,70 @@ pub fn get(places: &Places, id: &str) -> Result<Launch, String> {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct VariantsRequest {
-    id: String,
-    variants: Vec<Variant>,
+    pub id: String,
+    pub variants: Vec<Variant>,
 }
 
 /// Rewrites a commands launch with these distributions. The variant this computer runs cannot
 /// be removed: the launch always keeps what this computer starts. The file is read back.
 pub fn save_variants(places: &Places, request: &VariantsRequest) -> Result<Launch, String> {
-    let launch = get(places, &request.id)?;
-    let Kind::Commands {
-        active, template, ..
-    } = &launch.kind
-    else {
-        return Err("only a commands launch has distributions".into());
-    };
-    let text = read_one(&places.folder.join(format!("{}.toml", request.id)))?;
-    let spec: Spec = toml::from_str(&text).map_err(|_| "not a launch file".to_owned())?;
-    if let Some(active) = active
-        && !request.variants.iter().any(|v| &v.distro == active)
-    {
-        return Err(format!(
-            "distro.{active} is this computer's distribution and stays"
-        ));
+    write_variants(places, request, None)
+}
+
+const WORKSPACE_COMMANDS: &str = "# Command launch created in Workspace (Wyss Console).";
+
+#[cfg(feature = "native-ui")]
+pub fn create_commands(
+    places: &Places,
+    name: &str,
+    variants: Vec<Variant>,
+) -> Result<Launch, String> {
+    let id = slug(name);
+    if !id_ok(&id) || !text_ok(name, MAX_NAME) {
+        return Err("invalid launch name".into());
     }
+    seed(&places.folder).map_err(|e| e.to_string())?;
+    if fs::symlink_metadata(places.folder.join(format!("{id}.toml"))).is_ok() {
+        return Err("a launch with that name already exists".into());
+    }
+    let spec = Spec {
+        name: name.trim().into(),
+        directory: None,
+        commands: vec![],
+        before: vec![],
+        session: None,
+        template: None,
+        distro: Default::default(),
+    };
+    write_variants(places, &VariantsRequest { id, variants }, Some(spec))
+}
+
+fn write_variants(
+    places: &Places,
+    request: &VariantsRequest,
+    new: Option<Spec>,
+) -> Result<Launch, String> {
+    let creating = new.is_some();
+    let (spec, created_in_workspace) = if let Some(spec) = new {
+        (spec, true)
+    } else {
+        let launch = get(places, &request.id)?;
+        let Kind::Commands { active, .. } = &launch.kind else {
+            return Err("only a commands launch has distributions".into());
+        };
+        let text = read_one(&places.folder.join(format!("{}.toml", request.id)))?;
+        if let Some(active) = active
+            && !request.variants.iter().any(|v| &v.distro == active)
+        {
+            return Err(format!(
+                "distro.{active} is this computer's distribution and stays"
+            ));
+        }
+        (
+            toml::from_str(&text).map_err(|_| "not a launch file".to_owned())?,
+            text.lines().next() == Some(WORKSPACE_COMMANDS),
+        )
+    };
     // Bounded before anything is built from it: the window's request is never trusted.
     if request.variants.len() > MAX_VARIANTS {
         return Err(format!("at most {MAX_VARIANTS} distributions"));
@@ -629,12 +715,17 @@ pub fn save_variants(places: &Places, request: &VariantsRequest) -> Result<Launc
                 .join(", ")
         )
     };
+    let header = if created_in_workspace {
+        WORKSPACE_COMMANDS
+    } else {
+        "# Edited in Workspace (Wyss Console). Each [distro.<os-release ID>] runs on that distribution."
+    };
     let mut out = format!(
-        "# Edited in Workspace (Wyss Console). Each [distro.<os-release ID>] runs on that distribution.\nname = {}\ndirectory = {}\n",
+        "{header}\nname = {}\ndirectory = {}\n",
         toml_string(&spec.name),
         toml_string(spec.directory.as_deref().unwrap_or("~")),
     );
-    if let Some(t) = template {
+    if let Some(t) = &spec.template {
         out.push_str(&format!("template = {}\n", toml_string(t)));
     }
     if !spec.commands.is_empty() {
@@ -661,7 +752,7 @@ pub fn save_variants(places: &Places, request: &VariantsRequest) -> Result<Launc
     // Checked as the reader takes it before anything is written.
     parse(&request.id, &out, &places.home, &places.system())?;
     let target = places.folder.join(format!("{}.toml", request.id));
-    write_private(&places.folder, &target, &out)
+    write_launch_file(&places.folder, &target, &out, !creating)
         .map_err(|e| format!("the launch could not be written: {e}"))?;
     get(places, &request.id)
 }
@@ -742,15 +833,15 @@ pub trait Known {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SaveRequest {
-    name: String,
-    directory: String,
-    agent: String,
+    pub name: String,
+    pub directory: String,
+    pub agent: String,
     #[serde(default)]
-    permission: Option<String>,
+    pub permission: Option<String>,
     #[serde(default)]
-    preset: Option<String>,
+    pub preset: Option<String>,
     #[serde(default)]
-    replace: bool,
+    pub replace: bool,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -810,16 +901,30 @@ pub(crate) fn toml_string(text: &str) -> String {
 /// the old file or the new one, never a part of either. The temporary name does not end in
 /// `.toml`, so `list` never reads it.
 pub(crate) fn write_private(folder: &Path, target: &Path, text: &str) -> std::io::Result<()> {
+    write_launch_file(folder, target, text, true)
+}
+
+fn write_launch_file(
+    folder: &Path,
+    target: &Path,
+    text: &str,
+    replace: bool,
+) -> std::io::Result<()> {
     let name = target.file_name().unwrap_or_default().to_string_lossy();
     let temporary = folder.join(format!(".{name}.{}.tmp", std::process::id()));
-    let result = write_then_rename(&temporary, target, text);
+    let result = write_then_publish(&temporary, target, text, replace);
     if result.is_err() {
         let _ = fs::remove_file(&temporary);
     }
     result
 }
 
-fn write_then_rename(temporary: &Path, target: &Path, text: &str) -> std::io::Result<()> {
+fn write_then_publish(
+    temporary: &Path,
+    target: &Path,
+    text: &str,
+    replace: bool,
+) -> std::io::Result<()> {
     let mut file = fs::OpenOptions::new()
         .write(true)
         .create_new(true)
@@ -827,7 +932,13 @@ fn write_then_rename(temporary: &Path, target: &Path, text: &str) -> std::io::Re
         .open(temporary)?;
     file.write_all(text.as_bytes())?;
     file.sync_all()?;
-    fs::rename(temporary, target)
+    if replace {
+        fs::rename(temporary, target)
+    } else {
+        fs::hard_link(temporary, target)?;
+        let _ = fs::remove_file(temporary);
+        Ok(())
+    }
 }
 
 /// Saves a session launch: the agent, the folder, the permission and the preset, written as the
@@ -838,7 +949,16 @@ pub fn save(
     request: &SaveRequest,
     known: &dyn Known,
 ) -> Result<Launch, SaveRefusal> {
-    let invalid = |why: String| SaveRefusal::Invalid(why);
+    save_session(places, request, known, &[])
+}
+
+pub fn save_session(
+    places: &Places,
+    request: &SaveRequest,
+    known: &dyn Known,
+    before: &[String],
+) -> Result<Launch, SaveRefusal> {
+    let invalid = SaveRefusal::Invalid;
     if !text_ok(&request.name, MAX_NAME) {
         return Err(invalid(format!(
             "name must be 1–{MAX_NAME} characters on one line"
@@ -885,11 +1005,19 @@ pub fn save(
         display(&folder, &places.home)
     };
     let mut text = format!(
-        "# Saved from Workspace (Wyss Console).\nname = {}\ndirectory = {}\n\n[session]\nagent = {}\n",
+        "# Saved from Workspace (Wyss Console).\nname = {}\ndirectory = {}\n",
         toml_string(request.name.trim()),
         toml_string(&shown),
-        toml_string(agent),
     );
+    if !before.is_empty() {
+        let lines = before
+            .iter()
+            .map(|line| toml_string(line))
+            .collect::<Vec<_>>()
+            .join(", ");
+        text.push_str(&format!("before = [{lines}]\n"));
+    }
+    text.push_str(&format!("\n[session]\nagent = {}\n", toml_string(agent)));
     if let Some(permission) = &permission {
         text.push_str(&format!("permission = {}\n", toml_string(permission)));
     }
@@ -897,15 +1025,20 @@ pub fn save(
         text.push_str(&format!("preset = {}\n", toml_string(preset)));
     }
     parse(&id, &text, &places.home, &places.system()).map_err(invalid)?;
-    write_private(&places.folder, &target, &text)
-        .map_err(|e| invalid(format!("the launch could not be written: {e}")))?;
+    write_launch_file(&places.folder, &target, &text, request.replace).map_err(|error| {
+        if error.kind() == std::io::ErrorKind::AlreadyExists {
+            SaveRefusal::Exists
+        } else {
+            invalid(format!("the launch could not be written: {error}"))
+        }
+    })?;
     get(places, &id).map_err(invalid)
 }
 
 /// Deletes a launch the window saved: one with no `before` line and no commands. The owner's
 /// own files, and the shipped ones with a `before` line, are edited by hand and never deleted here.
 pub fn delete(places: &Places, id: &str) -> Result<(), String> {
-    let launch = get(places, id)?;
+    let launch = get_for_editor(places, id)?;
     let saved = matches!(&launch.kind, Kind::Session { before, .. } if before.is_empty());
     if !saved {
         return Err(
@@ -915,6 +1048,27 @@ pub fn delete(places: &Places, id: &str) -> Result<(), String> {
     }
     fs::remove_file(places.folder.join(format!("{id}.toml")))
         .map_err(|_| "the launch could not be deleted".to_owned())
+}
+
+#[cfg(feature = "native-ui")]
+pub fn can_delete_commands(places: &Places, id: &str) -> bool {
+    let Ok(launch) = get_for_editor(places, id) else {
+        return false;
+    };
+    let Kind::Commands { template, .. } = launch.kind else {
+        return false;
+    };
+    (id == "actualizar-sistema" && template.as_deref() == Some("system-update"))
+        || read_one(&places.folder.join(format!("{id}.toml")))
+            .is_ok_and(|text| text.lines().next() == Some(WORKSPACE_COMMANDS))
+}
+
+#[cfg(feature = "native-ui")]
+pub fn delete_commands(places: &Places, id: &str) -> Result<(), String> {
+    if !can_delete_commands(places, id) {
+        return Err("Only command launches created in Workspace can be deleted here".into());
+    }
+    fs::remove_file(places.folder.join(format!("{id}.toml"))).map_err(|error| error.to_string())
 }
 
 #[cfg(feature = "desktop")]

@@ -123,3 +123,59 @@ pub fn resolve_items(
     }
     Ok((resolved, complete))
 }
+
+/// Checks which library revisions are already installed, without calling the host or
+/// asking for provider enforcement. This is the item-only part of Workspace's preview.
+#[cfg(feature = "native-ui")]
+pub fn installed_items(
+    store: &Store,
+    provider: &str,
+    directory: &std::path::Path,
+    chosen: &[super::store::Item],
+    library: &[Summary],
+) -> Option<Vec<terminal::PlanItem>> {
+    use crate::agentconfig::catalogue;
+
+    let project = catalogue::validate_project_process(directory);
+    let installed = catalogue::launch_scan_process(project, provider)?;
+    let items = library
+        .iter()
+        .filter(|item| item.provider == provider && item.kind == "skill")
+        .map(|item| {
+            chosen
+                .iter()
+                .find(|pin| pin.capability == item.id)
+                .cloned()
+                .unwrap_or_else(|| super::store::Item {
+                    capability: item.id.clone(),
+                    revision: None,
+                })
+        })
+        .collect::<Vec<_>>();
+    let mut results = Vec::new();
+    for batch in items.chunks(512) {
+        let selection = Selection {
+            id: String::new(),
+            name: String::new(),
+            provider: provider.into(),
+            items: batch.to_vec(),
+            composites: vec![],
+            created_at: 0,
+            updated_at: 0,
+        };
+        let (items, _) = resolve_items(store, &selection).ok()?;
+        results.extend(
+            terminal::plan(terminal::Input {
+                selection: &selection,
+                items,
+                provider,
+                version: None,
+                evidence: None,
+                installed: &installed,
+                project: None,
+            })
+            .items,
+        );
+    }
+    Some(results)
+}

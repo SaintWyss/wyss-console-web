@@ -28,6 +28,7 @@ mod selection;
 mod term;
 mod theme;
 mod view;
+mod workspace;
 
 use wyss_console as _;
 

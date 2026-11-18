@@ -189,8 +189,10 @@ pub struct Rgb {
 // ---------------------------------------------------------------------------------------------
 // Terminal: VT state machine + screen + scrollback.
 
+type TerminalReply = Box<dyn FnMut(&[u8]) + Send>;
+
 struct ReplyCtx {
-    f: Box<dyn FnMut(&[u8]) + Send>,
+    f: TerminalReply,
 }
 
 extern "C" fn write_pty_trampoline(_t: Handle, userdata: *mut c_void, data: *const u8, len: usize) {
@@ -211,7 +213,7 @@ unsafe impl Send for Terminal {}
 impl Terminal {
     /// `reply` receives what the terminal answers to queries (DA, DSR, mode reports...); it runs
     /// synchronously inside `write` and must not call back into this terminal.
-    pub fn new(cols: u16, rows: u16, scrollback_lines: usize, reply: Box<dyn FnMut(&[u8]) + Send>) -> Terminal {
+    pub fn new(cols: u16, rows: u16, scrollback_lines: usize, reply: TerminalReply) -> Terminal {
         let mut raw: Handle = std::ptr::null_mut();
         let rc = unsafe { ghostty_terminal_new(std::ptr::null(), &mut raw, cols, rows) };
         assert_eq!(rc, SUCCESS, "ghostty_terminal_new");
@@ -416,7 +418,7 @@ pub enum Dirty {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Wide {
     Narrow,
-    Wide,
+    Double,
     /// Second half of a wide character (or the filler before one at a soft wrap): draws no text.
     Spacer,
 }
@@ -611,7 +613,7 @@ impl RenderState {
                 let mut w: c_int = 0;
                 ghostty_cell_get(raw, CELL_DATA_WIDE, &mut w as *mut c_int as *mut c_void);
                 cell.wide = match w {
-                    1 => Wide::Wide,
+                    1 => Wide::Double,
                     2 | 3 => Wide::Spacer,
                     _ => Wide::Narrow,
                 };
@@ -739,7 +741,7 @@ mod tests {
         rs.update(&t);
         let r = rows(&mut rs, true);
         let c = &r[0].1;
-        assert_eq!((c[0].text(), c[0].wide), ("日", Wide::Wide));
+        assert_eq!((c[0].text(), c[0].wide), ("日", Wide::Double));
         assert_eq!(c[1].wide, Wide::Spacer);
         assert_eq!(c[2].text(), "a");
         assert_eq!(c[2].wide, Wide::Narrow);

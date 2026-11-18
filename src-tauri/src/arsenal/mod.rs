@@ -269,7 +269,7 @@ pub fn open_read_only() -> Result<Store, Error> {
 
 /// `wyss-console/arsenal` under `XDG_DATA_HOME` (or `~/.local/share`), in a folder only its owner
 /// can open. The database file itself is created 0600. Returns the store and that folder.
-fn open() -> Result<(Store, PathBuf), Error> {
+pub fn open() -> Result<(Store, PathBuf), Error> {
     let data = std::env::var_os("XDG_DATA_HOME")
         .map(PathBuf::from)
         .filter(|path| path.is_absolute())

@@ -31,10 +31,10 @@ fn parent_map() -> HashMap<i32, i32> {
     let Ok(dir) = fs::read_dir("/proc") else { return map };
     for e in dir.flatten() {
         let Some(pid) = e.file_name().to_str().and_then(|n| n.parse::<i32>().ok()) else { continue };
-        if let Ok(stat) = fs::read_to_string(format!("/proc/{pid}/stat")) {
-            if let Some(ppid) = ppid_of(&stat) {
-                map.insert(pid, ppid);
-            }
+        if let Ok(stat) = fs::read_to_string(format!("/proc/{pid}/stat"))
+            && let Some(ppid) = ppid_of(&stat)
+        {
+            map.insert(pid, ppid);
         }
     }
     map

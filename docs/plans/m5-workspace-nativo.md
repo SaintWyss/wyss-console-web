@@ -30,3 +30,10 @@ comportamiento y llamadas al backend. `workspace-rediseno-contrato.md` está des
 
 Escribir en el `~/.claude`, `~/.codex`, `~/.config/wyss-console` o llavero reales. Todo test con
 `HOME`/`XDG_*` temporales bajo `~/.cache/wyss-build/` y archivos de ejemplo propios.
+
+## Estado (2026-11-18)
+
+Referencia final: la app instalada (el boceto quedó desactualizado). Construido por Codex `gpt-6.2-sol` low, verificado
+por Opus: 115 tests nativos verdes; General, Skills y Resumen iguales a las capturas del dueño. Fluidez medida con
+`WYSS_WS_TIMING=1`: click en un ítem 9–13 ms (antes 120–300 ms + 190 ms de lista); abrir el Workspace o guardar
+relee disco (~0,7 s, una vez).

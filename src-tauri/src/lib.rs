@@ -92,7 +92,7 @@ pub mod orchestration;
 
 // The native frontend can call the console services in-process. Keeping them out of the
 // default library preserves the packaged authority's configuration boundary.
-#[cfg(all(target_os = "linux", not(feature = "desktop")))]
+#[cfg(all(target_os = "linux", any(feature = "native-ui", not(feature = "desktop"))))]
 extern crate self as wyss_console;
-#[cfg(all(target_os = "linux", not(feature = "desktop")))]
+#[cfg(all(target_os = "linux", any(feature = "native-ui", not(feature = "desktop"))))]
 include!("host_modules.rs");

@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
-"""Writes src/i18n_table.rs: the Spanish of every sentence the window uses, copied from the
+"""Writes the native binary’s i18n_table.rs: the Spanish of every sentence the window uses, copied from the
 Console's own table (src/lib/i18n/es.ts). A sentence is whatever appears as t!("..."), tr("...") or
-trf("...") in src/*.rs. A sentence with no entry in es.ts must be listed in tools/i18n-extra.json
+trf("...") in the native binary’s Rust modules. A sentence with no entry in es.ts must be listed in tools/i18n-extra.json
 (the few that only this window has); otherwise this script fails and nothing is written.
 
-    python3 tools/gen-i18n.py          # rewrites src/i18n_table.rs
+    python3 tools/gen-i18n.py          # rewrites the native binary’s table
     python3 tools/gen-i18n.py --check  # fails if the file is out of date
 """
 import json, pathlib, re, sys
 
 here = pathlib.Path(__file__).resolve().parent.parent
+NATIVE = here.parent.parent / "src-tauri/src/bin/wyss-console-native"
 ES = here.parent.parent / "src/lib/i18n/es.ts"
 
 
@@ -73,7 +74,7 @@ def parse_es(text, name="ES"):
 def used():
     found = {}
     pat = re.compile(r'\b(?:t!|trf|tr)\(\s*"((?:[^"\\]|\\.)*)"')
-    for f in sorted((here / "src").glob("*.rs")):
+    for f in sorted(NATIVE.rglob("*.rs")):
         if f.name in ("i18n_table.rs", "i18n.rs"):
             continue
         for m in pat.finditer(f.read_text()):
@@ -105,10 +106,16 @@ def main():
     for en, sp in rows:
         out += f"    ({rust(en)}, {rust(sp)}),\n"
     out += "];\n"
-    target = here / "src/i18n_table.rs"
+    incoming = parse_es((ES.parent / "incoming" / "arsenal.ts").read_text(), "INCOMING")
+    out += "pub const INCOMING_ES: &[(&str, &str)] = &[\n"
+    for en, sp in sorted(incoming.items()):
+        out += f"    ({rust(en)}, {rust(sp)}),\n"
+    out += "];\n"
+    target = NATIVE / "i18n_table.rs"
     if "--check" in sys.argv:
         if not target.exists() or target.read_text() != out:
-            sys.exit("src/i18n_table.rs is out of date: run tools/gen-i18n.py")
+            sys.exit(f"{target.name} is out of date: run tools/gen-i18n.py")
+        print(f"ok ({len(rows)} sentences)")
         return
     target.write_text(out)
     print(f"{len(rows)} sentences ({sum(1 for en, _ in rows if en not in es)} only in i18n-extra.json)")

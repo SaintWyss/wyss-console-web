@@ -467,11 +467,11 @@ impl Ui {
                 if g.current_button() != 1 {
                     return;
                 }
-                if let Some(ui) = weak.upgrade() {
-                    if let Some(i) = ui.tabs.borrow().iter().position(|t| t.n == n) {
-                        let ui = ui.clone();
-                        glib::idle_add_local_once(move || ui.select(i));
-                    }
+                if let Some(ui) = weak.upgrade()
+                    && let Some(i) = ui.tabs.borrow().iter().position(|t| t.n == n)
+                {
+                    let ui = ui.clone();
+                    glib::idle_add_local_once(move || ui.select(i));
                 }
             });
         }
@@ -675,12 +675,10 @@ impl Ui {
         let pane = self.panes.borrow_mut().remove(key);
         if let Some(p) = &pane {
             self.by_id.borrow_mut().remove(&p.id);
-            if let (Some(h), Some(tid)) = (self.host.clone(), p.tid.clone()) {
-                if close_in_host {
-                    std::thread::spawn(move || {
-                        let _ = h.close(&tid);
-                    });
-                }
+            if close_in_host && let (Some(h), Some(tid)) = (self.host.clone(), p.tid.clone()) {
+                std::thread::spawn(move || {
+                    let _ = h.close(&tid);
+                });
             }
         }
         match layout::remove(&old, key) {
@@ -1101,10 +1099,10 @@ impl Ui {
         if self.host.is_none() {
             return;
         }
-        if let Some(path) = layout::state_path() {
-            if let Err(e) = layout::save(&path, &self.snapshot()) {
-                eprintln!("gtk-term: cannot save the layout: {e}");
-            }
+        if let Some(path) = layout::state_path()
+            && let Err(e) = layout::save(&path, &self.snapshot())
+        {
+            eprintln!("gtk-term: cannot save the layout: {e}");
         }
     }
 
@@ -1212,10 +1210,14 @@ fn shortcuts_popover(anchor: &gtk::Button) -> gtk::Popover {
 }
 
 pub fn build(app: &gtk::Application, cfg: Config) -> gtk::ApplicationWindow {
+    if let Some(settings) = gtk::Settings::default() {
+        settings.set_gtk_theme_name(Some("Default"));
+        settings.set_gtk_application_prefer_dark_theme(theme::current().prefers_dark());
+    }
     let provider = gtk::CssProvider::new();
-    provider.load_from_string(&format!("{}{THEME}", theme::defines(theme::current())));
+    provider.load_from_string(&format!("{}{THEME}{}", theme::defines(theme::current()), crate::workspace::CSS));
     if let Some(display) = gdk::Display::default() {
-        gtk::style_context_add_provider_for_display(&display, &provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
+        gtk::style_context_add_provider_for_display(&display, &provider, gtk::STYLE_PROVIDER_PRIORITY_USER + 1);
     }
     let win = gtk::ApplicationWindow::builder().application(app).title("Wyss Console").default_width(1200).default_height(800).build();
     win.add_css_class("console");
@@ -1223,17 +1225,17 @@ pub fn build(app: &gtk::Application, cfg: Config) -> gtk::ApplicationWindow {
     // Rail.
     let rail = gtk::Box::new(gtk::Orientation::Vertical, 4);
     rail.add_css_class("rail");
-    for (icon, tip, active) in [
-        (Icon::Terminal, t!("Console"), true),
-        (Icon::Sliders, t!("Workspace"), false),
-        (Icon::Palette, t!("Personalization"), false),
-        (Icon::Activity, t!("Activity"), false),
-        (Icon::Settings, t!("Settings"), false),
+    let (console_row, console_button) = rail_button(Icon::Terminal, &tr("Console"), true);
+    let (workspace_row, workspace_button) = rail_button(Icon::Sliders, &tr("Workspace"), false);
+    rail.append(&console_row);
+    rail.append(&workspace_row);
+    for (icon, tip) in [
+        (Icon::Palette, t!("Personalization")),
+        (Icon::Activity, t!("Activity")),
+        (Icon::Settings, t!("Settings")),
     ] {
-        let (row, b) = rail_button(icon, &tr(tip), active);
-        if !active {
-            b.connect_clicked(|_| launch_tauri());
-        }
+        let (row, button) = rail_button(icon, &tr(tip), false);
+        button.connect_clicked(|_| launch_tauri());
         rail.append(&row);
     }
     let spacer = gtk::Box::new(gtk::Orientation::Vertical, 0);
@@ -1312,7 +1314,12 @@ pub fn build(app: &gtk::Application, cfg: Config) -> gtk::ApplicationWindow {
     main.append(&status);
     let outer = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     outer.append(&rail);
-    outer.append(&main);
+    let screens = gtk::Stack::new();
+    screens.set_hexpand(true);
+    screens.set_hhomogeneous(false);
+    screens.set_vhomogeneous(false);
+    screens.add_named(&main, Some("console"));
+    outer.append(&screens);
     let overlay = gtk::Overlay::new();
     overlay.set_child(Some(&outer));
     overlay.add_overlay(&launch_panel);
@@ -1381,6 +1388,58 @@ pub fn build(app: &gtk::Application, cfg: Config) -> gtk::ApplicationWindow {
         overlay.add_controller(click);
     }
 
+    let show_screen = {
+        let screens = screens.downgrade();
+        let console_row = console_row.downgrade();
+        let workspace_row = workspace_row.downgrade();
+        move |name: &str| {
+            if let Some(screens) = screens.upgrade() {
+                screens.set_visible_child_name(name);
+            }
+            for (row, active) in [
+                (console_row.upgrade(), name == "console"),
+                (workspace_row.upgrade(), name == "workspace"),
+            ] {
+                if let Some(row) = row {
+                    for child in [row.first_child(), row.last_child()].into_iter().flatten() {
+                        if active { child.add_css_class("active"); } else { child.remove_css_class("active"); }
+                    }
+                }
+            }
+        }
+    };
+    console_button.connect_clicked({
+        let show_screen = show_screen.clone();
+        move |_| show_screen("console")
+    });
+    workspace_button.connect_clicked({
+        let ui = Rc::downgrade(&ui);
+        let screens = screens.downgrade();
+        let window = win.downgrade();
+        move |_| {
+            let (Some(ui), Some(screens), Some(window)) = (ui.upgrade(), screens.upgrade(), window.upgrade()) else { return };
+            ui.hide_launches();
+            if screens.child_by_name("workspace").is_none() {
+                let try_launch = ui.host.as_ref().map(|_| {
+                    let show_screen = show_screen.clone();
+                    let ui = Rc::downgrade(&ui);
+                    Rc::new(move |id: &str| {
+                        if let Some(ui) = ui.upgrade() {
+                            show_screen("console");
+                            ui.open_launch(id);
+                        }
+                    }) as Rc<dyn Fn(&str)>
+                });
+                let recent = ui.host.as_ref()
+                    .and_then(|host| native::launcher(host).ok())
+                    .map(|launcher| launcher.projects)
+                    .unwrap_or_default();
+                screens.add_named(&crate::workspace::build(&window, try_launch, recent), Some("workspace"));
+            }
+            show_screen("workspace");
+        }
+    });
+
     // Restore from the host: the terminals still alive, in the saved layout.
     let mut plan = SavedLayout { tabs: Vec::new(), active: 0 };
     let mut attach: HashMap<String, term::Attach> = HashMap::new();
@@ -1431,7 +1490,11 @@ pub fn build(app: &gtk::Application, cfg: Config) -> gtk::ApplicationWindow {
     kc.set_propagation_phase(gtk::PropagationPhase::Capture);
     {
         let ui = ui.clone();
+        let screens = screens.downgrade();
         kc.connect_key_pressed(move |_, key, code, mods| {
+            if screens.upgrade().and_then(|screens| screens.visible_child_name()).as_deref() != Some("console") {
+                return glib::Propagation::Proceed;
+            }
             if key == gdk::Key::Escape && ui.launch_panel.is_visible() {
                 ui.hide_launches();
                 return glib::Propagation::Stop;

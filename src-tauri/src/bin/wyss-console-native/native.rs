@@ -3,7 +3,7 @@
 //! launch, the same as `openLaunch` in `src/lib/features/terminal/launch.ts`. The parsers are pure
 //! and tested against answers shaped like the host's structs (`src-tauri/src/native/service.rs`).
 
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use serde_json::{json, Value};
 
@@ -14,9 +14,6 @@ use crate::t;
 
 /// The first size of a terminal that has not been fitted yet (`FIRST_SIZE` in the Console).
 pub const FIRST_SIZE: (u16, u16) = (24, 80);
-/// How long one `before` command may run (`BEFORE_TIMEOUT` of `launch.rs`).
-pub const BEFORE_TIMEOUT: Duration = Duration::from_secs(30);
-
 fn bad(what: &str) -> HostError {
     HostError::Protocol(format!("native: {what}"))
 }
@@ -40,18 +37,26 @@ pub fn parse_tag(v: &Value) -> Option<Tag> {
     })
 }
 
-/// `native_launcher`: the owner's home project (where `~` of a launch points) and the agents found.
+/// `native_launcher`: home, registered project paths and agents found.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Launcher {
     pub home: Option<String>,
     pub installed: Vec<String>,
+    pub projects: Vec<(String, u64)>,
 }
 
 pub fn parse_launcher(v: &Value) -> Result<Launcher, HostError> {
     let agents = v["agents"].as_array().ok_or_else(|| bad("launcher has no agents"))?;
+    let projects = v["projects"].as_array().into_iter().flatten();
     Ok(Launcher {
-        home: v["projects"].as_array().and_then(|p| p.iter().find(|p| p["home"] == true)).and_then(|p| p["path"].as_str()).map(str::to_owned),
-        installed: agents.iter().filter(|a| a["installed"] == true).filter_map(|a| a["agent_id"].as_str().map(str::to_owned)).collect(),
+        home: projects.clone().find(|project| project["home"] == true)
+            .and_then(|project| project["path"].as_str()).map(str::to_owned),
+        installed: agents.iter().filter(|a| a["installed"] == true)
+            .filter_map(|a| a["agent_id"].as_str().map(str::to_owned)).collect(),
+        projects: projects.filter_map(|project| Some((
+            project["path"].as_str()?.to_owned(),
+            project["last_used"].as_u64().unwrap_or_default(),
+        ))).collect(),
     })
 }
 
@@ -251,11 +256,13 @@ pub enum Opened {
     Agent { started: Started, notes: Vec<String> },
 }
 
+type BeforeCommands<'a> = dyn Fn(&[String], &str) -> Vec<(String, String)> + 'a;
+
 /// Opens one launch, in the order of `openLaunch`: a commands launch is a terminal in its folder
 /// with the commands typed; a session launch is checked with `native_preview`, runs its `before`
 /// commands and starts with `native_start`. `before` gets the commands and the folder and answers
 /// `(command, result)` for each; tests give it a stand-in.
-pub fn open_launch(host: &Host, launch: &Launch, home: &str, before: &dyn Fn(&[String], &str) -> Vec<(String, String)>) -> Result<Opened, Refusal> {
+pub fn open_launch(host: &Host, launch: &Launch, home: &str, before: &BeforeCommands<'_>) -> Result<Opened, Refusal> {
     let directory = launches::resolve_directory(&launch.directory, home).map_err(|e| Refusal(e.to_owned()))?;
     match &launch.kind {
         Kind::Commands { commands } => {
@@ -291,50 +298,24 @@ pub fn open_launch(host: &Host, launch: &Launch, home: &str, before: &dyn Fn(&[S
 /// Runs a session launch's `before` commands in order, each in `/bin/sh -c` in its folder with no
 /// input and its output discarded, bounded in time (`run_before` of `launch.rs`).
 pub fn run_before(commands: &[String], folder: &str) -> Vec<(String, String)> {
-    commands.iter().map(|c| (c.clone(), run_one(c, folder, BEFORE_TIMEOUT))).collect()
+    before_with_timeout(commands, folder, wyss_console::launch::BEFORE_TIMEOUT)
 }
 
-/// Names that belong to one running agent session (`SESSION_MARKERS` of `service.rs`): an agent
-/// started from here must not take them for its own.
-const SESSION_MARKERS: [&str; 17] = [
-    "CLAUDECODE", "CLAUDE_CODE_CHILD_SESSION", "CLAUDE_CODE_ENTRYPOINT", "CLAUDE_CODE_EXECPATH", "CLAUDE_CODE_MESSAGING_SOCKET", "CLAUDE_CODE_MESSAGING_TOKEN",
-    "CLAUDE_CODE_SESSION_ATTENDED", "CLAUDE_CODE_SESSION_ID", "CLAUDE_CODE_VERSION", "CLAUDE_EFFORT", "CLAUDE_PID", "CLAUDE_PLUGIN_DATA", "CLAUDE_PLUGIN_ROOT",
-    "CODEX_COMPANION_SESSION_ID", "CODEX_THREAD_ID", "CODEX_SESSION_ID", "WYSS_NATIVE_SESSION_ID",
-];
-
-fn run_one(command: &str, folder: &str, timeout: Duration) -> String {
-    use std::os::unix::process::CommandExt;
-    let mut p = std::process::Command::new("/bin/sh");
-    p.arg("-c").arg(command).current_dir(folder).stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null());
-    for name in SESSION_MARKERS {
-        p.env_remove(name);
-    }
-    // Its own process group, so that the end of the run stops what it started too.
-    p.process_group(0);
-    let Ok(mut child) = p.spawn() else { return "not_started".into() };
-    let started = Instant::now();
-    let group = format!("-{}", child.id());
-    let stop = || {
-        let _ = std::process::Command::new("kill").args(["-KILL", "--", &group]).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null()).status();
+fn before_with_timeout(commands: &[String], folder: &str, timeout: Duration) -> Vec<(String, String)> {
+    use wyss_console::launch::{Kind, Launch};
+    let launch = Launch {
+        id: String::new(),
+        name: String::new(),
+        directory: folder.to_owned(),
+        kind: Kind::Session {
+            agent: String::new(),
+            permission: None,
+            before: commands.to_vec(),
+            preset: None,
+        },
     };
-    loop {
-        match child.try_wait() {
-            Ok(Some(status)) => {
-                stop();
-                return match status.code() {
-                    Some(0) => "ok".into(),
-                    Some(code) => format!("exit {code}"),
-                    None => "signal".into(),
-                };
-            }
-            Ok(None) if started.elapsed() < timeout => std::thread::sleep(Duration::from_millis(50)),
-            _ => {
-                stop();
-                let _ = child.wait();
-                return "timeout".into();
-            }
-        }
-    }
+    wyss_console::launch::run_before(&launch, timeout)
+        .into_iter().map(|outcome| (outcome.command, outcome.result)).collect()
 }
 
 /// `term_list` entries that are agents' terminals, by terminal id.
@@ -369,7 +350,11 @@ mod tests {
     #[test]
     fn the_launcher_gives_the_home_and_the_installed_agents() {
         let l = parse_launcher(&launcher_answer()).unwrap();
-        assert_eq!(l, Launcher { home: Some("/home/o".into()), installed: vec!["claude_code".into()] });
+        assert_eq!(l, Launcher {
+            home: Some("/home/o".into()),
+            installed: vec!["claude_code".into()],
+            projects: vec![("/work/a".into(), 3), ("/home/o".into(), 0)],
+        });
         assert!(parse_launcher(&json!({"shell": null})).is_err());
     }
 
@@ -550,9 +535,11 @@ mod tests {
 
     #[test]
     fn before_commands_report_ok_exit_codes_and_timeouts() {
-        let r = run_before(&["true".into(), "exit 3".into(), "echo hi >/dev/null".into()], "/tmp");
+        let temp = std::env::temp_dir();
+        let folder = temp.to_str().unwrap();
+        let r = run_before(&["true".into(), "exit 3".into(), "echo hi >/dev/null".into()], folder);
         assert_eq!(r.iter().map(|(_, s)| s.as_str()).collect::<Vec<_>>(), vec!["ok", "exit 3", "ok"]);
-        assert_eq!(run_one("sleep 5", "/tmp", Duration::from_millis(200)), "timeout");
-        assert_eq!(run_one("true", "/definitely/not/here", Duration::from_secs(1)), "not_started");
+        assert_eq!(before_with_timeout(&["sleep 5".into()], folder, Duration::from_millis(200))[0].1, "timeout");
+        assert_eq!(before_with_timeout(&["true".into()], "/definitely/not/here", Duration::from_secs(1))[0].1, "not_started");
     }
 }

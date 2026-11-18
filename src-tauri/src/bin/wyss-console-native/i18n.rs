@@ -153,3 +153,55 @@ mod tests {
         assert!(missing.is_empty(), "no Spanish for: {missing:#?}");
     }
 }
+
+pub fn incoming(text: &str) -> String {
+    translate_incoming(lang(), text)
+}
+
+fn translate_incoming(lang: Lang, text: &str) -> String {
+    if lang == Lang::Es {
+        let table = crate::i18n_table::INCOMING_ES;
+        if let Ok(index) = table.binary_search_by_key(&text, |(en, _)| en) {
+            return table[index].1.into();
+        }
+        for (en, es) in table.iter().filter(|(en, _)| en.contains('{')) {
+            if let Some(values) = incoming_parts(en, text) {
+                return fill(es, &values);
+            }
+        }
+    }
+    translate(lang, text).into()
+}
+
+// Incoming templates from the desktop place literal delimiters between their substitutions.
+fn incoming_parts<'a>(template: &'a str, text: &'a str) -> Option<Vec<(&'a str, &'a str)>> {
+    let (prefix, mut template) = template.split_once('{')?;
+    let mut text = text.strip_prefix(prefix)?;
+    let mut values = Vec::new();
+    loop {
+        let (name, tail) = template.split_once('}')?;
+        if let Some((delimiter, next)) = tail.split_once('{') {
+            let (value, rest) = text.split_once(delimiter)?;
+            values.push((name, value));
+            text = rest;
+            template = next;
+        } else {
+            values.push((name, text.strip_suffix(tail)?));
+            return Some(values);
+        }
+    }
+}
+
+#[cfg(test)]
+mod incoming_tests {
+    use super::*;
+
+    #[test]
+    fn translates_dynamic_skill_blockers_like_workspace() {
+        let reason = "The installed copy differs from revision 12. Restore or import so they match; Arsenal does not expose a revision that is not installed.";
+        assert!(translate_incoming(Lang::Es, reason).starts_with("La copia instalada no coincide con la revisión 12."));
+        let reason = "Claude Code reads this skill format, but it holds scripts whose own requirements are not checked. Wyss never runs them.";
+        assert!(translate_incoming(Lang::Es, reason).starts_with("Claude Code lee este formato de skill"));
+        assert_eq!(translate_incoming(Lang::En, reason), reason);
+    }
+}

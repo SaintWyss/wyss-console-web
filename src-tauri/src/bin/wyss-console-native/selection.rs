@@ -52,8 +52,8 @@ pub fn normalize(a: Pos, b: Pos) -> (Pos, Pos) {
 fn glyph_span(row: &[Cell], col: usize) -> (usize, usize) {
     let col = col.min(row.len().saturating_sub(1));
     match row.get(col).map(|c| c.wide) {
-        Some(Wide::Spacer) if col > 0 && row[col - 1].wide == Wide::Wide => (col - 1, col),
-        Some(Wide::Wide) if col + 1 < row.len() => (col, col + 1),
+        Some(Wide::Spacer) if col > 0 && row[col - 1].wide == Wide::Double => (col - 1, col),
+        Some(Wide::Double) if col + 1 < row.len() => (col, col + 1),
         _ => (col, col),
     }
 }
@@ -127,8 +127,8 @@ impl Selection {
 /// The selected text: rows joined with '\n', wide characters once, trailing spaces removed per row.
 pub fn extract(grid: &[Vec<Cell>], start: Pos, end: Pos) -> String {
     let mut out = String::new();
-    for r in start.row..=end.row.min(grid.len().saturating_sub(1)) {
-        let row = &grid[r];
+    let end_row = end.row.saturating_add(1);
+    for (r, row) in grid.iter().enumerate().take(end_row).skip(start.row) {
         let Some((c0, c1)) = row_range(start, end, r, row.len()) else { continue };
         let mut line = String::new();
         for cell in &row[c0..=c1] {
@@ -155,7 +155,7 @@ mod tests {
         for ch in s.chars() {
             let t = ch.to_string();
             if ch.len_utf8() > 2 {
-                v.push(Cell::plain(&t, Wide::Wide));
+                v.push(Cell::plain(&t, Wide::Double));
                 v.push(Cell::plain("", Wide::Spacer));
             } else if ch == ' ' {
                 v.push(Cell::plain("", Wide::Narrow));
@@ -170,6 +170,11 @@ mod tests {
     }
     fn p(row: usize, col: usize) -> Pos {
         Pos { row, col }
+    }
+
+    #[test]
+    fn selecting_an_empty_grid_returns_no_text() {
+        assert_eq!(extract(&[], p(0, 0), p(0, 0)), "");
     }
 
     #[test]
