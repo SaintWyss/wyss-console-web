@@ -1,0 +1,14 @@
+[package]
+name = "gtk-term"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+gtk = { package = "gtk4", version = "0.11.5", features = ["v4_14"] }
+alacritty_terminal = "0.26.0"
+
+[profile.release]
+debug = false
