@@ -273,6 +273,9 @@ fn resolve(c: Color, colors: &alacritty_terminal::term::color::Colors, fg: bool)
 }
 
 fn draw(snap: &gtk::Snapshot, state: &State, w: f32, h: f32) {
+    if std::env::var_os("GTKTERM_NODRAW").is_some() {
+        return;
+    }
     snap.append_color(&rgb(BG), &graphene::Rect::new(0.0, 0.0, w, h));
     let cw = state.cell_w.get() as f32;
     let ch = state.cell_h.get() as f32;

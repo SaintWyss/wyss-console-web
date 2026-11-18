@@ -50,6 +50,19 @@ RAM solo se paga mientras está abierta. Cada fase deja algo instalable y usable
 Cada fase: BUILD con test en el mismo cambio, revisión externa una pasada (`+review`), instalar con
 `--keep-host`, push.
 
+## Hallazgo M1 (2026-11-17): el cuello es el intérprete, no el dibujo
+
+`cat` de 100 MB sin dibujar nada tarda 1,52 s con `alacritty_terminal` (con dibujo 1,8 s; Ghostty 1,3 s).
+Intérprete solo, mismo archivo, 120×40 (`prototypes/gtk-term/src/bin/parsebench.rs`):
+
+| Motor | Tiempo |
+|---|---|
+| `alacritty_terminal` 0.26 | 1,39–1,42 s |
+| `libghostty-vt` (Ghostty 1.4.0) | 0,23 s |
+
+Con `alacritty_terminal` la meta de velocidad es inalcanzable aunque el dibujo cueste cero.
+`libghostty-vt` además trae estado de render con filas sucias (`render.h`). Su API se declara inestable.
+
 ## Riesgos
 
 | Riesgo | Mitigación |
