@@ -33,3 +33,16 @@ sans/mono del sistema.
 Menú "+ Launch" con presets (Actualizar sistema, Claude, Codex) y "Full access"; tarjeta de ciclo de vida
 (Parar/Reiniciar/Olvidar por panel); etiqueta de agente en la cabecera; búsqueda (Ctrl+Shift+F); temas claro y
 alto contraste; idioma español/inglés.
+
+## Estado M3b (2026-11-18)
+
+Construido por Sonnet, verificado por Opus con input real en display aislado contra host aislado con UN preset
+inofensivo escrito por el orquestador (`echo preset-ok`; nunca se lanzó "Actualizar sistema", Claude ni Codex):
+búsqueda Ctrl+Shift+F ("2 of 6", resaltado), menú "+ Launch" muestra solo ese preset y al hacer clic abre una
+pestaña que imprime `preset-ok`, tema claro + español desde `preferences.json` ("Lanzar", "En ejecución",
+"sin git"). Regresión de todos los ui-tests anteriores: verde. Etiqueta de agente y Parar/Reiniciar/Olvidar
+probados solo contra un host falso (arrancar un agente real queda fuera de las pruebas).
+
+Faltan: el "~14k" del menú (viene de Arsenal), presets con `preset =` (Arsenal) se rechazan sin arrancar, el
+orden del menú guardado por la Consola Tauri en localStorage. 4 frases nuevas sin traducción previa en `es.ts`
+(`prototypes/gtk-term/tools/i18n-extra.json`) para revisión del dueño.

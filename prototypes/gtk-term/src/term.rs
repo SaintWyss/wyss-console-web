@@ -31,8 +31,6 @@ const WHEEL_LINES: f64 = 3.0;
 const LONG_POLL_MS: u64 = 1000;
 /// Lines of history asked for when attaching to a terminal that was already running.
 const ATTACH_SCROLLBACK: u32 = 500;
-/// Background of selected cells (readable under the default foreground on `palette::BG`).
-const SEL_BG: Rgb = Rgb { r: 0x3a, g: 0x4a, b: 0x63 };
 
 thread_local! {
     /// Widgets by id, reachable from the PTY thread through `MainContext::invoke`.
@@ -74,6 +72,7 @@ fn request_redraw(shared: &Shared, id: u64) {
 }
 
 pub struct Terminal {
+    state: Rc<State>,
     pub widget: TermView,
     /// The shell of a local terminal (host terminals are asked about through the host).
     pub local_pid: Option<u32>,
@@ -262,6 +261,10 @@ struct State {
     pango: RefCell<Option<pango::Context>>,
     frame: RefCell<Frame>,
     sel: RefCell<Option<Selection>>,
+    /// The search of the pane (Ctrl+Shift+F) and what it found as of the last frame; `None` while the
+    /// bar is closed.
+    find: RefCell<Option<ghostty::Search>>,
+    found: RefCell<ghostty::Found>,
     /// A left-button press in progress: where it started and how it expands.
     drag: RefCell<Option<(Pos, Mode)>>,
 }
@@ -342,7 +345,8 @@ impl Terminal {
                 }
             }),
         );
-        term.set_colors(palette::FG, palette::BG, &palette::table());
+        let c = palette::colors();
+        term.set_colors(c.fg, c.bg, &c.table);
         let shared = Arc::new(Shared { term: Mutex::new(term), next: Mutex::new(()), pending: AtomicBool::new(false) });
 
         // Reader thread: big blocks from the PTY straight into the interpreter.
@@ -409,6 +413,8 @@ impl Terminal {
                 size: (0, 0),
             }),
             sel: RefCell::new(None),
+            find: RefCell::new(None),
+            found: RefCell::new(ghostty::Found::default()),
             drag: RefCell::new(None),
         });
 
@@ -591,7 +597,55 @@ impl Terminal {
         }
         area.add_controller(paste);
 
-        Terminal { widget: area, local_pid }
+        Terminal { widget: area, local_pid, state }
+    }
+
+    /// Sets what the pane searches for (an empty text clears the search), jumps to the newest match
+    /// and returns `(matches, selected)`; `selected` counts from the newest, which is 0.
+    pub fn find_set(&self, needle: &str) -> (usize, Option<usize>) {
+        let s = &self.state;
+        {
+            let term = s.shared.lock();
+            let mut find = s.find.borrow_mut();
+            let search = find.get_or_insert_with(|| ghostty::Search::new(&term));
+            search.set_needle(needle);
+            if !needle.is_empty() {
+                search.run(&term);
+                search.select(true);
+            }
+            *s.found.borrow_mut() = search.run(&term);
+        }
+        self.widget.queue_draw();
+        self.find_info()
+    }
+
+    /// Selects the next match toward older output (`older`) or toward newer, scrolling to it.
+    pub fn find_step(&self, older: bool) -> (usize, Option<usize>) {
+        let s = &self.state;
+        {
+            let term = s.shared.lock();
+            if let Some(search) = s.find.borrow_mut().as_mut() {
+                search.select(older);
+                *s.found.borrow_mut() = search.run(&term);
+            }
+        }
+        self.widget.queue_draw();
+        self.find_info()
+    }
+
+    /// `(matches, selected)` as of the last frame.
+    pub fn find_info(&self) -> (usize, Option<usize>) {
+        let f = self.state.found.borrow();
+        (f.total, f.selected)
+    }
+
+    pub fn find_close(&self) {
+        {
+            let _term = self.state.shared.lock(); // releases what the search tracks inside the terminal
+            *self.state.find.borrow_mut() = None;
+        }
+        *self.state.found.borrow_mut() = ghostty::Found::default();
+        self.widget.queue_draw();
     }
 }
 
@@ -603,7 +657,14 @@ fn measure_font(area: &TermView, state: &State) {
     let ctx = area.pango_context();
     let metrics = ctx.metrics(Some(&font_desc()), None);
     let scale = pango::SCALE as f64;
-    state.cell_w.set(metrics.approximate_digit_width() as f64 / scale);
+    // The advance of a glyph, exact: `approximate_digit_width` is rounded to whole pixels (9 for 8.8), and
+    // a grid wider than the text drifts away from it (selection, cursor and search highlights land
+    // up to a cell off at the end of a line).
+    let probe = pango::Layout::new(&ctx);
+    probe.set_font_description(Some(&font_desc()));
+    probe.set_text(&"0".repeat(100));
+    let advance = probe.size().0 as f64 / scale / 100.0;
+    state.cell_w.set(if advance > 1.0 { advance } else { metrics.approximate_digit_width() as f64 / scale });
     state.cell_h.set(((metrics.ascent() + metrics.descent()) as f64 / scale).ceil());
 }
 
@@ -615,7 +676,8 @@ fn resize(state: &State, w: i32, h: i32) {
     }
     state.size.set((cols, lines));
     let (cw, ch) = (state.cell_w.get() as u16, state.cell_h.get() as u16);
-    state.shared.lock().resize(cols as u16, lines as u16, cw as u32, ch as u32);
+    // A search is set aside around the resize (see `Terminal::resize_with_search`).
+    state.shared.lock().resize_with_search(&mut state.find.borrow_mut(), cols as u16, lines as u16, cw as u32, ch as u32);
     match (&state.pty, &state.input) {
         (Some(p), _) => p.resize(cols as u16, lines as u16, cw, ch),
         (None, Input::Host(tx)) => {
@@ -664,6 +726,7 @@ macro_rules! add {
 /// cell backgrounds, selection, text.
 fn build_row(ctx: &pango::Context, font: &pango::FontDescription, cells: &[Cell], cw: f32, ch: f32, sel: Option<(usize, usize)>) -> Option<gsk::RenderNode> {
     let snap = gtk::Snapshot::new();
+    let pal = palette::colors();
     let mut run = Run::new();
     let mut bg_run: Option<(usize, Rgb)> = None; // (first column, color)
 
@@ -686,18 +749,18 @@ fn build_row(ctx: &pango::Context, font: &pango::FontDescription, cells: &[Cell]
     };
 
     for (col, cell) in cells.iter().enumerate() {
-        let mut fg = cell.fg.unwrap_or(palette::FG);
+        let mut fg = cell.fg.unwrap_or(pal.fg);
         let mut bg = cell.bg;
         if cell.inverse {
             let f = fg;
-            fg = bg.unwrap_or(palette::BG);
+            fg = bg.unwrap_or(pal.bg);
             bg = Some(f);
         }
         if cell.faint {
-            fg = mix(fg, bg.unwrap_or(palette::BG));
+            fg = mix(fg, bg.unwrap_or(pal.bg));
         }
         // Backgrounds: merge neighbours of the same color into one rectangle.
-        let bg = bg.filter(|b| *b != palette::BG);
+        let bg = bg.filter(|b| *b != pal.bg);
         match (&bg_run, bg) {
             (Some((_, c)), Some(b)) if *c == b => {}
             _ => {
@@ -725,7 +788,7 @@ fn build_row(ctx: &pango::Context, font: &pango::FontDescription, cells: &[Cell]
         if !blank {
             run.ink = true;
         }
-        if fg != palette::FG {
+        if fg != pal.fg {
             add!(run.attrs, pango::AttrColor::new_foreground(fg.r as u16 * 257, fg.g as u16 * 257, fg.b as u16 * 257), start, end);
         }
         if cell.bold {
@@ -747,12 +810,12 @@ fn build_row(ctx: &pango::Context, font: &pango::FontDescription, cells: &[Cell]
     flush_run(&mut layouts, &mut run);
     flush_bg(&snap, &mut bg_run, cells.len());
     if let Some((c0, c1)) = sel {
-        snap.append_color(&rgba(SEL_BG), &graphene::Rect::new(PAD + c0 as f32 * cw, 0.0, (c1 + 1 - c0) as f32 * cw, ch));
+        snap.append_color(&rgba(pal.sel_bg), &graphene::Rect::new(PAD + c0 as f32 * cw, 0.0, (c1 + 1 - c0) as f32 * cw, ch));
     }
     for (col, layout) in &layouts {
         snap.save();
         snap.translate(&graphene::Point::new(PAD + *col as f32 * cw, 0.0));
-        snap.append_layout(layout, &rgba(palette::FG));
+        snap.append_layout(layout, &rgba(pal.fg));
         snap.restore();
     }
     snap.to_node()
@@ -762,7 +825,8 @@ fn draw(snap: &gtk::Snapshot, state: &State, w: f32, h: f32) {
     if std::env::var_os("GTKTERM_NODRAW").is_some() {
         return;
     }
-    snap.append_color(&rgba(palette::BG), &graphene::Rect::new(0.0, 0.0, w, h));
+    let pal = palette::colors();
+    snap.append_color(&rgba(pal.bg), &graphene::Rect::new(0.0, 0.0, w, h));
     let cw = state.cell_w.get() as f32;
     let ch = state.cell_h.get() as f32;
 
@@ -772,6 +836,11 @@ fn draw(snap: &gtk::Snapshot, state: &State, w: f32, h: f32) {
     let Frame { rs, rows, grid, dirty, painted, size } = &mut *frame;
     {
         let term = state.shared.lock();
+        // A search follows the terminal: caught up here, under the same lock that captures the
+        // frame, because its matches are only valid until the terminal changes again.
+        if let Some(search) = state.find.borrow_mut().as_mut() {
+            *state.found.borrow_mut() = search.run(&term);
+        }
         rs.update(&term);
     }
     let new_size = rs.size();
@@ -835,12 +904,32 @@ fn draw(snap: &gtk::Snapshot, state: &State, w: f32, h: f32) {
         }
     }
 
+    // Matches of the search: a translucent overlay, brighter on the selected one.
+    {
+        let found = state.found.borrow();
+        let (cols, nrows) = (grid.first().map_or(0, |r| r.len()), grid.len());
+        let paint = |m: ghostty::Span, color: Rgb, alpha: f32| {
+            let c = gdk::RGBA::new(color.r as f32 / 255.0, color.g as f32 / 255.0, color.b as f32 / 255.0, alpha);
+            for (row, c0, c1) in crate::search::row_spans(m, nrows, cols) {
+                snap.append_color(&c, &graphene::Rect::new(PAD + c0 as f32 * cw, PAD + row as f32 * ch, (c1 + 1 - c0) as f32 * cw, ch));
+            }
+        };
+        for m in &found.visible {
+            if Some(*m) != found.current {
+                paint(*m, pal.find, 0.35);
+            }
+        }
+        if let Some(m) = found.current {
+            paint(m, pal.find_current, 0.85);
+        }
+    }
+
     // Cursor, in the style the application asked for.
     let cur = rs.cursor();
     if let (true, Some((cx, cy))) = (cur.visible, cur.pos) {
         let (cx, span) = if cur.wide_tail { (cx.saturating_sub(1), 2.0) } else { (cx, 1.0) };
         let (x, y, cwid) = (PAD + cx as f32 * cw, PAD + cy as f32 * ch, cw * span);
-        let col = gdk::RGBA::new(0.77, 0.78, 0.78, 0.55);
+        let col = gdk::RGBA::new(pal.cursor[0], pal.cursor[1], pal.cursor[2], pal.cursor[3]);
         match cur.style {
             CursorStyle::Block => snap.append_color(&col, &graphene::Rect::new(x, y, cwid, ch)),
             CursorStyle::Bar => snap.append_color(&col, &graphene::Rect::new(x, y, 2.0, ch)),

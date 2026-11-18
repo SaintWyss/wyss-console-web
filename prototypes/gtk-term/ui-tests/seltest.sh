@@ -11,7 +11,7 @@ cat > "$R/runsel.sh" <<EOS
 GTKTERM_CMD='printf "hola mundo\r\nsegunda línea  \r\ntercera fila final\r\n"; sleep 60' exec $B 1
 EOS
 chmod +x "$R/runsel.sh"; setsid dbus-run-session -- "$R/runsel.sh" >"$R/sel.log" 2>&1 &
-for i in $(seq 40); do W=$(timeout 2 xdotool search --onlyvisible --name '^gtk-term$' 2>/dev/null | head -1); [ -n "$W" ] && break; sleep 0.25; done
+for i in $(seq 40); do W=$(timeout 2 xdotool search --onlyvisible --name 'gtk-term|Wyss' 2>/dev/null | head -1); [ -n "$W" ] && break; sleep 0.25; done
 sleep 1.5; timeout 3 xdotool windowfocus $W 2>/dev/null
 # celda: x = 4 + col*cw + cw/2 ; y = 4 + row*ch + ch/2 (relativo al área de la terminal, que arranca bajo la barra de pestañas)
 TOP=$(timeout 2 xdotool getwindowgeometry $W | awk '/Position/{split($2,a,",");print a[2]}')

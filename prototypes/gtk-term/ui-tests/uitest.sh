@@ -9,7 +9,7 @@ ibus-daemon -dx >/dev/null 2>&1; sleep 2
 HISTFILE=/dev/null PS1='$ ' GTKTERM_CMD="bash --norc --noprofile -i" exec $B 1
 EOS
 chmod +x "$R/run2.sh"; setsid dbus-run-session -- "$R/run2.sh" >"$R/app2.log" 2>&1 &
-for i in $(seq 40); do W=$(timeout 2 xdotool search --name '^gtk-term$' 2>/dev/null | head -1); [ -n "$W" ] && break; sleep 0.25; done
+for i in $(seq 40); do W=$(timeout 2 xdotool search --name 'gtk-term|Wyss' 2>/dev/null | head -1); [ -n "$W" ] && break; sleep 0.25; done
 sleep 2; timeout 3 xdotool windowsize $W 900 560; timeout 3 xdotool windowfocus $W 2>/dev/null; sleep 0.5
 k(){ timeout 10 xdotool type --delay 60 "$1"; timeout 3 xdotool key Return; sleep 0.6; }
 k "echo uno dos tres cuatro"; k "seq 1 300"

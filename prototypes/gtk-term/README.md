@@ -36,6 +36,26 @@ con RAM, árbol de paneles con `GtkPaned`, cabecera por panel, barra de estado (
 El layout se guarda en `$XDG_STATE_HOME/gtk-term/layout.json` y se restaura contra `term_list` del host.
 `GTKTERM_LAYOUT_DEMO=split` y `GTKTERM_SHOT_AFTER=<s>` sirven para capturas sin teclado.
 
+## Resto de la Consola (M3b)
+
+- **+ Launch** (a la derecha de los botones de la barra de pestañas) lista los archivos
+  `$XDG_CONFIG_HOME/wyss-console/launch/*.toml` con su tipo (`Terminal`, `Claude Code`, `Codex`) y la marca
+  `Full access`. `launches.rs` los lee igual que `src-tauri/src/launch.rs` (el host no tiene una op para ellos;
+  son del escritorio) y **nunca escribe ni siembra** la carpeta. Un launch de comandos abre un terminal del
+  host en su carpeta con los comandos tipeados; uno de sesión corre `native_preview`, sus `before` (`/bin/sh`,
+  30 s) y `native_start` (`native.rs`, el mismo orden que `launch.ts`). Un launch con `preset =` (plan de
+  Arsenal, que vive en la app Tauri) se rechaza con una frase y no arranca nada. Falta el "~14k" de la
+  estimación de Arsenal.
+- **Ciclo de vida**: la cabecera de un panel de agente muestra `Native`, y `Stop` y `Restart` mientras corre,
+  `Start it again` y `Forget` cuando terminó (estado de `native_sessions`, cada 2 s); un shell común tiene `×`.
+  La barra de estado dice `Native · <agente> · <permiso>`. Un agente que termina conserva su panel.
+- **Tema e idioma** salen de `$XDG_CONFIG_HOME/wyss-console/preferences.json` (`interface.theme`,
+  `interface.language`), leídos al abrir la ventana: cambiar el archivo y reabrir cambia el tema. Los tokens de
+  `theme.rs` los compara un test con `src/app.css`. Las frases salen de `src/i18n_table.rs`, generado por
+  `tools/gen-i18n.py` desde `src/lib/i18n/es.ts` (lo propio de esta ventana va en `tools/i18n-extra.json`).
+- `GTKTERM_DEMO=launch-menu,search:texto,stop,open:<id>` abre el menú, la búsqueda, para al primer agente o
+  abre un launch, para capturas sin teclado.
+
 ## Atajos (decisión del dueño, 2026-11-18)
 
 | Atajo | Hace |
@@ -46,6 +66,7 @@ El layout se guarda en `$XDG_STATE_HOME/gtk-term/layout.json` y se restaura cont
 | Arrastrar / doble clic / triple clic | Selecciona celdas / palabra / línea; la selección queda en PRIMARY |
 | Clic del medio | Pega PRIMARY |
 | Ctrl+Shift+T / W | Pestaña nueva / cierra el panel (y su terminal en el host) |
+| Ctrl+Shift+F | Busca en el historial del panel con foco (barra con siguiente, anterior y conteo) |
 | Ctrl+Shift+D / E | Divide lado a lado / arriba y abajo |
 | Ctrl+Shift+←→↑↓, `.` `,` | Foco por dirección / siguiente y anterior |
 | Ctrl+Shift+PgDn/PgUp, 1..9 | Pestaña siguiente y anterior / saltar |

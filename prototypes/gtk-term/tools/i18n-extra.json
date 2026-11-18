@@ -1,0 +1,6 @@
+{
+  "Copy the selection (never interrupts)": "Copia la selección (nunca interrumpe)",
+  "Interrupt the program (Ctrl+C in a normal terminal)": "Interrumpe el programa (el Ctrl+C de una terminal común)",
+  "Paste": "Pegar",
+  "The preset “{name}” can only be applied by the Console app. Nothing was started.": "El preset “{name}” solo lo puede aplicar la app Consola. No se inició nada."
+}

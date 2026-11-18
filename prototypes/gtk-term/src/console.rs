@@ -10,13 +10,18 @@ use gtk::prelude::*;
 use gtk::{gdk, glib};
 
 use crate::host::Host;
+use crate::i18n::{tr, trf};
 use crate::icons::{self, Icon};
 use crate::keymap::{self, Action, Focus};
 use crate::layout::{self, Dir, Node, SavedLayout, SavedTab};
 use crate::procinfo::{self, Git};
 use crate::term;
+use crate::{launches, native, search, t, theme};
 
 const THEME: &str = include_str!("theme.css");
+/// Set (`GTKTERM_DEMO=launch-menu,search:text,stop`) to open the menu, search, or stop the first agent
+/// by itself, so a screenshot can show those states without a keyboard.
+const DEMO_VAR: &str = "GTKTERM_DEMO";
 const REFRESH_SECS: u32 = 2;
 
 pub struct Config {
@@ -37,6 +42,30 @@ struct Info {
     git: Option<Git>,
 }
 
+/// What a pane's header buttons do.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum PaneAct {
+    Stop,
+    Restart,
+    Forget,
+    Close,
+}
+
+/// The header buttons of a pane: the agent's lifecycle, and Close for a plain shell.
+struct HeaderButtons {
+    stop: gtk::Button,
+    restart: gtk::Button,
+    forget: gtk::Button,
+    close: gtk::Button,
+}
+
+/// The search bar of a pane (Ctrl+Shift+F).
+struct FindBar {
+    bar: gtk::Box,
+    entry: gtk::Entry,
+    count: gtk::Label,
+}
+
 struct Pane {
     key: String,
     tid: Option<String>,
@@ -44,10 +73,18 @@ struct Pane {
     term: term::Terminal,
     root: gtk::Box,
     dot: gtk::Box,
+    badge: gtk::Label,
     shell: gtk::Label,
     state: gtk::Label,
     ram: gtk::Label,
+    buttons: HeaderButtons,
+    find: FindBar,
     info: RefCell<Info>,
+    /// Set when the terminal is an agent's: what the host says about its session.
+    native: RefCell<Option<native::Tag>>,
+    /// What the session's state offers (stop and restart, or start again and forget); `None` until
+    /// the first read of `native_sessions`, and for a start that is still being prepared.
+    life: Cell<Option<native::Lifecycle>>,
 }
 
 struct Tab {
@@ -78,6 +115,13 @@ struct Ui {
     tab_strip: gtk::Box,
     folder: gtk::Label,
     git: gtk::Label,
+    kind: gtk::Label,
+    launch_btn: gtk::Button,
+    launch_panel: gtk::Box,
+    banner: gtk::Box,
+    banner_text: gtk::Label,
+    banner_gen: Cell<u64>,
+    opening: Cell<bool>,
     tabs: RefCell<Vec<Tab>>,
     active: Cell<usize>,
     panes: RefCell<HashMap<String, Rc<Pane>>>,
@@ -134,7 +178,7 @@ fn launch_tauri() {
 impl Ui {
     // ---- panes ----------------------------------------------------------------------------
 
-    fn new_pane(self: &Rc<Self>, source: term::Source, tid: Option<String>) -> Rc<Pane> {
+    fn new_pane(self: &Rc<Self>, source: term::Source, tid: Option<String>, tag: Option<native::Tag>) -> Rc<Pane> {
         let id = self.next_id.get();
         self.next_id.set(id + 1);
         let key = tid.clone().unwrap_or_else(|| format!("local-{id}"));
@@ -153,15 +197,54 @@ impl Ui {
         let dot = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         dot.add_css_class("dot");
         dot.set_valign(gtk::Align::Center);
+        let badge = label("Native", "pane-native");
+        badge.set_valign(gtk::Align::Center);
+        badge.set_visible(false);
         let shell = label("", "pane-shell");
-        let state = label(" · Running", "pane-state");
+        let state = label(&format!(" · {}", tr("Running")), "pane-state");
         let ram = label(" · ", "pane-ram");
         shell.set_visible(false);
         ram.set_visible(false);
-        for w in [dot.upcast_ref::<gtk::Widget>(), shell.upcast_ref(), state.upcast_ref(), ram.upcast_ref()] {
+        let grow = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        grow.set_hexpand(true);
+        let buttons = HeaderButtons {
+            stop: self.header_button(&tr("Stop"), &key, PaneAct::Stop),
+            restart: self.header_button(&tr("Restart"), &key, PaneAct::Restart),
+            forget: self.header_button(&tr("Forget"), &key, PaneAct::Forget),
+            close: self.header_button("×", &key, PaneAct::Close),
+        };
+        buttons.close.add_css_class("hdr-close");
+        buttons.close.set_tooltip_text(Some(&tr("Close the pane")));
+        for b in [&buttons.stop, &buttons.restart, &buttons.forget] {
+            b.set_visible(false);
+        }
+        for w in [dot.upcast_ref::<gtk::Widget>(), badge.upcast_ref(), shell.upcast_ref(), state.upcast_ref(), ram.upcast_ref(), grow.upcast_ref(), buttons.stop.upcast_ref(), buttons.restart.upcast_ref(), buttons.forget.upcast_ref(), buttons.close.upcast_ref()] {
             header.append(w);
         }
         root.append(&header);
+
+        // Search bar (Ctrl+Shift+F), closed until asked for.
+        let bar = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        bar.add_css_class("find-bar");
+        bar.set_visible(false);
+        let entry = gtk::Entry::new();
+        entry.set_placeholder_text(Some(&tr("Search…")));
+        entry.set_tooltip_text(Some(&tr("Search this terminal")));
+        let count = label("", "find-count");
+        count.set_halign(gtk::Align::Start);
+        let prev = gtk::Button::with_label("↑");
+        prev.set_tooltip_text(Some(&tr("Previous match")));
+        let next = gtk::Button::with_label("↓");
+        next.set_tooltip_text(Some(&tr("Next match")));
+        let close = gtk::Button::with_label("×");
+        close.set_tooltip_text(Some(&tr("Close search")));
+        for b in [&prev, &next, &close] {
+            b.set_focusable(false);
+        }
+        for w in [entry.upcast_ref::<gtk::Widget>(), count.upcast_ref(), prev.upcast_ref(), next.upcast_ref(), close.upcast_ref()] {
+            bar.append(w);
+        }
+        root.append(&bar);
         t.widget.set_margin_start(8);
         t.widget.set_margin_top(6);
         root.append(&t.widget);
@@ -178,15 +261,161 @@ impl Ui {
         }
         t.widget.add_controller(focus);
 
-        let pane = Rc::new(Pane { key: key.clone(), tid, id, term: t, root, dot, shell, state, ram, info: RefCell::new(Info { running: true, ..Info::default() }) });
+        let pane = Rc::new(Pane {
+            key: key.clone(),
+            tid,
+            id,
+            term: t,
+            root,
+            dot,
+            badge,
+            shell,
+            state,
+            ram,
+            buttons,
+            find: FindBar { bar, entry, count },
+            info: RefCell::new(Info { running: true, ..Info::default() }),
+            native: RefCell::new(tag),
+            life: Cell::new(None),
+        });
+        // The search bar talks to this pane only; a weak reference keeps the widgets from holding it alive.
+        {
+            let w = Rc::downgrade(&pane);
+            let ui = Rc::downgrade(self);
+            let wc = w.clone();
+            pane.find.entry.connect_changed(move |e| {
+                if let Some(p) = wc.upgrade() {
+                    let info = p.term.find_set(e.text().as_str());
+                    Ui::paint_count(&p, info);
+                }
+            });
+            for (btn, older) in [(&prev, false), (&next, true)] {
+                let w = w.clone();
+                btn.connect_clicked(move |_| {
+                    if let Some(p) = w.upgrade() {
+                        let info = p.term.find_step(older);
+                        Ui::paint_count(&p, info);
+                    }
+                });
+            }
+            {
+                let (w, ui) = (w.clone(), ui.clone());
+                close.connect_clicked(move |_| {
+                    if let (Some(p), Some(ui)) = (w.upgrade(), ui.upgrade()) {
+                        ui.close_search(&p);
+                    }
+                });
+            }
+            let keys = gtk::EventControllerKey::new();
+            keys.set_propagation_phase(gtk::PropagationPhase::Capture);
+            keys.connect_key_pressed(move |_, key, _, mods| {
+                let Some(p) = w.upgrade() else { return glib::Propagation::Proceed };
+                match key {
+                    gdk::Key::Escape => {
+                        if let Some(ui) = ui.upgrade() {
+                            ui.close_search(&p);
+                        }
+                        glib::Propagation::Stop
+                    }
+                    gdk::Key::Return | gdk::Key::KP_Enter => {
+                        // Enter goes to the next match (older), Shift+Enter to the previous.
+                        let info = p.term.find_step(!mods.contains(gdk::ModifierType::SHIFT_MASK));
+                        Ui::paint_count(&p, info);
+                        glib::Propagation::Stop
+                    }
+                    _ => glib::Propagation::Proceed,
+                }
+            });
+            pane.find.entry.add_controller(keys);
+        }
         self.panes.borrow_mut().insert(key.clone(), pane.clone());
         self.by_id.borrow_mut().insert(id, key);
+        self.paint_header(&pane);
         pane
+    }
+
+    fn header_button(self: &Rc<Self>, text: &str, key: &str, act: PaneAct) -> gtk::Button {
+        let b = gtk::Button::with_label(text);
+        b.add_css_class("hdr-btn");
+        b.set_valign(gtk::Align::Center);
+        b.set_focusable(false);
+        let (weak, key) = (Rc::downgrade(self), key.to_owned());
+        b.connect_clicked(move |_| {
+            if let Some(ui) = weak.upgrade() {
+                ui.pane_act(&key, act);
+            }
+        });
+        b
+    }
+
+    /// The header of a pane as its facts say: shell or agent label, state, memory, and the buttons
+    /// that fit (stop and restart while an agent runs; start again and forget once it is finished;
+    /// close for a plain shell).
+    fn paint_header(&self, p: &Pane) {
+        let info = p.info.borrow();
+        let is_agent = p.native.borrow().is_some();
+        p.badge.set_visible(is_agent);
+        p.shell.set_text(&info.shell);
+        p.shell.set_visible(!is_agent && !info.shell.is_empty());
+        let state = if info.running {
+            tr("Running")
+        } else if is_agent {
+            tr("Agent exited")
+        } else {
+            tr("Shell exited")
+        };
+        p.state.set_text(&if p.shell.is_visible() { format!(" · {state}") } else { state });
+        if info.running {
+            p.dot.remove_css_class("ended");
+        } else {
+            p.dot.add_css_class("ended");
+        }
+        p.ram.set_text(&format!(" · {}", procinfo::mb(info.rss)));
+        p.ram.set_visible(info.rss.is_some() && info.running);
+        let life = p.life.get().filter(|_| is_agent);
+        p.buttons.stop.set_visible(life == Some(native::Lifecycle::Running));
+        p.buttons.restart.set_visible(life.is_some());
+        p.buttons.restart.set_label(&if life == Some(native::Lifecycle::Running) { tr("Restart") } else { tr("Start it again") });
+        p.buttons.forget.set_visible(life == Some(native::Lifecycle::Finished));
+        p.buttons.close.set_visible(!is_agent);
+    }
+
+    fn paint_count(p: &Pane, (total, selected): (usize, Option<usize>)) {
+        let empty = p.find.entry.text().is_empty();
+        let text = match search::counter(empty, total, selected) {
+            None if empty => String::new(),
+            None => tr("No matches"),
+            Some((current, total)) => trf("{current} of {total}{suffix}", &[("current", &current.to_string()), ("total", &total.to_string()), ("suffix", if total >= 5000 { "+" } else { "" })]),
+        };
+        p.find.count.set_text(&text);
+    }
+
+    /// Ctrl+Shift+F: shows the search bar of the pane with the focus and puts the cursor in it.
+    fn open_search(&self, key: &str) {
+        let Some(p) = self.pane(key) else { return };
+        p.find.bar.set_visible(true);
+        p.find.entry.grab_focus();
+        p.find.entry.select_region(0, -1);
+    }
+
+    fn close_search(&self, p: &Pane) {
+        p.term.find_close();
+        p.find.entry.set_text("");
+        p.find.count.set_text("");
+        p.find.bar.set_visible(false);
+        self.focus_pane(&p.key);
     }
 
     fn on_exit(self: &Rc<Self>, id: u64) {
         let key = self.by_id.borrow().get(&id).cloned();
         if let Some(key) = key {
+            // An agent that ended keeps its pane: the owner restarts or forgets it from the header.
+            if let Some(p) = self.pane(&key).filter(|p| p.native.borrow().is_some()) {
+                p.info.borrow_mut().running = false;
+                self.paint_header(&p);
+                self.refresh_soon();
+                return;
+            }
             // The shell ended: the host already dropped it.
             self.remove_pane(&key, false);
         }
@@ -217,7 +446,8 @@ impl Ui {
         let head = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         head.add_css_class("tab");
         head.set_valign(gtk::Align::Fill);
-        let name = label(&format!("Terminal {n}"), "tab-name");
+        let tab_name = format!("{} {n}", tr("Terminal"));
+        let name = label(&tab_name, "tab-name");
         let ram = label("", "tab-ram");
         let count = label("", "tab-panes");
         ram.set_visible(false);
@@ -225,7 +455,7 @@ impl Ui {
         let close = gtk::Button::with_label("×");
         close.add_css_class("tab-close");
         close.set_valign(gtk::Align::Center);
-        close.set_tooltip_text(Some("Close tab"));
+        close.set_tooltip_text(Some(&trf("Close {name}", &[("name", &tab_name)])));
         close.set_focusable(false);
         for w in [name.upcast_ref::<gtk::Widget>(), count.upcast_ref(), ram.upcast_ref(), close.upcast_ref()] {
             head.append(w);
@@ -484,7 +714,7 @@ impl Ui {
 
     fn new_tab(self: &Rc<Self>) {
         let Some((src, tid)) = self.source() else { return };
-        let pane = self.new_pane(src, tid);
+        let pane = self.new_pane(src, tid, None);
         let n = self.next_n.get();
         self.next_n.set(n + 1);
         self.add_tab(n, layout::leaf(&pane.key), pane.key.clone());
@@ -501,7 +731,7 @@ impl Ui {
             (t.tree.clone(), t.focus.clone())
         };
         let Some((src, tid)) = self.source() else { return };
-        let pane = self.new_pane(src, tid);
+        let pane = self.new_pane(src, tid, None);
         let new_tree = layout::split(&tree, &focus, &pane.key, dir);
         if new_tree == tree {
             // The tab is full: the terminal made for it goes away again.
@@ -529,6 +759,12 @@ impl Ui {
         let i = self.active.get();
         match a {
             Action::NewTab => self.new_tab(),
+            Action::Search => {
+                let focus = self.tabs.borrow().get(i).map(|t| t.focus.clone());
+                if let Some(k) = focus {
+                    self.open_search(&k);
+                }
+            }
             Action::Split(d) => self.split(d),
             Action::ClosePane => {
                 let focus = self.tabs.borrow().get(i).map(|t| t.focus.clone());
@@ -568,6 +804,7 @@ impl Ui {
 
     fn update_status(&self) {
         let focus = self.tabs.borrow().get(self.active.get()).map(|t| t.focus.clone());
+        let focus_key = focus.clone();
         let info = focus.and_then(|k| self.pane(&k)).map(|p| p.info.borrow().clone());
         match info {
             Some(Info { known: true, cwd: Some(cwd), git, .. }) => {
@@ -575,8 +812,8 @@ impl Ui {
                 self.folder.set_tooltip_text(Some(&cwd));
                 self.git.set_text(&match git {
                     Some(Git::Branch(b)) => b,
-                    Some(Git::Detached(h)) => format!("detached {h}"),
-                    _ => "no git".into(),
+                    Some(Git::Detached(h)) => format!("{} {h}", tr("detached HEAD")),
+                    _ => tr("no git"),
                 });
             }
             _ => {
@@ -584,6 +821,8 @@ impl Ui {
                 self.git.set_text("");
             }
         }
+        let tag = focus_key.and_then(|k| self.pane(&k)).and_then(|p| p.native.borrow().clone());
+        self.kind.set_text(&tag.map(|t| native::agent_label(&t)).unwrap_or_else(|| tr("Terminal")));
     }
 
     fn visible(&self) -> bool {
@@ -617,38 +856,238 @@ impl Ui {
             })
             .collect();
         let host = self.host.clone();
+        // Agents: their sessions are read once for all of them.
+        let agents: Vec<(String, String)> = self.panes.borrow().values().filter_map(|p| p.native.borrow().as_ref().map(|t| (p.key.clone(), t.session_id.clone()))).collect();
         std::thread::spawn(move || {
             let results: Vec<Res> = jobs.into_iter().map(|j| probe(host.as_ref(), j)).collect();
+            let states: Vec<(String, String)> = match (&host, agents.is_empty()) {
+                (Some(h), false) => native::sessions(h)
+                    .map(|all| agents.iter().filter_map(|(key, sid)| all.iter().find(|s| &s.id == sid).map(|s| (key.clone(), s.state.clone()))).collect())
+                    .unwrap_or_default(),
+                _ => Vec::new(),
+            };
             glib::MainContext::default().invoke(move || {
                 UI.with(|u| {
                     if let Some(ui) = u.borrow().clone() {
-                        ui.apply(results);
+                        ui.apply(results, states);
                     }
                 });
             });
         });
     }
 
-    fn apply(self: &Rc<Self>, results: Vec<Res>) {
+    fn apply(self: &Rc<Self>, results: Vec<Res>, states: Vec<(String, String)>) {
         self.refreshing.set(false);
         for r in results {
             let Some(p) = self.pane(&r.key) else { continue };
-            p.shell.set_text(&r.info.shell);
-            p.shell.set_visible(!r.info.shell.is_empty());
-            p.state.set_text(if r.info.running { " · Running" } else { " · Exited" });
-            if r.info.running {
-                p.dot.remove_css_class("ended");
-            } else {
-                p.dot.add_css_class("ended");
-            }
-            p.ram.set_text(&format!(" · {}", procinfo::mb(r.info.rss)));
-            p.ram.set_visible(r.info.rss.is_some());
             *p.info.borrow_mut() = r.info;
+            if let Some((_, state)) = states.iter().find(|(k, _)| *k == r.key) {
+                p.life.set(native::lifecycle(state));
+            }
+            if p.find.bar.is_visible() {
+                Ui::paint_count(&p, p.term.find_info());
+            }
+            self.paint_header(&p);
         }
         for i in 0..self.tabs.borrow().len() {
             self.refresh_tab_labels(i);
         }
         self.update_status();
+    }
+
+    // ---- the Launch menu and the agent lifecycle -----------------------------------------------
+
+    /// Said under the tab bar: what a launch or a lifecycle action did not do (an error) or did (a note).
+    fn banner(self: &Rc<Self>, text: &str, error: bool) {
+        self.banner_text.set_text(text);
+        if error {
+            self.banner.add_css_class("error");
+        } else {
+            self.banner.remove_css_class("error");
+        }
+        self.banner.set_visible(!text.is_empty());
+        let gen = self.banner_gen.get() + 1;
+        self.banner_gen.set(gen);
+        let ui = self.clone();
+        glib::timeout_add_seconds_local_once(20, move || {
+            if ui.banner_gen.get() == gen {
+                ui.banner.set_visible(false);
+            }
+        });
+    }
+
+    fn toggle_launches(self: &Rc<Self>) {
+        if self.launch_panel.is_visible() {
+            self.hide_launches();
+            return;
+        }
+        self.fill_launches();
+        self.launch_panel.set_visible(true);
+        self.launch_btn.add_css_class("open");
+    }
+
+    fn hide_launches(&self) {
+        self.launch_panel.set_visible(false);
+        self.launch_btn.remove_css_class("open");
+    }
+
+    /// The menu is read from the owner's files each time it opens: name, type, Full access and the
+    /// folder the files are in.
+    fn fill_launches(self: &Rc<Self>) {
+        while let Some(c) = self.launch_panel.first_child() {
+            self.launch_panel.remove(&c);
+        }
+        let folder = launches::folder();
+        let listing = folder.as_deref().map(|f| launches::read_folder(f, &launches::System::read())).unwrap_or_default();
+        let home = self.home.clone().unwrap_or_default();
+        let shown = folder.as_deref().map(|f| launches::display(f, &home)).unwrap_or_default();
+        if listing.launches.is_empty() {
+            let l = label(&trf("No launches. Add a file in {folder}.", &[("folder", &shown)]), "launch-empty");
+            l.set_halign(gtk::Align::Start);
+            self.launch_panel.append(&l);
+        }
+        for launch in &listing.launches {
+            let row = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+            let name = label(&launch.name, "launch-name");
+            name.set_hexpand(true);
+            name.set_halign(gtk::Align::Start);
+            name.set_xalign(0.0);
+            name.set_ellipsize(gtk::pango::EllipsizeMode::End);
+            let kind = label(launch.type_name(), "launch-type");
+            row.append(&name);
+            row.append(&kind);
+            if launch.full_access() {
+                row.append(&label(&tr("Full access"), "pill-full"));
+            }
+            let b = gtk::Button::new();
+            b.add_css_class("launch-item");
+            b.set_child(Some(&row));
+            b.set_focusable(true);
+            let (weak, id) = (Rc::downgrade(self), launch.id.clone());
+            b.connect_clicked(move |_| {
+                if let Some(ui) = weak.upgrade() {
+                    ui.hide_launches();
+                    ui.open_launch(&id);
+                }
+            });
+            self.launch_panel.append(&b);
+        }
+        for (id, why) in &listing.refused {
+            let l = label(&format!("{id}.toml: {why}"), "launch-refused");
+            l.set_halign(gtk::Align::Start);
+            l.set_xalign(0.0);
+            l.set_wrap(true);
+            l.set_max_width_chars(48);
+            self.launch_panel.append(&l);
+        }
+        let foot = label(&trf("Files in {folder}", &[("folder", &shown)]), "launch-foot");
+        foot.set_halign(gtk::Align::Fill);
+        foot.set_xalign(0.0);
+        foot.set_ellipsize(gtk::pango::EllipsizeMode::Middle);
+        foot.set_max_width_chars(44);
+        self.launch_panel.append(&foot);
+    }
+
+    /// Opens a launch by its id, read again from its file: the menu's copy is never trusted. The work
+    /// (the host's calls and the `before` commands) runs off the GTK thread.
+    fn open_launch(self: &Rc<Self>, id: &str) {
+        let Some(host) = self.host.clone() else {
+            self.banner(&native::failure_text("host_unavailable"), true);
+            return;
+        };
+        if self.opening.replace(true) {
+            return;
+        }
+        self.banner("", false);
+        let id = id.to_owned();
+        std::thread::spawn(move || {
+            let result = (|| {
+                let folder = launches::folder().ok_or_else(|| native::Refusal(native::failure_text("internal")))?;
+                let launch = launches::get(&folder, &id, &launches::System::read()).map_err(native::Refusal)?;
+                let home = native::launcher(&host)?.home.or_else(|| std::env::var("HOME").ok()).unwrap_or_default();
+                native::open_launch(&host, &launch, &home, &native::run_before)
+            })();
+            glib::MainContext::default().invoke(move || {
+                UI.with(|u| {
+                    if let Some(ui) = u.borrow().clone() {
+                        ui.opened(result);
+                    }
+                });
+            });
+        });
+    }
+
+    fn opened(self: &Rc<Self>, result: Result<native::Opened, native::Refusal>) {
+        self.opening.set(false);
+        match result {
+            Err(r) => self.banner(&r.0, true),
+            Ok(native::Opened::Terminal { terminal_id, .. }) => self.add_host_tab(terminal_id, None),
+            Ok(native::Opened::Agent { started, notes }) => {
+                self.add_agent_tab(&started);
+                self.banner(&notes.join(" "), false);
+            }
+        }
+    }
+
+    /// A new tab for a terminal the host already has (re-attached from its start).
+    fn add_host_tab(self: &Rc<Self>, tid: String, tag: Option<native::Tag>) {
+        let Some(host) = self.host.clone() else { return };
+        let pane = self.new_pane(term::Source::Host { host, tid: tid.clone(), attach: term::Attach::Fresh }, Some(tid), tag);
+        let n = self.next_n.get();
+        self.next_n.set(n + 1);
+        self.add_tab(n, layout::leaf(&pane.key), pane.key.clone());
+        let last = self.tabs.borrow().len() - 1;
+        self.select(last);
+        self.refresh_soon();
+    }
+
+    fn add_agent_tab(self: &Rc<Self>, started: &native::Started) {
+        let s = &started.session;
+        let tag = native::Tag { session_id: s.id.clone(), agent_name: s.agent_name.clone(), project: s.project.clone(), profile: s.profile.clone() };
+        self.add_host_tab(started.terminal_id.clone(), Some(tag));
+    }
+
+    /// A header button: the agent's lifecycle goes to the host off the GTK thread; Close is local.
+    fn pane_act(self: &Rc<Self>, key: &str, act: PaneAct) {
+        if act == PaneAct::Close {
+            self.remove_pane(key, true);
+            return;
+        }
+        let (Some(host), Some(tag)) = (self.host.clone(), self.pane(key).and_then(|p| p.native.borrow().clone())) else { return };
+        self.banner("", false);
+        let key = key.to_owned();
+        std::thread::spawn(move || {
+            let result = match act {
+                PaneAct::Stop => native::stop(&host, &tag.session_id).map(|_| None),
+                PaneAct::Forget => native::forget(&host, &tag.session_id).map(|_| None),
+                PaneAct::Restart => native::restart(&host, &tag.session_id).map(Some),
+                PaneAct::Close => unreachable!("handled above"),
+            };
+            glib::MainContext::default().invoke(move || {
+                UI.with(|u| {
+                    if let Some(ui) = u.borrow().clone() {
+                        ui.acted(&key, act, result);
+                    }
+                });
+            });
+        });
+    }
+
+    fn acted(self: &Rc<Self>, key: &str, act: PaneAct, result: Result<Option<native::Started>, crate::host::HostError>) {
+        match (act, result) {
+            (_, Err(e)) => {
+                self.banner(&native::explain(&e), true);
+                self.refresh_soon();
+            }
+            (PaneAct::Stop, Ok(_)) => self.refresh_soon(),
+            (PaneAct::Forget, Ok(_)) => self.remove_pane(key, true),
+            (PaneAct::Restart, Ok(Some(started))) => {
+                // The restarted agent opens in a tab of its own and the old pane goes (as the Console does).
+                self.add_agent_tab(&started);
+                self.remove_pane(key, true);
+            }
+            _ => {}
+        }
     }
 
     // ---- persistence ----------------------------------------------------------------------
@@ -758,11 +1197,11 @@ fn shortcuts_popover(anchor: &gtk::Button) -> gtk::Popover {
     let grid = gtk::Grid::new();
     grid.set_row_spacing(6);
     grid.set_column_spacing(24);
-    let title = label("Keyboard shortcuts", "shortcut-title");
+    let title = label(&tr("Keyboard shortcuts"), "shortcut-title");
     title.set_halign(gtk::Align::Start);
     grid.attach(&title, 0, 0, 2, 1);
     for (i, (k, what)) in keymap::LEGEND.iter().enumerate() {
-        let (kl, wl) = (label(k, "shortcut-key"), label(what, "shortcut-what"));
+        let (kl, wl) = (label(k, "shortcut-key"), label(&tr(what), "shortcut-what"));
         kl.set_halign(gtk::Align::Start);
         wl.set_halign(gtk::Align::Start);
         grid.attach(&kl, 0, i as i32 + 1, 1, 1);
@@ -774,7 +1213,7 @@ fn shortcuts_popover(anchor: &gtk::Button) -> gtk::Popover {
 
 pub fn build(app: &gtk::Application, cfg: Config) -> gtk::ApplicationWindow {
     let provider = gtk::CssProvider::new();
-    provider.load_from_string(THEME);
+    provider.load_from_string(&format!("{}{THEME}", theme::defines(theme::current())));
     if let Some(display) = gdk::Display::default() {
         gtk::style_context_add_provider_for_display(&display, &provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
     }
@@ -785,13 +1224,13 @@ pub fn build(app: &gtk::Application, cfg: Config) -> gtk::ApplicationWindow {
     let rail = gtk::Box::new(gtk::Orientation::Vertical, 4);
     rail.add_css_class("rail");
     for (icon, tip, active) in [
-        (Icon::Terminal, "Console", true),
-        (Icon::Sliders, "Workspace", false),
-        (Icon::Palette, "Personalization", false),
-        (Icon::Activity, "Activity", false),
-        (Icon::Settings, "Settings", false),
+        (Icon::Terminal, t!("Console"), true),
+        (Icon::Sliders, t!("Workspace"), false),
+        (Icon::Palette, t!("Personalization"), false),
+        (Icon::Activity, t!("Activity"), false),
+        (Icon::Settings, t!("Settings"), false),
     ] {
-        let (row, b) = rail_button(icon, tip, active);
+        let (row, b) = rail_button(icon, &tr(tip), active);
         if !active {
             b.connect_clicked(|_| launch_tauri());
         }
@@ -800,7 +1239,7 @@ pub fn build(app: &gtk::Application, cfg: Config) -> gtk::ApplicationWindow {
     let spacer = gtk::Box::new(gtk::Orientation::Vertical, 0);
     spacer.set_vexpand(true);
     rail.append(&spacer);
-    let (more_row, more) = rail_button(Icon::More, "More", false);
+    let (more_row, more) = rail_button(Icon::More, &tr("More"), false);
     more.connect_clicked(|_| launch_tauri());
     rail.append(&more_row);
 
@@ -809,12 +1248,18 @@ pub fn build(app: &gtk::Application, cfg: Config) -> gtk::ApplicationWindow {
     tab_strip.set_hexpand(true);
     let tools = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     tools.add_css_class("tools");
-    let split_row = tool_button(Icon::SplitRow, "Split side by side (Ctrl+Shift+D)");
-    let split_col = tool_button(Icon::SplitCol, "Split one above the other (Ctrl+Shift+E)");
-    let keys = tool_button(Icon::Keyboard, "Keyboard shortcuts");
+    let split_row = tool_button(Icon::SplitRow, &tr("Split side by side (Ctrl+Shift+D)"));
+    let split_col = tool_button(Icon::SplitCol, &tr("Split, one above the other (Ctrl+Shift+E)"));
+    let keys = tool_button(Icon::Keyboard, &tr("Keyboard shortcuts"));
     for b in [&split_row, &split_col, &keys] {
         tools.append(b);
     }
+    let launch_btn = gtk::Button::with_label(&format!("+ {}", tr("Launch")));
+    launch_btn.add_css_class("launch-btn");
+    launch_btn.set_valign(gtk::Align::Center);
+    launch_btn.set_tooltip_text(Some(&tr("Your saved launches")));
+    launch_btn.set_sensitive(cfg.host.is_some());
+    tools.append(&launch_btn);
     let tabbar = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     tabbar.add_css_class("tabbar");
     tabbar.append(&tab_strip);
@@ -830,22 +1275,48 @@ pub fn build(app: &gtk::Application, cfg: Config) -> gtk::ApplicationWindow {
     let folder_icon = icons::widget(Icon::Folder, 14);
     let folder = label("", "status-folder");
     let git = label("", "status-git");
-    let kind = label("Terminal", "status-kind");
+    let kind = label(&tr("Terminal"), "status-kind");
     kind.set_hexpand(true);
     kind.set_halign(gtk::Align::End);
     for w in [folder_icon.upcast_ref::<gtk::Widget>(), folder.upcast_ref(), git.upcast_ref(), kind.upcast_ref()] {
         status.append(w);
     }
 
+    // A line under the tab bar for what a launch or an agent action did not do.
+    let banner = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    banner.add_css_class("banner");
+    banner.set_visible(false);
+    let banner_text = gtk::Label::new(None);
+    banner_text.set_hexpand(true);
+    banner_text.set_xalign(0.0);
+    banner_text.set_wrap(true);
+    banner_text.set_selectable(true);
+    let banner_close = gtk::Button::with_label("×");
+    banner_close.set_valign(gtk::Align::Start);
+    banner_close.set_focusable(false);
+    banner.append(&banner_text);
+    banner.append(&banner_close);
+
+    // The Launch menu floats over the window (a popover would be a surface of its own).
+    let launch_panel = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    launch_panel.add_css_class("launch-panel");
+    launch_panel.set_halign(gtk::Align::End);
+    launch_panel.set_valign(gtk::Align::Start);
+    launch_panel.set_visible(false);
+
     let main = gtk::Box::new(gtk::Orientation::Vertical, 0);
     main.set_hexpand(true);
     main.append(&tabbar);
+    main.append(&banner);
     main.append(&stack);
     main.append(&status);
     let outer = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     outer.append(&rail);
     outer.append(&main);
-    win.set_child(Some(&outer));
+    let overlay = gtk::Overlay::new();
+    overlay.set_child(Some(&outer));
+    overlay.add_overlay(&launch_panel);
+    win.set_child(Some(&overlay));
 
     let ui = Rc::new(Ui {
         win: win.clone(),
@@ -853,6 +1324,13 @@ pub fn build(app: &gtk::Application, cfg: Config) -> gtk::ApplicationWindow {
         tab_strip,
         folder,
         git,
+        kind,
+        launch_btn: launch_btn.clone(),
+        launch_panel: launch_panel.clone(),
+        banner: banner.clone(),
+        banner_text,
+        banner_gen: Cell::new(0),
+        opening: Cell::new(false),
         tabs: RefCell::new(Vec::new()),
         active: Cell::new(0),
         panes: RefCell::new(HashMap::new()),
@@ -878,14 +1356,40 @@ pub fn build(app: &gtk::Application, cfg: Config) -> gtk::ApplicationWindow {
         let pop = shortcuts_popover(&keys);
         keys.connect_clicked(move |_| pop.popup());
     }
+    {
+        let ui = ui.clone();
+        launch_btn.connect_clicked(move |_| ui.toggle_launches());
+    }
+    {
+        let banner = banner.clone();
+        banner_close.connect_clicked(move |_| banner.set_visible(false));
+    }
+    // A click outside the menu closes it.
+    {
+        let (ui, overlay_w, panel, btn) = (ui.clone(), overlay.clone(), launch_panel.clone(), launch_btn.clone());
+        let click = gtk::GestureClick::new();
+        click.set_propagation_phase(gtk::PropagationPhase::Capture);
+        click.connect_pressed(move |_, _, x, y| {
+            if !panel.is_visible() {
+                return;
+            }
+            let inside = |w: &gtk::Widget| w.is_ancestor(&panel) || *w == *panel.upcast_ref::<gtk::Widget>() || w.is_ancestor(&btn) || *w == *btn.upcast_ref::<gtk::Widget>();
+            if !overlay_w.pick(x, y, gtk::PickFlags::DEFAULT).is_some_and(|w| inside(&w)) {
+                ui.hide_launches();
+            }
+        });
+        overlay.add_controller(click);
+    }
 
     // Restore from the host: the terminals still alive, in the saved layout.
     let mut plan = SavedLayout { tabs: Vec::new(), active: 0 };
     let mut attach: HashMap<String, term::Attach> = HashMap::new();
+    let mut tags: HashMap<String, native::Tag> = HashMap::new();
     if let Some(h) = &cfg.host {
         match h.hello().and_then(|_| h.list()) {
             Ok(list) => {
-                let alive: Vec<String> = list.into_iter().filter(|e| e.state == "running").map(|e| e.id).collect();
+                let alive: Vec<String> = list.iter().filter(|e| e.state == "running").map(|e| e.id.clone()).collect();
+                tags = native::tags(&list).into_iter().collect();
                 let saved = layout::state_path().and_then(|p| layout::load(&p));
                 let (restored, next) = layout::restore(saved.as_ref(), &alive);
                 ui.next_n.set(next);
@@ -904,7 +1408,8 @@ pub fn build(app: &gtk::Application, cfg: Config) -> gtk::ApplicationWindow {
     for t in &plan.tabs {
         for k in layout::leaves(&t.root) {
             if let (Some(h), Some(a)) = (&cfg.host, attach.remove(&k)) {
-                ui.new_pane(term::Source::Host { host: h.clone(), tid: k.clone(), attach: a }, Some(k));
+                let tag = tags.remove(&k);
+                ui.new_pane(term::Source::Host { host: h.clone(), tid: k.clone(), attach: a }, Some(k), tag);
             }
         }
         ui.add_tab(t.n, t.root.clone(), t.focus.clone());
@@ -926,13 +1431,19 @@ pub fn build(app: &gtk::Application, cfg: Config) -> gtk::ApplicationWindow {
     kc.set_propagation_phase(gtk::PropagationPhase::Capture);
     {
         let ui = ui.clone();
-        kc.connect_key_pressed(move |_, _, code, mods| match keymap::from_gtk(code, mods) {
-            Some(a) => {
-                let ui = ui.clone();
-                glib::idle_add_local_once(move || ui.do_action(a));
-                glib::Propagation::Stop
+        kc.connect_key_pressed(move |_, key, code, mods| {
+            if key == gdk::Key::Escape && ui.launch_panel.is_visible() {
+                ui.hide_launches();
+                return glib::Propagation::Stop;
             }
-            None => glib::Propagation::Proceed,
+            match keymap::from_gtk(code, mods) {
+                Some(a) => {
+                    let ui = ui.clone();
+                    glib::idle_add_local_once(move || ui.do_action(a));
+                    glib::Propagation::Stop
+                }
+                None => glib::Propagation::Proceed,
+            }
         });
     }
     win.add_controller(kc);
@@ -966,5 +1477,35 @@ pub fn build(app: &gtk::Application, cfg: Config) -> gtk::ApplicationWindow {
     }
     win.present();
     ui.refresh_soon();
+    run_demo(&ui);
     win
+}
+
+/// Test aid for screenshots: `GTKTERM_DEMO` is a comma-separated list of `launch-menu` (opens the Launch
+/// menu), `open:<launch id>` (opens that launch as its menu entry does), `search:<text>` (opens the search bar of the focused pane with that text) and `stop` (stops the
+/// first agent of the window, as its Stop button does).
+fn run_demo(ui: &Rc<Ui>) {
+    let Ok(demo) = std::env::var(DEMO_VAR) else { return };
+    for step in demo.split(',') {
+        let ui = ui.clone();
+        let step = step.to_owned();
+        glib::timeout_add_local_once(std::time::Duration::from_millis(900), move || {
+            let focus = ui.tabs.borrow().get(ui.active.get()).map(|t| t.focus.clone());
+            if step == "launch-menu" {
+                ui.toggle_launches();
+            } else if let (Some(text), Some(k)) = (step.strip_prefix("search:"), focus.as_ref()) {
+                ui.open_search(k);
+                if let Some(p) = ui.pane(k) {
+                    p.find.entry.set_text(text);
+                }
+            } else if let Some(id) = step.strip_prefix("open:") {
+                ui.open_launch(id);
+            } else if step == "stop" {
+                let agent = ui.panes.borrow().values().find(|p| p.native.borrow().is_some()).map(|p| p.key.clone());
+                if let Some(k) = agent {
+                    ui.pane_act(&k, PaneAct::Stop);
+                }
+            }
+        });
+    }
 }

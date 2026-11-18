@@ -16,7 +16,7 @@ while len(d)<n: d+=s.recv(n-len(d))
 print(len(json.loads(d)["ok"]))' "$SOCK"; }
 export DISPLAY=:77 GDK_BACKEND=x11 NO_AT_BRIDGE=1 XDG_RUNTIME_DIR=$R/app GTKTERM_HOST=$SOCK
 mkdir -p "$R/app"; chmod 700 "$R/app"
-win(){ for i in $(seq 40); do W=$(timeout 2 xdotool search --onlyvisible --name '^gtk-term$' 2>/dev/null | head -1); [ -n "$W" ] && break; sleep 0.25; done; }
+win(){ for i in $(seq 40); do W=$(timeout 2 xdotool search --onlyvisible --name 'gtk-term|Wyss' 2>/dev/null | head -1); [ -n "$W" ] && break; sleep 0.25; done; }
 setsid dbus-run-session -- "$B" 1 >"$R/h1.log" 2>&1 & win; sleep 2
 timeout 3 xdotool windowfocus $W 2>/dev/null; sleep 0.3
 timeout 10 xdotool type --delay 60 "echo tecla ok"; timeout 3 xdotool key Return; sleep 1

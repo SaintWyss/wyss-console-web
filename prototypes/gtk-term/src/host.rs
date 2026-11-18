@@ -106,6 +106,8 @@ pub struct Screen {
 pub struct ListEntry {
     pub id: String,
     pub state: String,
+    /// Set when the terminal is an agent's (`NativeTag`).
+    pub native: Option<crate::native::Tag>,
 }
 
 /// What `term_status` says about a terminal.
@@ -146,7 +148,12 @@ impl Host {
 
     /// Creates a terminal; returns its id.
     pub fn create(&self, rows: u16, cols: u16) -> Result<String, HostError> {
-        let v = self.call("term_create", json!({"size": {"rows": rows, "cols": cols}, "title": "gtk-term"}))?;
+        self.create_in(rows, cols, None, None)
+    }
+
+    /// Creates a terminal in `cwd` (the host's default folder when `None`) titled `title`.
+    pub fn create_in(&self, rows: u16, cols: u16, cwd: Option<&str>, title: Option<&str>) -> Result<String, HostError> {
+        let v = self.call("term_create", json!({"size": {"rows": rows, "cols": cols}, "cwd": cwd, "title": title.unwrap_or("gtk-term")}))?;
         v["terminal_id"].as_str().map(str::to_owned).ok_or_else(|| HostError::Protocol("no terminal_id".into()))
     }
 
@@ -221,7 +228,7 @@ pub fn parse_list(v: &Value) -> Result<Vec<ListEntry>, HostError> {
         .iter()
         .filter_map(|r| {
             let t = &r["terminal"];
-            Some(ListEntry { id: t["terminal_id"].as_str()?.to_owned(), state: t["state"].as_str()?.to_owned() })
+            Some(ListEntry { id: t["terminal_id"].as_str()?.to_owned(), state: t["state"].as_str()?.to_owned(), native: crate::native::parse_tag(&r["native"]) })
         })
         .collect())
 }
@@ -292,6 +299,9 @@ mod tests {
 
         let l = parse_list(&json!([{"terminal": {"terminal_id": "a-1", "state": "running"}, "created_at": 1}, {"title": "no terminal"}, {"terminal": {"terminal_id": "b-2", "state": "exited"}}])).unwrap();
         assert_eq!(l.iter().map(|e| (e.id.as_str(), e.state.as_str())).collect::<Vec<_>>(), vec![("a-1", "running"), ("b-2", "exited")]);
+        assert!(l.iter().all(|e| e.native.is_none()));
+        let agent = parse_list(&json!([{"terminal": {"terminal_id": "c-3", "state": "running"}, "native": {"session_id": "s1", "agent_name": "Codex", "project": "/home/o", "profile": "Strict", "through_shell": true}}])).unwrap();
+        assert_eq!(agent[0].native.as_ref().map(|t| (t.agent_name.as_str(), t.profile.as_deref())), Some(("Codex", Some("Strict"))), "an agent's terminal carries its tag");
 
         let s = parse_screen(&json!({"available": true, "at": 42, "size": {"rows": 24, "cols": 80}, "repaint": "G1szMW1oaQ=="})).unwrap().unwrap();
         assert_eq!((s.at, s.rows, s.cols, s.repaint.as_slice()), (42, 24, 80, &b"\x1b[31mhi"[..]));
@@ -393,6 +403,65 @@ mod tests {
         assert!(!host.list().unwrap().iter().any(|e| e.id == id));
     }
 
+    /// The launch flow against a real host in an isolated tree: the harmless preset (its only command is
+    /// `echo preset-ok`) is written by this test, the folder is read, the home and the previews of the
+    /// agents are asked of the host, and the preset is opened and read back. Nothing here ever starts an
+    /// agent: `native_start` is exercised only against recorded answers (`native.rs`).
+    #[test]
+    #[ignore]
+    fn isolated_launch_flow() {
+        use crate::launches::{self, Kind, System};
+        use crate::native::{self, Opened};
+        let iso = IsolatedHost::start();
+        let host = Host::new(&iso.sock);
+        let folder = iso.dir.join("config/wyss-console/launch");
+        std::fs::create_dir_all(&folder).unwrap();
+        // The host seeds nothing, but whatever is in the folder is cleared before the first call.
+        for e in std::fs::read_dir(&folder).unwrap().flatten() {
+            std::fs::remove_file(e.path()).unwrap();
+        }
+        std::fs::write(folder.join("preset-inofensivo.toml"), "name = \"Preset inofensivo\"\ndirectory = \"~\"\ncommands = [\"echo preset-ok\"]\n").unwrap();
+        std::fs::write(folder.join("codex-prueba.toml"), "name = \"Codex de prueba\"\ndirectory = \"~\"\n[session]\nagent = \"codex\"\npermission = \"bypass\"\n").unwrap();
+
+        let listing = launches::read_folder(&folder, &System::read());
+        assert!(listing.refused.is_empty(), "{:?}", listing.refused);
+        let names: Vec<(&str, &str, bool)> = listing.launches.iter().map(|l| (l.name.as_str(), l.type_name(), l.full_access())).collect();
+        assert_eq!(names, vec![("Codex de prueba", "Codex", true), ("Preset inofensivo", "Terminal", false)]);
+
+        // native_launcher: the home is the isolated one; native_preview of an agent is a check, not a start.
+        let launcher = native::launcher(&host).unwrap();
+        let home = launcher.home.clone().expect("the host knows its home project");
+        assert!(home.starts_with(iso.dir.to_str().unwrap()), "{home}");
+        if launcher.installed.iter().any(|a| a == "codex") {
+            let p = native::preview(&host, "codex", Some("template-full-access")).unwrap();
+            assert!(!p.can_start || p.plan_token.is_some(), "a start that may go on is bound to its token");
+        }
+
+        // The only launch ever opened here: the one this test wrote, and only if it is exactly what it says.
+        let harmless = launches::get(&folder, "preset-inofensivo", &System::read()).unwrap();
+        assert_eq!(harmless.kind, Kind::Commands { commands: vec!["echo preset-ok".into()] });
+        let opened = native::open_launch(&host, &harmless, &home, &native::run_before).unwrap();
+        let Opened::Terminal { terminal_id, title } = opened else { panic!("a commands launch opens a terminal") };
+        assert_eq!(title, "Preset inofensivo");
+        // fish waits 10 s for a terminal that answers its queries before it reads the typed line.
+        let (mut from, mut text) = (0u64, Vec::new());
+        for _ in 0..100 {
+            let r = host.read(&terminal_id, from, 500).unwrap();
+            from = r.next;
+            text.extend_from_slice(&r.data);
+            if String::from_utf8_lossy(&text).contains("\rpreset-ok\r\n") {
+                break;
+            }
+        }
+        let shown = String::from_utf8_lossy(&text).into_owned();
+        assert!(shown.contains("\rpreset-ok\r\n"), "the command ran (its output, not only its echo): {shown:?}");
+        assert!(host.status(&terminal_id).unwrap().cwd.starts_with(&home), "it opened in the launch's folder");
+        // No agent was started: the registry has no session.
+        assert!(native::sessions(&host).unwrap().is_empty());
+        host.close(&terminal_id).unwrap();
+        assert!(!host.list().unwrap().iter().any(|e| e.id == terminal_id));
+    }
+
     struct IsolatedHost {
         child: std::process::Child,
         sock: PathBuf,
@@ -403,7 +472,9 @@ mod tests {
         fn start() -> IsolatedHost {
             use std::os::unix::fs::DirBuilderExt;
             let base = if Path::new("/tmp/claude-1000").is_dir() { "/tmp/claude-1000" } else { "/tmp" };
-            let dir = PathBuf::from(format!("{base}/wh-t{}", std::process::id()));
+            // One tree per host: tests of this process run in parallel.
+            static N: AtomicU64 = AtomicU64::new(0);
+            let dir = PathBuf::from(format!("{base}/wh-t{}-{}", std::process::id(), N.fetch_add(1, Ordering::Relaxed)));
             for sub in ["", "run", "home", "state", "data", "config", "cache"] {
                 std::fs::DirBuilder::new().recursive(true).mode(0o700).create(dir.join(sub)).unwrap();
             }

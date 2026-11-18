@@ -40,6 +40,15 @@ const CELLS_HAS_STYLING: c_int = 8;
 const CELLS_GRAPHEMES_UTF8: c_int = 9;
 // screen.h
 const CELL_DATA_WIDE: c_int = 3;
+// search.h: GhosttySearchData / GhosttySearchOption; point.h: GhosttyPointTag
+const SEARCH_DATA_TOTAL_MATCHES: c_int = 2;
+const SEARCH_DATA_SELECTED_INDEX: c_int = 3;
+const SEARCH_DATA_SELECTED_MATCH: c_int = 4;
+const SEARCH_DATA_VIEWPORT_MATCHES: c_int = 6;
+const SEARCH_OPT_NEEDLE: c_int = 0;
+const SEARCH_OPT_SELECT_NEXT: c_int = 1;
+const SEARCH_OPT_SELECT_PREV: c_int = 2;
+const POINT_TAG_VIEWPORT: c_int = 1;
 
 #[repr(C)]
 struct ScrollViewport {
@@ -92,8 +101,58 @@ struct RawCursor {
     visual_style: c_int,
 }
 
+/// GhosttyGridRef (grid_ref.h): a position in the screen's pages; only valid until the terminal changes.
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct GridRef {
+    size: usize,
+    node: *mut c_void,
+    x: u16,
+    y: u16,
+}
+
+/// GhosttySelection (selection.h): what a search match is.
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct RawSelection {
+    size: usize,
+    start: GridRef,
+    end: GridRef,
+    rectangle: bool,
+}
+
+/// GhosttySelectionBuffer: caller-provided storage for a list of matches.
+#[repr(C)]
+struct SelectionBuffer {
+    ptr: *mut RawSelection,
+    cap: usize,
+    len: usize,
+}
+
+/// GhosttyPointCoordinate (point.h).
+#[repr(C)]
+#[derive(Default)]
+struct PointCoordinate {
+    x: u16,
+    y: u32,
+}
+
+/// GhosttyString (types.h): borrowed bytes.
+#[repr(C)]
+struct RawString {
+    ptr: *const u8,
+    len: usize,
+}
+
 #[link(name = "ghostty-vt")]
 extern "C" {
+    fn ghostty_search_new(alloc: *const c_void, out: *mut Handle, t: Handle) -> c_int;
+    fn ghostty_search_free(s: Handle);
+    fn ghostty_search_run(s: Handle) -> c_int;
+    fn ghostty_search_set(s: Handle, option: c_int, value: *const c_void) -> c_int;
+    fn ghostty_search_get(s: Handle, data: c_int, out: *mut c_void) -> c_int;
+    fn ghostty_terminal_point_from_grid_ref(t: Handle, r: *const GridRef, tag: c_int, out: *mut PointCoordinate) -> c_int;
+
     fn ghostty_terminal_new(alloc: *const c_void, out: *mut Handle, cols: u16, rows: u16) -> c_int;
     fn ghostty_terminal_free(t: Handle);
     fn ghostty_terminal_resize(t: Handle, cols: u16, rows: u16, cell_w: u32, cell_h: u32) -> c_int;
@@ -210,6 +269,137 @@ impl Terminal {
 impl Drop for Terminal {
     fn drop(&mut self) {
         unsafe { ghostty_terminal_free(self.raw) }
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Search (search.h): matches over the screen and its scrollback, kept in sync by libghostty.
+
+/// A match in viewport coordinates: first and last cell, inclusive. A match that wraps over several
+/// rows has them on different `y`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Span {
+    pub x0: u16,
+    pub y0: u32,
+    pub x1: u16,
+    pub y1: u32,
+}
+
+/// What a search found as of its last `run`.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Found {
+    pub total: usize,
+    /// Position of the selected match counting from the newest, which is 0.
+    pub selected: Option<usize>,
+    /// Matches on the pages of the viewport (some may lie just outside it).
+    pub visible: Vec<Span>,
+    /// The selected match, when it is in the viewport.
+    pub current: Option<Span>,
+}
+
+pub struct Search {
+    raw: Handle,
+    needle: String,
+    /// The selected match as of the last `run`, to select it again after the search is rebuilt.
+    selected: Option<usize>,
+}
+
+// SAFETY: like Terminal, only used while the terminal's lock is held.
+unsafe impl Send for Search {}
+
+fn span_of(term: Handle, sel: &RawSelection) -> Option<Span> {
+    let point = |r: &GridRef| {
+        let mut c = PointCoordinate::default();
+        (unsafe { ghostty_terminal_point_from_grid_ref(term, r, POINT_TAG_VIEWPORT, &mut c) } == SUCCESS).then_some((c.x, c.y))
+    };
+    match (point(&sel.start), point(&sel.end)) {
+        (Some((x0, y0)), Some((x1, y1))) => Some(Span { x0, y0, x1, y1 }),
+        // One end is outside the viewport: the other end alone is a match that continues past it,
+        // which `row_spans` clamps. Neither end inside: not shown.
+        (Some((x0, y0)), None) => Some(Span { x0, y0, x1: u16::MAX, y1: u32::MAX }),
+        (None, Some((x1, y1))) => Some(Span { x0: 0, y0: 0, x1, y1 }),
+        (None, None) => None,
+    }
+}
+
+impl Search {
+    /// Binds a search to `term`; the search must not outlive the lock discipline of the terminal
+    /// (every call below happens with the terminal's lock held).
+    pub fn new(term: &Terminal) -> Search {
+        let mut raw: Handle = std::ptr::null_mut();
+        let rc = unsafe { ghostty_search_new(std::ptr::null(), &mut raw, term.raw) };
+        assert_eq!(rc, SUCCESS, "ghostty_search_new");
+        Search { raw, needle: String::new(), selected: None }
+    }
+
+    /// Sets the needle (empty clears it) and restarts the search. Case-insensitive for ASCII.
+    pub fn set_needle(&mut self, needle: &str) {
+        self.needle = needle.to_owned();
+        let s = RawString { ptr: needle.as_ptr(), len: needle.len() };
+        let v = if needle.is_empty() { std::ptr::null() } else { &s as *const RawString as *const c_void };
+        unsafe { ghostty_search_set(self.raw, SEARCH_OPT_NEEDLE, v) };
+    }
+
+    /// Selects the next (older) or previous (newer) match, scrolling the viewport to it. False when
+    /// there are no matches.
+    pub fn select(&mut self, older: bool) -> bool {
+        let opt = if older { SEARCH_OPT_SELECT_NEXT } else { SEARCH_OPT_SELECT_PREV };
+        unsafe { ghostty_search_set(self.raw, opt, std::ptr::null()) == SUCCESS }
+    }
+
+    /// Catches up with the terminal (blocking) and reads what it found.
+    pub fn run(&mut self, term: &Terminal) -> Found {
+        unsafe { ghostty_search_run(self.raw) };
+        let mut total: usize = 0;
+        unsafe { ghostty_search_get(self.raw, SEARCH_DATA_TOTAL_MATCHES, &mut total as *mut usize as *mut c_void) };
+        let mut idx: usize = 0;
+        let selected = (unsafe { ghostty_search_get(self.raw, SEARCH_DATA_SELECTED_INDEX, &mut idx as *mut usize as *mut c_void) } == SUCCESS).then_some(idx);
+        let blank = GridRef { size: std::mem::size_of::<GridRef>(), node: std::ptr::null_mut(), x: 0, y: 0 };
+        let mut cur = RawSelection { size: std::mem::size_of::<RawSelection>(), start: blank, end: blank, rectangle: false };
+        let current = (unsafe { ghostty_search_get(self.raw, SEARCH_DATA_SELECTED_MATCH, &mut cur as *mut RawSelection as *mut c_void) } == SUCCESS)
+            .then(|| span_of(term.raw, &cur))
+            .flatten();
+        let mut visible = Vec::new();
+        let mut buf = SelectionBuffer { ptr: std::ptr::null_mut(), cap: 0, len: 0 };
+        // First call with no storage: the library answers with the capacity it needs.
+        unsafe { ghostty_search_get(self.raw, SEARCH_DATA_VIEWPORT_MATCHES, &mut buf as *mut SelectionBuffer as *mut c_void) };
+        if buf.len > 0 {
+            let mut store = vec![RawSelection { size: std::mem::size_of::<RawSelection>(), start: blank, end: blank, rectangle: false }; buf.len];
+            let mut buf = SelectionBuffer { ptr: store.as_mut_ptr(), cap: store.len(), len: 0 };
+            if unsafe { ghostty_search_get(self.raw, SEARCH_DATA_VIEWPORT_MATCHES, &mut buf as *mut SelectionBuffer as *mut c_void) } == SUCCESS {
+                visible = store[..buf.len].iter().filter_map(|s| span_of(term.raw, s)).collect();
+            }
+        }
+        self.selected = selected;
+        Found { total, selected, visible, current }
+    }
+}
+
+impl Terminal {
+    /// Resizes with a search alive. While a search is bound, libghostty keeps tracked positions in the
+    /// screen and a shrink then scrolls the content up instead of dropping the blank rows below it (a
+    /// fresh terminal with its text at the top loses its first line when a bar appears). So the search is
+    /// freed around the resize and bound again with the same needle and the same selected match.
+    pub fn resize_with_search(&mut self, search: &mut Option<Search>, cols: u16, rows: u16, cell_w: u32, cell_h: u32) {
+        let kept = search.take().map(|s| (s.needle.clone(), s.selected));
+        self.resize(cols, rows, cell_w, cell_h);
+        if let Some((needle, selected)) = kept {
+            let mut s = Search::new(self);
+            s.set_needle(&needle);
+            s.run(self);
+            if let Some(k) = selected {
+                for _ in 0..=k {
+                    s.select(true);
+                }
+            }
+            *search = Some(s);
+        }
+    }
+}
+
+impl Drop for Search {
+    fn drop(&mut self) {
+        unsafe { ghostty_search_free(self.raw) }
     }
 }
 
@@ -499,6 +689,11 @@ mod tests {
         assert_eq!(size_of::<ScrollViewport>(), 24);
         assert_eq!(size_of::<ModeConfig>(), 4);
         assert_eq!(size_of::<Rgb>(), 3);
+        assert_eq!(size_of::<GridRef>(), 24);
+        assert_eq!(size_of::<RawSelection>(), 64);
+        assert_eq!(size_of::<SelectionBuffer>(), 24);
+        assert_eq!(size_of::<PointCoordinate>(), 8);
+        assert_eq!(size_of::<RawString>(), 16);
     }
 
     const RED: Rgb = Rgb { r: 0xcc, g: 0x66, b: 0x66 };
@@ -570,6 +765,91 @@ mod tests {
         rs.update(&t);
         let d: Vec<u16> = rows(&mut rs, false).iter().map(|r| r.0).collect();
         assert_eq!(d, vec![0, 1, 2], "rows touched by the cursor move and the write; rows 3 and 4 stay clean");
+    }
+
+    #[test]
+    fn search_counts_matches_in_the_scrollback_and_follows_the_selection() {
+        let (mut t, mut rs, _) = term(20, 4);
+        // 10 lines on a 4-row screen: the first six are in the scrollback.
+        for i in 0..10 {
+            t.write(format!("linea {i} {}\r\n", if i % 3 == 0 { "NEEDLE" } else { "otra" }).as_bytes());
+        }
+        let mut s = Search::new(&t);
+        s.set_needle("needle"); // ASCII letters match case-insensitively
+        let f = s.run(&t);
+        assert_eq!(f.total, 4, "lines 0, 3, 6 and 9");
+        assert!(s.select(true), "there is something to select");
+        let f = s.run(&t);
+        assert_eq!(f.selected, Some(0), "the first selection is the newest match");
+        let cur = f.current.expect("the selected match is on screen");
+        assert_eq!((cur.x0, cur.x1), (8, 13), "NEEDLE after 'linea 9 '");
+        assert!(f.visible.iter().any(|m| *m == cur));
+        // Older: line 6, then 3 (scrolls the viewport into the scrollback), then 0.
+        assert!(s.select(true));
+        assert_eq!(s.run(&t).selected, Some(1));
+        assert!(s.select(true));
+        assert!(s.select(true));
+        let f = s.run(&t);
+        assert_eq!(f.selected, Some(3));
+        let cur = f.current.expect("the viewport followed the match");
+        rs.update(&t);
+        let r = rows(&mut rs, true);
+        let row: String = r[cur.y0 as usize].1.iter().map(|c| if c.text().is_empty() { ' ' } else { c.text().chars().next().unwrap() }).collect();
+        assert!(row.starts_with("linea 0 NEEDLE"), "{row:?}");
+        assert!(s.select(false), "newer goes back");
+        assert_eq!(s.run(&t).selected, Some(2));
+        // New output is found after the next run.
+        t.write(b"otro needle\r\n");
+        assert_eq!(s.run(&t).total, 5);
+        // An empty needle clears everything.
+        s.set_needle("");
+        assert_eq!(s.run(&t).total, 0);
+        s.set_needle("zzz-no-esta");
+        assert_eq!(s.run(&t), Found::default());
+    }
+
+    #[test]
+    fn selecting_a_match_that_is_already_on_screen_does_not_move_the_viewport() {
+        let (mut t, mut rs, _) = term(40, 10);
+        t.write(b"titulo\r\ncwd: x\r\n\r\n> pasame la linea needle\r\n\r\nclaro: needle y needle\r\n\r\n> ");
+        let mut s = Search::new(&t);
+        s.set_needle("needle");
+        s.run(&t);
+        assert!(s.select(true));
+        let f = s.run(&t);
+        assert_eq!(f.total, 3);
+        assert!(t.viewport_active(), "the viewport still follows the active area");
+        rs.update(&t);
+        let r = rows(&mut rs, true);
+        assert!(r[0].1.iter().take(6).map(|c| c.text()).collect::<String>() == "titulo", "the first row did not scroll away");
+    }
+
+    #[test]
+    fn a_search_does_not_make_a_shrinking_screen_scroll_its_text_away() {
+        for keep in [false, true] {
+            let (mut t, mut rs, _) = term(127, 33);
+            t.write(b"titulo\r\ncwd: x\r\n\r\n> pasame la linea needle\r\n\r\nclaro: needle y needle\r\n\r\n> ");
+            let mut s = Some(Search::new(&t));
+            s.as_mut().unwrap().set_needle("needle");
+            s.as_mut().unwrap().run(&t);
+            s.as_mut().unwrap().select(true);
+            s.as_mut().unwrap().select(true);
+            assert_eq!(s.as_mut().unwrap().run(&t).selected, Some(1));
+            if keep {
+                t.resize_with_search(&mut s, 127, 32, 8, 20);
+            } else {
+                t.resize(127, 32, 8, 20); // what a bare resize does while a search is bound
+            }
+            rs.update(&t);
+            let first: String = rows(&mut rs, true)[0].1.iter().take(6).map(|c| c.text()).collect();
+            if keep {
+                assert_eq!(first, "titulo", "the first line stays");
+                let f = s.as_mut().unwrap().run(&t);
+                assert_eq!((f.total, f.selected), (3, Some(1)), "the search goes on after the resize, on the same match");
+            } else {
+                assert_eq!(first, "cwd: x", "without the care, the first line is pushed out (the bug this guards)");
+            }
+        }
     }
 
     #[test]

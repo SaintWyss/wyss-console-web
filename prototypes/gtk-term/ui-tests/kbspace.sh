@@ -14,7 +14,7 @@ GTKTERM_CMD="stty raw -echo; head -c 25 > $OUT" exec $B 1
 EOS
 chmod +x "$R/run.sh"
 setsid dbus-run-session -- "$R/run.sh" >"$R/app.log" 2>&1 &
-for i in $(seq 40); do W=$(timeout 2 xdotool search --name '^gtk-term$' 2>/dev/null | head -1); [ -n "$W" ] && break; sleep 0.25; done
+for i in $(seq 40); do W=$(timeout 2 xdotool search --name 'gtk-term|Wyss' 2>/dev/null | head -1); [ -n "$W" ] && break; sleep 0.25; done
 [ -z "${W:-}" ] && { echo "sin ventana"; cat "$R/app.log"; exit 1; }
 [ "$IM" = ibus ] && sleep 2
 timeout 3 xdotool windowfocus --sync $W; sleep 0.5
