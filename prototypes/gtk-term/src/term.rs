@@ -7,12 +7,14 @@ use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{mpsc, Arc, Mutex, MutexGuard};
+use std::time::Duration;
 
 use gtk::prelude::*;
 use gtk::{gdk, glib, graphene, gsk, pango};
 
 use crate::ghostty::{self, Cell, CursorStyle, Dirty, Rgb, Wide};
+use crate::host::{self, Host};
 use crate::palette;
 use crate::pty::Pty;
 use crate::keys;
@@ -24,6 +26,10 @@ const PAD: f32 = 4.0;
 const SCROLLBACK_LINES: usize = 10_000;
 const READ_BLOCK: usize = 256 * 1024;
 const WHEEL_LINES: f64 = 3.0;
+/// How long a host read waits for new output before answering empty.
+const LONG_POLL_MS: u64 = 1000;
+/// Lines of history asked for when attaching to a terminal that was already running.
+const ATTACH_SCROLLBACK: u32 = 500;
 /// Background of selected cells (readable under the default foreground on `palette::BG`).
 const SEL_BG: Rgb = Rgb { r: 0x3a, g: 0x4a, b: 0x63 };
 
@@ -70,6 +76,166 @@ pub struct Terminal {
     pub widget: TermView,
 }
 
+/// Where a terminal's bytes come from.
+pub enum Source {
+    /// A shell on a PTY of this process.
+    Local,
+    /// A terminal that lives in the host; closing the tab leaves it running.
+    Host { host: Host, tid: String, attach: Attach },
+}
+
+/// How a window joins a host terminal.
+pub enum Attach {
+    /// Just created: read from the start, nothing to restore.
+    Fresh,
+    /// Was running without this window: draw its screen, read on from where the screen ends.
+    Screen(host::Screen),
+    /// The host has no screen for it: read what the host kept from the start.
+    Replay,
+}
+
+/// What the terminal sends to its child: straight to the PTY master, or through a thread that
+/// talks to the host (input never blocks the GTK thread on a socket).
+#[derive(Clone)]
+enum Input {
+    Pty(Arc<std::fs::File>),
+    Host(mpsc::Sender<Out>),
+}
+
+enum Out {
+    Data(Vec<u8>),
+    Resize(u16, u16),
+}
+
+impl Input {
+    fn send(&self, bytes: &[u8]) {
+        match self {
+            Input::Pty(f) => {
+                let _ = (&**f).write_all(bytes);
+            }
+            Input::Host(tx) => {
+                let _ = tx.send(Out::Data(bytes.to_vec()));
+            }
+        }
+    }
+}
+
+/// Sends input and resizes to the host in order, merging consecutive writes into one call.
+fn host_writer(host: Host, tid: String, rx: mpsc::Receiver<Out>) {
+    let mut pending: Option<Out> = None;
+    loop {
+        let first = match pending.take() {
+            Some(m) => m,
+            None => match rx.recv() {
+                Ok(m) => m,
+                Err(_) => return,
+            },
+        };
+        match first {
+            Out::Resize(rows, cols) => {
+                let _ = host.resize(&tid, rows, cols);
+            }
+            Out::Data(mut buf) => {
+                while let Ok(m) = rx.try_recv() {
+                    match m {
+                        Out::Data(more) if buf.len() < host::WRITE_CHUNK => buf.extend_from_slice(&more),
+                        other => {
+                            pending = Some(other);
+                            break;
+                        }
+                    }
+                }
+                let _ = host.write(&tid, &buf);
+            }
+        }
+    }
+}
+
+/// Reads a host terminal into ghostty until it ends. Returns when the terminal is closed or eof,
+/// or the host stops answering.
+fn host_reader(host: Host, tid: String, mut from: u64, shared: Arc<Shared>, id: u64, quiet: Arc<AtomicBool>, mut replay: bool) {
+    let mut failures = 0;
+    let (started, mut bytes, mut reads, mut feed_ns, mut resyncs) = (std::time::Instant::now(), 0usize, 0u32, 0u128, 0u32);
+    loop {
+        match host.read(&tid, from, LONG_POLL_MS) {
+            Ok(r) => {
+                failures = 0;
+                if r.truncated {
+                    // The host's ring moved past what was read: draw its screen again and go on from there.
+                    if let Ok(Some(s)) = host.screen(&tid, ATTACH_SCROLLBACK) {
+                        resyncs += 1;
+                        quiet.store(true, Ordering::Release);
+                        {
+                            let mut t = shared.lock();
+                            t.write(b"\x1bc");
+                            t.write(&s.repaint);
+                        }
+                        quiet.store(false, Ordering::Release);
+                        request_redraw(&shared, id);
+                        from = s.at;
+                        continue;
+                    }
+                }
+                if !r.data.is_empty() {
+                    let t = std::time::Instant::now();
+                    shared.lock().write(&r.data);
+                    feed_ns += t.elapsed().as_nanos();
+                    bytes += r.data.len();
+                    reads += 1;
+                    request_redraw(&shared, id);
+                } else if replay {
+                    // The kept output is replayed: answers to its old queries were not wanted.
+                    replay = false;
+                    quiet.store(false, Ordering::Release);
+                }
+                from = r.next;
+                if r.eof || r.closed {
+                    if std::env::var_os("GTKTERM_STATS").is_some() {
+                        eprintln!("host_reader: eof={} closed={} at {from}", r.eof, r.closed);
+                    }
+                    break;
+                }
+            }
+            Err(e @ host::HostError::Remote { .. }) => {
+                // Unknown or closed terminal.
+                if std::env::var_os("GTKTERM_STATS").is_some() {
+                    eprintln!("host_reader: {e}");
+                }
+                break;
+            }
+            Err(e) => {
+                if std::env::var_os("GTKTERM_STATS").is_some() {
+                    eprintln!("host_reader: {e}");
+                }
+                failures += 1;
+                if failures >= 3 {
+                    break;
+                }
+                std::thread::sleep(Duration::from_millis(300));
+            }
+        }
+    }
+    if std::env::var_os("GTKTERM_STATS").is_some() {
+        let ms = |ns: u64| ns / 1_000_000;
+        eprintln!(
+            "stats: {resyncs} truncations (screen resyncs), {bytes} bytes in {reads} data reads, {:.2}s since attach; host call+frame decode {} ms (parse of bytes {} ms), ghostty feed {} ms",
+            started.elapsed().as_secs_f64(),
+            ms(host::NET_NS.load(Ordering::Relaxed)),
+            ms(host::PARSE_NS.load(Ordering::Relaxed)),
+            feed_ns / 1_000_000
+        );
+    }
+    // The shell ended (or the terminal was closed): drop its entry in the host.
+    let _ = host.close(&tid);
+    glib::MainContext::default().invoke(move || {
+        ON_EXIT.with(|m| {
+            if let Some(f) = m.borrow_mut().remove(&id) {
+                f();
+            }
+        });
+    });
+}
+
 /// GTK-thread side of the drawing: the render state, the cells of each viewport row as last painted
 /// (selection reads these, so it always copies what is on screen) and the node cached per row.
 struct Frame {
@@ -85,8 +251,8 @@ struct Frame {
 
 struct State {
     shared: Arc<Shared>,
-    pty: Pty,
-    input: Arc<std::fs::File>,
+    pty: Option<Pty>,
+    input: Input,
     cell_w: StdCell<f64>,
     cell_h: StdCell<f64>,
     size: StdCell<(usize, usize)>,
@@ -132,33 +298,52 @@ impl State {
                 t.scroll_bottom();
             }
         }
-        let _ = (&*self.input).write_all(bytes);
+        self.input.send(bytes);
     }
 }
 
 impl Terminal {
-    pub fn new(id: u64, on_exit: impl Fn() + 'static) -> Terminal {
-        let (cols, lines) = (80usize, 24usize);
-        // GTKTERM_CMD runs one command instead of the login shell (used by the benchmarks).
-        let cmd = std::env::var("GTKTERM_CMD").ok();
-        let (pty, reader) = Pty::spawn(cols as u16, lines as u16, 8, 16, cmd.as_deref()).expect("spawn shell");
-        let input = pty.writer();
+    pub fn new(id: u64, source: Source, on_exit: impl Fn() + 'static) -> Terminal {
+        let (mut cols, mut lines) = (80usize, 24usize);
+        let quiet = Arc::new(AtomicBool::new(false));
+        let (pty, input, reader, host_part) = match source {
+            Source::Local => {
+                // GTKTERM_CMD runs one command instead of the login shell (used by the benchmarks).
+                let cmd = std::env::var("GTKTERM_CMD").ok();
+                let (pty, reader) = Pty::spawn(cols as u16, lines as u16, 8, 16, cmd.as_deref()).expect("spawn shell");
+                let input = Input::Pty(pty.writer());
+                (Some(pty), input, Some(reader), None)
+            }
+            Source::Host { host, tid, attach } => {
+                if let Attach::Screen(s) = &attach {
+                    (cols, lines) = (s.cols as usize, s.rows as usize);
+                }
+                let (tx, rx) = mpsc::channel();
+                let (h, t) = (host.clone(), tid.clone());
+                std::thread::spawn(move || host_writer(h, t, rx));
+                (None, Input::Host(tx), None, Some((host, tid, attach)))
+            }
+        };
 
-        // What the terminal answers to queries (DA, cursor position, mode reports) goes to the child.
+        // What the terminal answers to queries (DA, cursor position, mode reports) goes to the child,
+        // except while a screen or a replay is being drawn: those answers belong to old queries.
         let reply_to = input.clone();
+        let reply_quiet = quiet.clone();
         let mut term = ghostty::Terminal::new(
             cols as u16,
             lines as u16,
             SCROLLBACK_LINES,
             Box::new(move |bytes| {
-                let _ = (&*reply_to).write_all(bytes);
+                if !reply_quiet.load(Ordering::Acquire) {
+                    reply_to.send(bytes);
+                }
             }),
         );
         term.set_colors(palette::FG, palette::BG, &palette::table());
         let shared = Arc::new(Shared { term: Mutex::new(term), next: Mutex::new(()), pending: AtomicBool::new(false) });
 
         // Reader thread: big blocks from the PTY straight into the interpreter.
-        {
+        if let Some(reader) = reader {
             let shared = shared.clone();
             std::thread::spawn(move || {
                 let mut reader = reader;
@@ -183,6 +368,24 @@ impl Terminal {
                     });
                 });
             });
+        }
+        // Host terminal: draw the screen it already has (if any), then long-poll its output.
+        if let Some((host, tid, attach)) = host_part {
+            let (from, replay) = match attach {
+                Attach::Fresh => (0, false),
+                Attach::Screen(s) => {
+                    quiet.store(true, Ordering::Release);
+                    shared.lock().write(&s.repaint);
+                    quiet.store(false, Ordering::Release);
+                    (s.at, false)
+                }
+                Attach::Replay => {
+                    quiet.store(true, Ordering::Release);
+                    (0, true)
+                }
+            };
+            let (shared, quiet) = (shared.clone(), quiet.clone());
+            std::thread::spawn(move || host_reader(host, tid, from, shared, id, quiet, replay));
         }
 
         let state = Rc::new(State {
@@ -409,7 +612,13 @@ fn resize(state: &State, w: i32, h: i32) {
     state.size.set((cols, lines));
     let (cw, ch) = (state.cell_w.get() as u16, state.cell_h.get() as u16);
     state.shared.lock().resize(cols as u16, lines as u16, cw as u32, ch as u32);
-    state.pty.resize(cols as u16, lines as u16, cw, ch);
+    match (&state.pty, &state.input) {
+        (Some(p), _) => p.resize(cols as u16, lines as u16, cw, ch),
+        (None, Input::Host(tx)) => {
+            let _ = tx.send(Out::Resize(lines as u16, cols as u16));
+        }
+        _ => {}
+    }
 }
 
 fn rgba(c: Rgb) -> gdk::RGBA {

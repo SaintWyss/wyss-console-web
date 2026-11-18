@@ -1,6 +1,6 @@
 # Plan de migración: interfaz Tauri/WebKit → GTK4 nativo
 
-Estado: APROBADO 2026-11-17 (D1–D4 = recomendadas). M0 hecho; M1 motor `libghostty-vt` construido (Sonnet) y verificado (Opus): 113 MB, `cat` 100 MB 1,0 s (Ghostty 1,2 s). Faltan selección, mouse reporting y prueba manual de teclado. Rama: `proto/gtk4-terminal`.
+Estado: APROBADO 2026-11-17 (D1–D4 = recomendadas). M0 hecho; M1 motor `libghostty-vt` construido (Sonnet) y verificado (Opus): 113 MB, `cat` 100 MB 1,0 s (Ghostty 1,2 s). Selección y atajos hechos y probados. M2 conexión al host hecho y probado (persistencia, re-enganche, Ctrl+Shift+T/W); queda abierto el límite de throughput del host bajo flood. Rama: `proto/gtk4-terminal`.
 
 ## Objetivo medible
 
