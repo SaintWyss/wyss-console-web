@@ -284,6 +284,16 @@ impl Cell {
         underline: false,
     };
 
+    /// A cell with default colors and the given text (used by the selection tests).
+    pub fn plain(text: &str, wide: Wide) -> Cell {
+        let mut c = Cell::BLANK;
+        let n = text.len().min(MAX_TEXT);
+        c.text[..n].copy_from_slice(&text.as_bytes()[..n]);
+        c.text_len = n as u8;
+        c.wide = wide;
+        c
+    }
+
     /// The grapheme cluster shown in this cell; empty for blank cells. Clusters longer than
     /// 16 bytes are cut at a character boundary.
     pub fn text(&self) -> &str {

@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-set -u; unset WAYLAND_DISPLAY  # nunca tocar el IBus de la sesión real; R=$1; B=$2; S=$3
+set -u
+unset WAYLAND_DISPLAY  # nunca tocar el IBus de la sesión real
+R=$1; B=$2; S=$3
 export DISPLAY=:77 GDK_BACKEND=x11 NO_AT_BRIDGE=1 XDG_RUNTIME_DIR=$R/app GTK_IM_MODULE=ibus
 cat > "$R/run2.sh" <<EOS
 #!/bin/sh

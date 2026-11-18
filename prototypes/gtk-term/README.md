@@ -8,7 +8,7 @@ No está conectada al host ni a `wyss-screen`: abre su propia PTY con tu shell.
 
 ```sh
 cargo build --release
-target/release/gtk-term 3        # 3 pestañas; Ctrl+Shift+T nueva, Ctrl+Shift+W cerrar, Ctrl+Shift+V pegar
+target/release/gtk-term 3        # 3 pestañas; Ctrl+Shift+T nueva, Ctrl+Shift+W cerrar
 cargo test --release             # traducción de teclas
 ```
 
@@ -25,9 +25,19 @@ guarda una captura renderizada por GSK a los 2 s.
 | Intérprete solo, 100 MB (`parsebench`) | 0,22 s | 1,40 s | — | — |
 | CPU en reposo, 10 pestañas, 10 s | 0 ticks | — | — | — |
 
+## Atajos (decisión del dueño, 2026-11-18)
+
+| Atajo | Hace |
+|---|---|
+| Ctrl+C | Copia la selección. **Nunca interrumpe** (sin selección no hace nada) |
+| Ctrl+V, Ctrl+Shift+V | Pegan el portapapeles |
+| Ctrl+Shift+C | Interrumpe (manda 0x03 al programa) |
+| Arrastrar / doble clic / triple clic | Selecciona celdas / palabra / línea; la selección queda en PRIMARY |
+| Clic del medio | Pega PRIMARY |
+
 ## Huecos conocidos (M1)
 
-- Sin selección con mouse ni copiar (Ctrl+Shift+C): `selection.h` pide gestos tipados y grid refs.
+- La selección se borra cuando cambia el texto de sus filas o se desplaza la pantalla (no lo acompaña). Sin shift+clic ni autoscroll al arrastrar.
 - Con apps que piden reporte de mouse (vim, htop) la rueda mueve el scrollback en vez de mandarles eventos.
 - PTY sin IUTF8: en modo canónico (sin readline) borrar un carácter multibyte borra un byte.
 - La escritura a la PTY corre en el hilo GTK: un pegado enorme a un programa que no lee puede trabar la ventana.

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # kbtest.sh <run-dir> <bin> <out> <im: simple|ibus>
-set -u; unset WAYLAND_DISPLAY  # nunca tocar el IBus de la sesión real; R=$1; B=$2; OUT=$3; IM=$4
+set -u
+unset WAYLAND_DISPLAY  # nunca tocar el IBus de la sesión real
+R=$1; B=$2; OUT=$3; IM=$4
 rm -f "$OUT"
 export DISPLAY=:77 GDK_BACKEND=x11 NO_AT_BRIDGE=1 XDG_RUNTIME_DIR=$R/app
 mkdir -p "$R/app"; chmod 700 "$R/app"

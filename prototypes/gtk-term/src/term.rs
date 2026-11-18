@@ -16,6 +16,7 @@ use crate::ghostty::{self, Cell, CursorStyle, Dirty, Rgb, Wide};
 use crate::palette;
 use crate::pty::Pty;
 use crate::keys;
+use crate::selection::{self, Mode, Pos, Selection};
 use crate::view::TermView;
 
 const FONT: &str = "Monospace 11";
@@ -23,6 +24,8 @@ const PAD: f32 = 4.0;
 const SCROLLBACK_LINES: usize = 10_000;
 const READ_BLOCK: usize = 256 * 1024;
 const WHEEL_LINES: f64 = 3.0;
+/// Background of selected cells (readable under the default foreground on `palette::BG`).
+const SEL_BG: Rgb = Rgb { r: 0x3a, g: 0x4a, b: 0x63 };
 
 thread_local! {
     /// Widgets by id, reachable from the PTY thread through `MainContext::invoke`.
@@ -67,10 +70,16 @@ pub struct Terminal {
     pub widget: TermView,
 }
 
-/// GTK-thread side of the drawing: the render state and the node cached for each viewport row.
+/// GTK-thread side of the drawing: the render state, the cells of each viewport row as last painted
+/// (selection reads these, so it always copies what is on screen) and the node cached per row.
 struct Frame {
     rs: ghostty::RenderState,
     rows: Vec<Option<gsk::RenderNode>>,
+    grid: Vec<Vec<Cell>>,
+    /// Rows whose content ghostty reported dirty in the frame being built.
+    dirty: Vec<bool>,
+    /// Selection bounds baked into the cached nodes.
+    painted: Option<(Pos, Pos)>,
     size: (u16, u16),
 }
 
@@ -83,9 +92,38 @@ struct State {
     size: StdCell<(usize, usize)>,
     pango: RefCell<Option<pango::Context>>,
     frame: RefCell<Frame>,
+    sel: RefCell<Option<Selection>>,
+    /// A left-button press in progress: where it started and how it expands.
+    drag: RefCell<Option<(Pos, Mode)>>,
 }
 
 impl State {
+    /// Viewport cell under a widget point, clamped to the grid; `None` before the first frame.
+    fn cell_at(&self, x: f64, y: f64) -> Option<Pos> {
+        let f = self.frame.borrow();
+        let cols = f.grid.first().map_or(0, |r| r.len());
+        if cols == 0 {
+            return None;
+        }
+        let col = ((x - PAD as f64) / self.cell_w.get()).floor().max(0.0) as usize;
+        let row = ((y - PAD as f64) / self.cell_h.get()).floor().max(0.0) as usize;
+        Some(Pos { row: row.min(f.grid.len() - 1), col: col.min(cols - 1) })
+    }
+
+    /// Text of the current selection, as painted.
+    fn selected_text(&self) -> Option<String> {
+        let sel = (*self.sel.borrow())?;
+        let f = self.frame.borrow();
+        let (a, b) = sel.bounds(&f.grid);
+        let t = selection::extract(&f.grid, a, b);
+        (!t.is_empty()).then_some(t)
+    }
+
+    fn clear_selection(&self) {
+        *self.sel.borrow_mut() = None;
+        *self.drag.borrow_mut() = None;
+    }
+
     /// User input: snaps the view back to the bottom, then goes to the child.
     fn write(&self, bytes: &[u8]) {
         {
@@ -155,7 +193,16 @@ impl Terminal {
             cell_h: StdCell::new(16.0),
             size: StdCell::new((cols, lines)),
             pango: RefCell::new(None),
-            frame: RefCell::new(Frame { rs: ghostty::RenderState::new(), rows: Vec::new(), size: (0, 0) }),
+            frame: RefCell::new(Frame {
+                rs: ghostty::RenderState::new(),
+                rows: Vec::new(),
+                grid: Vec::new(),
+                dirty: Vec::new(),
+                painted: None,
+                size: (0, 0),
+            }),
+            sel: RefCell::new(None),
+            drag: RefCell::new(None),
         });
 
         let area = {
@@ -199,13 +246,74 @@ impl Terminal {
         }
         focus.connect_leave(move |_| im.focus_out());
         area.add_controller(focus);
+        // Any button gives focus; left starts a selection (1/2/3 clicks = cells/word/line), middle
+        // pastes PRIMARY.
         let click = gtk::GestureClick::new();
-        click.connect_pressed(|g, _, _, _| {
-            if let Some(w) = g.widget() {
+        click.set_button(0);
+        {
+            let state = state.clone();
+            click.connect_pressed(move |g, n, x, y| {
+                let Some(w) = g.widget() else { return };
                 w.grab_focus();
-            }
-        });
+                match g.current_button() {
+                    1 => {
+                        let Some(pos) = state.cell_at(x, y) else { return };
+                        let mode = match (n - 1) % 3 {
+                            0 => Mode::Cell,
+                            1 => Mode::Word,
+                            _ => Mode::Line,
+                        };
+                        *state.drag.borrow_mut() = Some((pos, mode));
+                        // A plain click only clears; a cell selection starts when the pointer moves.
+                        *state.sel.borrow_mut() = (mode != Mode::Cell).then_some(Selection { anchor: pos, head: pos, mode });
+                        w.queue_draw();
+                    }
+                    2 => {
+                        let state = state.clone();
+                        w.display().primary_clipboard().read_text_async(None::<&gtk::gio::Cancellable>, move |r| {
+                            if let Ok(Some(t)) = r {
+                                state.write(t.as_bytes());
+                            }
+                        });
+                    }
+                    _ => {}
+                }
+            });
+        }
         area.add_controller(click);
+        let drag = gtk::GestureDrag::new();
+        drag.set_button(1);
+        {
+            let state = state.clone();
+            drag.connect_drag_update(move |g, ox, oy| {
+                let Some((sx, sy)) = g.start_point() else { return };
+                let Some(&(anchor, mode)) = state.drag.borrow().as_ref() else { return };
+                let Some(head) = state.cell_at(sx + ox, sy + oy) else { return };
+                let mut sel = state.sel.borrow_mut();
+                if sel.is_none() && head == anchor {
+                    return;
+                }
+                let new = Selection { anchor, head, mode };
+                if *sel != Some(new) {
+                    *sel = Some(new);
+                    if let Some(w) = g.widget() {
+                        w.queue_draw();
+                    }
+                }
+            });
+        }
+        {
+            let state = state.clone();
+            drag.connect_drag_end(move |g, _, _| {
+                if state.drag.borrow_mut().take().is_none() {
+                    return;
+                }
+                if let (Some(text), Some(w)) = (state.selected_text(), g.widget()) {
+                    w.display().primary_clipboard().set_text(&text);
+                }
+            });
+        }
+        area.add_controller(drag);
 
         // Mouse wheel scrolls the scrollback.
         let wheel = gtk::EventControllerScroll::new(gtk::EventControllerScrollFlags::VERTICAL);
@@ -218,6 +326,7 @@ impl Terminal {
                     rows = dy.signum() as isize;
                 }
                 state.shared.lock().scroll_delta(rows);
+                state.clear_selection();
                 if let Some(a) = area_w.upgrade() {
                     a.queue_draw();
                 }
@@ -226,13 +335,16 @@ impl Terminal {
         }
         area.add_controller(wheel);
 
-        // Paste with Ctrl+Shift+V.
+        // Clipboard shortcuts (owner decision 2026-11-18): Ctrl+C copies and NEVER interrupts;
+        // Ctrl+V and Ctrl+Shift+V paste; the interrupt (0x03) moves to Ctrl+Shift+C.
+        // Capture phase so they run before the key controller that feeds the PTY.
         let paste = gtk::ShortcutController::new();
-        {
+        paste.set_propagation_phase(gtk::PropagationPhase::Capture);
+        for trigger in ["<Control>v", "<Control><Shift>v"] {
             let state = state.clone();
             let area_w = area.downgrade();
             paste.add_shortcut(gtk::Shortcut::new(
-                gtk::ShortcutTrigger::parse_string("<Control><Shift>v"),
+                gtk::ShortcutTrigger::parse_string(trigger),
                 Some(gtk::CallbackAction::new(move |_, _| {
                     if let Some(a) = area_w.upgrade() {
                         let state = state.clone();
@@ -242,6 +354,30 @@ impl Terminal {
                             }
                         });
                     }
+                    glib::Propagation::Stop
+                })),
+            ));
+        }
+        {
+            let state = state.clone();
+            let area_w = area.downgrade();
+            paste.add_shortcut(gtk::Shortcut::new(
+                gtk::ShortcutTrigger::parse_string("<Control>c"),
+                Some(gtk::CallbackAction::new(move |_, _| {
+                    // Without a selection Ctrl+C does nothing: it must never reach the PTY.
+                    if let (Some(a), Some(t)) = (area_w.upgrade(), state.selected_text()) {
+                        a.clipboard().set_text(&t);
+                    }
+                    glib::Propagation::Stop
+                })),
+            ));
+        }
+        {
+            let state = state.clone();
+            paste.add_shortcut(gtk::Shortcut::new(
+                gtk::ShortcutTrigger::parse_string("<Control><Shift>c"),
+                Some(gtk::CallbackAction::new(move |_, _| {
+                    state.write(&[0x03]);
                     glib::Propagation::Stop
                 })),
             ));
@@ -311,21 +447,22 @@ macro_rules! add {
 }
 
 /// Builds the render node of one viewport row (coordinates relative to the row's top-left corner).
-fn build_row(ctx: &pango::Context, font: &pango::FontDescription, cells: &[Cell], cw: f32, ch: f32) -> Option<gsk::RenderNode> {
+/// `sel` is the inclusive column range of this row covered by the selection. Order inside the node:
+/// cell backgrounds, selection, text.
+fn build_row(ctx: &pango::Context, font: &pango::FontDescription, cells: &[Cell], cw: f32, ch: f32, sel: Option<(usize, usize)>) -> Option<gsk::RenderNode> {
     let snap = gtk::Snapshot::new();
     let mut run = Run::new();
     let mut bg_run: Option<(usize, Rgb)> = None; // (first column, color)
 
-    let flush_run = |snap: &gtk::Snapshot, run: &mut Run| {
+    // Text layouts wait until the backgrounds and the selection are in the node, so they draw on top.
+    let mut layouts: Vec<(usize, pango::Layout)> = Vec::new();
+    let flush_run = |layouts: &mut Vec<(usize, pango::Layout)>, run: &mut Run| {
         if run.ink {
             let layout = pango::Layout::new(ctx);
             layout.set_font_description(Some(font));
             layout.set_text(&run.text);
             layout.set_attributes(Some(&run.attrs));
-            snap.save();
-            snap.translate(&graphene::Point::new(PAD + run.col as f32 * cw, 0.0));
-            snap.append_layout(&layout, &rgba(palette::FG));
-            snap.restore();
+            layouts.push((run.col, layout));
         }
         *run = Run::new();
     };
@@ -362,7 +499,7 @@ fn build_row(ctx: &pango::Context, font: &pango::FontDescription, cells: &[Cell]
         }
         let wide = cell.wide == Wide::Wide;
         if wide {
-            flush_run(&snap, &mut run);
+            flush_run(&mut layouts, &mut run);
         }
         if run.text.is_empty() {
             run.col = col;
@@ -391,11 +528,20 @@ fn build_row(ctx: &pango::Context, font: &pango::FontDescription, cells: &[Cell]
             add!(run.attrs, pango::AttrInt::new_strikethrough(true), start, end);
         }
         if wide {
-            flush_run(&snap, &mut run);
+            flush_run(&mut layouts, &mut run);
         }
     }
-    flush_run(&snap, &mut run);
+    flush_run(&mut layouts, &mut run);
     flush_bg(&snap, &mut bg_run, cells.len());
+    if let Some((c0, c1)) = sel {
+        snap.append_color(&rgba(SEL_BG), &graphene::Rect::new(PAD + c0 as f32 * cw, 0.0, (c1 + 1 - c0) as f32 * cw, ch));
+    }
+    for (col, layout) in &layouts {
+        snap.save();
+        snap.translate(&graphene::Point::new(PAD + *col as f32 * cw, 0.0));
+        snap.append_layout(layout, &rgba(palette::FG));
+        snap.restore();
+    }
     snap.to_node()
 }
 
@@ -410,7 +556,7 @@ fn draw(snap: &gtk::Snapshot, state: &State, w: f32, h: f32) {
     // Clear the request flag before capturing, so output arriving from here on asks for a new frame.
     state.shared.pending.store(false, Ordering::Release);
     let mut frame = state.frame.borrow_mut();
-    let Frame { rs, rows, size } = &mut *frame;
+    let Frame { rs, rows, grid, dirty, painted, size } = &mut *frame;
     {
         let term = state.shared.lock();
         rs.update(&term);
@@ -421,20 +567,50 @@ fn draw(snap: &gtk::Snapshot, state: &State, w: f32, h: f32) {
         *size = new_size;
         rows.clear();
         rows.resize(new_size.1 as usize, None);
+        grid.clear();
+        grid.resize_with(new_size.1 as usize, Vec::new);
+        dirty.resize(new_size.1 as usize, false);
+        *painted = None;
     }
 
-    // Rebuild only the dirty rows (every row after a resize), then mark the frame clean.
+    // Copy the rows ghostty marks dirty (every row after a resize) into the grid, then mark clean.
+    dirty.fill(false);
     if all || rs.dirty() != Dirty::Clean {
-        let ctx = state.pango.borrow().clone();
-        if let Some(ctx) = ctx {
-            let font = font_desc();
-            rs.for_rows(all, |y, cells| {
-                if let Some(slot) = rows.get_mut(y as usize) {
-                    *slot = build_row(&ctx, &font, cells, cw, ch);
-                }
-            });
-        }
+        rs.for_rows(all, |y, cells| {
+            if let Some(g) = grid.get_mut(y as usize) {
+                g.clear();
+                g.extend_from_slice(cells);
+                dirty[y as usize] = true;
+            }
+        });
         rs.clean();
+    }
+
+    // A selection whose rows changed no longer describes what is on screen: drop it.
+    let new_sel = {
+        let mut sel = state.sel.borrow_mut();
+        if let Some(s) = *sel {
+            let (a, b) = s.bounds(grid);
+            if all || dirty.iter().enumerate().any(|(r, d)| *d && r >= a.row && r <= b.row) {
+                *sel = None;
+                *state.drag.borrow_mut() = None;
+            }
+        }
+        sel.map(|s| s.bounds(grid))
+    };
+
+    // Rebuild the nodes of changed rows and of rows whose selection highlight changed.
+    let sel_changed = *painted != new_sel;
+    let covers = |b: &Option<(Pos, Pos)>, r: usize| b.is_some_and(|(a, z)| r >= a.row && r <= z.row);
+    if let Some(ctx) = state.pango.borrow().clone() {
+        let font = font_desc();
+        for y in 0..rows.len() {
+            if dirty[y] || (sel_changed && (covers(painted, y) || covers(&new_sel, y))) {
+                let cols = new_sel.and_then(|(a, z)| selection::row_range(a, z, y, grid[y].len()));
+                rows[y] = build_row(&ctx, &font, &grid[y], cw, ch, cols);
+            }
+        }
+        *painted = new_sel;
     }
 
     for (y, node) in rows.iter().enumerate() {

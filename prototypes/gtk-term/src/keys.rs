@@ -33,6 +33,8 @@ pub fn encode(key: Key, mods: ModifierType, app_cursor: bool) -> Option<Vec<u8>>
         _ if ctrl && !mods.contains(ModifierType::SHIFT_MASK) => {
             let c = key.to_lower().to_unicode()?;
             match c {
+                // Owner decision: Ctrl+C copies and Ctrl+V pastes; they never reach the PTY.
+                'c' | 'v' => return None,
                 'a'..='z' => vec![c as u8 - b'a' + 1],
                 '@' | ' ' => vec![0],
                 '[' => vec![0x1b],
@@ -58,7 +60,8 @@ mod tests {
 
     #[test]
     fn control_letters_map_to_c0() {
-        assert_eq!(encode(Key::c, ModifierType::CONTROL_MASK, false), Some(vec![3]));
+        assert_eq!(encode(Key::c, ModifierType::CONTROL_MASK, false), None, "Ctrl+C must never interrupt");
+        assert_eq!(encode(Key::v, ModifierType::CONTROL_MASK, false), None);
         assert_eq!(encode(Key::d, ModifierType::CONTROL_MASK, false), Some(vec![4]));
     }
 

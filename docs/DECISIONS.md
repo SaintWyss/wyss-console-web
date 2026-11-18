@@ -37,6 +37,9 @@ on the GPU, with `alacritty_terminal` as terminal state; plan and phases in
 - **Order:** terminal engine → host connection → native Console → package → Workspace →
   Arsenal/Distributors/Credentials → Activity/Sessions/Settings → remove Tauri.
 
+**Terminal clipboard keys** (owner, 2026-11-18): Ctrl+C copies the selection and never sends an
+interrupt; Ctrl+V pastes; the interrupt (0x03) is Ctrl+Shift+C.
+
 **Performance budgets** (owner goal: terminals lighter than Warp and faster than Ghostty).
 Measured on the same PC and load with the prototype's `bench.sh`; never lowered silently:
 

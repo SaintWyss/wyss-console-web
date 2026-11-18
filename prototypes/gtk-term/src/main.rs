@@ -5,6 +5,7 @@ mod ghostty;
 mod keys;
 mod palette;
 mod pty;
+mod selection;
 mod term;
 mod view;
 
