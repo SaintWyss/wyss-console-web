@@ -1,4 +1,6 @@
 {
+  "Reopen Wyss Console to apply the new language.": "Volvé a abrir Wyss Console para aplicar el nuevo idioma.",
+  "This window owns the local terminals. Closing it closes their PTYs.": "Las terminales locales dependen de esta ventana. Al cerrarla, se cierran sus pseudoterminales.",
   "Delete this API key?": "¿Borrar esta clave de API?",
   "Keep": "Guardar",
   "New API key": "Nueva clave de API",

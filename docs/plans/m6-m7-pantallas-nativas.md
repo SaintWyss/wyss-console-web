@@ -46,3 +46,11 @@ copiados. Construido por Codex `gpt-6.2-sol` low; verificado por Opus: 128 tests
 campo de clave por cada vía de cierre, corrido con display); el portapapeles no recibe la clave; revisión de
 seguridad independiente PASS, hallazgos medios y bajos corregidos. Pendiente para M8: la app Tauri y la nativa
 abren el mismo store con un lock por proceso; desaparece al quitar Tauri.
+
+## Estado M7 (2026-11-18)
+
+Alcance reducido por el dueño: solo Ajustes. Aprobaciones, Eventos, Sesiones y Agente no se migran por ahora; sus
+íconos están ocultos en la nativa. Ajustes nativo hecho (Apariencia, Interfaz, Terminal aplicada en vivo, Acerca de,
+Restablecer, Terminales al cerrar la ventana) sobre el mismo `preferences.json`; "Abrir en" de la nativa vive en
+`$XDG_STATE_HOME/gtk-term/landing-page`. Ningún ícono de la nativa lanza Tauri. 131 tests nativos; el test F8 que
+dejaba procesos huérfanos ahora comprueba que su grupo terminó.

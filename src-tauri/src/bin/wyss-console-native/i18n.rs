@@ -14,17 +14,6 @@ pub enum Lang {
     Es,
 }
 
-impl Lang {
-    /// The `interface.language` word of `preferences.json`.
-    pub fn from_word(word: &str) -> Option<Lang> {
-        match word {
-            "en" => Some(Lang::En),
-            "es" => Some(Lang::Es),
-            _ => None,
-        }
-    }
-}
-
 static LANG: OnceLock<Lang> = OnceLock::new();
 
 /// Fixes the language for the life of the process (the first call wins).

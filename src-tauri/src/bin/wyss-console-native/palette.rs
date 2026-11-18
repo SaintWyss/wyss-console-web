@@ -91,10 +91,17 @@ pub fn colors_for(theme: Theme) -> Colors {
     }
 }
 
-/// The colors of the theme fixed at startup.
+/// The palette for the active theme, cached once per theme.
 pub fn colors() -> &'static Colors {
-    static C: OnceLock<Colors> = OnceLock::new();
-    C.get_or_init(|| colors_for(theme::current()))
+    static DARK: OnceLock<Colors> = OnceLock::new();
+    static LIGHT: OnceLock<Colors> = OnceLock::new();
+    static HIGH_CONTRAST: OnceLock<Colors> = OnceLock::new();
+    let theme = theme::current();
+    match theme {
+        Theme::Dark => &DARK,
+        Theme::Light => &LIGHT,
+        Theme::HighContrast => &HIGH_CONTRAST,
+    }.get_or_init(|| colors_for(theme))
 }
 
 #[cfg(test)]

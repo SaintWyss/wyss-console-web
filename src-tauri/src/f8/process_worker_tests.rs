@@ -435,10 +435,19 @@ fn a_frame_that_arrives_in_pieces_is_delivered_once_and_only_when_complete() {
 
 #[test]
 fn a_child_flooding_both_pipes_with_a_slow_reader_still_takes_control_and_stops() {
-    let mut w = worker(
-        "(while :; do head -c 65536 /dev/zero >&2; done) & \
-         yes \"$(head -c 3000 /dev/zero | tr '\\0' b)\"",
-    );
+    // Alternate bursts using shell builtins only. DirectChildOnly owns this one process
+    // and starts it in its own session, so saturation cannot strand a background writer.
+    let mut command = Command::new("/bin/sh");
+    command
+        .args([
+            "-c",
+            "while :; do printf '%s\\n' \"$1\"; printf '%s' \"$2\" >&2; done",
+            "flood",
+        ])
+        .arg("b".repeat(3000))
+        .arg("e".repeat(65_536));
+    let mut w = ProcessWorker::spawn(&mut command, quick()).unwrap();
+    let pgid = w.child.pid_for_diagnostics();
     let mut frames = 0;
     for _ in 0..40 {
         // A reader much slower than the child: the pipes stay full between polls.
@@ -458,4 +467,9 @@ fn a_child_flooding_both_pipes_with_a_slow_reader_still_takes_control_and_stops(
     assert!(w.largest_read <= PROVIDER_SCRATCH);
     // Stop is still served while both pipes are saturated.
     finish(&mut w);
+    assert_eq!(
+        nix::sys::signal::kill(nix::unistd::Pid::from_raw(-pgid), None),
+        Err(nix::errno::Errno::ESRCH),
+        "the fixture's process group is gone after reap"
+    );
 }

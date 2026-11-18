@@ -5,8 +5,7 @@
 //! there are none), closing a pane closes its terminal in the host, and closing the window only
 //! disconnects. `GTKTERM_EXIT_AFTER=<seconds>` closes the window by itself. The theme (dark, light, high
 //! contrast) and the language (English, Spanish) come from the Console's `preferences.json`.
-//! `WYSS_TAURI_BIN` is the app the rail icons start; `GTKTERM_LAYOUT_DEMO=split` splits the first
-//! tab and opens a second one (for screenshots).
+
 
 mod arsenal;
 mod credentials;
@@ -29,6 +28,7 @@ mod procinfo;
 mod pty;
 mod search;
 mod selection;
+mod settings;
 mod term;
 mod theme;
 mod view;
@@ -40,10 +40,6 @@ use gtk::prelude::*;
 use gtk::{gio, glib};
 
 fn main() -> glib::ExitCode {
-    // The theme and the language are the Console's own preferences, read once when the window starts.
-    let prefs = prefs::load();
-    theme::set(prefs.theme);
-    i18n::set(prefs.language);
     let tabs: usize = std::env::args().nth(1).and_then(|a| a.parse().ok()).unwrap_or(1).max(1);
     let app = gtk::Application::builder()
         .application_id("dev.wyss.ProtoTerm")

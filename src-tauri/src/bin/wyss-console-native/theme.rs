@@ -3,7 +3,6 @@
 //! named color (`@define-color`) written in front of `theme.css`. A test reads `src/app.css` and
 //! fails when a token here differs from the Console's.
 
-use std::sync::OnceLock;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Theme {
@@ -14,6 +13,7 @@ pub enum Theme {
 
 impl Theme {
     /// The `interface.theme` word of `preferences.json`.
+    #[cfg(test)]
     pub fn from_word(word: &str) -> Option<Theme> {
         match word {
             "dark" => Some(Theme::Dark),
@@ -85,16 +85,16 @@ pub fn defines(theme: Theme) -> String {
     TOKENS.iter().map(|(name, v)| format!("@define-color {} {};\n", name.replace('-', "_"), v[theme.column()])).collect()
 }
 
-static CURRENT: OnceLock<Theme> = OnceLock::new();
+thread_local! {
+    static CURRENT: std::cell::Cell<Theme> = const { std::cell::Cell::new(Theme::Dark) };
+}
 
-/// Fixes the theme for the life of the process (the first call wins): it is read from the
-/// preferences when the window starts, so changing the file and reopening changes it.
 pub fn set(theme: Theme) {
-    let _ = CURRENT.set(theme);
+    CURRENT.set(theme);
 }
 
 pub fn current() -> Theme {
-    CURRENT.get().copied().unwrap_or(Theme::Dark)
+    CURRENT.get()
 }
 
 #[cfg(test)]

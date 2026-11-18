@@ -11,9 +11,7 @@ pub enum Icon {
     Terminal,
     Sliders,
     Palette,
-    Activity,
     Settings,
-    More,
     Folder,
     SplitRow,
     SplitCol,
@@ -41,7 +39,7 @@ fn slider(b: &gsk::PathBuilder, y: f32, knob: f32, k: f32) {
 /// (stroked path, dots to fill) for an icon on the 24-unit grid scaled by `k`.
 fn paths(icon: Icon, k: f32) -> (gsk::Path, Option<gsk::Path>) {
     let b = gsk::PathBuilder::new();
-    let mut dots: Option<gsk::PathBuilder> = None;
+    let mut dots = None;
     match icon {
         Icon::Terminal => {
             line(&b, &[(5.0, 7.0), (10.5, 12.0), (5.0, 17.0)], k);
@@ -61,14 +59,6 @@ fn paths(icon: Icon, k: f32) -> (gsk::Path, Option<gsk::Path>) {
             let d = gsk::PathBuilder::new();
             for (x, y) in [(8.0, 10.5), (12.0, 7.5), (16.0, 10.5), (8.5, 15.0)] {
                 d.add_circle(&graphene::Point::new(x * k, y * k), 1.1 * k);
-            }
-            dots = Some(d);
-        }
-        Icon::Activity => line(&b, &[(3.0, 12.0), (7.0, 12.0), (10.0, 4.5), (14.0, 19.5), (17.0, 12.0), (21.0, 12.0)], k),
-        Icon::More => {
-            let d = gsk::PathBuilder::new();
-            for x in [5.0, 12.0, 19.0] {
-                d.add_circle(&graphene::Point::new(x * k, 12.0 * k), 1.5 * k);
             }
             dots = Some(d);
         }

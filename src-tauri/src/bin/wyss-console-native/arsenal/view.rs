@@ -394,16 +394,10 @@ impl Browser {
         timing("ars:presets", started);
     }
 
-    fn show_config(&self, title: &str, indices: &[usize], hook: bool) {
+    fn show_config(&self, title: &str, indices: &[usize]) {
         let started = Instant::now();
         let Some(right) = self.replace() else { return };
         heading(&right, title, indices.len());
-        if hook {
-            let add = button(t!("Add a hook"), "action");
-            add.set_halign(gtk::Align::Start);
-            add.connect_clicked(|_| crate::console::launch_tauri());
-            right.append(&add);
-        }
         let table = vertical(0);
         for index in indices {
             let item = &self.data.config[*index];
@@ -719,7 +713,7 @@ fn tree(parent: &gtk::Box, browser: &Browser, preset: Option<&str>) -> Browse {
                 let title = tr(config::event_title(event));
                 leaf(&hooks, &title, rows.len(), browser, {
                     let title = title.clone();
-                    move |browser| browser.show_config(&title, &rows, true)
+                    move |browser| browser.show_config(&title, &rows)
                 });
             }
         }
@@ -729,7 +723,7 @@ fn tree(parent: &gtk::Box, browser: &Browser, preset: Option<&str>) -> Browse {
         ] {
             if count != 0 || provider == "opencode" {
                 leaf(&kinds, &tr(key), count, browser, move |browser| {
-                    browser.show_config(&tr(key), &rows, false)
+                    browser.show_config(&tr(key), &rows)
                 });
             }
         }

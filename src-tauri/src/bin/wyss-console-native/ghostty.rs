@@ -16,6 +16,8 @@ const OPT_WRITE_PTY: c_int = 1;
 const OPT_COLOR_FOREGROUND: c_int = 11;
 const OPT_COLOR_BACKGROUND: c_int = 12;
 const OPT_COLOR_PALETTE: c_int = 14;
+const OPT_DEFAULT_CURSOR_STYLE: c_int = 22;
+const OPT_DEFAULT_CURSOR_BLINK: c_int = 23;
 const OPT_SCROLLBACK_MAX_LINES: c_int = 28;
 const TDATA_VIEWPORT_ACTIVE: c_int = 32;
 const TDATA_MODE: c_int = 37;
@@ -221,9 +223,33 @@ impl Terminal {
         unsafe {
             ghostty_terminal_set(raw, OPT_USERDATA, &mut *ctx as *mut ReplyCtx as *const c_void);
             ghostty_terminal_set(raw, OPT_WRITE_PTY, write_pty_trampoline as *const c_void);
-            ghostty_terminal_set(raw, OPT_SCROLLBACK_MAX_LINES, &scrollback_lines as *const usize as *const c_void);
         }
-        Terminal { raw, _ctx: ctx }
+        let mut term = Terminal { raw, _ctx: ctx };
+        term.set_scrollback(scrollback_lines);
+        term
+    }
+
+    pub fn set_scrollback(&mut self, lines: usize) {
+        unsafe { ghostty_terminal_set(self.raw, OPT_SCROLLBACK_MAX_LINES, (&raw const lines).cast()) };
+    }
+
+    pub fn set_cursor(&mut self, style: wyss_console::settings::CursorStyle, blink: bool) {
+        use wyss_console::settings::CursorStyle::*;
+        let shape: c_int = match style {
+            Bar => 0,
+            Block => 1,
+            Underline => 2,
+        };
+        unsafe {
+            ghostty_terminal_set(self.raw, OPT_DEFAULT_CURSOR_STYLE, (&raw const shape).cast());
+            ghostty_terminal_set(self.raw, OPT_DEFAULT_CURSOR_BLINK, (&raw const blink).cast());
+        }
+        // Apply the new default to the current screen as well. Programs may still choose a cursor.
+        self.reset_cursor();
+    }
+
+    fn reset_cursor(&mut self) {
+        self.write(b"\x1b[0 q");
     }
 
     pub fn set_colors(&mut self, fg: Rgb, bg: Rgb, palette: &[Rgb; 256]) {
@@ -436,6 +462,7 @@ pub struct Cursor {
     /// Column/row in the viewport, if the cursor is inside it.
     pub pos: Option<(u16, u16)>,
     pub visible: bool,
+    pub blinking: bool,
     pub style: CursorStyle,
     /// The cursor sits on the second cell of a wide character.
     pub wide_tail: bool,
@@ -557,6 +584,7 @@ impl RenderState {
         Cursor {
             pos: c.viewport_has_value.then_some((c.viewport_x, c.viewport_y)),
             visible: c.visible,
+            blinking: c.blinking,
             style: match c.visual_style {
                 0 => CursorStyle::Bar,
                 2 => CursorStyle::Underline,
@@ -680,6 +708,45 @@ mod tests {
     use std::sync::{Arc, Mutex};
 
     /// Sizes the C headers report (abi/check-abi.sh checks the same numbers against the headers).
+    #[test]
+    fn scrollback_and_cursor_preferences_apply_to_new_and_running_vt_state() {
+        use wyss_console::settings::{CursorStyle as Preference, Preferences};
+
+        let prefs = Preferences::default().terminal;
+        let mut term = Terminal::new(80, 24, prefs.scrollback as usize, Box::new(|_| {}));
+        let mut render = RenderState::new();
+        let configured_history = |term: &Terminal| {
+            let mut lines = 0usize;
+            // GHOSTTY_TERMINAL_DATA_SCROLLBACK_MAX_LINES returns a size_t.
+            assert_eq!(unsafe { ghostty_terminal_get(term.raw, 35, (&raw mut lines).cast()) }, SUCCESS);
+            lines
+        };
+        term.set_cursor(prefs.cursor_style, prefs.cursor_blink);
+        render.update(&term);
+        assert_eq!(configured_history(&term), 5000);
+        assert_eq!(render.cursor().style, CursorStyle::Block);
+        assert!(!render.cursor().blinking);
+
+        term.write(b"kept on screen");
+        term.set_scrollback(2000);
+        term.set_cursor(Preference::Underline, true);
+        render.update(&term);
+        assert_eq!(configured_history(&term), 2000);
+        assert_eq!(render.cursor().style, CursorStyle::Underline);
+        assert!(render.cursor().blinking);
+        let mut text = String::new();
+        render.for_rows(true, |row, cells| {
+            if row == 0 {
+                text.extend(cells.iter().map(|cell| cell.text()));
+            }
+        });
+        assert!(text.starts_with("kept on screen"));
+        term.set_cursor(Preference::Bar, false);
+        render.update(&term);
+        assert_eq!(render.cursor().style, CursorStyle::Bar);
+        assert!(!render.cursor().blinking);
+    }
+
     #[test]
     fn ffi_struct_sizes_match_libghostty_1_4() {
         use std::mem::{offset_of, size_of};

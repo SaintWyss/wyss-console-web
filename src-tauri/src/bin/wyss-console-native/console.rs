@@ -16,7 +16,8 @@ use crate::keymap::{self, Action, Focus};
 use crate::layout::{self, Dir, Node, SavedLayout, SavedTab};
 use crate::procinfo::{self, Git};
 use crate::term;
-use crate::{launches, native, search, t, theme};
+use crate::{launches, native, search, settings, t, theme};
+use wyss_console::settings::{Preferences, SettingsService};
 
 const THEME: &str = include_str!("theme.css");
 /// Set (`GTKTERM_DEMO=launch-menu,search:text,stop`) to open the menu, search, or stop the first agent
@@ -132,6 +133,7 @@ struct Ui {
     home: Option<String>,
     refreshing: Cell<bool>,
     save_pending: Cell<bool>,
+    terminal_preferences: Cell<wyss_console::settings::Terminal>,
 }
 
 thread_local! {
@@ -156,25 +158,6 @@ fn label(text: &str, class: &str) -> gtk::Label {
     l
 }
 
-fn tauri_bin() -> String {
-    std::env::var("WYSS_TAURI_BIN").ok().filter(|v| !v.is_empty()).unwrap_or_else(|| format!("{}/.local/opt/wyss-console/bin/wyss-console", std::env::var("HOME").unwrap_or_default()))
-}
-
-/// Starts the Tauri app as a process of its own and does not wait for it.
-pub(crate) fn launch_tauri() {
-    use std::os::unix::process::CommandExt;
-    let bin = tauri_bin();
-    match std::process::Command::new(&bin).stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null()).process_group(0).spawn() {
-        Ok(mut child) => {
-            // Reaped in the background so it never lingers as a zombie.
-            std::thread::spawn(move || {
-                let _ = child.wait();
-            });
-        }
-        Err(e) => eprintln!("gtk-term: cannot start {bin}: {e}"),
-    }
-}
-
 impl Ui {
     // ---- panes ----------------------------------------------------------------------------
 
@@ -183,7 +166,7 @@ impl Ui {
         self.next_id.set(id + 1);
         let key = tid.clone().unwrap_or_else(|| format!("local-{id}"));
         let weak = Rc::downgrade(self);
-        let t = term::Terminal::new(id, source, move || {
+        let t = term::Terminal::new(id, source, self.terminal_preferences.get(), move || {
             if let Some(ui) = weak.upgrade() {
                 ui.on_exit(id);
             }
@@ -1235,13 +1218,23 @@ fn shortcuts_popover(anchor: &gtk::Button) -> gtk::Popover {
     pop
 }
 
+fn apply_theme(provider: &gtk::CssProvider, next: theme::Theme) {
+    theme::set(next);
+    if let Some(settings) = gtk::Settings::default() {
+        settings.set_gtk_application_prefer_dark_theme(next.prefers_dark());
+    }
+    provider.load_from_string(&format!("{}{THEME}{}{}{}{}", theme::defines(next), crate::workspace::CSS, crate::distributors::CSS, crate::arsenal::CSS, crate::credentials::CSS));
+}
+
 pub fn build(app: &gtk::Application, cfg: Config) -> gtk::ApplicationWindow {
+    let service = SettingsService::from_environment();
+    let preferences = service.read().preferences;
+    crate::i18n::set(settings::language(preferences));
     if let Some(settings) = gtk::Settings::default() {
         settings.set_gtk_theme_name(Some("Default"));
-        settings.set_gtk_application_prefer_dark_theme(theme::current().prefers_dark());
     }
     let provider = gtk::CssProvider::new();
-    provider.load_from_string(&format!("{}{THEME}{}{}{}{}", theme::defines(theme::current()), crate::workspace::CSS, crate::distributors::CSS, crate::arsenal::CSS, crate::credentials::CSS));
+    apply_theme(&provider, settings::appearance(preferences));
     if let Some(display) = gdk::Display::default() {
         gtk::style_context_add_provider_for_display(&display, &provider, gtk::STYLE_PROVIDER_PRIORITY_USER + 1);
     }
@@ -1257,20 +1250,8 @@ pub fn build(app: &gtk::Application, cfg: Config) -> gtk::ApplicationWindow {
     rail.append(&workspace_row);
     let (personal_row, personal_button) = rail_button(Icon::Palette, &tr("Personalization"), false);
     rail.append(&personal_row);
-    for (icon, tip) in [
-        (Icon::Activity, t!("Activity")),
-        (Icon::Settings, t!("Settings")),
-    ] {
-        let (row, button) = rail_button(icon, &tr(tip), false);
-        button.connect_clicked(|_| launch_tauri());
-        rail.append(&row);
-    }
-    let spacer = gtk::Box::new(gtk::Orientation::Vertical, 0);
-    spacer.set_vexpand(true);
-    rail.append(&spacer);
-    let (more_row, more) = rail_button(Icon::More, &tr("More"), false);
-    more.connect_clicked(|_| launch_tauri());
-    rail.append(&more_row);
+    let (settings_row, settings_button) = rail_button(Icon::Settings, &tr("Settings"), false);
+    rail.append(&settings_row);
 
     // Tab bar.
     let tab_strip = gtk::Box::new(gtk::Orientation::Horizontal, 0);
@@ -1375,6 +1356,7 @@ pub fn build(app: &gtk::Application, cfg: Config) -> gtk::ApplicationWindow {
         home: std::env::var("HOME").ok(),
         refreshing: Cell::new(false),
         save_pending: Cell::new(false),
+        terminal_preferences: Cell::new(preferences.terminal),
     });
     UI.with(|u| *u.borrow_mut() = Some(ui.clone()));
 
@@ -1420,6 +1402,7 @@ pub fn build(app: &gtk::Application, cfg: Config) -> gtk::ApplicationWindow {
         let console_row = console_row.downgrade();
         let workspace_row = workspace_row.downgrade();
         let personal_row = personal_row.downgrade();
+        let settings_row = settings_row.downgrade();
         move |name: &str| {
             if let Some(screens) = screens.upgrade() {
                 screens.set_visible_child_name(name);
@@ -1428,6 +1411,7 @@ pub fn build(app: &gtk::Application, cfg: Config) -> gtk::ApplicationWindow {
                 (console_row.upgrade(), name == "console"),
                 (workspace_row.upgrade(), name == "workspace"),
                 (personal_row.upgrade(), name == "personalization"),
+                (settings_row.upgrade(), name == "settings"),
             ] {
                 if let Some(row) = row {
                     for child in [row.first_child(), row.last_child()].into_iter().flatten() {
@@ -1440,6 +1424,32 @@ pub fn build(app: &gtk::Application, cfg: Config) -> gtk::ApplicationWindow {
     console_button.connect_clicked({
         let show_screen = show_screen.clone();
         move |_| show_screen("console")
+    });
+    let (settings_page, landing) = settings::build(&win, service, cfg.host.clone(), {
+        let ui = Rc::downgrade(&ui);
+        move |preferences: Preferences| {
+            let Some(ui) = ui.upgrade() else { return };
+            let next = settings::appearance(preferences);
+            let theme_changed = next != theme::current();
+            if theme_changed {
+                apply_theme(&provider, next);
+            }
+            ui.terminal_preferences.set(preferences.terminal);
+            for pane in ui.panes.borrow().values() {
+                pane.term.apply_preferences(preferences.terminal, theme_changed);
+            }
+        }
+    });
+    screens.add_named(&settings_page, Some("settings"));
+    settings_button.connect_clicked({
+        let show_screen = show_screen.clone();
+        let ui = Rc::downgrade(&ui);
+        move |_| {
+            if let Some(ui) = ui.upgrade() {
+                ui.hide_launches();
+                show_screen("settings");
+            }
+        }
     });
     let open_workspace = {
         let ui = Rc::downgrade(&ui);
@@ -1540,6 +1550,7 @@ pub fn build(app: &gtk::Application, cfg: Config) -> gtk::ApplicationWindow {
         }
     });
     arsenal_tab.connect_toggled({
+        let open_workspace = open_workspace.clone();
         let pages = pages.downgrade();
         move |tab| {
             if !tab.is_active() { return; }
@@ -1572,6 +1583,7 @@ pub fn build(app: &gtk::Application, cfg: Config) -> gtk::ApplicationWindow {
     });
     personal_button.connect_clicked({
         let personal = personal.downgrade();
+        let show_screen = show_screen.clone();
         move |_| {
             if let Some(ui) = UI.with(|ui| ui.borrow().clone()) { ui.hide_launches(); }
             if let Some(personal) = personal.upgrade()
@@ -1604,7 +1616,7 @@ pub fn build(app: &gtk::Application, cfg: Config) -> gtk::ApplicationWindow {
                 let (restored, next) = layout::restore(saved.as_ref(), &alive);
                 ui.next_n.set(next);
                 for id in alive {
-                    let a = match h.screen(&id, 500) {
+                    let a = match h.screen(&id, term::attach_scrollback(preferences.terminal.scrollback)) {
                         Ok(Some(s)) => term::Attach::Screen(s),
                         _ => term::Attach::Replay,
                     };
@@ -1688,6 +1700,11 @@ pub fn build(app: &gtk::Application, cfg: Config) -> gtk::ApplicationWindow {
         ui.split(Dir::Row);
         ui.new_tab();
         ui.select(0);
+    }
+    match landing {
+        settings::Landing::Console => {}
+        settings::Landing::Workspace => open_workspace(None),
+        settings::Landing::Personalization => personal_button.emit_clicked(),
     }
     win.present();
     ui.refresh_soon();

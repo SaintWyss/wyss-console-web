@@ -6,7 +6,7 @@ use std::cell::{Cell as StdCell, RefCell};
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::rc::Rc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{mpsc, Arc, Mutex, MutexGuard};
 use std::time::Duration;
 
@@ -22,15 +22,16 @@ use crate::selection::{self, Mode, Pos, Selection};
 use crate::view::TermView;
 
 /// IBM Plex Mono when installed (the Console's font); pango falls back to the system monospace.
-const FONT: &str = "IBM Plex Mono, Monospace 11";
+const FONT: &str = "IBM Plex Mono, Monospace";
 const PAD: f32 = 4.0;
-const SCROLLBACK_LINES: usize = 10_000;
 const READ_BLOCK: usize = 256 * 1024;
 const WHEEL_LINES: f64 = 3.0;
 /// How long a host read waits for new output before answering empty.
 const LONG_POLL_MS: u64 = 1000;
-/// Lines of history asked for when attaching to a terminal that was already running.
-const ATTACH_SCROLLBACK: u32 = 500;
+/// The host caps the history included in a screen snapshot at 1000 lines.
+pub fn attach_scrollback(lines: u32) -> u32 {
+    lines.min(1000)
+}
 
 thread_local! {
     /// Widgets by id, reachable from the PTY thread through `MainContext::invoke`.
@@ -46,6 +47,7 @@ struct Shared {
     next: Mutex<()>,
     /// A redraw is already requested and not yet painted.
     pending: AtomicBool,
+    scrollback: AtomicU32,
 }
 
 impl Shared {
@@ -164,7 +166,7 @@ fn host_reader(host: Host, tid: String, mut from: u64, shared: Arc<Shared>, id: 
                 failures = 0;
                 if r.truncated {
                     // The host's ring moved past what was read: draw its screen again and go on from there.
-                    if let Ok(Some(s)) = host.screen(&tid, ATTACH_SCROLLBACK) {
+                    if let Ok(Some(s)) = host.screen(&tid, attach_scrollback(shared.scrollback.load(Ordering::Relaxed))) {
                         resyncs += 1;
                         quiet.store(true, Ordering::Release);
                         {
@@ -252,6 +254,9 @@ struct Frame {
 }
 
 struct State {
+    preferences: StdCell<wyss_console::settings::Terminal>,
+    blink_visible: StdCell<bool>,
+    cursor_blinks: StdCell<bool>,
     shared: Arc<Shared>,
     pty: Option<Pty>,
     input: Input,
@@ -309,7 +314,7 @@ impl State {
 }
 
 impl Terminal {
-    pub fn new(id: u64, source: Source, on_exit: impl Fn() + 'static) -> Terminal {
+    pub fn new(id: u64, source: Source, preferences: wyss_console::settings::Terminal, on_exit: impl Fn() + 'static) -> Terminal {
         let (mut cols, mut lines) = (80usize, 24usize);
         let quiet = Arc::new(AtomicBool::new(false));
         let (pty, input, reader, host_part) = match source {
@@ -338,7 +343,7 @@ impl Terminal {
         let mut term = ghostty::Terminal::new(
             cols as u16,
             lines as u16,
-            SCROLLBACK_LINES,
+            preferences.scrollback as usize,
             Box::new(move |bytes| {
                 if !reply_quiet.load(Ordering::Acquire) {
                     reply_to.send(bytes);
@@ -347,7 +352,13 @@ impl Terminal {
         );
         let c = palette::colors();
         term.set_colors(c.fg, c.bg, &c.table);
-        let shared = Arc::new(Shared { term: Mutex::new(term), next: Mutex::new(()), pending: AtomicBool::new(false) });
+        term.set_cursor(preferences.cursor_style, preferences.cursor_blink);
+        let shared = Arc::new(Shared {
+            term: Mutex::new(term),
+            next: Mutex::new(()),
+            pending: AtomicBool::new(false),
+            scrollback: AtomicU32::new(preferences.scrollback),
+        });
 
         // Reader thread: big blocks from the PTY straight into the interpreter.
         if let Some(reader) = reader {
@@ -398,6 +409,9 @@ impl Terminal {
         let local_pid = pty.as_ref().map(|p| p.pid() as u32);
         let state = Rc::new(State {
             shared: shared.clone(),
+            preferences: StdCell::new(preferences),
+            blink_visible: StdCell::new(true),
+            cursor_blinks: StdCell::new(false),
             pty,
             input,
             cell_w: StdCell::new(8.0),
@@ -426,6 +440,22 @@ impl Terminal {
             )
         };
         measure_font(&area, &state);
+        {
+            let state = Rc::downgrade(&state);
+            let area = area.downgrade();
+            glib::timeout_add_local(Duration::from_millis(500), move || {
+                let (Some(state), Some(area)) = (state.upgrade(), area.upgrade()) else {
+                    return glib::ControlFlow::Break;
+                };
+                if area.is_mapped() && state.cursor_blinks.get() {
+                    state.blink_visible.set(!state.blink_visible.get());
+                    area.queue_draw();
+                } else {
+                    state.blink_visible.set(true);
+                }
+                glib::ControlFlow::Continue
+            });
+        }
         *state.pango.borrow_mut() = Some(area.pango_context());
 
         VIEWS.with(|v| v.borrow_mut().insert(id, area.downgrade()));
@@ -600,6 +630,40 @@ impl Terminal {
         Terminal { widget: area, local_pid, state }
     }
 
+    pub fn apply_preferences(&self, preferences: wyss_console::settings::Terminal, theme_changed: bool) {
+        let state = &self.state;
+        let previous = state.preferences.replace(preferences);
+        if previous == preferences && !theme_changed {
+            return;
+        }
+        {
+            let mut term = state.shared.lock();
+            if previous.scrollback != preferences.scrollback {
+                term.set_scrollback(preferences.scrollback as usize);
+                state.shared.scrollback.store(preferences.scrollback, Ordering::Relaxed);
+            }
+            if previous.cursor_style != preferences.cursor_style || previous.cursor_blink != preferences.cursor_blink {
+                term.set_cursor(preferences.cursor_style, preferences.cursor_blink);
+                state.blink_visible.set(true);
+            }
+            if theme_changed {
+                let c = palette::colors();
+                term.set_colors(c.fg, c.bg, &c.table);
+            }
+        }
+        if previous.font_size != preferences.font_size {
+            measure_font(&self.widget, state);
+            if self.widget.width() > 0 && self.widget.height() > 0 {
+                resize(state, self.widget.width(), self.widget.height());
+            }
+        }
+        if theme_changed || previous.font_size != preferences.font_size {
+            // Force a complete capture and rebuild of the cached GSK rows.
+            state.frame.borrow_mut().size = (0, 0);
+        }
+        self.widget.queue_draw();
+    }
+
     /// Sets what the pane searches for (an empty text clears the search), jumps to the newest match
     /// and returns `(matches, selected)`; `selected` counts from the newest, which is 0.
     pub fn find_set(&self, needle: &str) -> (usize, Option<usize>) {
@@ -649,19 +713,21 @@ impl Terminal {
     }
 }
 
-fn font_desc() -> pango::FontDescription {
-    pango::FontDescription::from_string(FONT)
+fn font_desc(size: u8) -> pango::FontDescription {
+    let mut font = pango::FontDescription::from_string(FONT);
+    font.set_absolute_size(f64::from(size) * f64::from(pango::SCALE));
+    font
 }
 
 fn measure_font(area: &TermView, state: &State) {
     let ctx = area.pango_context();
-    let metrics = ctx.metrics(Some(&font_desc()), None);
+    let metrics = ctx.metrics(Some(&font_desc(state.preferences.get().font_size)), None);
     let scale = pango::SCALE as f64;
     // The advance of a glyph, exact: `approximate_digit_width` is rounded to whole pixels (9 for 8.8), and
     // a grid wider than the text drifts away from it (selection, cursor and search highlights land
     // up to a cell off at the end of a line).
     let probe = pango::Layout::new(&ctx);
-    probe.set_font_description(Some(&font_desc()));
+    probe.set_font_description(Some(&font_desc(state.preferences.get().font_size)));
     probe.set_text(&"0".repeat(100));
     let advance = probe.size().0 as f64 / scale / 100.0;
     state.cell_w.set(if advance > 1.0 { advance } else { metrics.approximate_digit_width() as f64 / scale });
@@ -885,7 +951,7 @@ fn draw(snap: &gtk::Snapshot, state: &State, w: f32, h: f32) {
     let sel_changed = *painted != new_sel;
     let covers = |b: &Option<(Pos, Pos)>, r: usize| b.is_some_and(|(a, z)| r >= a.row && r <= z.row);
     if let Some(ctx) = state.pango.borrow().clone() {
-        let font = font_desc();
+        let font = font_desc(state.preferences.get().font_size);
         for y in 0..rows.len() {
             if dirty[y] || (sel_changed && (covers(painted, y) || covers(&new_sel, y))) {
                 let cols = new_sel.and_then(|(a, z)| selection::row_range(a, z, y, grid[y].len()));
@@ -926,7 +992,8 @@ fn draw(snap: &gtk::Snapshot, state: &State, w: f32, h: f32) {
 
     // Cursor, in the style the application asked for.
     let cur = rs.cursor();
-    if let (true, Some((cx, cy))) = (cur.visible, cur.pos) {
+    state.cursor_blinks.set(cur.visible && cur.pos.is_some() && cur.blinking);
+    if let (true, Some((cx, cy))) = (cur.visible && (!cur.blinking || state.blink_visible.get()), cur.pos) {
         let (cx, span) = if cur.wide_tail { (cx.saturating_sub(1), 2.0) } else { (cx, 1.0) };
         let (x, y, cwid) = (PAD + cx as f32 * cw, PAD + cy as f32 * ch, cw * span);
         let col = gdk::RGBA::new(pal.cursor[0], pal.cursor[1], pal.cursor[2], pal.cursor[3]);
@@ -940,6 +1007,20 @@ fn draw(snap: &gtk::Snapshot, state: &State, w: f32, h: f32) {
                 snap.append_color(&col, &graphene::Rect::new(x, y, 1.0, ch));
                 snap.append_color(&col, &graphene::Rect::new(x + cwid - 1.0, y, 1.0, ch));
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn font_size_is_applied_as_absolute_pixels() {
+        for size in [10, 16, 24] {
+            let font = font_desc(size);
+            assert!(font.is_size_absolute());
+            assert_eq!(font.size(), i32::from(size) * pango::SCALE);
         }
     }
 }
