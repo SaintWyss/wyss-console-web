@@ -161,7 +161,7 @@ fn tauri_bin() -> String {
 }
 
 /// Starts the Tauri app as a process of its own and does not wait for it.
-fn launch_tauri() {
+pub(crate) fn launch_tauri() {
     use std::os::unix::process::CommandExt;
     let bin = tauri_bin();
     match std::process::Command::new(&bin).stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null()).process_group(0).spawn() {
@@ -1015,6 +1015,32 @@ impl Ui {
         });
     }
 
+    fn run_distributor(self: &Rc<Self>, title: &str, cwd: &str, command: &str) {
+        let Some(host) = self.host.clone() else {
+            self.banner(&native::failure_text("host_unavailable"), true);
+            return;
+        };
+        if self.opening.replace(true) { return; }
+        self.banner("", false);
+        let (title, cwd, command) = (title.to_owned(), cwd.to_owned(), command.to_owned());
+        std::thread::spawn(move || {
+            let result = (|| {
+                let (rows, cols) = native::FIRST_SIZE;
+                let id = host.create_in(rows, cols, Some(&cwd), Some(&title))?;
+                if let Err(error) = host.write(&id, &launches::typed(&[command])) {
+                    let _ = host.close(&id);
+                    return Err(native::Refusal::from(error));
+                }
+                Ok(native::Opened::Terminal { terminal_id: id, title })
+            })();
+            glib::MainContext::default().invoke(move || {
+                UI.with(|ui| {
+                    if let Some(ui) = ui.borrow().clone() { ui.opened(result); }
+                });
+            });
+        });
+    }
+
     fn opened(self: &Rc<Self>, result: Result<native::Opened, native::Refusal>) {
         self.opening.set(false);
         match result {
@@ -1215,7 +1241,7 @@ pub fn build(app: &gtk::Application, cfg: Config) -> gtk::ApplicationWindow {
         settings.set_gtk_application_prefer_dark_theme(theme::current().prefers_dark());
     }
     let provider = gtk::CssProvider::new();
-    provider.load_from_string(&format!("{}{THEME}{}", theme::defines(theme::current()), crate::workspace::CSS));
+    provider.load_from_string(&format!("{}{THEME}{}{}{}{}", theme::defines(theme::current()), crate::workspace::CSS, crate::distributors::CSS, crate::arsenal::CSS, crate::credentials::CSS));
     if let Some(display) = gdk::Display::default() {
         gtk::style_context_add_provider_for_display(&display, &provider, gtk::STYLE_PROVIDER_PRIORITY_USER + 1);
     }
@@ -1229,8 +1255,9 @@ pub fn build(app: &gtk::Application, cfg: Config) -> gtk::ApplicationWindow {
     let (workspace_row, workspace_button) = rail_button(Icon::Sliders, &tr("Workspace"), false);
     rail.append(&console_row);
     rail.append(&workspace_row);
+    let (personal_row, personal_button) = rail_button(Icon::Palette, &tr("Personalization"), false);
+    rail.append(&personal_row);
     for (icon, tip) in [
-        (Icon::Palette, t!("Personalization")),
         (Icon::Activity, t!("Activity")),
         (Icon::Settings, t!("Settings")),
     ] {
@@ -1392,6 +1419,7 @@ pub fn build(app: &gtk::Application, cfg: Config) -> gtk::ApplicationWindow {
         let screens = screens.downgrade();
         let console_row = console_row.downgrade();
         let workspace_row = workspace_row.downgrade();
+        let personal_row = personal_row.downgrade();
         move |name: &str| {
             if let Some(screens) = screens.upgrade() {
                 screens.set_visible_child_name(name);
@@ -1399,6 +1427,7 @@ pub fn build(app: &gtk::Application, cfg: Config) -> gtk::ApplicationWindow {
             for (row, active) in [
                 (console_row.upgrade(), name == "console"),
                 (workspace_row.upgrade(), name == "workspace"),
+                (personal_row.upgrade(), name == "personalization"),
             ] {
                 if let Some(row) = row {
                     for child in [row.first_child(), row.last_child()].into_iter().flatten() {
@@ -1412,11 +1441,12 @@ pub fn build(app: &gtk::Application, cfg: Config) -> gtk::ApplicationWindow {
         let show_screen = show_screen.clone();
         move |_| show_screen("console")
     });
-    workspace_button.connect_clicked({
+    let open_workspace = {
         let ui = Rc::downgrade(&ui);
         let screens = screens.downgrade();
         let window = win.downgrade();
-        move |_| {
+        let show_screen = show_screen.clone();
+        move |target: Option<(&str, &str)>| {
             let (Some(ui), Some(screens), Some(window)) = (ui.upgrade(), screens.upgrade(), window.upgrade()) else { return };
             ui.hide_launches();
             if screens.child_by_name("workspace").is_none() {
@@ -1430,13 +1460,134 @@ pub fn build(app: &gtk::Application, cfg: Config) -> gtk::ApplicationWindow {
                         }
                     }) as Rc<dyn Fn(&str)>
                 });
-                let recent = ui.host.as_ref()
-                    .and_then(|host| native::launcher(host).ok())
-                    .map(|launcher| launcher.projects)
-                    .unwrap_or_default();
+                // Keep the existing recent-project path for the Workspace rail.
+                // Cross-links already have the launch ID and need no launcher request.
+                let recent = if target.is_none() {
+                    ui.host.as_ref().and_then(|host| native::launcher(host).ok())
+                        .map(|launcher| launcher.projects).unwrap_or_default()
+                } else {
+                    Vec::new()
+                };
                 screens.add_named(&crate::workspace::build(&window, try_launch, recent), Some("workspace"));
+                if let Some((id, action)) = target
+                    && let Some(workspace) = screens.child_by_name("workspace")
+                {
+                    let action = if action == "workspace-route.reload-and-open" { "workspace-route.open" } else { action };
+                    let _ = workspace.activate_action(action, Some(&id.to_variant()));
+                }
+            } else if let Some((id, action)) = target
+                && let Some(workspace) = screens.child_by_name("workspace")
+            {
+                let _ = workspace.activate_action(action, Some(&id.to_variant()));
             }
             show_screen("workspace");
+        }
+    };
+    workspace_button.connect_clicked({
+        let open_workspace = open_workspace.clone();
+        move |_| open_workspace(None)
+    });
+    let personal = crate::personalization::horizontal(0);
+    let rail = crate::personalization::vertical(2);
+    rail.add_css_class("personal-rail");
+    let pages = gtk::Stack::builder().hexpand(true).vexpand(true).build();
+    let distributors_tab = gtk::ToggleButton::new();
+    let arsenal_tab = gtk::ToggleButton::new();
+    let credentials = gtk::ToggleButton::new();
+    credentials.set_group(Some(&distributors_tab));
+    arsenal_tab.set_group(Some(&distributors_tab));
+    let captions = [
+        crate::personalization::rail_item(&distributors_tab, "package-x-generic-symbolic", t!("Distributors")),
+        crate::personalization::rail_item(&arsenal_tab, "view-list-tree-symbolic", t!("Arsenal")),
+        crate::personalization::rail_item(&credentials, "dialog-password-symbolic", t!("Credentials")),
+    ];
+    arsenal_tab.connect_toggled(move |tab| {
+        for caption in &captions {
+            caption.set_visible(!tab.is_active());
+        }
+    });
+    rail.append(&distributors_tab);
+    rail.append(&arsenal_tab);
+    rail.append(&credentials);
+    personal.append(&rail);
+    personal.append(&pages);
+    screens.add_named(&personal, Some("personalization"));
+    let run = {
+        let ui = Rc::downgrade(&ui);
+        let show_screen = show_screen.clone();
+        Rc::new(move |title: &str, cwd: &str, command: &str| {
+            if let Some(ui) = ui.upgrade() {
+                show_screen("console");
+                ui.run_distributor(title, cwd, command);
+            }
+        })
+    };
+    distributors_tab.connect_toggled({
+        let window = win.downgrade();
+        let pages = pages.downgrade();
+        let open_workspace = open_workspace.clone();
+        move |tab| {
+            if !tab.is_active() { return; }
+            let started = std::time::Instant::now();
+            let (Some(window), Some(pages)) = (window.upgrade(), pages.upgrade()) else { return };
+            let open_workspace = open_workspace.clone();
+            let edit = Rc::new(move |id: &str| open_workspace(Some((id, "workspace-route.reload-and-open"))));
+            let page = crate::distributors::build(&window, run.clone(), edit);
+            if let Some(previous) = pages.child_by_name("distributors") { pages.remove(&previous); }
+            pages.add_named(&page, Some("distributors"));
+            pages.set_visible_child(&page);
+            crate::personalization::timing("dist:open", started);
+        }
+    });
+    arsenal_tab.connect_toggled({
+        let pages = pages.downgrade();
+        move |tab| {
+            if !tab.is_active() { return; }
+            let started = std::time::Instant::now();
+            let Some(pages) = pages.upgrade() else { return };
+            let open_workspace = open_workspace.clone();
+            let create = open_workspace.clone();
+            let page = crate::arsenal::build(
+                Rc::new(move |id| open_workspace(Some((id, "workspace-route.open")))),
+                Rc::new(move |id| create(Some((id, "workspace-route.create-from-preset")))),
+            );
+            if let Some(previous) = pages.child_by_name("arsenal") { pages.remove(&previous); }
+            pages.add_named(&page, Some("arsenal"));
+            pages.set_visible_child(&page);
+            crate::personalization::timing("ars:open", started);
+        }
+    });
+    credentials.connect_toggled({
+        let pages = pages.downgrade();
+        move |tab| {
+            if !tab.is_active() {
+                return;
+            }
+            let Some(pages) = pages.upgrade() else { return };
+            if pages.child_by_name("credentials").is_none() {
+                pages.add_named(&crate::credentials::build(), Some("credentials"));
+            }
+            pages.set_visible_child_name("credentials");
+        }
+    });
+    personal_button.connect_clicked({
+        let personal = personal.downgrade();
+        move |_| {
+            if let Some(ui) = UI.with(|ui| ui.borrow().clone()) { ui.hide_launches(); }
+            if let Some(personal) = personal.upgrade()
+                && !personal.is_mapped()
+            {
+                let selected = if arsenal_tab.is_active() {
+                    &arsenal_tab
+                } else if credentials.is_active() {
+                    &credentials
+                } else {
+                    &distributors_tab
+                };
+                if selected.is_active() { selected.emit_by_name::<()>("toggled", &[]); }
+                else { selected.set_active(true); }
+            }
+            show_screen("personalization");
         }
     });
 

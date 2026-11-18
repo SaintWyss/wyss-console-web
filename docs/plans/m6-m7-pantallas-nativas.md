@@ -37,3 +37,12 @@ Al cerrar M7 ningún ícono del riel ni entrada de "Más" lanza la app Tauri.
 
 Escribir el `~/.claude`, `~/.codex`, `~/.config/wyss-console`, el vault o el llavero reales; conectarse al host real.
 Todo con `HOME`/`XDG_*` temporales bajo `~/.cache/wyss-build/`.
+
+## Estado M6 (2026-11-18)
+
+Hecho: Distribuidores, Arsenal (árbol, presets con escanear/importar/crear/borrar, hooks, configuración) y
+Credenciales en la ventana nativa; el subriel ya no abre Tauri. Referencia: capturas de la app instalada con datos
+copiados. Construido por Codex `gpt-6.2-sol` low; verificado por Opus: 128 tests nativos (incluye el vaciado del
+campo de clave por cada vía de cierre, corrido con display); el portapapeles no recibe la clave; revisión de
+seguridad independiente PASS, hallazgos medios y bajos corregidos. Pendiente para M8: la app Tauri y la nativa
+abren el mismo store con un lock por proceso; desaparece al quitar Tauri.

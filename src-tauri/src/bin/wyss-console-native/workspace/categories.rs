@@ -157,7 +157,11 @@ const RULES: &[(&str, &str, &[&str])] = &[
     ),
 ];
 pub fn category(item: &Summary) -> (&'static str, &'static str) {
-    let name = item.name.to_lowercase();
+    classify(&item.name, &item.description)
+}
+
+pub fn classify(name: &str, description: &str) -> (&'static str, &'static str) {
+    let name = name.to_lowercase();
     RULES
         .iter()
         .find(|(_, category, words)| {
@@ -168,7 +172,7 @@ pub fn category(item: &Summary) -> (&'static str, &'static str) {
                 || *category == "Building"
                     && ["implement", "build", "scaffold"]
                         .iter()
-                        .any(|word| item.description.to_lowercase().contains(word))
+                        .any(|word| description.to_lowercase().contains(word))
         })
         .map(|(section, label, _)| (*section, *label))
         .unwrap_or((t!("Own topics"), t!("Other")))

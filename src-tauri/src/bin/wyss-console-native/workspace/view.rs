@@ -550,6 +550,53 @@ impl Screen {
         }
     }
 
+    fn create_from_preset(&self, id: &str) {
+        let Some(editor) = self.editor.upgrade() else {
+            return;
+        };
+        let catalog = self.cache.borrow().catalog.clone();
+        let open = || {
+            let store = catalog.store.as_ref().ok_or("Presets could not be read.")?;
+            let selections = store
+                .selections()
+                .map_err(|_| "Presets could not be read.")?;
+            let selection = selections
+                .iter()
+                .find(|selection| selection.id == id)
+                .ok_or("That preset is no longer available. Refresh and try again.")?;
+            let mut draft = Draft::from_preset(&self.places, selection, store)?;
+            if let Ok(listing) = &self.cache.borrow().listing {
+                let used: BTreeSet<_> = listing
+                    .entries
+                    .launches
+                    .iter()
+                    .map(|launch| launch.id.as_str())
+                    .collect();
+                if used.contains(launch::slug(&draft.name).as_str()) {
+                    let stem: String = selection.name.chars().take(30).collect();
+                    for next in 2..=used.len() + 1 {
+                        let name = format!("{stem} {next}");
+                        if !used.contains(launch::slug(&name).as_str()) {
+                            draft.name = name;
+                            break;
+                        }
+                    }
+                }
+            }
+            Ok::<_, String>(draft)
+        };
+        match open() {
+            Ok(draft) => {
+                let skills = Rc::new(catalog.skills(&draft));
+                self.select(None);
+                self.message("");
+                clear(&editor);
+                agent_editor(self, &editor, Rc::new(RefCell::new(draft)), catalog, skills);
+            }
+            Err(error) => self.message(&tr(&error)),
+        }
+    }
+
     fn delete(&self, id: &str, commands: bool) {
         let Some(window) = self.window.upgrade() else {
             return;
@@ -659,6 +706,31 @@ pub fn build(
         });
         choices.append(&item);
     }
+    let routes = gio::SimpleActionGroup::new();
+    for (name, reload) in [("open", false), ("reload-and-open", true)] {
+        let action = gio::SimpleAction::new(name, Some(glib::VariantTy::STRING));
+        let screen = screen.clone();
+        action.connect_activate(move |_, parameter| {
+            if let Some(id) = parameter.and_then(glib::Variant::str) {
+                if reload {
+                    screen.reload();
+                }
+                screen.open(id);
+            }
+        });
+        routes.add_action(&action);
+    }
+    let create = gio::SimpleAction::new("create-from-preset", Some(glib::VariantTy::STRING));
+    create.connect_activate({
+        let screen = screen.clone();
+        move |_, parameter| {
+            if let Some(id) = parameter.and_then(glib::Variant::str) {
+                screen.create_from_preset(id);
+            }
+        }
+    });
+    routes.add_action(&create);
+    root.insert_action_group("workspace-route", Some(&routes));
     let screen_on_search = screen.clone();
     search.connect_search_changed(move |_| screen_on_search.refresh());
     screen.refresh();

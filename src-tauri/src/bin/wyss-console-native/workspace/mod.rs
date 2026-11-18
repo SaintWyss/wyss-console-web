@@ -1,8 +1,8 @@
-mod categories;
+pub(super) mod categories;
 mod distros;
 #[cfg(test)]
 mod markdown;
-mod model;
+pub(crate) mod model;
 mod view;
 
 pub use view::build;

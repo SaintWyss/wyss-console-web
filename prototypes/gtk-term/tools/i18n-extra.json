@@ -1,4 +1,12 @@
 {
+  "Delete this API key?": "¿Borrar esta clave de API?",
+  "Keep": "Guardar",
+  "New API key": "Nueva clave de API",
+  "Paste the key. It is never shown again.": "Pegá la clave. No se vuelve a mostrar.",
+  "Paste the new key. The old one is discarded.": "Pegá la clave nueva. Se descarta la anterior.",
+  "Replace API key": "Reemplazar clave de API",
+  "“{name}” is removed from this computer. It cannot be brought back. Type its exact name to continue.": "Se borra «{name}» de esta computadora y no se puede recuperar. Escribí su nombre exacto para continuar.",
+  "Update distributor tool": "Actualizar herramienta",
   "Could not check what can load.": "No se pudo comprobar qué se puede cargar.",
   "+ New": "+ Nuevo",
   "Allow edits": "Permitir ediciones",
@@ -53,5 +61,8 @@
   "Remote server": "Servidor remoto",
   "npx package": "Paquete npx",
   "Recent": "Recientes",
-  "Saved folders": "Guardadas"
+  "Saved folders": "Guardadas",
+  "Presets could not be read.": "No se pudieron leer los presets.",
+  "Library: {imported} imported": "Biblioteca: {imported} importadas",
+  "Changes that write to the Arsenal library are unavailable here.": "Desde acá no se pueden guardar cambios en la biblioteca del Arsenal."
 }

@@ -266,6 +266,7 @@ pub struct Draft {
     pub items: Vec<Item>,
     pub new_skills: BTreeSet<String>,
     initial_items: Vec<Item>,
+    read_only_selection: bool,
     initial: Initial,
     baseline: Option<Box<Draft>>,
     pub claude: HomeSpec,
@@ -298,6 +299,7 @@ impl Draft {
             items: vec![],
             new_skills: BTreeSet::new(),
             initial_items: vec![],
+            read_only_selection: false,
             initial: Initial::default(),
             baseline: None,
             claude: HomeSpec::default(),
@@ -358,6 +360,36 @@ impl Draft {
         };
         draft.baseline = Some(Box::new(draft.clone()));
         draft.include_new_skills(store);
+        Ok(draft)
+    }
+
+    pub fn from_preset(
+        places: &Places,
+        selection: &Selection,
+        store: &Store,
+    ) -> Result<Self, String> {
+        let source = Launch {
+            id: String::new(),
+            name: selection.name.clone(),
+            directory: places.home.to_string_lossy().into_owned(),
+            kind: Kind::Session {
+                agent: selection.provider.clone(),
+                permission: None,
+                before: Vec::new(),
+                preset: Some(selection.name.clone()),
+            },
+        };
+        let mut draft = Self::load(places, Some(&source), &selection.provider, Some(store))?;
+        if draft.selection.as_ref().map(|preset| &preset.id) != Some(&selection.id) {
+            return Err("That preset is no longer available. Refresh and try again.".into());
+        }
+        draft.id = None;
+        draft.new_skills.clear();
+        draft.items.clone_from(&draft.initial_items);
+        draft.read_only_selection = true;
+        if let Some(baseline) = &mut draft.baseline {
+            baseline.name.clear();
+        }
         Ok(draft)
     }
 
@@ -493,6 +525,11 @@ impl launch::Known for Known<'_> {
 }
 
 pub fn save(places: &Places, draft: &Draft) -> Result<Launch, String> {
+    if draft.read_only_selection && draft.needs_selection() {
+        return Err(
+            crate::t!("Changes that write to the Arsenal library are unavailable here.").into(),
+        );
+    }
     let id = launch::slug(&draft.name);
     let replace = draft.id.as_deref() == Some(&id);
     if id.is_empty() || draft.name.trim().len() > launch::MAX_NAME {
@@ -846,6 +883,21 @@ mod tests {
         let read = Draft::load(&places, Some(&saved), CODEX, Some(&store)).unwrap();
         assert_eq!(read.permission, draft.permission);
         assert_eq!(read.project, draft.project);
+        let selection = read.selection.as_ref().unwrap();
+        let mut from_preset = Draft::from_preset(&places, selection, &store).unwrap();
+        from_preset.name = "Another launch".into();
+        assert!(from_preset.dirty() && from_preset.can_save());
+        let copy = save(&places, &from_preset).unwrap();
+        assert_eq!(launch::get(&places, &copy.id).unwrap(), copy);
+        assert!(
+            matches!(copy.kind, Kind::Session { preset: Some(name), .. } if name == selection.name)
+        );
+        from_preset.project = Choice::Load;
+        assert_eq!(
+            save(&places, &from_preset).unwrap_err(),
+            "Changes that write to the Arsenal library are unavailable here."
+        );
+        assert_eq!(store.selections().unwrap(), [selection.clone()]);
         let variant = super::super::distros::DISTROS[0].fresh(true);
         let commands =
             launch::create_commands(&places, "Fixture commands", vec![variant.clone()]).unwrap();

@@ -8,7 +8,10 @@
 //! `WYSS_TAURI_BIN` is the app the rail icons start; `GTKTERM_LAYOUT_DEMO=split` splits the first
 //! tab and opens a second one (for screenshots).
 
+mod arsenal;
+mod credentials;
 mod console;
+mod distributors;
 mod ghostty;
 mod host;
 mod i18n;
@@ -20,6 +23,7 @@ mod launches;
 mod layout;
 mod native;
 mod palette;
+mod personalization;
 mod prefs;
 mod procinfo;
 mod pty;
@@ -78,5 +82,56 @@ fn build(app: &gtk::Application, tabs: usize, host: Option<host::Host>) {
                 eprintln!("shot: {path} renderer={}", renderer.type_().name());
             }
         });
+    }
+}
+
+
+#[cfg(test)]
+fn personalization_scratch() -> std::path::PathBuf {
+    std::env::var_os("WYSS_TEST_SCRATCH")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::path::PathBuf::from(env!("HOME")).join(".cache/wyss-build"))
+}
+
+#[cfg(test)]
+fn personalization_round_trip(name: &str, child_test: &str) {
+    let path = personalization_scratch().join(format!("native-{name}-{}", uuid::Uuid::new_v4()));
+    let fixture = PersonalizationFixture(path);
+    std::fs::create_dir_all(fixture.0.join("home")).unwrap();
+    let result = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", child_test, "--nocapture"])
+        .env("WYSS_PERSONALIZATION_CHILD", &fixture.0)
+        .env("HOME", fixture.0.join("home"))
+        .env("XDG_CONFIG_HOME", fixture.0.join("config"))
+        .env("XDG_DATA_HOME", fixture.0.join("data"))
+        .env("XDG_STATE_HOME", fixture.0.join("state"))
+        .env("XDG_CACHE_HOME", fixture.0.join("cache"))
+        .env("XDG_RUNTIME_DIR", fixture.0.join("runtime"))
+        .env("CODEX_HOME", fixture.0.join("codex"))
+        .env_remove("GTKTERM_HOST")
+        .env_remove("CLAUDE_CONFIG_DIR")
+        .env_remove("WYSS_ARSENAL_SYNC")
+        .output().unwrap();
+    let stdout = String::from_utf8_lossy(&result.stdout);
+    assert!(result.status.success() && stdout.contains("1 passed"), "{stdout}\n{}", String::from_utf8_lossy(&result.stderr));
+}
+
+#[cfg(test)]
+fn personalization_child_root(name: &str) -> Option<std::path::PathBuf> {
+    let root = std::path::PathBuf::from(std::env::var_os("WYSS_PERSONALIZATION_CHILD")?);
+    assert_eq!(root.parent(), Some(personalization_scratch().as_path()));
+    assert!(root.file_name().and_then(|name| name.to_str())
+        .and_then(|file| file.strip_prefix(&format!("native-{name}-")))
+        .is_some_and(|id| uuid::Uuid::parse_str(id).is_ok()));
+    Some(root)
+}
+
+#[cfg(test)]
+struct PersonalizationFixture(std::path::PathBuf);
+
+#[cfg(test)]
+impl Drop for PersonalizationFixture {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
     }
 }
