@@ -36,6 +36,11 @@ write_launcher() {
 #!/bin/sh
 export GTKTERM_HOST="\${XDG_RUNTIME_DIR:-/run/user/\$(id -u)}/wyss-console/host.sock"
 export WYSS_TAURI_BIN="$tauri_bin"
+# No host yet (the Tauri app was never opened in this session): start the same host it would.
+if [ ! -S "\$GTKTERM_HOST" ] && [ -x "$tauri_bin" ]; then
+  setsid "$tauri_bin" --wyss-host >/dev/null 2>&1 < /dev/null &
+  i=0; while [ ! -S "\$GTKTERM_HOST" ] && [ \$i -lt 50 ]; do sleep 0.1; i=\$((i + 1)); done
+fi
 exec "$prefix/libexec/gtk-term" "\$@"
 EOF
   chmod 755 "$prefix/bin/wyss-console-native"
