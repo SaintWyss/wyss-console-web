@@ -8,6 +8,8 @@
 //!
 //! A folder chosen here is a request. Whether it may be a workspace is decided by
 //! `wyss-control` when the binding is asked for.
+#[cfg(target_os = "linux")]
+use gtk3 as gtk;
 use super::sessions::{SessionError, SessionFailure};
 use crate::contracts::control::validate_workspace_text;
 use serde::Serialize;

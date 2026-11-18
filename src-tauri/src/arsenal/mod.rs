@@ -4,9 +4,11 @@
 //! The window reaches it through `commands`.
 
 pub mod analysis;
+#[cfg(feature = "desktop")]
 pub mod commands;
 pub mod environment;
 pub mod groups;
+pub mod library;
 pub mod role_instructions;
 pub mod roles;
 pub mod store;
@@ -23,6 +25,15 @@ use rusqlite::Connection;
 
 use store::{Error, Store};
 
+/// What a discovered capability holds: its files, what was left out, and what to review.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct CandidateDetail {
+    pub id: String,
+    pub files: Vec<crate::agentconfig::catalogue::FileDigest>,
+    pub excluded: Vec<crate::agentconfig::catalogue::Excluded>,
+    pub review: Vec<crate::agentconfig::catalogue::Excluded>,
+}
+
 /// The Arsenal state the desktop manages. Opening the database may fail; the failure is kept and
 /// reported by every command, so the window can say so instead of showing an empty library.
 pub struct Arsenal {
@@ -30,8 +41,9 @@ pub struct Arsenal {
     /// The library's folder, when the library opened. Holds `groups.json` beside the database.
     directory: Option<PathBuf>,
     /// The details of the last scan, by identity. Read by `arsenal_candidate`, replaced by each scan.
-    details: Arc<Mutex<BTreeMap<String, commands::CandidateDetail>>>,
+    details: Arc<Mutex<BTreeMap<String, CandidateDetail>>>,
     /// Where each entry of the last Guide read resolved. Read by `arsenal_guide_body`.
+    #[cfg(feature = "desktop")]
     guide: Arc<Mutex<crate::agentconfig::guide::Places>>,
     /// Synchronization with the owner's other computers, when the library opened and it is not off.
     sync: Option<sync::Handle>,
@@ -63,20 +75,21 @@ impl Arsenal {
             store,
             directory,
             details: Arc::new(Mutex::new(BTreeMap::new())),
+            #[cfg(feature = "desktop")]
             guide: Arc::default(),
             sync,
         }
     }
 
     /// The owner's group corrections, by identity.
-    pub(super) fn groups(&self) -> Result<BTreeMap<String, String>, Error> {
+    pub fn groups(&self) -> Result<BTreeMap<String, String>, Error> {
         let directory = self.directory.as_ref().ok_or(Error::Storage)?;
         Ok(groups::load(directory).groups)
     }
 
     /// Puts a capability of the library in a group. Runs under the store's lock, so two changes
     /// cannot overwrite each other's file.
-    pub(super) fn set_group(&self, identity: &str, group_id: &str) -> Result<(), Error> {
+    pub fn set_group(&self, identity: &str, group_id: &str) -> Result<(), Error> {
         if !groups::identity_ok(identity) || !groups::group_ok(group_id) {
             return Err(Error::Invalid);
         }
@@ -97,7 +110,7 @@ impl Arsenal {
     }
 
     /// Takes a capability out of its group. Removing a capability with no group changes nothing.
-    pub(super) fn clear_group(&self, identity: &str) -> Result<(), Error> {
+    pub fn clear_group(&self, identity: &str) -> Result<(), Error> {
         let directory = self.directory.clone().ok_or(Error::Storage)?;
         self.with_store(|_| {
             let mut state = groups::load(&directory);
@@ -109,14 +122,14 @@ impl Arsenal {
     }
 
     /// The categories the owner made, in the order they were made.
-    pub(super) fn categories(&self) -> Result<Vec<groups::Custom>, Error> {
+    pub fn categories(&self) -> Result<Vec<groups::Custom>, Error> {
         let directory = self.directory.as_ref().ok_or(Error::Storage)?;
         Ok(groups::load(directory).custom)
     }
 
     /// Makes, renames or deletes a category of the owner's. Deleting one also drops every
     /// correction that pointed at it, so those capabilities go back to their rule's category.
-    pub(super) fn write_category(
+    pub fn write_category(
         &self,
         change: CategoryChange,
     ) -> Result<Vec<groups::Custom>, Error> {
@@ -171,7 +184,7 @@ impl Arsenal {
     }
 
     /// Synchronization's status; `enabled: false` when it does not run here.
-    pub(super) fn sync_status(&self) -> sync::Status {
+    pub fn sync_status(&self) -> sync::Status {
         self.sync
             .as_ref()
             .map(sync::Handle::status)
@@ -179,31 +192,34 @@ impl Arsenal {
     }
 
     /// Asks synchronization to run soon: after a change to the library, or when the owner asks.
-    pub(super) fn nudge_sync(&self) {
+    pub fn nudge_sync(&self) {
         if let Some(sync) = &self.sync {
             sync.nudge();
         }
     }
 
     /// The last scan's details, shared with the work that replaces them.
+    #[cfg(feature = "desktop")]
     fn guide_handle(&self) -> Arc<Mutex<crate::agentconfig::guide::Places>> {
         self.guide.clone()
     }
 
-    fn details_handle(&self) -> Arc<Mutex<BTreeMap<String, commands::CandidateDetail>>> {
+    #[cfg(feature = "desktop")]
+    fn details_handle(&self) -> Arc<Mutex<BTreeMap<String, CandidateDetail>>> {
         self.details.clone()
     }
 
-    pub(super) fn candidate_detail(&self, id: &str) -> Option<commands::CandidateDetail> {
+    pub fn candidate_detail(&self, id: &str) -> Option<CandidateDetail> {
         self.details.lock().ok()?.get(id).cloned()
     }
 
     /// The shared store for a Native start, which rebuilds its exclusion off the window's thread.
-    pub(crate) fn launch_handle(&self) -> Option<Arc<Mutex<Store>>> {
+    pub fn launch_handle(&self) -> Option<Arc<Mutex<Store>>> {
         self.store.clone().ok()
     }
 
     /// The shared store, for work that runs off the window's thread and locks it there.
+    #[cfg(feature = "desktop")]
     fn handle(&self) -> Result<Arc<Mutex<Store>>, Error> {
         self.store.clone()
     }
@@ -314,6 +330,7 @@ mod tests {
             store: Ok(Arc::new(Mutex::new(store))),
             directory: Some(directory),
             details: Arc::new(Mutex::new(BTreeMap::new())),
+            #[cfg(feature = "desktop")]
             guide: Arc::default(),
             sync: None,
         }
@@ -438,6 +455,7 @@ mod tests {
             store: Err(Error::Storage),
             directory: None,
             details: Arc::new(Mutex::new(BTreeMap::new())),
+            #[cfg(feature = "desktop")]
             guide: Arc::default(),
             sync: None,
         };

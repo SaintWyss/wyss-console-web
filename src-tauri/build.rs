@@ -76,6 +76,14 @@ fn main() {
     if let Some(revision) = revision() {
         println!("cargo:rustc-env=WYSS_BUILD_REVISION={revision}");
     }
+    #[cfg(feature = "desktop")]
+    if std::env::var_os("CARGO_FEATURE_DESKTOP").is_some() {
+        build_desktop();
+    }
+}
+
+#[cfg(feature = "desktop")]
+fn build_desktop() {
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(
         tauri_build::AppManifest::new().commands(&[
             "get_app_info",

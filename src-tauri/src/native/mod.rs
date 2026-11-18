@@ -1,8 +1,8 @@
-//! Native agent sessions (F3): the launcher, the registry and the profiles. Desktop only: like
-//! the configuration engine, it is not in the library the authority links (C-02).
+//! Native agent sessions (F3): the launcher, the registry and the profiles.
 pub mod arsenal;
 pub mod capabilities;
 pub mod catalogue;
+#[cfg(feature = "desktop")]
 pub mod commands;
 pub mod extended_registry;
 pub mod instruction_text;
@@ -22,6 +22,7 @@ pub mod service;
 pub(crate) mod service_tests;
 pub mod store;
 
+#[cfg(feature = "desktop")]
 pub use commands::extension;
 
 /// Opens the native service over the user's own state directory and home, or `None` when

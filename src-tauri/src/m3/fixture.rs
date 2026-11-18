@@ -6,7 +6,7 @@
 //! provider API and drives them from a thread. It is **not the authority**: nothing it does is
 //! durable, leased or fenced, and it says so on every payload.
 use super::{
-    gui::{ApprovalView, FixtureView, Message, TurnView},
+    fixture_view::{ApprovalView, FixtureView, Message, TurnView},
     report::{ActionState, ProviderReport},
 };
 use serde_json::Value;
@@ -217,10 +217,10 @@ impl FixtureModel {
     }
 }
 
-#[cfg(feature = "m3-fixture")]
+#[cfg(all(feature = "desktop", feature = "m3-fixture"))]
 pub use host::{FixtureHost, FixtureOptions, MARKER, extension};
 
-#[cfg(feature = "m3-fixture")]
+#[cfg(all(feature = "desktop", feature = "m3-fixture"))]
 pub mod host;
 
 #[cfg(test)]

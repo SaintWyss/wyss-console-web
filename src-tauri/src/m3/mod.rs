@@ -12,7 +12,9 @@
 //! - `profiles`: which provider profile is available and why not;
 //! - `history`: the optional local metrics history.
 pub mod fixture;
+pub mod fixture_view;
 pub mod gate;
+#[cfg(feature = "desktop")]
 pub mod gui;
 pub mod history;
 pub mod model;

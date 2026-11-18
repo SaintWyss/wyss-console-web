@@ -2,6 +2,7 @@
 //! read, or answer for. A confirmation names what is about to change and has no "do not ask
 //! again"; a passphrase is typed here and never reaches the page; a file is chosen here and
 //! its path goes nowhere but to the file system call that uses it.
+use gtk3 as gtk;
 use crate::agentconfig::changes::{Confirm, ConfirmRequest, Effect};
 use crate::agentconfig::{Operation, ProviderId, Risk, Scope};
 use std::{
@@ -306,11 +307,7 @@ pub fn secret_entry(
 /// One line or several, asked in a window of its own for what the user is writing. The
 /// window says what the text will become and where, and this is the only place the text is
 /// typed: the page chose none of it. Cancelling returns nothing.
-pub struct Field {
-    pub label: String,
-    pub initial: String,
-    pub multiline: bool,
-}
+pub use crate::configuration::Field;
 
 pub fn text_form(
     app: &AppHandle,

@@ -8,6 +8,10 @@ publish = false
 default-run = "wyss-console"
 
 [features]
+default = ["desktop"]
+# The mocks belong to the desktop suite. A dev-dependency would activate Tauri for native tests.
+desktop = ["dep:tauri", "tauri/test", "dep:tauri-build", "dep:gtk3"]
+native-ui = ["dep:gtk", "dep:base64"]
 # Development only: a local protocol-2 application with a fixture child, to look at the
 # window with it active. No build of the installed desktop enables it.
 f8-dev = []
@@ -18,7 +22,7 @@ f8-fixture = []
 # Development and isolated acceptance only: a desktop whose Claude Managed runtime is hosted by
 # this process (not the authority) against a mock provider API, to look at and drive the M3 window
 # with the real SDK offline. No packaged build enables it, and the package check refuses its marker.
-m3-fixture = ["tauri/custom-protocol"]
+m3-fixture = ["desktop", "tauri/custom-protocol"]
 # The constrained B1 candidate (launch plan, pre-exec shim, workspace materializer/exporter) and its
 # probe. Development and isolated acceptance only: no packaged build enables it, nothing in the
 # product reaches it, and the package check refuses its marker.
@@ -26,11 +30,36 @@ b1-fixture = []
 
 [[example]]
 name = "f8_local_gui"
-required-features = ["f8-dev"]
+required-features = ["f8-dev", "desktop"]
 
 [[example]]
 name = "m3_fixture_gui"
 required-features = ["m3-fixture"]
+
+[[bin]]
+name = "wyss-console"
+path = "src/main.rs"
+required-features = ["desktop"]
+
+[[bin]]
+name = "wyss-host"
+path = "src/bin/wyss-host.rs"
+test = false
+
+[[bin]]
+name = "wyss-console-native"
+path = "src/bin/wyss-console-native/main.rs"
+required-features = ["native-ui"]
+
+[[test]]
+name = "cli_help"
+path = "tests/cli_help.rs"
+required-features = ["desktop"]
+
+[[test]]
+name = "host_process_survival"
+path = "tests/host_process_survival.rs"
+required-features = ["desktop"]
 
 [[bin]]
 name = "wyss-f8-fixture"
@@ -58,18 +87,20 @@ path = "tests/f8_fixture_process.rs"
 required-features = ["f8-fixture"]
 
 [build-dependencies]
-tauri-build = { version = "=2.7.5", features = [] }
+tauri-build = { version = "=2.7.5", optional = true, features = [] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 # Same GTK version Tauri resolves; used by desktop-native dialogs and editors.
 # The current main window is opaque and does not request KWin blur.
-gtk = "=0.18.2"
+gtk3 = { package = "gtk", version = "=0.18.2", optional = true }
+gtk = { package = "gtk4", version = "=0.11.5", features = ["v4_14"], optional = true }
 
 [dependencies]
 sha2 = "0.10.9"
 ring = "=0.17.14"
 hmac = "=0.12.1"
-tauri = { version = "=2.12.5", features = [] }
+tauri = { version = "=2.12.5", optional = true, features = [] }
+base64 = { version = "0.22", optional = true }
 serde = { version = "1", features = ["derive"] }
 # `float_roundtrip`: a split ratio must decode to the exact f64 that was encoded (contracts::m1).
 serde_json = { version = "1", features = ["float_roundtrip"] }
@@ -81,7 +112,7 @@ pbkdf2 = { version = "=0.12.2", default-features = false, features = ["hmac"] }
 zeroize = "1"
 # Parse provider TOML for inventory and semantic validation of byte-preserving edits.
 # Keep the pinned parser aligned with the dependency graph.
-toml = { version = "=1.1.6", default-features = false, features = ["std", "serde", "parse"] }
+toml = { version = "=1.1.6", default-features = false, features = ["std", "serde", "parse", "display"] }
 rusqlite = { version = "=0.40.2", default-features = false, features = ["bundled"] }
 uuid = { version = "=1.27.0", features = ["v4"] }
 time = { version = "=0.3.55", features = ["parsing", "formatting"] }
@@ -102,6 +133,5 @@ opt-level = 3
 opt-level = 3
 
 [dev-dependencies]
-tauri = { version = "=2.12.5", features = ["test"] }
 # Test-only: a fault switch for the audit table (F8-16) is an authorizer on the connection.
 rusqlite = { version = "=0.40.2", default-features = false, features = ["bundled", "hooks"] }

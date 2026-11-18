@@ -43,13 +43,13 @@ interrupt; Ctrl+V pastes; the interrupt (0x03) is Ctrl+Shift+C.
 **Performance budgets** (owner goal: terminals lighter than Warp and faster than Ghostty).
 Measured on the same PC and load with the prototype's `bench.sh`; never lowered silently:
 
-| Metric | Budget |
-| --- | --- |
+| Metric                               | Budget                                          |
+| ------------------------------------ | ----------------------------------------------- |
 | GUI process RSS, window + 1 terminal | ≤ Ghostty on the same PC (183 MB on 2026-11-17) |
-| Marginal RSS per extra terminal | ≤ 5 MB |
-| `cat` of 100 MB until exit | ≤ Ghostty (1.3 s on 2026-11-17) |
-| Key-to-pixel latency, median | ≤ Ghostty |
-| Idle CPU with 10 terminals | < 0.5 % |
+| Marginal RSS per extra terminal      | ≤ 5 MB                                          |
+| `cat` of 100 MB until exit           | ≤ Ghostty (1.3 s on 2026-11-17)                 |
+| Key-to-pixel latency, median         | ≤ Ghostty                                       |
+| Idle CPU with 10 terminals           | < 0.5 %                                         |
 
 Keep explicit typed boundaries between interface and services and the current single
 application crate; do not add speculative services or empty crates. During coexistence npm

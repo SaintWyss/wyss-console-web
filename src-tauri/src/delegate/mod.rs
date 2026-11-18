@@ -1351,7 +1351,7 @@ impl Manager {
         let store = arsenal::open_read_only().map_err(|_| {
             Refusal::new("arsenal_unavailable", "The Arsenal library cannot be read.")
         })?;
-        let library = arsenal::commands::library(&store).map_err(|_| {
+        let library = arsenal::library::library(&store).map_err(|_| {
             Refusal::new("arsenal_unavailable", "The Arsenal library cannot be read.")
         })?;
         let query = query.map(str::to_lowercase);
@@ -1570,7 +1570,7 @@ fn plan_skills(
         created_at: 0,
         updated_at: 0,
     };
-    let (resolved, _) = arsenal::commands::resolve_items(&store, &selection)
+    let (resolved, _) = arsenal::library::resolve_items(&store, &selection)
         .map_err(|_| Refusal::new("arsenal_unavailable", "capabilities"))?;
     let picked: Vec<Value> = resolved
         .iter()

@@ -34,3 +34,16 @@ y la app Tauri sigue idéntica.
 - Un host sin Tauri: `wyss-console --wyss-host` construible sin `desktop` (bin `wyss-host` o equivalente) con
   `ldd` sin webkit — M8 lo necesita.
 - RSS de la ventana nativa con 1 terminal sigue ≤ 183 MB tras enlazar el núcleo.
+
+## Estado (2026-11-18)
+
+Construido por Codex `gpt-6.2-sol` low; verificado por Opus fuera del sandbox:
+
+- Tests Rust: mismos conteos que la línea de base (`ff654c0`): 1543, 933, 10, 8, 6, 1, 1; clippy sin warnings.
+  Un test de frontera (`agentconfig/tests.rs`) se ajustó porque los módulos de binario pasaron a
+  `host_modules.rs` (compartido por la app y el host sin Tauri); la regla que protege no cambió.
+- `cargo tree` del binario nativo sin tauri/wry/tao/webkit/javascriptcore; `ldd` de
+  `wyss-console-native` y `wyss-host` sin WebKit; 98 tests nativos verdes.
+- ui-tests con el binario del crate verdes (`ctrlc.sh`, `m3test.sh`); RSS 117 MB.
+- `npm run check`: Prettier y lint verdes; typecheck con 1 error que ya está en la línea de base
+  (`tests/terminal-memory.test.ts`, `TerminalId`), heredado de `main` `773830a`.

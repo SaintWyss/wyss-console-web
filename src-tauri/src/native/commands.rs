@@ -11,7 +11,7 @@ use super::{
     service::StartRequest,
 };
 use crate::arsenal::{Arsenal, commands::TerminalRequest};
-use crate::configuration::Configuration;
+use crate::configuration::commands::DesktopConfiguration;
 use crate::host::{client::HostLink, protocol::HostError};
 use crate::native_dialog::{choose_file_titled, choose_folder};
 use serde::{Deserialize, Serialize};
@@ -490,7 +490,7 @@ fn preview_with_link(
 pub async fn native_preview(
     link: State<'_, HostLink>,
     arsenal: State<'_, Arsenal>,
-    configuration: State<'_, Configuration>,
+    configuration: State<'_, DesktopConfiguration>,
     request: PreviewRequest,
 ) -> Answer {
     if let Some(id) = request.profile_id.as_deref() {
@@ -588,7 +588,7 @@ fn start_with_link(link: &HostLink, request: StartRequest) -> Answer {
 pub async fn native_start(
     link: State<'_, HostLink>,
     arsenal: State<'_, Arsenal>,
-    configuration: State<'_, Configuration>,
+    configuration: State<'_, DesktopConfiguration>,
     request: WindowStart,
 ) -> Answer {
     if let Some(id) = request.profile_id.as_deref() {
@@ -698,7 +698,7 @@ pub struct RestartRequest {
 pub async fn native_restart(
     link: State<'_, HostLink>,
     arsenal: State<'_, Arsenal>,
-    configuration: State<'_, Configuration>,
+    configuration: State<'_, DesktopConfiguration>,
     request: RestartRequest,
 ) -> Answer {
     well_formed(&request.id)?;

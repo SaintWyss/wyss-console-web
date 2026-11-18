@@ -4,6 +4,7 @@ pub struct ApplicationInfo {
     pub version: &'static str,
 }
 
+#[cfg(feature = "desktop")]
 pub fn app_info() -> ApplicationInfo {
     ApplicationInfo {
         name: "Wyss Console",

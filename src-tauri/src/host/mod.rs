@@ -1,8 +1,9 @@
 //! F9: terminals and native sessions held by a host process that outlives the window.
-//! The host is this same executable started with `--wyss-host`; the window is its client.
+//! Starts via `wyss-console --wyss-host` or the standalone `wyss-host` executable.
 // The window's side of the host is reached only from `main`, which a test build has not.
 #![cfg_attr(test, allow(dead_code))]
 pub mod client;
+#[cfg(feature = "desktop")]
 pub mod commands;
 pub mod core;
 pub mod layout;

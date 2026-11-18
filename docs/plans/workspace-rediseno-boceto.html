@@ -1,242 +1,1684 @@
-<!doctype html><html lang="es" data-theme="light"><head><meta charset="utf-8"><title>Workspace — boceto</title>
-<style>
-/* Tokens copiados de src/app.css (tema claro y oscuro) */
-:root[data-theme='light']{--chrome:#ebebeb;--bg:#f5f5f5;--surface:#fff;--control:#f5f5f5;--hover:#ececec;--strong:#e0e0e0;--line:#d9d9d9;--text:#111;--muted:#3d3d3d;--faint:#525252;--accent:#4a4337;--accent-soft:#ebe6dc;--ok:#176b3a;--ok-soft:#e3f5e9;--warn:#6e4700;--warn-soft:#fdf1cc;--error:#a32622;--error-soft:#fde8e6;--on-accent:#fff}
-:root[data-theme='dark']{--chrome:#151515;--bg:#0e0e0e;--surface:#151515;--control:#1e1e1e;--hover:#232323;--strong:#262626;--line:#2a2a2a;--text:#ececec;--muted:#a3a3a3;--faint:#737373;--accent:#e8e3d8;--accent-soft:#232220;--ok:#5ee39a;--ok-soft:#0f2a1c;--warn:#f5c044;--warn-soft:#2a2410;--error:#ff8a80;--error-soft:#2a1514;--on-accent:#121212}
-:root{--r:5px;--xs:14px;--sm:15px;--md:16px;--lg:19px;--ctl:40px;--sans:"IBM Plex Sans",system-ui,sans-serif;--mono:"IBM Plex Mono",monospace}
-*{box-sizing:border-box}html,body{margin:0;height:100%}
-body{background:#777;font:var(--md)/1.45 var(--sans);color:var(--text);display:flex;flex-direction:column;align-items:center;padding:20px;gap:10px}
-.bar{color:#fff;font-size:14px;display:flex;gap:14px;align-items:center}.bar button{font:inherit;padding:4px 10px}
-.win{width:1280px;height:800px;display:grid;grid-template-columns:52px 250px 1fr;background:var(--bg);border-radius:6px;overflow:hidden;box-shadow:0 8px 30px #0005}
-.rail{background:var(--chrome);border-right:1px solid var(--line)}
-/* lista */
-.list{background:var(--chrome);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:12px 10px}
-.search{height:var(--ctl);border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:0 12px;font:var(--sm) var(--sans);color:var(--text)}
-.grp{margin:20px 10px 6px;font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
-.it{display:flex;justify-content:space-between;align-items:center;min-height:36px;padding:0 10px;border-radius:var(--r);cursor:pointer;font-size:var(--sm)}
-.it:hover{background:var(--hover)}.it.on{background:var(--accent-soft);font-weight:500}
-.it small{color:var(--faint);font-size:13px;font-family:var(--mono)}
-.new{margin-top:auto;position:relative}
-.new>button{width:100%;height:var(--ctl);border:1px dashed var(--line);border-radius:var(--r);background:none;color:var(--muted);font:var(--sm) var(--sans);cursor:pointer}
-.menu{position:absolute;bottom:46px;left:0;right:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:0 10px 28px #0002;padding:4px;display:none}
-.menu.open{display:block}.menu div{padding:8px 10px;border-radius:4px;cursor:pointer}.menu div:hover{background:var(--hover)}.menu small{display:block;color:var(--faint);font-size:13px}
-/* principal */
-.main{display:flex;flex-direction:column;min-width:0}
-.head{display:flex;align-items:center;gap:16px;padding:20px 32px 0}
-.head h1{font-size:var(--lg);font-weight:600;margin:0;flex:1}
-.est{display:flex;align-items:center;gap:10px;font-size:var(--xs);color:var(--faint)}
-.meter{width:110px;height:4px;background:var(--strong);border-radius:2px;overflow:hidden}.meter i{display:block;height:100%;background:var(--accent)}
-.tabs{display:flex;gap:28px;padding:0 32px;margin-top:14px;border-bottom:1px solid var(--line)}
-.tab{padding:10px 0 11px;color:var(--faint);cursor:pointer;font-size:var(--sm)}
-.tab.on{color:var(--text);font-weight:600;box-shadow:inset 0 -2px 0 var(--accent)}
-.tab span{font-family:var(--mono);font-size:12px;color:var(--faint);margin-left:5px;font-weight:400}
-.body{flex:1;overflow:auto;padding:8px 32px 24px}
-.pane{display:none}.pane.on{display:block}
-.row{display:grid;grid-template-columns:240px 1fr;gap:24px;padding:18px 0;border-bottom:1px solid var(--line);max-width:900px}
-.row:last-child{border-bottom:0}
-.lbl{font-weight:500;font-size:var(--sm)}.hint{color:var(--faint);font-size:var(--xs);margin-top:3px}
-.ctl{height:var(--ctl);border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:0 12px;font:var(--sm) var(--sans);color:var(--text);min-width:320px}
-.inline{display:flex;gap:8px}
-.btn{height:var(--ctl);padding:0 16px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);color:var(--text);font:500 var(--sm) var(--sans);cursor:pointer}
-.btn.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
-.btn.danger{color:var(--error);border-color:transparent;background:none;padding-left:0}
-.radios{display:flex;flex-direction:column;gap:2px}
-.radios label{display:grid;grid-template-columns:22px 1fr;padding:9px 10px;border-radius:var(--r);cursor:pointer}
-.radios label:hover{background:var(--hover)}.radios .d{color:var(--faint);font-size:var(--xs);grid-column:2}
-.radios .x{opacity:.45;cursor:default}
-.notice{border-radius:var(--r);padding:10px 14px;font-size:var(--xs);margin:14px 0 0;max-width:900px}
-.notice.warn{background:var(--warn-soft);color:var(--warn)}.notice.err{background:var(--error-soft);color:var(--error)}
-.tool{display:flex;align-items:center;gap:12px;padding:16px 0 10px}.tool .ctl{min-width:260px}.tool .sum{margin-left:auto;color:var(--faint);font-size:var(--xs)}
-table{width:100%;border-collapse:collapse;font-size:var(--sm)}
-th{text-align:left;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);padding:8px 10px;border-bottom:1px solid var(--line)}
-td{padding:9px 10px;border-bottom:1px solid var(--line)}td.m{color:var(--faint);font-size:var(--xs)}td.r{text-align:right;width:60px}
-tr.na td{color:var(--faint)}tr.na td:first-child{text-decoration:none}
-.sw{display:inline-block;width:34px;height:20px;border-radius:10px;background:var(--accent);position:relative;cursor:pointer;vertical-align:middle}
-.sw:after{content:"";position:absolute;top:3px;right:3px;width:14px;height:14px;border-radius:50%;background:var(--on-accent)}
-.sw.off{background:var(--strong)}.sw.off:after{right:auto;left:3px;background:var(--surface)}
-.sec{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin:22px 0 4px}
-.mono{font-family:var(--mono);font-size:var(--xs)}
-textarea{width:100%;min-height:150px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);color:var(--text);padding:10px 12px;font:var(--xs)/1.7 var(--mono);resize:vertical}
-.opts{display:grid;grid-template-columns:1fr 1fr;gap:4px 32px;max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:var(--r);padding:8px 14px;background:var(--surface)}
-.opts label{display:flex;gap:10px;align-items:baseline;padding:5px 0}.opts code{font-family:var(--mono);font-size:13px;color:var(--faint)}
-.foot{display:flex;align-items:center;gap:10px;padding:14px 32px;border-top:1px solid var(--line);background:var(--bg)}
-.foot .sp{flex:1}
-/* resumen */
-.box{display:grid;grid-template-columns:1fr 1fr;gap:0 40px;max-width:980px}
-.blk{padding:16px 0;border-bottom:1px solid var(--line)}
-.blk h4{margin:0 0 8px;font-size:var(--sm);font-weight:600;display:flex;justify-content:space-between}
-.blk h4 span{font-weight:400;color:var(--faint);font-family:var(--mono);font-size:13px}
-.blk ol,.blk ul{margin:0;padding-left:20px;font-size:var(--xs);color:var(--muted)}.blk li{padding:2px 0}
-.ev{font-size:var(--xs);color:var(--muted)}.ev b{color:var(--text);font-weight:500;display:inline-block;min-width:150px}
-.flowline{display:flex;align-items:center;gap:10px;font-size:var(--xs);color:var(--muted);padding:14px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
-.flowline .n{background:var(--control);border:1px solid var(--line);border-radius:var(--r);padding:6px 10px;color:var(--text)}
+<!doctype html>
+<html lang="es" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <title>Workspace — boceto</title>
+    <style>
+      /* Tokens copiados de src/app.css (tema claro y oscuro) */
+      :root[data-theme='light'] {
+        --chrome: #ebebeb;
+        --bg: #f5f5f5;
+        --surface: #fff;
+        --control: #f5f5f5;
+        --hover: #ececec;
+        --strong: #e0e0e0;
+        --line: #d9d9d9;
+        --text: #111;
+        --muted: #3d3d3d;
+        --faint: #525252;
+        --accent: #4a4337;
+        --accent-soft: #ebe6dc;
+        --ok: #176b3a;
+        --ok-soft: #e3f5e9;
+        --warn: #6e4700;
+        --warn-soft: #fdf1cc;
+        --error: #a32622;
+        --error-soft: #fde8e6;
+        --on-accent: #fff;
+      }
+      :root[data-theme='dark'] {
+        --chrome: #151515;
+        --bg: #0e0e0e;
+        --surface: #151515;
+        --control: #1e1e1e;
+        --hover: #232323;
+        --strong: #262626;
+        --line: #2a2a2a;
+        --text: #ececec;
+        --muted: #a3a3a3;
+        --faint: #737373;
+        --accent: #e8e3d8;
+        --accent-soft: #232220;
+        --ok: #5ee39a;
+        --ok-soft: #0f2a1c;
+        --warn: #f5c044;
+        --warn-soft: #2a2410;
+        --error: #ff8a80;
+        --error-soft: #2a1514;
+        --on-accent: #121212;
+      }
+      :root {
+        --r: 5px;
+        --xs: 14px;
+        --sm: 15px;
+        --md: 16px;
+        --lg: 19px;
+        --ctl: 40px;
+        --sans: 'IBM Plex Sans', system-ui, sans-serif;
+        --mono: 'IBM Plex Mono', monospace;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+      }
+      body {
+        background: #777;
+        font: var(--md)/1.45 var(--sans);
+        color: var(--text);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+        gap: 10px;
+      }
+      .bar {
+        color: #fff;
+        font-size: 14px;
+        display: flex;
+        gap: 14px;
+        align-items: center;
+      }
+      .bar button {
+        font: inherit;
+        padding: 4px 10px;
+      }
+      .win {
+        width: 1280px;
+        height: 800px;
+        display: grid;
+        grid-template-columns: 52px 250px 1fr;
+        background: var(--bg);
+        border-radius: 6px;
+        overflow: hidden;
+        box-shadow: 0 8px 30px #0005;
+      }
+      .rail {
+        background: var(--chrome);
+        border-right: 1px solid var(--line);
+      }
+      /* lista */
+      .list {
+        background: var(--chrome);
+        border-right: 1px solid var(--line);
+        display: flex;
+        flex-direction: column;
+        padding: 12px 10px;
+      }
+      .search {
+        height: var(--ctl);
+        border: 1px solid var(--line);
+        border-radius: var(--r);
+        background: var(--surface);
+        padding: 0 12px;
+        font: var(--sm) var(--sans);
+        color: var(--text);
+      }
+      .grp {
+        margin: 20px 10px 6px;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--faint);
+      }
+      .it {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        min-height: 36px;
+        padding: 0 10px;
+        border-radius: var(--r);
+        cursor: pointer;
+        font-size: var(--sm);
+      }
+      .it:hover {
+        background: var(--hover);
+      }
+      .it.on {
+        background: var(--accent-soft);
+        font-weight: 500;
+      }
+      .it small {
+        color: var(--faint);
+        font-size: 13px;
+        font-family: var(--mono);
+      }
+      .new {
+        margin-top: auto;
+        position: relative;
+      }
+      .new > button {
+        width: 100%;
+        height: var(--ctl);
+        border: 1px dashed var(--line);
+        border-radius: var(--r);
+        background: none;
+        color: var(--muted);
+        font: var(--sm) var(--sans);
+        cursor: pointer;
+      }
+      .menu {
+        position: absolute;
+        bottom: 46px;
+        left: 0;
+        right: 0;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--r);
+        box-shadow: 0 10px 28px #0002;
+        padding: 4px;
+        display: none;
+      }
+      .menu.open {
+        display: block;
+      }
+      .menu div {
+        padding: 8px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .menu div:hover {
+        background: var(--hover);
+      }
+      .menu small {
+        display: block;
+        color: var(--faint);
+        font-size: 13px;
+      }
+      /* principal */
+      .main {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .head {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 20px 32px 0;
+      }
+      .head h1 {
+        font-size: var(--lg);
+        font-weight: 600;
+        margin: 0;
+        flex: 1;
+      }
+      .est {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: var(--xs);
+        color: var(--faint);
+      }
+      .meter {
+        width: 110px;
+        height: 4px;
+        background: var(--strong);
+        border-radius: 2px;
+        overflow: hidden;
+      }
+      .meter i {
+        display: block;
+        height: 100%;
+        background: var(--accent);
+      }
+      .tabs {
+        display: flex;
+        gap: 28px;
+        padding: 0 32px;
+        margin-top: 14px;
+        border-bottom: 1px solid var(--line);
+      }
+      .tab {
+        padding: 10px 0 11px;
+        color: var(--faint);
+        cursor: pointer;
+        font-size: var(--sm);
+      }
+      .tab.on {
+        color: var(--text);
+        font-weight: 600;
+        box-shadow: inset 0 -2px 0 var(--accent);
+      }
+      .tab span {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--faint);
+        margin-left: 5px;
+        font-weight: 400;
+      }
+      .body {
+        flex: 1;
+        overflow: auto;
+        padding: 8px 32px 24px;
+      }
+      .pane {
+        display: none;
+      }
+      .pane.on {
+        display: block;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 240px 1fr;
+        gap: 24px;
+        padding: 18px 0;
+        border-bottom: 1px solid var(--line);
+        max-width: 900px;
+      }
+      .row:last-child {
+        border-bottom: 0;
+      }
+      .lbl {
+        font-weight: 500;
+        font-size: var(--sm);
+      }
+      .hint {
+        color: var(--faint);
+        font-size: var(--xs);
+        margin-top: 3px;
+      }
+      .ctl {
+        height: var(--ctl);
+        border: 1px solid var(--line);
+        border-radius: var(--r);
+        background: var(--surface);
+        padding: 0 12px;
+        font: var(--sm) var(--sans);
+        color: var(--text);
+        min-width: 320px;
+      }
+      .inline {
+        display: flex;
+        gap: 8px;
+      }
+      .btn {
+        height: var(--ctl);
+        padding: 0 16px;
+        border: 1px solid var(--line);
+        border-radius: var(--r);
+        background: var(--surface);
+        color: var(--text);
+        font: 500 var(--sm) var(--sans);
+        cursor: pointer;
+      }
+      .btn.primary {
+        background: var(--accent);
+        color: var(--on-accent);
+        border-color: var(--accent);
+      }
+      .btn.danger {
+        color: var(--error);
+        border-color: transparent;
+        background: none;
+        padding-left: 0;
+      }
+      .radios {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .radios label {
+        display: grid;
+        grid-template-columns: 22px 1fr;
+        padding: 9px 10px;
+        border-radius: var(--r);
+        cursor: pointer;
+      }
+      .radios label:hover {
+        background: var(--hover);
+      }
+      .radios .d {
+        color: var(--faint);
+        font-size: var(--xs);
+        grid-column: 2;
+      }
+      .radios .x {
+        opacity: 0.45;
+        cursor: default;
+      }
+      .notice {
+        border-radius: var(--r);
+        padding: 10px 14px;
+        font-size: var(--xs);
+        margin: 14px 0 0;
+        max-width: 900px;
+      }
+      .notice.warn {
+        background: var(--warn-soft);
+        color: var(--warn);
+      }
+      .notice.err {
+        background: var(--error-soft);
+        color: var(--error);
+      }
+      .tool {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 0 10px;
+      }
+      .tool .ctl {
+        min-width: 260px;
+      }
+      .tool .sum {
+        margin-left: auto;
+        color: var(--faint);
+        font-size: var(--xs);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: var(--sm);
+      }
+      th {
+        text-align: left;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--faint);
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--line);
+      }
+      td {
+        padding: 9px 10px;
+        border-bottom: 1px solid var(--line);
+      }
+      td.m {
+        color: var(--faint);
+        font-size: var(--xs);
+      }
+      td.r {
+        text-align: right;
+        width: 60px;
+      }
+      tr.na td {
+        color: var(--faint);
+      }
+      tr.na td:first-child {
+        text-decoration: none;
+      }
+      .sw {
+        display: inline-block;
+        width: 34px;
+        height: 20px;
+        border-radius: 10px;
+        background: var(--accent);
+        position: relative;
+        cursor: pointer;
+        vertical-align: middle;
+      }
+      .sw:after {
+        content: '';
+        position: absolute;
+        top: 3px;
+        right: 3px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--on-accent);
+      }
+      .sw.off {
+        background: var(--strong);
+      }
+      .sw.off:after {
+        right: auto;
+        left: 3px;
+        background: var(--surface);
+      }
+      .sec {
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--faint);
+        margin: 22px 0 4px;
+      }
+      .mono {
+        font-family: var(--mono);
+        font-size: var(--xs);
+      }
+      textarea {
+        width: 100%;
+        min-height: 150px;
+        border: 1px solid var(--line);
+        border-radius: var(--r);
+        background: var(--surface);
+        color: var(--text);
+        padding: 10px 12px;
+        font: var(--xs)/1.7 var(--mono);
+        resize: vertical;
+      }
+      .opts {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px 32px;
+        max-height: 260px;
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: var(--r);
+        padding: 8px 14px;
+        background: var(--surface);
+      }
+      .opts label {
+        display: flex;
+        gap: 10px;
+        align-items: baseline;
+        padding: 5px 0;
+      }
+      .opts code {
+        font-family: var(--mono);
+        font-size: 13px;
+        color: var(--faint);
+      }
+      .foot {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 14px 32px;
+        border-top: 1px solid var(--line);
+        background: var(--bg);
+      }
+      .foot .sp {
+        flex: 1;
+      }
+      /* resumen */
+      .box {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0 40px;
+        max-width: 980px;
+      }
+      .blk {
+        padding: 16px 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .blk h4 {
+        margin: 0 0 8px;
+        font-size: var(--sm);
+        font-weight: 600;
+        display: flex;
+        justify-content: space-between;
+      }
+      .blk h4 span {
+        font-weight: 400;
+        color: var(--faint);
+        font-family: var(--mono);
+        font-size: 13px;
+      }
+      .blk ol,
+      .blk ul {
+        margin: 0;
+        padding-left: 20px;
+        font-size: var(--xs);
+        color: var(--muted);
+      }
+      .blk li {
+        padding: 2px 0;
+      }
+      .ev {
+        font-size: var(--xs);
+        color: var(--muted);
+      }
+      .ev b {
+        color: var(--text);
+        font-weight: 500;
+        display: inline-block;
+        min-width: 150px;
+      }
+      .flowline {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: var(--xs);
+        color: var(--muted);
+        padding: 14px 0;
+        border-bottom: 1px solid var(--line);
+        flex-wrap: wrap;
+      }
+      .flowline .n {
+        background: var(--control);
+        border: 1px solid var(--line);
+        border-radius: var(--r);
+        padding: 6px 10px;
+        color: var(--text);
+      }
 
-/* grilla única: columna centrada, etiqueta 240 + control 480 */
-.body{display:flex;flex-direction:column;align-items:center}
-.pane{width:100%;max-width:880px}
-.row{grid-template-columns:260px 1fr;max-width:none;align-items:start}
-.ctl,select.ctl{width:100%;min-width:0}
-.inline{display:grid;grid-template-columns:1fr 140px;gap:8px}.inline .btn{min-width:0;width:140px}
-.inline .ctl{width:100%}
-.btn{min-width:120px;display:inline-flex;align-items:center;justify-content:center}
-.inline .btn{min-width:var(--ctl)}
-.tool{width:100%}.tool .ctl{flex:1}
-table,.box,.flowline,#skrows,.notice{width:100%;max-width:none}
-.opts{grid-template-columns:1fr 1fr;column-gap:24px}
-.opts label{min-height:32px}
-.head,.tabs{width:100%;max-width:944px;margin-left:auto;margin-right:auto;padding-left:32px;padding-right:32px}
-.foot{justify-content:center}.foot>*{flex:none}.foot .sp{flex:1;max-width:520px}
-#sys .body>.row,#sys .body>div{width:100%;max-width:880px}
+      /* grilla única: columna centrada, etiqueta 240 + control 480 */
+      .body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .pane {
+        width: 100%;
+        max-width: 880px;
+      }
+      .row {
+        grid-template-columns: 260px 1fr;
+        max-width: none;
+        align-items: start;
+      }
+      .ctl,
+      select.ctl {
+        width: 100%;
+        min-width: 0;
+      }
+      .inline {
+        display: grid;
+        grid-template-columns: 1fr 140px;
+        gap: 8px;
+      }
+      .inline .btn {
+        min-width: 0;
+        width: 140px;
+      }
+      .inline .ctl {
+        width: 100%;
+      }
+      .btn {
+        min-width: 120px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .inline .btn {
+        min-width: var(--ctl);
+      }
+      .tool {
+        width: 100%;
+      }
+      .tool .ctl {
+        flex: 1;
+      }
+      table,
+      .box,
+      .flowline,
+      #skrows,
+      .notice {
+        width: 100%;
+        max-width: none;
+      }
+      .opts {
+        grid-template-columns: 1fr 1fr;
+        column-gap: 24px;
+      }
+      .opts label {
+        min-height: 32px;
+      }
+      .head,
+      .tabs {
+        width: 100%;
+        max-width: 944px;
+        margin-left: auto;
+        margin-right: auto;
+        padding-left: 32px;
+        padding-right: 32px;
+      }
+      .foot {
+        justify-content: center;
+      }
+      .foot > * {
+        flex: none;
+      }
+      .foot .sp {
+        flex: 1;
+        max-width: 520px;
+      }
+      #sys .body > .row,
+      #sys .body > div {
+        width: 100%;
+        max-width: 880px;
+      }
 
-select.ctl{appearance:none;-webkit-appearance:none;padding-right:38px;background-repeat:no-repeat;background-position:right 12px center;background-size:14px;
- background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23525252' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")}
-:root[data-theme='dark'] select.ctl{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a3a3a3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")}
+      select.ctl {
+        appearance: none;
+        -webkit-appearance: none;
+        padding-right: 38px;
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        background-size: 14px;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23525252' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      }
+      :root[data-theme='dark'] select.ctl {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a3a3a3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      }
 
-.grow{display:grid;grid-template-columns:1fr 70px 40px;gap:16px;align-items:start;padding:14px 0;border-bottom:1px solid var(--line)}
-.gt{font-weight:600}.gf{font-family:var(--mono);font-size:13px;color:var(--faint);margin-left:6px}
-.gk{font-family:var(--mono);font-size:13px;color:var(--faint);text-align:right;padding-top:2px}
-.grow .sw{margin-top:2px}
-.grow summary{cursor:pointer;color:var(--accent);font-size:var(--xs);margin-top:6px}
-.gpre{margin:8px 0 0;max-height:360px;overflow:auto;background:var(--control);border-radius:var(--r);padding:12px;font:13px/1.6 var(--mono);white-space:pre-wrap}
+      .grow {
+        display: grid;
+        grid-template-columns: 1fr 70px 40px;
+        gap: 16px;
+        align-items: start;
+        padding: 14px 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .gt {
+        font-weight: 600;
+      }
+      .gf {
+        font-family: var(--mono);
+        font-size: 13px;
+        color: var(--faint);
+        margin-left: 6px;
+      }
+      .gk {
+        font-family: var(--mono);
+        font-size: 13px;
+        color: var(--faint);
+        text-align: right;
+        padding-top: 2px;
+      }
+      .grow .sw {
+        margin-top: 2px;
+      }
+      .grow summary {
+        cursor: pointer;
+        color: var(--accent);
+        font-size: var(--xs);
+        margin-top: 6px;
+      }
+      .gpre {
+        margin: 8px 0 0;
+        max-height: 360px;
+        overflow: auto;
+        background: var(--control);
+        border-radius: var(--r);
+        padding: 12px;
+        font: 13px/1.6 var(--mono);
+        white-space: pre-wrap;
+      }
 
-.sktool{display:grid;grid-template-columns:1fr auto 140px;gap:12px;align-items:center;padding:20px 0 8px}
-.sktool .btn{min-width:0}.skcount{font-size:var(--xs);color:var(--faint);font-family:var(--mono)}
-.skcat{border-top:1px solid var(--line)}
-.sksec{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);padding:24px 0 8px}
-.sksec:first-child{padding-top:12px}
-.skcat summary{list-style:none;display:grid;grid-template-columns:20px 1fr auto 40px;gap:12px;align-items:center;height:48px;cursor:pointer}
-.skcat summary::-webkit-details-marker{display:none}
-.chev{color:var(--faint);transition:transform .15s;justify-self:center}.skcat[open] .chev{transform:rotate(90deg)}
-.skname{font-weight:600}.skn{font-family:var(--mono);font-size:13px;color:var(--faint)}
-.skrow{display:grid;grid-template-columns:20px 1fr auto 40px;gap:12px;align-items:center;height:40px;font-size:var(--sm)}
-.skrow::before{content:""}.skrow.na{color:var(--faint)}.skwhy{font-size:var(--xs);color:var(--faint)}
-.skcat[open]{padding-bottom:6px}
+      .sktool {
+        display: grid;
+        grid-template-columns: 1fr auto 140px;
+        gap: 12px;
+        align-items: center;
+        padding: 20px 0 8px;
+      }
+      .sktool .btn {
+        min-width: 0;
+      }
+      .skcount {
+        font-size: var(--xs);
+        color: var(--faint);
+        font-family: var(--mono);
+      }
+      .skcat {
+        border-top: 1px solid var(--line);
+      }
+      .sksec {
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--faint);
+        padding: 24px 0 8px;
+      }
+      .sksec:first-child {
+        padding-top: 12px;
+      }
+      .skcat summary {
+        list-style: none;
+        display: grid;
+        grid-template-columns: 20px 1fr auto 40px;
+        gap: 12px;
+        align-items: center;
+        height: 48px;
+        cursor: pointer;
+      }
+      .skcat summary::-webkit-details-marker {
+        display: none;
+      }
+      .chev {
+        color: var(--faint);
+        transition: transform 0.15s;
+        justify-self: center;
+      }
+      .skcat[open] .chev {
+        transform: rotate(90deg);
+      }
+      .skname {
+        font-weight: 600;
+      }
+      .skn {
+        font-family: var(--mono);
+        font-size: 13px;
+        color: var(--faint);
+      }
+      .skrow {
+        display: grid;
+        grid-template-columns: 20px 1fr auto 40px;
+        gap: 12px;
+        align-items: center;
+        height: 40px;
+        font-size: var(--sm);
+      }
+      .skrow::before {
+        content: '';
+      }
+      .skrow.na {
+        color: var(--faint);
+      }
+      .skwhy {
+        font-size: var(--xs);
+        color: var(--faint);
+      }
+      .skcat[open] {
+        padding-bottom: 6px;
+      }
 
-.mrow::before{display:none}.mrow{grid-template-columns:1fr 60px 40px;height:56px;border-top:1px solid var(--line)}.mrow:first-child{border-top:0}
-.mrow .mi{color:transparent}.mn{font-weight:500;margin-right:10px}
+      .mrow::before {
+        display: none;
+      }
+      .mrow {
+        grid-template-columns: 1fr 60px 40px;
+        height: 56px;
+        border-top: 1px solid var(--line);
+      }
+      .mrow:first-child {
+        border-top: 0;
+      }
+      .mrow .mi {
+        color: transparent;
+      }
+      .mn {
+        font-weight: 500;
+        margin-right: 10px;
+      }
 
-.hkrow{display:grid;grid-template-columns:1fr 40px;gap:12px;align-items:start;padding:12px 0;border-top:1px solid var(--line)}
-.hkrow .sw{margin-top:4px}.hkn{font-size:var(--sm)}
-.hkrow summary{cursor:pointer;color:var(--accent);font-size:var(--xs);margin-top:4px}
+      .hkrow {
+        display: grid;
+        grid-template-columns: 1fr 40px;
+        gap: 12px;
+        align-items: start;
+        padding: 12px 0;
+        border-top: 1px solid var(--line);
+      }
+      .hkrow .sw {
+        margin-top: 4px;
+      }
+      .hkn {
+        font-size: var(--sm);
+      }
+      .hkrow summary {
+        cursor: pointer;
+        color: var(--accent);
+        font-size: var(--xs);
+        margin-top: 4px;
+      }
 
-.rsrow{display:grid;grid-template-columns:260px 1fr;gap:24px;padding:10px 0;border-top:1px solid var(--line);font-size:var(--sm)}
-.rsrow>span:first-child{color:var(--faint)}.rsv{color:var(--text)}
-</style></head><body>
-<div class="bar"><b>Boceto Workspace</b> · tokens reales de la app · clickeable
- <button onclick="document.documentElement.dataset.theme=document.documentElement.dataset.theme=='light'?'dark':'light'">Cambiar tema</button>
- <button onclick="setAgent('claude')">Ver como Claude</button><button onclick="setAgent('codex')">Ver como Codex</button></div>
-<div class="win"><div class="rail"></div>
-<aside class="list">
- <input class="search" placeholder="Buscar">
- <div class="grp">Sistema</div>
- <div class="it" data-v="sys">Actualizar sistema</div>
- <div class="grp">Agentes</div>
- <div class="it on" data-v="claude">Claude Code <small>~35k</small></div>
- <div class="it" data-v="codex">Codex</div>
- <div class="it" data-v="claude" data-n="Estudiar">Estudiar <small>~35k</small></div>
- <div class="it" data-v="codex" data-n="Lanzamiento nuevo">Lanzamiento nuevo</div>
- <div class="new"><div class="menu" id="menu"><div>Agente<small>Claude Code o Codex con su configuración</small></div><div>Comandos del sistema<small>Una lista de comandos en una terminal</small></div></div>
- <button onclick="document.getElementById('menu').classList.toggle('open')">+ Nuevo</button></div>
-</aside>
+      .rsrow {
+        display: grid;
+        grid-template-columns: 260px 1fr;
+        gap: 24px;
+        padding: 10px 0;
+        border-top: 1px solid var(--line);
+        font-size: var(--sm);
+      }
+      .rsrow > span:first-child {
+        color: var(--faint);
+      }
+      .rsv {
+        color: var(--text);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bar">
+      <b>Boceto Workspace</b> · tokens reales de la app · clickeable
+      <button
+        onclick="
+          document.documentElement.dataset.theme =
+            document.documentElement.dataset.theme == 'light' ? 'dark' : 'light'
+        "
+      >
+        Cambiar tema
+      </button>
+      <button onclick="setAgent('claude')">Ver como Claude</button
+      ><button onclick="setAgent('codex')">Ver como Codex</button>
+    </div>
+    <div class="win">
+      <div class="rail"></div>
+      <aside class="list">
+        <input class="search" placeholder="Buscar" />
+        <div class="grp">Sistema</div>
+        <div class="it" data-v="sys">Actualizar sistema</div>
+        <div class="grp">Agentes</div>
+        <div class="it on" data-v="claude">Claude Code <small>~35k</small></div>
+        <div class="it" data-v="codex">Codex</div>
+        <div class="it" data-v="claude" data-n="Estudiar">
+          Estudiar <small>~35k</small>
+        </div>
+        <div class="it" data-v="codex" data-n="Lanzamiento nuevo">
+          Lanzamiento nuevo
+        </div>
+        <div class="new">
+          <div class="menu" id="menu">
+            <div>
+              Agente<small>Claude Code o Codex con su configuración</small>
+            </div>
+            <div>
+              Comandos del sistema<small
+                >Una lista de comandos en una terminal</small
+              >
+            </div>
+          </div>
+          <button
+            onclick="document.getElementById('menu').classList.toggle('open')"
+          >
+            + Nuevo
+          </button>
+        </div>
+      </aside>
 
-<!-- AGENTE -->
-<section class="main" id="agent">
- <div class="head"><input id="aname" value="Claude Code" title="Click para renombrar" style="flex:1;font:600 var(--lg) var(--sans);color:var(--text);background:none;border:1px solid transparent;border-radius:var(--r);padding:4px 8px;margin-left:-9px" onfocus="this.style.borderColor='var(--line)'" onblur="this.style.borderColor='transparent'"><div class="est" id="est">Contexto inicial estimado <span class="mono">35k</span><span class="meter"><i style="width:100%"></i></span></div></div>
- <nav class="tabs" id="tabs">
-  <div class="tab on" data-p="gen">General</div><div class="tab" data-p="ins">Instrucciones</div>
-  <div class="tab" data-p="sk">Skills<span>38/43</span></div><div class="tab claude-only" data-p="mcp">MCP<span>16/16</span></div><div class="tab" data-p="hk">Hooks<span>8/8</span></div><div class="tab" data-p="res">Resumen</div>
- </nav>
- <div class="body">
-  <div class="pane on" id="gen">
-      <div class="row"><div><div class="lbl">Aplicación</div><div class="hint">Programa que se inicia en la terminal.</div></div><select class="ctl" id="appsel"><option>Claude Code</option><option>Codex</option></select></div>
-   <div class="row"><div><div class="lbl">Directorio de trabajo</div><div class="hint">Carpeta donde se abre la sesión.</div></div><div class="inline"><select class="ctl mono"><option>/home/saintwyss</option><optgroup label="Guardadas"><option>~/Data/20_Knowledge/UTN_FRRe</option><option>~/Github_repos/wyss-console-ux</option></optgroup><optgroup label="Recientes"><option>~/Github_repos/pellegrini</option></optgroup></select><button class="btn">Seleccionar</button></div></div>
-   <div class="row"><div><div class="lbl">Rol</div><div class="hint">Etiqueta del lanzamiento.</div></div><div class="inline"><select class="ctl"><option>Trabajador</option><option>Investigación</option></select><button class="btn">Roles</button></div></div>
-   <div class="row"><div><div class="lbl">Permisos</div><div class="hint">Qué acciones requieren tu aprobación.</div></div>
-   <div><select class="ctl" id="psel" onchange="pd()"><option value="0">Configuración de la aplicación</option><option value="1">Aprobación previa</option><option value="2">Solo lectura</option><option value="3" class="claude-only">Edición de archivos</option><option value="4" selected>Acceso completo</option></select>
-   <div class="hint" id="pdesc" style="margin-top:6px"></div></div></div>
-  </div>
-  <div class="pane" id="ins">
-   <div class="sec">Del proyecto</div>
-   <div class="row"><div><div class="lbl">Instrucciones del directorio</div><div class="hint">El CLAUDE.md o AGENTS.md que tenga la carpeta de trabajo.</div></div>
-    <div style="display:grid;grid-template-columns:240px 1fr;gap:16px;align-items:start">
-     <select class="ctl" id="isel" onchange="idesc()"><option value="l">Cargar</option><option value="o">Omitir</option><option value="r">Texto propio</option></select>
-     <div class="hint" id="idesc" style="margin-top:0;line-height:1.5"></div></div></div>
-   <div id="own" style="display:none" class="row"><div><div class="lbl">Texto propio</div><div class="hint">Se lee en lugar del del proyecto.</div></div><textarea placeholder="Instrucciones de este lanzamiento"></textarea></div>
-   <div class="sec" style="margin-top:28px">Globales</div>
-   <div id="insrows"></div>
-  </div>
-  <div class="pane" id="sk">
-   <div class="sktool"><input class="ctl" placeholder="Filtrar skills"><span class="skcount" id="skcount"></span><button class="btn">Volver a leer</button></div>
-   <div id="skrows"></div>
-  </div>
-  <div class="pane" id="mcp">
-   <div class="sktool"><span class="hint" style="margin:0">Para agregar uno, pedíselo a Claude.</span><span class="skcount">16 de 16 · consumo sin medir</span><button class="btn">Volver a leer</button></div>
-   <div class="sksec">Tus servidores</div><details class="skcat" open><summary><svg class="chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg><span class="skname">Comando local</span><span class="skn">1/1</span><span class="sw"></span></summary><div class="skrow"><span>notebooklm</span><span class="skwhy"></span><span class="sw"></span></div></details><details class="skcat" open><summary><svg class="chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg><span class="skname">Paquete npx</span><span class="skn">2/2</span><span class="sw"></span></summary><div class="skrow"><span>context7</span><span class="skwhy"></span><span class="sw"></span></div><div class="skrow"><span>playwright</span><span class="skwhy"></span><span class="sw"></span></div></details><div class="sksec">De tu cuenta de claude.ai</div><div class="hkrow"><div><span>Conectores de tu cuenta</span><div class="skwhy">Canva, Claude Docs, Gmail, Google Calendar, Google Drive, Notion — se prenden o apagan todos juntos.</div></div><span class="sw"></span></div><div class="sksec">De plugins</div><details class="skcat" open><summary><svg class="chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg><span class="skname">design</span><span class="skn">2/2</span><span class="sw"></span></summary><div class="skrow"><span>figma</span><span class="skwhy"></span><span class="sw"></span></div><div class="skrow"><span>intercom</span><span class="skwhy"></span><span class="sw"></span></div></details><details class="skcat" open><summary><svg class="chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg><span class="skname">engineering</span><span class="skn">5/5</span><span class="sw"></span></summary><div class="skrow"><span>atlassian</span><span class="skwhy"></span><span class="sw"></span></div><div class="skrow"><span>datadog</span><span class="skwhy"></span><span class="sw"></span></div><div class="skrow"><span>linear</span><span class="skwhy"></span><span class="sw"></span></div><div class="skrow"><span>notion</span><span class="skwhy"></span><span class="sw"></span></div><div class="skrow"><span>slack</span><span class="skwhy"></span><span class="sw"></span></div></details>
-  </div>
-  <div class="pane" id="hk">
-   <div class="sktool"><span class="hint" style="margin:0">No ocupan contexto al iniciar. Para agregar uno, pedíselo a Claude.</span><span class="skcount">8 de 8</span><button class="btn">Volver a leer</button></div>
-   <div class="sksec">Al iniciar la sesión</div><div class="hkrow"><div><span class="mono hkn">auto-orient.sh</span><div class="skwhy">Siempre</div><details><summary>Ver contenido</summary><pre class="gpre">(contenido real del script)</pre></details></div><span class="sw"></span></div><div class="hkrow"><div><span class="mono hkn">doctor-session.sh</span><div class="skwhy">Siempre</div><details><summary>Ver contenido</summary><pre class="gpre">(contenido real del script)</pre></details></div><span class="sw"></span></div><div class="sksec">Antes de usar una herramienta</div><div class="hkrow"><div><span class="mono hkn">model-routing-gate.py</span><div class="skwhy">Comandos, escritura, edición y agentes</div><details><summary>Ver contenido</summary><pre class="gpre">(contenido real del script)</pre></details></div><span class="sw"></span></div><div class="hkrow"><div><span class="mono hkn">astra-gate.py</span><div class="skwhy">Comandos</div><details><summary>Ver contenido</summary><pre class="gpre">(contenido real del script)</pre></details></div><span class="sw"></span></div><div class="hkrow"><div><span class="mono hkn">rtk hook claude</span><div class="skwhy">Comandos</div><details><summary>Ver contenido</summary><pre class="gpre">Comando externo: rtk (no es un archivo de script).</pre></details></div><span class="sw"></span></div><div class="hkrow"><div><span class="mono hkn">gsd-prompt-guard.js</span><div class="skwhy">Escritura y edición</div><details><summary>Ver contenido</summary><pre class="gpre">(contenido real del script)</pre></details></div><span class="sw"></span></div><div class="hkrow"><div><span class="mono hkn">ui-spec-gate.py</span><div class="skwhy">Escritura</div><details><summary>Ver contenido</summary><pre class="gpre">(contenido real del script)</pre></details></div><span class="sw"></span></div><div class="sksec">Después de usar una herramienta</div><div class="hkrow"><div><span class="mono hkn">gsd-read-injection-scanner.js</span><div class="skwhy">Lectura de archivos</div><details><summary>Ver contenido</summary><pre class="gpre">(contenido real del script)</pre></details></div><span class="sw"></span></div>
-  </div>
-  <div class="pane" id="res">
-   <div class="notice" style="background:var(--accent-soft);color:var(--text);margin:20px 0 4px">Este lanzamiento no cambia nada de tu configuración: usa tu <span class="mono">~/.claude</span> completo, sin configuración propia.</div><div class="sksec">Arranque</div><div class="rsrow"><span>Aplicación</span><span class="rsv">Claude Code</span></div><div class="rsrow"><span>Directorio</span><span class="mono rsv">/home/saintwyss</span></div><div class="rsrow"><span>Permisos</span><span class="rsv">Acceso completo</span></div><div class="rsrow"><span>Contexto inicial estimado</span><span class="rsv">~35k tokens</span></div><div class="sksec">Lee primero</div><div class="rsrow"><span>1</span><span class="rsv">CLAUDE.md — Algoritmo de trabajo compartido</span></div><div class="rsrow"><span>2</span><span class="rsv">rules/invariantes.md — Núcleo compartido</span></div><div class="rsrow"><span>3</span><span class="rsv">rules/ux.md — solo al tocar archivos de interfaz</span></div><div class="rsrow"><span>4</span><span class="rsv">Instrucciones del proyecto: se cargan</span></div><div class="sksec">Skills · 38 de 43</div><div class="rsrow"><span>Generales</span><span class="rsv">9</span></div><div class="rsrow"><span>Por tipo de trabajo</span><span class="rsv">12</span></div><div class="rsrow"><span>Entorno</span><span class="rsv">5</span></div><div class="rsrow"><span>Temas propios</span><span class="rsv">12</span></div><div class="sksec">MCP</div><div class="rsrow"><span>Tus servidores</span><span class="rsv">context7, notebooklm, playwright</span></div><div class="rsrow"><span>Conectores de tu cuenta</span><span class="rsv">Prendidos</span></div><div class="rsrow"><span>Plugins</span><span class="rsv">design, engineering</span></div><div class="sksec">Hooks · 8</div><div class="rsrow"><span>Al iniciar la sesión</span><span class="rsv">auto-orient.sh, doctor-session.sh</span></div><div class="rsrow"><span>Antes de usar una herramienta</span><span class="rsv">model-routing-gate.py, astra-gate.py, rtk, gsd-prompt-guard.js, ui-spec-gate.py</span></div><div class="rsrow"><span>Después de usar una herramienta</span><span class="rsv">gsd-read-injection-scanner.js</span></div><div class="sksec">Fuera · 5</div><div class="rsrow"><span>No disponibles</span><span class="rsv">cursos-utn, socratic-quiz, tutor, tutor-setup (no instaladas para Claude Code); graphify (versión distinta)</span></div>
-  </div>
-  
- </div>
- <div class="foot"><button class="btn danger">Eliminar lanzamiento</button><span class="sp"></span><button class="btn">Probar</button><button class="btn primary">Guardar</button></div>
-</section>
+      <!-- AGENTE -->
+      <section class="main" id="agent">
+        <div class="head">
+          <input
+            id="aname"
+            value="Claude Code"
+            title="Click para renombrar"
+            style="
+              flex: 1;
+              font: 600 var(--lg) var(--sans);
+              color: var(--text);
+              background: none;
+              border: 1px solid transparent;
+              border-radius: var(--r);
+              padding: 4px 8px;
+              margin-left: -9px;
+            "
+            onfocus="this.style.borderColor = 'var(--line)'"
+            onblur="this.style.borderColor = 'transparent'"
+          />
+          <div class="est" id="est">
+            Contexto inicial estimado <span class="mono">35k</span
+            ><span class="meter"><i style="width: 100%"></i></span>
+          </div>
+        </div>
+        <nav class="tabs" id="tabs">
+          <div class="tab on" data-p="gen">General</div>
+          <div class="tab" data-p="ins">Instrucciones</div>
+          <div class="tab" data-p="sk">Skills<span>38/43</span></div>
+          <div class="tab claude-only" data-p="mcp">MCP<span>16/16</span></div>
+          <div class="tab" data-p="hk">Hooks<span>8/8</span></div>
+          <div class="tab" data-p="res">Resumen</div>
+        </nav>
+        <div class="body">
+          <div class="pane on" id="gen">
+            <div class="row">
+              <div>
+                <div class="lbl">Aplicación</div>
+                <div class="hint">Programa que se inicia en la terminal.</div>
+              </div>
+              <select class="ctl" id="appsel">
+                <option>Claude Code</option>
+                <option>Codex</option>
+              </select>
+            </div>
+            <div class="row">
+              <div>
+                <div class="lbl">Directorio de trabajo</div>
+                <div class="hint">Carpeta donde se abre la sesión.</div>
+              </div>
+              <div class="inline">
+                <select class="ctl mono">
+                  <option>/home/saintwyss</option>
+                  <optgroup label="Guardadas">
+                    <option>~/Data/20_Knowledge/UTN_FRRe</option>
+                    <option>~/Github_repos/wyss-console-ux</option>
+                  </optgroup>
+                  <optgroup label="Recientes">
+                    <option>~/Github_repos/pellegrini</option>
+                  </optgroup></select
+                ><button class="btn">Seleccionar</button>
+              </div>
+            </div>
+            <div class="row">
+              <div>
+                <div class="lbl">Rol</div>
+                <div class="hint">Etiqueta del lanzamiento.</div>
+              </div>
+              <div class="inline">
+                <select class="ctl">
+                  <option>Trabajador</option>
+                  <option>Investigación</option></select
+                ><button class="btn">Roles</button>
+              </div>
+            </div>
+            <div class="row">
+              <div>
+                <div class="lbl">Permisos</div>
+                <div class="hint">Qué acciones requieren tu aprobación.</div>
+              </div>
+              <div>
+                <select class="ctl" id="psel" onchange="pd()">
+                  <option value="0">Configuración de la aplicación</option>
+                  <option value="1">Aprobación previa</option>
+                  <option value="2">Solo lectura</option>
+                  <option value="3" class="claude-only">
+                    Edición de archivos
+                  </option>
+                  <option value="4" selected>Acceso completo</option>
+                </select>
+                <div class="hint" id="pdesc" style="margin-top: 6px"></div>
+              </div>
+            </div>
+          </div>
+          <div class="pane" id="ins">
+            <div class="sec">Del proyecto</div>
+            <div class="row">
+              <div>
+                <div class="lbl">Instrucciones del directorio</div>
+                <div class="hint">
+                  El CLAUDE.md o AGENTS.md que tenga la carpeta de trabajo.
+                </div>
+              </div>
+              <div
+                style="
+                  display: grid;
+                  grid-template-columns: 240px 1fr;
+                  gap: 16px;
+                  align-items: start;
+                "
+              >
+                <select class="ctl" id="isel" onchange="idesc()">
+                  <option value="l">Cargar</option>
+                  <option value="o">Omitir</option>
+                  <option value="r">Texto propio</option>
+                </select>
+                <div
+                  class="hint"
+                  id="idesc"
+                  style="margin-top: 0; line-height: 1.5"
+                ></div>
+              </div>
+            </div>
+            <div id="own" style="display: none" class="row">
+              <div>
+                <div class="lbl">Texto propio</div>
+                <div class="hint">Se lee en lugar del del proyecto.</div>
+              </div>
+              <textarea
+                placeholder="Instrucciones de este lanzamiento"
+              ></textarea>
+            </div>
+            <div class="sec" style="margin-top: 28px">Globales</div>
+            <div id="insrows"></div>
+          </div>
+          <div class="pane" id="sk">
+            <div class="sktool">
+              <input class="ctl" placeholder="Filtrar skills" /><span
+                class="skcount"
+                id="skcount"
+              ></span
+              ><button class="btn">Volver a leer</button>
+            </div>
+            <div id="skrows"></div>
+          </div>
+          <div class="pane" id="mcp">
+            <div class="sktool">
+              <span class="hint" style="margin: 0"
+                >Para agregar uno, pedíselo a Claude.</span
+              ><span class="skcount">16 de 16 · consumo sin medir</span
+              ><button class="btn">Volver a leer</button>
+            </div>
+            <div class="sksec">Tus servidores</div>
+            <details class="skcat" open>
+              <summary>
+                <svg
+                  class="chev"
+                  viewBox="0 0 24 24"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M9 6l6 6-6 6" /></svg
+                ><span class="skname">Comando local</span
+                ><span class="skn">1/1</span><span class="sw"></span>
+              </summary>
+              <div class="skrow">
+                <span>notebooklm</span><span class="skwhy"></span
+                ><span class="sw"></span>
+              </div>
+            </details>
+            <details class="skcat" open>
+              <summary>
+                <svg
+                  class="chev"
+                  viewBox="0 0 24 24"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M9 6l6 6-6 6" /></svg
+                ><span class="skname">Paquete npx</span
+                ><span class="skn">2/2</span><span class="sw"></span>
+              </summary>
+              <div class="skrow">
+                <span>context7</span><span class="skwhy"></span
+                ><span class="sw"></span>
+              </div>
+              <div class="skrow">
+                <span>playwright</span><span class="skwhy"></span
+                ><span class="sw"></span>
+              </div>
+            </details>
+            <div class="sksec">De tu cuenta de claude.ai</div>
+            <div class="hkrow">
+              <div>
+                <span>Conectores de tu cuenta</span>
+                <div class="skwhy">
+                  Canva, Claude Docs, Gmail, Google Calendar, Google Drive,
+                  Notion — se prenden o apagan todos juntos.
+                </div>
+              </div>
+              <span class="sw"></span>
+            </div>
+            <div class="sksec">De plugins</div>
+            <details class="skcat" open>
+              <summary>
+                <svg
+                  class="chev"
+                  viewBox="0 0 24 24"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M9 6l6 6-6 6" /></svg
+                ><span class="skname">design</span><span class="skn">2/2</span
+                ><span class="sw"></span>
+              </summary>
+              <div class="skrow">
+                <span>figma</span><span class="skwhy"></span
+                ><span class="sw"></span>
+              </div>
+              <div class="skrow">
+                <span>intercom</span><span class="skwhy"></span
+                ><span class="sw"></span>
+              </div>
+            </details>
+            <details class="skcat" open>
+              <summary>
+                <svg
+                  class="chev"
+                  viewBox="0 0 24 24"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M9 6l6 6-6 6" /></svg
+                ><span class="skname">engineering</span
+                ><span class="skn">5/5</span><span class="sw"></span>
+              </summary>
+              <div class="skrow">
+                <span>atlassian</span><span class="skwhy"></span
+                ><span class="sw"></span>
+              </div>
+              <div class="skrow">
+                <span>datadog</span><span class="skwhy"></span
+                ><span class="sw"></span>
+              </div>
+              <div class="skrow">
+                <span>linear</span><span class="skwhy"></span
+                ><span class="sw"></span>
+              </div>
+              <div class="skrow">
+                <span>notion</span><span class="skwhy"></span
+                ><span class="sw"></span>
+              </div>
+              <div class="skrow">
+                <span>slack</span><span class="skwhy"></span
+                ><span class="sw"></span>
+              </div>
+            </details>
+          </div>
+          <div class="pane" id="hk">
+            <div class="sktool">
+              <span class="hint" style="margin: 0"
+                >No ocupan contexto al iniciar. Para agregar uno, pedíselo a
+                Claude.</span
+              ><span class="skcount">8 de 8</span
+              ><button class="btn">Volver a leer</button>
+            </div>
+            <div class="sksec">Al iniciar la sesión</div>
+            <div class="hkrow">
+              <div>
+                <span class="mono hkn">auto-orient.sh</span>
+                <div class="skwhy">Siempre</div>
+                <details>
+                  <summary>Ver contenido</summary>
+                  <pre class="gpre">(contenido real del script)</pre>
+                </details>
+              </div>
+              <span class="sw"></span>
+            </div>
+            <div class="hkrow">
+              <div>
+                <span class="mono hkn">doctor-session.sh</span>
+                <div class="skwhy">Siempre</div>
+                <details>
+                  <summary>Ver contenido</summary>
+                  <pre class="gpre">(contenido real del script)</pre>
+                </details>
+              </div>
+              <span class="sw"></span>
+            </div>
+            <div class="sksec">Antes de usar una herramienta</div>
+            <div class="hkrow">
+              <div>
+                <span class="mono hkn">model-routing-gate.py</span>
+                <div class="skwhy">Comandos, escritura, edición y agentes</div>
+                <details>
+                  <summary>Ver contenido</summary>
+                  <pre class="gpre">(contenido real del script)</pre>
+                </details>
+              </div>
+              <span class="sw"></span>
+            </div>
+            <div class="hkrow">
+              <div>
+                <span class="mono hkn">astra-gate.py</span>
+                <div class="skwhy">Comandos</div>
+                <details>
+                  <summary>Ver contenido</summary>
+                  <pre class="gpre">(contenido real del script)</pre>
+                </details>
+              </div>
+              <span class="sw"></span>
+            </div>
+            <div class="hkrow">
+              <div>
+                <span class="mono hkn">rtk hook claude</span>
+                <div class="skwhy">Comandos</div>
+                <details>
+                  <summary>Ver contenido</summary>
+                  <pre class="gpre">
+Comando externo: rtk (no es un archivo de script).</pre>
+                </details>
+              </div>
+              <span class="sw"></span>
+            </div>
+            <div class="hkrow">
+              <div>
+                <span class="mono hkn">gsd-prompt-guard.js</span>
+                <div class="skwhy">Escritura y edición</div>
+                <details>
+                  <summary>Ver contenido</summary>
+                  <pre class="gpre">(contenido real del script)</pre>
+                </details>
+              </div>
+              <span class="sw"></span>
+            </div>
+            <div class="hkrow">
+              <div>
+                <span class="mono hkn">ui-spec-gate.py</span>
+                <div class="skwhy">Escritura</div>
+                <details>
+                  <summary>Ver contenido</summary>
+                  <pre class="gpre">(contenido real del script)</pre>
+                </details>
+              </div>
+              <span class="sw"></span>
+            </div>
+            <div class="sksec">Después de usar una herramienta</div>
+            <div class="hkrow">
+              <div>
+                <span class="mono hkn">gsd-read-injection-scanner.js</span>
+                <div class="skwhy">Lectura de archivos</div>
+                <details>
+                  <summary>Ver contenido</summary>
+                  <pre class="gpre">(contenido real del script)</pre>
+                </details>
+              </div>
+              <span class="sw"></span>
+            </div>
+          </div>
+          <div class="pane" id="res">
+            <div
+              class="notice"
+              style="
+                background: var(--accent-soft);
+                color: var(--text);
+                margin: 20px 0 4px;
+              "
+            >
+              Este lanzamiento no cambia nada de tu configuración: usa tu
+              <span class="mono">~/.claude</span> completo, sin configuración
+              propia.
+            </div>
+            <div class="sksec">Arranque</div>
+            <div class="rsrow">
+              <span>Aplicación</span><span class="rsv">Claude Code</span>
+            </div>
+            <div class="rsrow">
+              <span>Directorio</span
+              ><span class="mono rsv">/home/saintwyss</span>
+            </div>
+            <div class="rsrow">
+              <span>Permisos</span><span class="rsv">Acceso completo</span>
+            </div>
+            <div class="rsrow">
+              <span>Contexto inicial estimado</span
+              ><span class="rsv">~35k tokens</span>
+            </div>
+            <div class="sksec">Lee primero</div>
+            <div class="rsrow">
+              <span>1</span
+              ><span class="rsv"
+                >CLAUDE.md — Algoritmo de trabajo compartido</span
+              >
+            </div>
+            <div class="rsrow">
+              <span>2</span
+              ><span class="rsv">rules/invariantes.md — Núcleo compartido</span>
+            </div>
+            <div class="rsrow">
+              <span>3</span
+              ><span class="rsv"
+                >rules/ux.md — solo al tocar archivos de interfaz</span
+              >
+            </div>
+            <div class="rsrow">
+              <span>4</span
+              ><span class="rsv">Instrucciones del proyecto: se cargan</span>
+            </div>
+            <div class="sksec">Skills · 38 de 43</div>
+            <div class="rsrow">
+              <span>Generales</span><span class="rsv">9</span>
+            </div>
+            <div class="rsrow">
+              <span>Por tipo de trabajo</span><span class="rsv">12</span>
+            </div>
+            <div class="rsrow">
+              <span>Entorno</span><span class="rsv">5</span>
+            </div>
+            <div class="rsrow">
+              <span>Temas propios</span><span class="rsv">12</span>
+            </div>
+            <div class="sksec">MCP</div>
+            <div class="rsrow">
+              <span>Tus servidores</span
+              ><span class="rsv">context7, notebooklm, playwright</span>
+            </div>
+            <div class="rsrow">
+              <span>Conectores de tu cuenta</span
+              ><span class="rsv">Prendidos</span>
+            </div>
+            <div class="rsrow">
+              <span>Plugins</span><span class="rsv">design, engineering</span>
+            </div>
+            <div class="sksec">Hooks · 8</div>
+            <div class="rsrow">
+              <span>Al iniciar la sesión</span
+              ><span class="rsv">auto-orient.sh, doctor-session.sh</span>
+            </div>
+            <div class="rsrow">
+              <span>Antes de usar una herramienta</span
+              ><span class="rsv"
+                >model-routing-gate.py, astra-gate.py, rtk, gsd-prompt-guard.js,
+                ui-spec-gate.py</span
+              >
+            </div>
+            <div class="rsrow">
+              <span>Después de usar una herramienta</span
+              ><span class="rsv">gsd-read-injection-scanner.js</span>
+            </div>
+            <div class="sksec">Fuera · 5</div>
+            <div class="rsrow">
+              <span>No disponibles</span
+              ><span class="rsv"
+                >cursos-utn, socratic-quiz, tutor, tutor-setup (no instaladas
+                para Claude Code); graphify (versión distinta)</span
+              >
+            </div>
+          </div>
+        </div>
+        <div class="foot">
+          <button class="btn danger">Eliminar lanzamiento</button
+          ><span class="sp"></span><button class="btn">Probar</button
+          ><button class="btn primary">Guardar</button>
+        </div>
+      </section>
 
-<!-- SISTEMA -->
-<section class="main" id="sys" style="display:none">
- <div class="head" style="padding-bottom:18px;border-bottom:1px solid var(--line)"><h1>Actualizar sistema</h1></div>
- <div class="body">
-  <div class="row"><div><div class="lbl">Distribución</div><div class="hint">Comandos que corresponden a esta PC.</div></div><select class="ctl"><option>CachyOS</option><option>Arch</option><option>Ubuntu / Debian</option><option>Fedora</option><option>openSUSE</option></select></div>
-  <div class="row"><div><div class="lbl">Opciones</div><div class="hint">Cada opción modifica los comandos de abajo.</div></div>
-   <div class="opts">
-    <label><input type="checkbox" checked>Sin confirmar <code>--noconfirm</code></label>
-    <label><input type="checkbox" checked>Limpiar caché de paquetes <code>paccache -rk2</code></label>
-    <label><input type="checkbox" checked>Incluir AUR <code>paru</code></label>
-    <label><input type="checkbox" checked>Actualizar apps Flatpak <code>flatpak update</code></label>
-    <label><input type="checkbox" checked>Omitir revisión AUR <code>--skipreview</code></label>
-    <label><input type="checkbox" checked>Finalizar con cachy-update</label>
-    <label><input type="checkbox" checked>Incluir paquetes -git <code>--devel</code></label>
-   </div></div>
-  <div class="row"><div><div class="lbl">Comandos</div><div class="hint">Editables. Uno por línea, en una terminal nueva en /home/saintwyss.</div></div>
-   <div><textarea oninput="document.getElementById('man').style.display='block'">sudo pacman -Syu --noconfirm
+      <!-- SISTEMA -->
+      <section class="main" id="sys" style="display: none">
+        <div
+          class="head"
+          style="padding-bottom: 18px; border-bottom: 1px solid var(--line)"
+        >
+          <h1>Actualizar sistema</h1>
+        </div>
+        <div class="body">
+          <div class="row">
+            <div>
+              <div class="lbl">Distribución</div>
+              <div class="hint">Comandos que corresponden a esta PC.</div>
+            </div>
+            <select class="ctl">
+              <option>CachyOS</option>
+              <option>Arch</option>
+              <option>Ubuntu / Debian</option>
+              <option>Fedora</option>
+              <option>openSUSE</option>
+            </select>
+          </div>
+          <div class="row">
+            <div>
+              <div class="lbl">Opciones</div>
+              <div class="hint">
+                Cada opción modifica los comandos de abajo.
+              </div>
+            </div>
+            <div class="opts">
+              <label
+                ><input type="checkbox" checked />Sin confirmar
+                <code>--noconfirm</code></label
+              >
+              <label
+                ><input type="checkbox" checked />Limpiar caché de paquetes
+                <code>paccache -rk2</code></label
+              >
+              <label
+                ><input type="checkbox" checked />Incluir AUR
+                <code>paru</code></label
+              >
+              <label
+                ><input type="checkbox" checked />Actualizar apps Flatpak
+                <code>flatpak update</code></label
+              >
+              <label
+                ><input type="checkbox" checked />Omitir revisión AUR
+                <code>--skipreview</code></label
+              >
+              <label
+                ><input type="checkbox" checked />Finalizar con
+                cachy-update</label
+              >
+              <label
+                ><input type="checkbox" checked />Incluir paquetes -git
+                <code>--devel</code></label
+              >
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <div class="lbl">Comandos</div>
+              <div class="hint">
+                Editables. Uno por línea, en una terminal nueva en
+                /home/saintwyss.
+              </div>
+            </div>
+            <div>
+              <textarea
+                oninput="document.getElementById('man').style.display = 'block'"
+              >
+sudo pacman -Syu --noconfirm
 paru -Sua --noconfirm --skipreview --devel
 sudo paccache -rk2
 flatpak update -y
 cachy-update</textarea>
-   <div class="notice warn" id="man" style="display:none;margin-top:8px">Comandos editados manualmente: las opciones ya no los modifican. <u>Regenerar desde las opciones</u></div></div></div>
- </div>
- <div class="foot"><button class="btn danger">Eliminar lanzamiento</button><span class="sp"></span><button class="btn">Probar</button><button class="btn primary">Guardar</button></div>
-</section>
-</div>
-<script>
-const INS={"claude": [["CLAUDE.md", "Algoritmo de trabajo compartido", "Cómo trabajo con vos: rutear cada pedido, cuándo preguntar, riesgo y modelos.", "~4,2k", "", "---\ndescription: Cómo trabajo con vos: rutear cada pedido, cuándo preguntar, riesgo y modelos.\n---\n\n# Algoritmo de trabajo compartido\n\n(contenido real del archivo)"], ["rules/invariantes.md", "Núcleo compartido — Claude y Codex obedecen esto igual", "El método: construir, tests, verificación, cierre y seguridad.", "~7,3k", "", "---\ndescription: El método: construir, tests, verificación, cierre y seguridad.\n---\n\n# Núcleo compartido — Claude y Codex obedecen esto igual\n\n(contenido real del archivo)"], ["rules/ux.md", "Pipeline de UI/UX — en orden, sin saltear", "Pasos y reglas para diseñar interfaces.", "~1,6k", "Solo se carga al tocar archivos de interfaz.", "---\ndescription: Pasos y reglas para diseñar interfaces.\n---\n\n# Pipeline de UI/UX — en orden, sin saltear\n\n(contenido real del archivo)"]], "codex": [["AGENTS.md", "Reglas globales de Codex", "Las mismas reglas para Codex (generado desde CLAUDE.md e invariantes).", "~12,5k", "", "---\ndescription: Las mismas reglas para Codex (generado desde CLAUDE.md e invariantes).\n---\n\n# Reglas globales de Codex\n\n(contenido real del archivo)"]]};
+              <div
+                class="notice warn"
+                id="man"
+                style="display: none; margin-top: 8px"
+              >
+                Comandos editados manualmente: las opciones ya no los modifican.
+                <u>Regenerar desde las opciones</u>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="foot">
+          <button class="btn danger">Eliminar lanzamiento</button
+          ><span class="sp"></span><button class="btn">Probar</button
+          ><button class="btn primary">Guardar</button>
+        </div>
+      </section>
+    </div>
+    <script>
+      const INS = {
+        claude: [
+          [
+            'CLAUDE.md',
+            'Algoritmo de trabajo compartido',
+            'Cómo trabajo con vos: rutear cada pedido, cuándo preguntar, riesgo y modelos.',
+            '~4,2k',
+            '',
+            '---\ndescription: Cómo trabajo con vos: rutear cada pedido, cuándo preguntar, riesgo y modelos.\n---\n\n# Algoritmo de trabajo compartido\n\n(contenido real del archivo)',
+          ],
+          [
+            'rules/invariantes.md',
+            'Núcleo compartido — Claude y Codex obedecen esto igual',
+            'El método: construir, tests, verificación, cierre y seguridad.',
+            '~7,3k',
+            '',
+            '---\ndescription: El método: construir, tests, verificación, cierre y seguridad.\n---\n\n# Núcleo compartido — Claude y Codex obedecen esto igual\n\n(contenido real del archivo)',
+          ],
+          [
+            'rules/ux.md',
+            'Pipeline de UI/UX — en orden, sin saltear',
+            'Pasos y reglas para diseñar interfaces.',
+            '~1,6k',
+            'Solo se carga al tocar archivos de interfaz.',
+            '---\ndescription: Pasos y reglas para diseñar interfaces.\n---\n\n# Pipeline de UI/UX — en orden, sin saltear\n\n(contenido real del archivo)',
+          ],
+        ],
+        codex: [
+          [
+            'AGENTS.md',
+            'Reglas globales de Codex',
+            'Las mismas reglas para Codex (generado desde CLAUDE.md e invariantes).',
+            '~12,5k',
+            '',
+            '---\ndescription: Las mismas reglas para Codex (generado desde CLAUDE.md e invariantes).\n---\n\n# Reglas globales de Codex\n\n(contenido real del archivo)',
+          ],
+        ],
+      };
 
-const CAT=[
-['Generales',[['Método y planificación',[['combo',1],['arsenal',1],['loops',1]]],['Decisiones',[['devils-advocate',1],['junta-ceo',1],['the-fool',1]]],['Revisión y pruebas',[['systematic-debugging',1],['playwright-cli',1],['vitest',1]]]]],
-['Por tipo de trabajo',[['Diseño e interfaz',[['accessibility',1],['frontend-design',1],['ui-ux-pro-max',1]]],['Animación y video',[['gsap-react',1]]],['Documentos y escritura',[['markdown-converter',1],['humanizer',1]]],['Contenido y SEO',[['content-strategy',0]]]]],
-['Entorno',[['Sistema y configuración',[['cachyos-kde-workstation',1],['orient',1]]]]],
-['Temas propios',[['Estudio y conocimiento',[['cursos-utn',-1,'No instalada para Claude Code'],['obsidian-second-brain',1],['socratic-quiz',-1,'No instalada para Claude Code'],['tutor',-1,'No instalada para Claude Code'],['tutor-setup',-1,'No instalada para Claude Code']]],['Otros',[['graphify',-1,'La versión instalada no coincide']]]]]];
-document.getElementById('skrows').innerHTML=CAT.map(([sec,cats])=>`<div class="sksec">${sec}</div>`+cats.map(([c,items])=>{const on=items.filter(i=>i[1]==1).length;return `<details class="skcat" open><summary><svg class="chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg><span class="skname">${c}</span><span class="skn">${on}/${items.length}</span><span class="sw ${on?'':'off'}"></span></summary>${items.map(([n,st,why])=>`<div class="skrow${st<0?' na':''}"><span>${n}</span><span class="skwhy">${st<0?why:''}</span>${st<0?'<span></span>':`<span class="sw ${st?'':'off'}"></span>`}</div>`).join('')}</details>`}).join('')).join('');
-{const all=CAT.flatMap(x=>x[1]).flatMap(c=>c[1]);const on=all.filter(i=>i[1]==1).length;document.getElementById('skcount').textContent=`${on} de ${all.length} · ~3k tokens`;document.querySelector('.tab[data-p=sk] span').textContent=`${on}/${all.length}`;}
-let agent='claude';
-function setAgent(a){agent=a;
- document.querySelectorAll('.claude-only').forEach(e=>e.style.display=a=='claude'?'':'none');
- document.getElementById('insrows').innerHTML=INS[a].map(([f,t,d,k,n,c])=>`<div class="grow"><div class="gmain"><div><span class="gt">${t}</span> <span class="gf">${f}</span></div><div class="hint">${d}${n?' '+n:''}</div><details><summary>Ver contenido</summary><pre class="gpre"></pre></details></div><span class="gk">${k}</span><span class="sw"></span></div>`).join('');document.querySelectorAll('#insrows .gpre').forEach((e,i)=>e.textContent=INS[a][i][5]);
- document.getElementById('est').innerHTML=a=='claude'?'Contexto inicial estimado <span class="mono">35k</span><span class="meter"><i style="width:100%"></i></span>':'Contexto inicial: sin estimación para Codex';
- document.getElementById('appsel').value=a=='claude'?'Claude Code':'Codex';
- const r=document.querySelector('.tab.on');if(r&&r.style.display=='none')show('gen');}
-const PD=['Usa lo que tenga configurado la aplicación.','Solicita autorización antes de cada acción.','No modifica archivos ni ejecuta comandos.','Edita sin preguntar; solicita autorización para comandos.','Sin aprobaciones ni sandbox, con los permisos de tu cuenta.'];
-function pd(){const v=+document.getElementById('psel').value;const e=document.getElementById('pdesc');e.textContent=PD[v];e.style.color=v==4?'var(--warn)':'';}
-const ID={l:'El agente lee las instrucciones del proyecto además de las tuyas.',o:'El agente no lee las instrucciones ni las reglas del proyecto; las tuyas siguen según sus interruptores.',r:'El agente lee el texto que escribas abajo en lugar de las instrucciones del proyecto.'};
-function idesc(){const v=document.getElementById('isel').value;document.getElementById('idesc').textContent=ID[v];document.getElementById('own').style.display=v=='r'?'grid':'none';}
-function show(p){document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.p==p));document.querySelectorAll('.pane').forEach(x=>x.classList.toggle('on',x.id==p));}
-document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>show(t.dataset.p));
-document.querySelectorAll('.it').forEach(i=>i.onclick=()=>{document.querySelectorAll('.it').forEach(x=>x.classList.remove('on'));i.classList.add('on');
- const v=i.dataset.v;document.getElementById('sys').style.display=v=='sys'?'':'none';document.getElementById('agent').style.display=v=='sys'?'none':'';
- if(v!='sys'){setAgent(v);const n=i.dataset.n||i.childNodes[0].textContent.trim();document.getElementById('aname').value=n;show('gen');}});
-setAgent('claude');document.getElementById('psel').value='4';pd();idesc();
-</script>
-</body></html>
+      const CAT = [
+        [
+          'Generales',
+          [
+            [
+              'Método y planificación',
+              [
+                ['combo', 1],
+                ['arsenal', 1],
+                ['loops', 1],
+              ],
+            ],
+            [
+              'Decisiones',
+              [
+                ['devils-advocate', 1],
+                ['junta-ceo', 1],
+                ['the-fool', 1],
+              ],
+            ],
+            [
+              'Revisión y pruebas',
+              [
+                ['systematic-debugging', 1],
+                ['playwright-cli', 1],
+                ['vitest', 1],
+              ],
+            ],
+          ],
+        ],
+        [
+          'Por tipo de trabajo',
+          [
+            [
+              'Diseño e interfaz',
+              [
+                ['accessibility', 1],
+                ['frontend-design', 1],
+                ['ui-ux-pro-max', 1],
+              ],
+            ],
+            ['Animación y video', [['gsap-react', 1]]],
+            [
+              'Documentos y escritura',
+              [
+                ['markdown-converter', 1],
+                ['humanizer', 1],
+              ],
+            ],
+            ['Contenido y SEO', [['content-strategy', 0]]],
+          ],
+        ],
+        [
+          'Entorno',
+          [
+            [
+              'Sistema y configuración',
+              [
+                ['cachyos-kde-workstation', 1],
+                ['orient', 1],
+              ],
+            ],
+          ],
+        ],
+        [
+          'Temas propios',
+          [
+            [
+              'Estudio y conocimiento',
+              [
+                ['cursos-utn', -1, 'No instalada para Claude Code'],
+                ['obsidian-second-brain', 1],
+                ['socratic-quiz', -1, 'No instalada para Claude Code'],
+                ['tutor', -1, 'No instalada para Claude Code'],
+                ['tutor-setup', -1, 'No instalada para Claude Code'],
+              ],
+            ],
+            ['Otros', [['graphify', -1, 'La versión instalada no coincide']]],
+          ],
+        ],
+      ];
+      document.getElementById('skrows').innerHTML = CAT.map(
+        ([sec, cats]) =>
+          `<div class="sksec">${sec}</div>` +
+          cats
+            .map(([c, items]) => {
+              const on = items.filter((i) => i[1] == 1).length;
+              return `<details class="skcat" open><summary><svg class="chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg><span class="skname">${c}</span><span class="skn">${on}/${items.length}</span><span class="sw ${on ? '' : 'off'}"></span></summary>${items.map(([n, st, why]) => `<div class="skrow${st < 0 ? ' na' : ''}"><span>${n}</span><span class="skwhy">${st < 0 ? why : ''}</span>${st < 0 ? '<span></span>' : `<span class="sw ${st ? '' : 'off'}"></span>`}</div>`).join('')}</details>`;
+            })
+            .join(''),
+      ).join('');
+      {
+        const all = CAT.flatMap((x) => x[1]).flatMap((c) => c[1]);
+        const on = all.filter((i) => i[1] == 1).length;
+        document.getElementById('skcount').textContent =
+          `${on} de ${all.length} · ~3k tokens`;
+        document.querySelector('.tab[data-p=sk] span').textContent =
+          `${on}/${all.length}`;
+      }
+      let agent = 'claude';
+      function setAgent(a) {
+        agent = a;
+        document
+          .querySelectorAll('.claude-only')
+          .forEach((e) => (e.style.display = a == 'claude' ? '' : 'none'));
+        document.getElementById('insrows').innerHTML = INS[a]
+          .map(
+            ([f, t, d, k, n, c]) =>
+              `<div class="grow"><div class="gmain"><div><span class="gt">${t}</span> <span class="gf">${f}</span></div><div class="hint">${d}${n ? ' ' + n : ''}</div><details><summary>Ver contenido</summary><pre class="gpre"></pre></details></div><span class="gk">${k}</span><span class="sw"></span></div>`,
+          )
+          .join('');
+        document
+          .querySelectorAll('#insrows .gpre')
+          .forEach((e, i) => (e.textContent = INS[a][i][5]));
+        document.getElementById('est').innerHTML =
+          a == 'claude'
+            ? 'Contexto inicial estimado <span class="mono">35k</span><span class="meter"><i style="width:100%"></i></span>'
+            : 'Contexto inicial: sin estimación para Codex';
+        document.getElementById('appsel').value =
+          a == 'claude' ? 'Claude Code' : 'Codex';
+        const r = document.querySelector('.tab.on');
+        if (r && r.style.display == 'none') show('gen');
+      }
+      const PD = [
+        'Usa lo que tenga configurado la aplicación.',
+        'Solicita autorización antes de cada acción.',
+        'No modifica archivos ni ejecuta comandos.',
+        'Edita sin preguntar; solicita autorización para comandos.',
+        'Sin aprobaciones ni sandbox, con los permisos de tu cuenta.',
+      ];
+      function pd() {
+        const v = +document.getElementById('psel').value;
+        const e = document.getElementById('pdesc');
+        e.textContent = PD[v];
+        e.style.color = v == 4 ? 'var(--warn)' : '';
+      }
+      const ID = {
+        l: 'El agente lee las instrucciones del proyecto además de las tuyas.',
+        o: 'El agente no lee las instrucciones ni las reglas del proyecto; las tuyas siguen según sus interruptores.',
+        r: 'El agente lee el texto que escribas abajo en lugar de las instrucciones del proyecto.',
+      };
+      function idesc() {
+        const v = document.getElementById('isel').value;
+        document.getElementById('idesc').textContent = ID[v];
+        document.getElementById('own').style.display =
+          v == 'r' ? 'grid' : 'none';
+      }
+      function show(p) {
+        document
+          .querySelectorAll('.tab')
+          .forEach((t) => t.classList.toggle('on', t.dataset.p == p));
+        document
+          .querySelectorAll('.pane')
+          .forEach((x) => x.classList.toggle('on', x.id == p));
+      }
+      document
+        .querySelectorAll('.tab')
+        .forEach((t) => (t.onclick = () => show(t.dataset.p)));
+      document.querySelectorAll('.it').forEach(
+        (i) =>
+          (i.onclick = () => {
+            document
+              .querySelectorAll('.it')
+              .forEach((x) => x.classList.remove('on'));
+            i.classList.add('on');
+            const v = i.dataset.v;
+            document.getElementById('sys').style.display =
+              v == 'sys' ? '' : 'none';
+            document.getElementById('agent').style.display =
+              v == 'sys' ? 'none' : '';
+            if (v != 'sys') {
+              setAgent(v);
+              const n = i.dataset.n || i.childNodes[0].textContent.trim();
+              document.getElementById('aname').value = n;
+              show('gen');
+            }
+          }),
+      );
+      setAgent('claude');
+      document.getElementById('psel').value = '4';
+      pd();
+      idesc();
+    </script>
+  </body>
+</html>

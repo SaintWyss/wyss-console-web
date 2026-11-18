@@ -21,6 +21,8 @@
 //!   joiner) are shown as `⟨U+XXXX⟩` instead of acting.
 //!
 //! Declining and cancelling take no confirmation: they only reduce what can happen.
+#[cfg(target_os = "linux")]
+use gtk3 as gtk;
 use super::{
     ApprovalDecision, DecisionReceipt, ExecutionScope, F8Error, F8Failure, F8Gui, FenceView,
 };

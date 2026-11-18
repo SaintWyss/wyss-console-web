@@ -16,6 +16,7 @@
 pub mod apply;
 pub mod claim;
 pub mod command;
+#[cfg(feature = "desktop")]
 pub mod commands;
 pub mod insight;
 pub mod migration;

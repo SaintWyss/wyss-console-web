@@ -714,8 +714,12 @@ fn configuration_and_control_do_not_reference_each_other() {
             path.display()
         );
     }
-    let desktop = fs::read_to_string(src.join("main.rs")).unwrap();
-    assert!(desktop.contains("mod agentconfig;"));
+    // The binary modules (desktop and the standalone host) are declared in host_modules.rs, which
+    // main.rs includes; agentconfig stays a binary module, never part of the library.
+    let main = fs::read_to_string(src.join("main.rs")).unwrap();
+    assert!(main.contains("include!(\"host_modules.rs\")"));
+    let modules = fs::read_to_string(src.join("host_modules.rs")).unwrap();
+    assert!(modules.contains("mod agentconfig;"));
 }
 
 fn walk_files(dir: &Path) -> Vec<PathBuf> {

@@ -586,6 +586,7 @@ mod launch_tests;
 mod migration_tests;
 mod owner_tests;
 mod perf_world;
+#[cfg(feature = "desktop")]
 mod process_tests;
 mod project_tests;
 mod service_tests;

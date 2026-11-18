@@ -3,6 +3,7 @@
 //! asks as often as it likes costs the providers' files nothing.
 use crate::agentconfig::author::HookSpec;
 use crate::agentconfig::changes::Authoring;
+use crate::agentconfig::changes::Confirm;
 use crate::agentconfig::changes::{Applied, ChangeFailure, ChangeService, PlanView};
 use crate::agentconfig::document::NewKind;
 use crate::agentconfig::opencode_plan::{McpSpec, mcp_name_ok};
@@ -10,13 +11,34 @@ use crate::agentconfig::{
     Bounds, Change, Changes, Environment, Faults, Inventory, InventoryService, Operation,
     SecretToolStore, Summary, Vault,
 };
-use crate::native_dialog::{
-    Field, GtkConfirm, choose_file, choose_file_titled, choose_folder, passphrase, text_form,
-    text_form_labeled,
-};
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, OnceLock};
-use tauri::AppHandle;
+use std::path::PathBuf;
+use std::sync::Arc;
+use zeroize::Zeroizing;
+
+/// A field displayed by a trusted native editor.
+pub struct Field {
+    pub label: String,
+    pub initial: String,
+    pub multiline: bool,
+}
+
+/// Native input for configuration workflows. Implementations keep file paths and secrets
+/// within the trusted frontend; the service can preserve the order of checks and prompts.
+pub trait Dialogs {
+    fn choose_file(&self, save: bool, name: &str) -> Option<PathBuf>;
+    fn choose_file_titled(&self, save: bool, name: &str, title: &'static str) -> Option<PathBuf>;
+    fn choose_folder(&self) -> Option<PathBuf>;
+    fn passphrase(&self, again: bool) -> Option<Zeroizing<String>>;
+    fn text_form(&self, title: &str, intro: &str, fields: Vec<Field>) -> Option<Vec<String>>;
+    fn text_form_labeled(
+        &self,
+        title: &str,
+        intro: &str,
+        fields: Vec<Field>,
+        accept: &str,
+    ) -> Option<Vec<String>>;
+}
 
 /// The service as the desktop holds it. `None` when there is no home to read from, which
 /// the window is told rather than shown an empty inventory (an empty one would say the
@@ -26,7 +48,6 @@ pub struct Configuration {
     /// Changes: present when the private state directory could be made safely. Without it
     /// the inventory still works and every change command says it is unavailable.
     changes: Option<Arc<ChangeService>>,
-    app: Arc<OnceLock<AppHandle>>,
 }
 
 /// Where the Console keeps what it owns about configuration changes (14 §3).
@@ -41,8 +62,7 @@ fn state_directory() -> Option<std::path::PathBuf> {
 }
 
 impl Configuration {
-    pub fn start() -> Self {
-        let app = Arc::new(OnceLock::new());
+    pub fn start(confirm: Box<dyn Confirm>) -> Self {
         let mut environment = Environment::from_process(None);
         // The accounts the owner named as allowed to write a provider's directory (file only
         // he can write, under the state directory; see `agentconfig::declared`).
@@ -62,7 +82,7 @@ impl Configuration {
                     inventory,
                     &state,
                     Vault::new(Box::new(SecretToolStore::new())),
-                    Box::new(GtkConfirm::new(app.clone())),
+                    confirm,
                     Faults::default(),
                 )
                 .ok()?;
@@ -70,11 +90,7 @@ impl Configuration {
                 changes.recover();
                 Some(Arc::new(changes))
             });
-        Self {
-            inventory,
-            changes,
-            app,
-        }
+        Self { inventory, changes }
     }
 
     /// The project the user selected and the engine accepted, for read-only discovery. The window
@@ -89,8 +105,7 @@ impl Configuration {
             .ok_or(ConfigurationError::Unavailable)
     }
 
-    fn changes(&self, app: &AppHandle) -> Result<Arc<ChangeService>, ConfigurationError> {
-        let _ = self.app.set(app.clone());
+    pub fn changes(&self) -> Result<Arc<ChangeService>, ConfigurationError> {
         self.changes.clone().ok_or(ConfigurationError::Unavailable)
     }
 }
@@ -135,21 +150,6 @@ pub fn changes_reply(
     Ok(configuration.service()?.changes_since(since))
 }
 
-#[tauri::command]
-fn configuration_inventory(
-    configuration: tauri::State<'_, Configuration>,
-) -> Result<InventoryReply, ConfigurationError> {
-    inventory_reply(&configuration)
-}
-
-#[tauri::command]
-fn configuration_changes(
-    configuration: tauri::State<'_, Configuration>,
-    since: u64,
-) -> Result<Changes, ConfigurationError> {
-    changes_reply(&configuration, since)
-}
-
 // ---- changing (F2a) ---------------------------------------------------------------------
 //
 // Every request names something the desktop already holds: an item, a record, a plan, a
@@ -167,39 +167,39 @@ fn well_formed(text: &str) -> bool {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PlanRequest {
-    operation: Operation,
-    target: String,
+    pub operation: Operation,
+    pub target: String,
 }
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PlanId {
-    plan: String,
+    pub plan: String,
 }
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ChangeId {
-    change: String,
+    pub change: String,
 }
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RecordId {
-    record: String,
+    pub record: String,
 }
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct HistoryRequest {
-    cursor: Option<String>,
-    limit: u32,
+    pub cursor: Option<String>,
+    pub limit: u32,
 }
 
 #[derive(Debug, Serialize)]
 pub struct HistoryReply {
-    changes: Vec<Change>,
-    next: Option<String>,
+    pub changes: Vec<Change>,
+    pub next: Option<String>,
 }
 #[derive(Debug, Serialize)]
 pub struct Done {
-    done: bool,
+    pub done: bool,
 }
 
 fn checked(text: &str) -> Result<&str, ConfigurationError> {
@@ -208,57 +208,30 @@ fn checked(text: &str) -> Result<&str, ConfigurationError> {
         .ok_or(ConfigurationError::Invalid)
 }
 
-/// Runs `work` off the main thread: an apply waits for a dialog that the main thread draws.
-async fn blocking<T: Send + 'static>(
-    work: impl FnOnce() -> Result<T, ConfigurationError> + Send + 'static,
-) -> Result<T, ConfigurationError> {
-    tauri::async_runtime::spawn_blocking(work)
-        .await
-        .map_err(|_| ConfigurationError::Change(ChangeFailure::Internal))?
-}
-
-#[tauri::command]
-async fn configuration_plan(
-    app: AppHandle,
-    configuration: tauri::State<'_, Configuration>,
-    request: PlanRequest,
-) -> Result<PlanView, ConfigurationError> {
-    let changes = configuration.changes(&app)?;
-    blocking(move || {
-        let target = checked(&request.target)?.to_owned();
-        Ok(changes.plan(request.operation, &target)?)
-    })
-    .await
+pub fn plan(changes: &ChangeService, request: PlanRequest) -> Result<PlanView, ConfigurationError> {
+    let target = checked(&request.target)?.to_owned();
+    Ok(changes.plan(request.operation, &target)?)
 }
 
 /// How an apply ended, and whether the launch presets followed an edited hook.
 #[derive(Debug, Serialize)]
 pub struct ApplyReply {
     #[serde(flatten)]
-    applied: Applied,
+    pub applied: Applied,
     /// The hook was edited, but the presets that left the old one out could not be brought up to
     /// date. The edit stands; the window says so. A Codex launch whose preset still names the
     /// old hook does not start (its key names no hook any more) until the preset is saved again.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
-    launch_presets_not_followed: bool,
+    pub launch_presets_not_followed: bool,
 }
 
-#[tauri::command]
-async fn configuration_apply(
-    app: AppHandle,
-    configuration: tauri::State<'_, Configuration>,
-    request: PlanId,
-) -> Result<ApplyReply, ConfigurationError> {
-    let changes = configuration.changes(&app)?;
-    blocking(move || {
-        let (applied, edit) = changes.apply_reporting_hook_edit(checked(&request.plan)?)?;
-        let followed = edit.as_ref().is_none_or(follow_edited_hook);
-        Ok(ApplyReply {
-            applied,
-            launch_presets_not_followed: !followed,
-        })
+pub fn apply(changes: &ChangeService, request: PlanId) -> Result<ApplyReply, ConfigurationError> {
+    let (applied, edit) = changes.apply_reporting_hook_edit(checked(&request.plan)?)?;
+    let followed = edit.as_ref().is_none_or(follow_edited_hook);
+    Ok(ApplyReply {
+        applied,
+        launch_presets_not_followed: !followed,
     })
-    .await
 }
 
 /// An applied edit of a hook of the user's own Claude Code settings or of Codex's `hooks.json`:
@@ -286,29 +259,17 @@ fn follow_edited_hook(edit: &crate::agentconfig::changes::HookEdit) -> bool {
     .is_ok()
 }
 
-#[tauri::command]
-async fn configuration_history(
-    app: AppHandle,
-    configuration: tauri::State<'_, Configuration>,
+pub fn history(
+    changes: &ChangeService,
     request: HistoryRequest,
 ) -> Result<HistoryReply, ConfigurationError> {
-    let changes = configuration.changes(&app)?;
-    blocking(move || {
-        let cursor = request.cursor.as_deref().map(checked).transpose()?;
-        let (changes, next) = changes.history(cursor, request.limit.min(50) as usize);
-        Ok(HistoryReply { changes, next })
-    })
-    .await
+    let cursor = request.cursor.as_deref().map(checked).transpose()?;
+    let (changes, next) = changes.history(cursor, request.limit.min(50) as usize);
+    Ok(HistoryReply { changes, next })
 }
 
-#[tauri::command]
-async fn configuration_undo(
-    app: AppHandle,
-    configuration: tauri::State<'_, Configuration>,
-    request: ChangeId,
-) -> Result<PlanView, ConfigurationError> {
-    let changes = configuration.changes(&app)?;
-    blocking(move || Ok(changes.undo(checked(&request.change)?)?)).await
+pub fn undo(changes: &ChangeService, request: ChangeId) -> Result<PlanView, ConfigurationError> {
+    Ok(changes.undo(checked(&request.change)?)?)
 }
 
 // ---- authoring (F5) ------------------------------------------------------------------------
@@ -321,34 +282,34 @@ async fn configuration_undo(
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AuthorHook {
-    event: String,
-    matcher: Option<String>,
-    timeout: Option<u32>,
+    pub event: String,
+    pub matcher: Option<String>,
+    pub timeout: Option<u32>,
     /// Start from a passphrase-sealed template: its event, matcher, command and timeout fill
     /// the form of the native window, which the user reviews and may change.
     #[serde(default)]
-    from_template: bool,
+    pub from_template: bool,
     /// `codex` writes it into Codex's own `hooks.json`; anything else, Claude Code's settings.
     #[serde(default)]
-    agent: Option<String>,
+    pub agent: Option<String>,
 }
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ItemId {
-    item: String,
+    pub item: String,
 }
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AuthorMcp {
-    name: String,
+    pub name: String,
     /// `local` or `remote`.
-    kind: String,
+    pub kind: String,
     /// `opencode` or `codex`: whose configuration the server goes into.
-    agent: String,
+    pub agent: String,
     /// Start from a sealed template: whether the server is local or remote is then the
     /// template's, and what it starts or connects to fills the native window.
     #[serde(default)]
-    from_template: bool,
+    pub from_template: bool,
 }
 
 fn cancelled() -> ConfigurationError {
@@ -426,98 +387,93 @@ fn mcp_from(typed: &[String], remote: bool) -> McpSpec {
     }
 }
 
-#[tauri::command]
-async fn configuration_document_export(
-    app: AppHandle,
-    configuration: tauri::State<'_, Configuration>,
+pub fn document_export(
+    changes: &ChangeService,
+    dialogs: &impl Dialogs,
     request: ItemId,
 ) -> Result<Done, ConfigurationError> {
-    let changes = configuration.changes(&app)?;
-    blocking(move || {
-        let item = checked(&request.item)?.to_owned();
-        // Resolve before drawing dialogs; text stays within the backend.
-        changes.document_current(&item)?;
-        let Some(secret) = passphrase(&app, true) else {
-            return Ok(Done { done: false });
-        };
-        let bytes = changes.export_document_template(&item, &secret)?;
-        let Some(path) = choose_file_titled(
-            &app,
-            true,
-            "instructions.wyss-template",
-            "Export instruction template",
-        ) else {
-            return Ok(Done { done: false });
-        };
-        write_private_file(&path, &bytes)
-            .map_err(|()| ConfigurationError::Change(ChangeFailure::Internal))?;
-        Ok(Done { done: true })
-    })
-    .await
+    let item = checked(&request.item)?.to_owned();
+    // Resolve before drawing dialogs; text stays within the backend.
+    changes.document_current(&item)?;
+    let Some(secret) = dialogs.passphrase(true) else {
+        return Ok(Done { done: false });
+    };
+    let bytes = changes.export_document_template(&item, &secret)?;
+    let Some(path) = dialogs.choose_file_titled(
+        true,
+        "instructions.wyss-template",
+        "Export instruction template",
+    ) else {
+        return Ok(Done { done: false });
+    };
+    write_private_file(&path, &bytes)
+        .map_err(|()| ConfigurationError::Change(ChangeFailure::Internal))?;
+    Ok(Done { done: true })
 }
 
-#[tauri::command]
-async fn configuration_document_import(
-    app: AppHandle,
-    configuration: tauri::State<'_, Configuration>,
+pub fn document_import(
+    changes: &ChangeService,
+    dialogs: &impl Dialogs,
     request: ItemId,
 ) -> Result<PlanView, ConfigurationError> {
-    let changes = configuration.changes(&app)?;
-    blocking(move || {
-        let item = checked(&request.item)?.to_owned();
-        let (label, expected) = changes.document_current(&item)?;
-        let place = changes.document_place(&item);
-        let path = choose_file_titled(&app, false, "", "Import instruction template").ok_or_else(cancelled)?;
-        let bytes = read_small_file(&path).map_err(|()| ConfigurationError::Change(ChangeFailure::ImportInvalid))?;
-        let secret = passphrase(&app, false).ok_or_else(cancelled)?;
-        let text = changes.open_document_template(&item, &bytes, &secret)?;
-        let typed = text_form(&app, "Review an instruction template",
-            &format!("Destination: {label} {place}. This imported text is untrusted. Review every instruction before replacing this existing file. Importing grants no permissions; a separate plan and native confirmation are still required."),
-            vec![Field { label: "Imported instructions (Markdown, at most 64 KiB)".to_owned(), initial: text, multiline: true }]
-        ).ok_or_else(cancelled)?;
-        Ok(changes.plan_authored(Authoring::EditDocument { item, text: typed[0].clone(), expected })?)
-    }).await
+    let item = checked(&request.item)?.to_owned();
+    let (label, expected) = changes.document_current(&item)?;
+    let place = changes.document_place(&item);
+    let path = dialogs
+        .choose_file_titled(false, "", "Import instruction template")
+        .ok_or_else(cancelled)?;
+    let bytes = read_small_file(&path)
+        .map_err(|()| ConfigurationError::Change(ChangeFailure::ImportInvalid))?;
+    let secret = dialogs.passphrase(false).ok_or_else(cancelled)?;
+    let text = changes.open_document_template(&item, &bytes, &secret)?;
+    let typed = dialogs.text_form("Review an instruction template",
+        &format!("Destination: {label} {place}. This imported text is untrusted. Review every instruction before replacing this existing file. Importing grants no permissions; a separate plan and native confirmation are still required."),
+        vec![Field { label: "Imported instructions (Markdown, at most 64 KiB)".to_owned(), initial: text, multiline: true }]
+    ).ok_or_else(cancelled)?;
+    Ok(changes.plan_authored(Authoring::EditDocument {
+        item,
+        text: typed[0].clone(),
+        expected,
+    })?)
 }
 
 /// Instruction text never crosses the webview boundary, in either direction.
-#[tauri::command]
-async fn configuration_edit_document(
-    app: AppHandle,
-    configuration: tauri::State<'_, Configuration>,
+pub fn edit_document(
+    changes: &ChangeService,
+    dialogs: &impl Dialogs,
     request: ItemId,
 ) -> Result<PlanView, ConfigurationError> {
-    let changes = configuration.changes(&app)?;
-    blocking(move || {
-        let item = checked(&request.item)?.to_owned();
-        let (label, expected) = changes.document_current(&item)?;
-        let place = changes.document_place(&item);
-        let typed = text_form(
-            &app,
-            "Change an instruction file",
-            &format!("File: {label} {place}. These instructions can change an agent's behaviour. Review the full text here. The previous bytes are kept encrypted for exact undo; a later outside edit is never overwritten."),
-            vec![Field { label: "Instructions (Markdown, at most 64 KiB)".to_owned(), initial: expected.clone(), multiline: true }],
-        ).ok_or_else(cancelled)?;
-        Ok(changes.plan_authored(Authoring::EditDocument { item, text: typed[0].clone(), expected })?)
-    }).await
+    let item = checked(&request.item)?.to_owned();
+    let (label, expected) = changes.document_current(&item)?;
+    let place = changes.document_place(&item);
+    let typed = dialogs.text_form("Change an instruction file",
+        &format!("File: {label} {place}. These instructions can change an agent's behaviour. Review the full text here. The previous bytes are kept encrypted for exact undo; a later outside edit is never overwritten."),
+        vec![Field { label: "Instructions (Markdown, at most 64 KiB)".to_owned(), initial: expected.clone(), multiline: true }],
+    ).ok_or_else(cancelled)?;
+    Ok(changes.plan_authored(Authoring::EditDocument {
+        item,
+        text: typed[0].clone(),
+        expected,
+    })?)
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CreateDocument {
     /// One of the closed words `NewKind` knows. Never a path, a name or text.
-    kind: String,
+    pub kind: String,
     /// Start from a passphrase-sealed template the user chooses in a native window.
     #[serde(default)]
-    from_template: bool,
+    pub from_template: bool,
     /// `account` (the default) or `project`: the project selected in the desktop, which the
     /// page cannot name.
     #[serde(default)]
-    scope: Scope,
+    pub scope: Scope,
 }
 
 #[derive(Debug, Default, Clone, Copy, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-enum Scope {
+pub enum Scope {
     #[default]
     Account,
     Project,
@@ -525,88 +481,79 @@ enum Scope {
 
 /// A new instruction file or skill where none exists. The page names only a kind; the
 /// name (where one is needed) and the text are typed in the desktop's own windows.
-#[tauri::command]
-async fn configuration_create_document(
-    app: AppHandle,
-    configuration: tauri::State<'_, Configuration>,
+pub fn create_document(
+    changes: &ChangeService,
+    dialogs: &impl Dialogs,
     request: CreateDocument,
 ) -> Result<PlanView, ConfigurationError> {
-    let changes = configuration.changes(&app)?;
-    blocking(move || {
-        let kind = NewKind::parse(&request.kind).ok_or_else(invalid)?;
-        // A kind the project level does not have is refused here, before any window.
-        let source = match request.scope {
-            Scope::Account => kind.source(),
-            Scope::Project => kind.project_source().ok_or_else(invalid)?,
-        };
-        let place = changes.place_words(source);
-        let typed_name = match kind.fixed_name() {
-            Some(_) => String::new(),
-            None => {
-                let label = if kind.is_skill() {
-                    "Skill name (letters, digits, - _ . and spaces)"
-                } else {
-                    "File name under rules/ (for example review.md)"
-                };
-                text_form_labeled(
-                    &app,
-                    "Name the new file",
-                    "Nothing exists under this name now. The next window is for its text; nothing is written until you review a plan and confirm it separately.",
-                    vec![Field { label: label.to_owned(), initial: String::new(), multiline: false }],
-                    "Continue",
-                )
-                .ok_or_else(cancelled)?
-                .remove(0)
-            }
-        };
-        // A name that cannot be a file of this kind is refused before a second window opens.
-        let name = kind.checked_name(&typed_name).ok_or_else(invalid)?;
-        // Nothing is typed into a window for a file that cannot be made: a name already taken
-        // (a file, a link, a folder) or a place that cannot be trusted is said at once.
-        changes.check_new_document(source, &name)?;
-        let initial = if request.from_template {
-            let path = choose_file_titled(&app, false, "", "Choose an instruction template")
-                .ok_or_else(cancelled)?;
-            let bytes = read_small_file(&path)
-                .map_err(|()| ConfigurationError::Change(ChangeFailure::ImportInvalid))?;
-            let secret = passphrase(&app, false).ok_or_else(cancelled)?;
-            changes.open_new_document_template(source, &name, &bytes, &secret)?
-        } else {
-            kind.starting_text(&name)
-        };
-        let shown = if kind.is_skill() { format!("skills/{name}/SKILL.md") } else { name.clone() };
-        let typed = text_form(
-            &app,
-            "Write the new instruction file",
-            &format!("New file: {shown} {place}. It does not exist yet, and undoing the change removes it again. These instructions can change an agent's behaviour: review the full text here."),
-            vec![Field {
-                label: "Instructions (Markdown, at most 64 KiB)".to_owned(),
-                initial,
-                multiline: true,
-            }],
-        )
-        .ok_or_else(cancelled)?;
-        Ok(changes.plan_authored(Authoring::CreateDocument {
-            source,
-            name,
-            text: typed[0].clone(),
-        })?)
-    })
-    .await
+    let kind = NewKind::parse(&request.kind).ok_or_else(invalid)?;
+    // A kind the project level does not have is refused here, before any window.
+    let source = match request.scope {
+        Scope::Account => kind.source(),
+        Scope::Project => kind.project_source().ok_or_else(invalid)?,
+    };
+    let place = changes.place_words(source);
+    let typed_name = match kind.fixed_name() {
+        Some(_) => String::new(),
+        None => {
+            let label = if kind.is_skill() {
+                "Skill name (letters, digits, - _ . and spaces)"
+            } else {
+                "File name under rules/ (for example review.md)"
+            };
+            dialogs.text_form_labeled("Name the new file",
+                "Nothing exists under this name now. The next window is for its text; nothing is written until you review a plan and confirm it separately.",
+                vec![Field { label: label.to_owned(), initial: String::new(), multiline: false }],
+                "Continue",
+            )
+            .ok_or_else(cancelled)?
+            .remove(0)
+        }
+    };
+    // A name that cannot be a file of this kind is refused before a second window opens.
+    let name = kind.checked_name(&typed_name).ok_or_else(invalid)?;
+    // Nothing is typed into a window for a file that cannot be made: a name already taken
+    // (a file, a link, a folder) or a place that cannot be trusted is said at once.
+    changes.check_new_document(source, &name)?;
+    let initial = if request.from_template {
+        let path = dialogs
+            .choose_file_titled(false, "", "Choose an instruction template")
+            .ok_or_else(cancelled)?;
+        let bytes = read_small_file(&path)
+            .map_err(|()| ConfigurationError::Change(ChangeFailure::ImportInvalid))?;
+        let secret = dialogs.passphrase(false).ok_or_else(cancelled)?;
+        changes.open_new_document_template(source, &name, &bytes, &secret)?
+    } else {
+        kind.starting_text(&name)
+    };
+    let shown = if kind.is_skill() {
+        format!("skills/{name}/SKILL.md")
+    } else {
+        name.clone()
+    };
+    let typed = dialogs.text_form("Write the new instruction file",
+        &format!("New file: {shown} {place}. It does not exist yet, and undoing the change removes it again. These instructions can change an agent's behaviour: review the full text here."),
+        vec![Field {
+            label: "Instructions (Markdown, at most 64 KiB)".to_owned(),
+            initial,
+            multiline: true,
+        }],
+    )
+    .ok_or_else(cancelled)?;
+    Ok(changes.plan_authored(Authoring::CreateDocument {
+        source,
+        name,
+        text: typed[0].clone(),
+    })?)
 }
 
 /// The project the desktop has selected, by the name of its folder; never its path.
 #[derive(Debug, Serialize)]
 pub struct ProjectView {
-    name: Option<String>,
+    pub name: Option<String>,
 }
 
-#[tauri::command]
-async fn configuration_project(
-    app: AppHandle,
-    configuration: tauri::State<'_, Configuration>,
-) -> Result<ProjectView, ConfigurationError> {
-    let changes = configuration.changes(&app)?;
+pub fn project(changes: &ChangeService) -> Result<ProjectView, ConfigurationError> {
     Ok(ProjectView {
         name: changes.project_name(),
     })
@@ -616,137 +563,122 @@ async fn configuration_project(
 #[serde(deny_unknown_fields)]
 pub struct SelectProject {
     /// Select none. Otherwise the desktop's own folder window chooses.
-    clear: bool,
+    pub clear: bool,
 }
 
 /// Selects the project whose instruction files and skills are listed and may be changed. The
 /// folder is chosen in the desktop's own window and judged before it is kept; the page never
 /// names a path.
-#[tauri::command]
-async fn configuration_select_project(
-    app: AppHandle,
-    configuration: tauri::State<'_, Configuration>,
+pub fn select_project(
+    changes: &ChangeService,
+    dialogs: &impl Dialogs,
     request: SelectProject,
 ) -> Result<ProjectView, ConfigurationError> {
-    let changes = configuration.changes(&app)?;
-    blocking(move || {
-        let chosen = if request.clear {
-            None
-        } else {
-            Some(choose_folder(&app).ok_or_else(cancelled)?)
-        };
-        changes.select_project(chosen)?;
-        Ok(ProjectView {
-            name: changes.project_name(),
-        })
+    let chosen = if request.clear {
+        None
+    } else {
+        Some(dialogs.choose_folder().ok_or_else(cancelled)?)
+    };
+    changes.select_project(chosen)?;
+    Ok(ProjectView {
+        name: changes.project_name(),
     })
-    .await
 }
 
 /// The file and passphrase of a template, chosen and typed in the desktop's own windows.
 fn open_template(
-    app: &AppHandle,
+    dialogs: &impl Dialogs,
 ) -> Result<crate::agentconfig::config_template::Template, ConfigurationError> {
-    let path = choose_file_titled(app, false, "", "Choose a hook or server template")
+    let path = dialogs
+        .choose_file_titled(false, "", "Choose a hook or server template")
         .ok_or_else(cancelled)?;
     let bytes = read_small_file(&path)
         .map_err(|()| ConfigurationError::Change(ChangeFailure::ImportInvalid))?;
-    let secret = passphrase(app, false).ok_or_else(cancelled)?;
+    let secret = dialogs.passphrase(false).ok_or_else(cancelled)?;
     Ok(ChangeService::open_config_template(&bytes, &secret)?)
 }
 
 /// A hook or an MCP server the user has, sealed under a passphrase and saved to a file the
 /// user names. The page names the item; the content never reaches it.
-#[tauri::command]
-async fn configuration_template_export(
-    app: AppHandle,
-    configuration: tauri::State<'_, Configuration>,
+pub fn template_export(
+    changes: &ChangeService,
+    dialogs: &impl Dialogs,
     request: ItemId,
 ) -> Result<Done, ConfigurationError> {
-    let changes = configuration.changes(&app)?;
-    blocking(move || {
-        let item = checked(&request.item)?.to_owned();
-        let Some(secret) = passphrase(&app, true) else {
-            return Ok(Done { done: false });
-        };
-        let bytes = changes.export_config_template(&item, &secret)?;
-        let Some(path) = choose_file_titled(
-            &app,
-            true,
-            "entry.wyss-template",
-            "Export a hook or server template",
-        ) else {
-            return Ok(Done { done: false });
-        };
-        write_private_file(&path, &bytes)
-            .map_err(|()| ConfigurationError::Change(ChangeFailure::Internal))?;
-        Ok(Done { done: true })
-    })
-    .await
+    let item = checked(&request.item)?.to_owned();
+    let Some(secret) = dialogs.passphrase(true) else {
+        return Ok(Done { done: false });
+    };
+    let bytes = changes.export_config_template(&item, &secret)?;
+    let Some(path) = dialogs.choose_file_titled(
+        true,
+        "entry.wyss-template",
+        "Export a hook or server template",
+    ) else {
+        return Ok(Done { done: false });
+    };
+    write_private_file(&path, &bytes)
+        .map_err(|()| ConfigurationError::Change(ChangeFailure::Internal))?;
+    Ok(Done { done: true })
 }
 
-#[tauri::command]
-async fn configuration_author_hook(
-    app: AppHandle,
-    configuration: tauri::State<'_, Configuration>,
+pub fn author_hook(
+    changes: &ChangeService,
+    dialogs: &impl Dialogs,
     request: AuthorHook,
 ) -> Result<PlanView, ConfigurationError> {
-    let changes = configuration.changes(&app)?;
-    blocking(move || {
-        let codex = request.agent.as_deref() == Some("codex");
-        let mut spec = HookSpec {
-            event: request.event,
-            matcher: request.matcher,
-            command: "x".to_owned(),
-            timeout: request.timeout,
+    let codex = request.agent.as_deref() == Some("codex");
+    let mut spec = HookSpec {
+        event: request.event,
+        matcher: request.matcher,
+        command: "x".to_owned(),
+        timeout: request.timeout,
+    };
+    // What the page named is judged before a window is drawn for it.
+    spec.check().map_err(|_| invalid())?;
+    if request.from_template {
+        let template = open_template(dialogs)?;
+        let crate::agentconfig::config_template::Template::Hook(found) = template else {
+            return Err(ConfigurationError::Change(ChangeFailure::ImportInvalid));
         };
-        // What the page named is judged before a window is drawn for it.
+        let typed = dialogs.text_form("Add a hook from a template",
+            "This hook came from a file. It is untrusted: review every field. The command will run on the event you keep, in every Claude Code session you start, and is written into your own Claude Code settings.",
+            vec![
+                Field { label: "Event".to_owned(), initial: found.event, multiline: false },
+                Field { label: "Matcher (optional)".to_owned(), initial: found.matcher.unwrap_or_default(), multiline: false },
+                Field { label: "Command".to_owned(), initial: found.command, multiline: false },
+                Field { label: "Timeout in seconds (optional)".to_owned(), initial: found.timeout.map(|t| t.to_string()).unwrap_or_default(), multiline: false },
+            ],
+        )
+        .ok_or_else(cancelled)?;
+        let optional = |text: &str| Some(text.trim().to_owned()).filter(|t| !t.is_empty());
+        let timeout = match optional(&typed[3]) {
+            Some(text) => Some(text.parse::<u32>().map_err(|_| invalid())?),
+            None => None,
+        };
+        let spec = HookSpec {
+            event: typed[0].trim().to_owned(),
+            matcher: optional(&typed[1]),
+            command: typed[2].trim().to_owned(),
+            timeout,
+        };
         spec.check().map_err(|_| invalid())?;
-        if request.from_template {
-            let template = open_template(&app)?;
-            let crate::agentconfig::config_template::Template::Hook(found) = template else {
-                return Err(ConfigurationError::Change(ChangeFailure::ImportInvalid));
-            };
-            let typed = text_form(
-                &app,
-                "Add a hook from a template",
-                "This hook came from a file. It is untrusted: review every field. The command will run on the event you keep, in every Claude Code session you start, and is written into your own Claude Code settings.",
-                vec![
-                    Field { label: "Event".to_owned(), initial: found.event, multiline: false },
-                    Field { label: "Matcher (optional)".to_owned(), initial: found.matcher.unwrap_or_default(), multiline: false },
-                    Field { label: "Command".to_owned(), initial: found.command, multiline: false },
-                    Field { label: "Timeout in seconds (optional)".to_owned(), initial: found.timeout.map(|t| t.to_string()).unwrap_or_default(), multiline: false },
-                ],
-            )
-            .ok_or_else(cancelled)?;
-            let optional = |text: &str| Some(text.trim().to_owned()).filter(|t| !t.is_empty());
-            let timeout = match optional(&typed[3]) {
-                Some(text) => Some(text.parse::<u32>().map_err(|_| invalid())?),
-                None => None,
-            };
-            let spec = HookSpec {
-                event: typed[0].trim().to_owned(),
-                matcher: optional(&typed[1]),
-                command: typed[2].trim().to_owned(),
-                timeout,
-            };
-            spec.check().map_err(|_| invalid())?;
-            return Ok(changes.plan_authored(if codex {
-                Authoring::AddCodexHook(spec)
-            } else {
-                Authoring::AddHook(spec)
-            })?);
-        }
-        let where_ = format!(
-            "This command will run on every {} event{} of every Claude Code session you start. \
-             It is written into your own Claude Code settings.",
-            spec.event,
-            spec.matcher
-                .as_deref()
-                .map_or(String::new(), |m| format!(" for \"{m}\""))
-        );
-        let typed = text_form(
-            &app,
+        return Ok(changes.plan_authored(if codex {
+            Authoring::AddCodexHook(spec)
+        } else {
+            Authoring::AddHook(spec)
+        })?);
+    }
+    let where_ = format!(
+        "This command will run on every {} event{} of every Claude Code session you start. \
+         It is written into your own Claude Code settings.",
+        spec.event,
+        spec.matcher
+            .as_deref()
+            .map_or(String::new(), |m| format!(" for \"{m}\""))
+    );
+    let typed = dialogs
+        .text_form(
             "Add a hook",
             &where_,
             vec![Field {
@@ -756,140 +688,125 @@ async fn configuration_author_hook(
             }],
         )
         .ok_or_else(cancelled)?;
-        spec.command = typed[0].trim().to_owned();
-        Ok(changes.plan_authored(if codex {
-            Authoring::AddCodexHook(spec)
-        } else {
-            Authoring::AddHook(spec)
-        })?)
-    })
-    .await
+    spec.command = typed[0].trim().to_owned();
+    Ok(changes.plan_authored(if codex {
+        Authoring::AddCodexHook(spec)
+    } else {
+        Authoring::AddHook(spec)
+    })?)
 }
 
-#[tauri::command]
-async fn configuration_edit_hook(
-    app: AppHandle,
-    configuration: tauri::State<'_, Configuration>,
+pub fn edit_hook(
+    changes: &ChangeService,
+    dialogs: &impl Dialogs,
     request: ItemId,
 ) -> Result<PlanView, ConfigurationError> {
-    let changes = configuration.changes(&app)?;
-    blocking(move || {
-        let item = checked(&request.item)?.to_owned();
-        let current = changes
-            .hook_command(&item)
-            .ok_or(ConfigurationError::Change(ChangeFailure::EntryGone))?;
-        // The window names which hook it is: the backend's own name for it, not the page's.
-        let which = changes.item_label(&item).unwrap_or_default();
-        let typed = text_form(
-            &app,
-            "Change a hook",
-            &format!(
-                "This is the command that runs for the hook \"{which}\". What you write replaces it in your own Claude Code settings."
-            ),
-            vec![Field {
-                label: "Command".to_owned(),
-                initial: current.clone(),
-                multiline: false,
-            }],
-        )
-        .ok_or_else(cancelled)?;
-        Ok(changes.plan_authored(Authoring::EditHook {
-            item,
-            command: typed[0].trim().to_owned(),
-            expected: current,
-        })?)
-    })
-    .await
+    let item = checked(&request.item)?.to_owned();
+    let current = changes
+        .hook_command(&item)
+        .ok_or(ConfigurationError::Change(ChangeFailure::EntryGone))?;
+    // The window names which hook it is: the backend's own name for it, not the page's.
+    let which = changes.item_label(&item).unwrap_or_default();
+    let typed = dialogs.text_form("Change a hook",
+        &format!(
+            "This is the command that runs for the hook \"{which}\". What you write replaces it in your own Claude Code settings."
+        ),
+        vec![Field {
+            label: "Command".to_owned(),
+            initial: current.clone(),
+            multiline: false,
+        }],
+    )
+    .ok_or_else(cancelled)?;
+    Ok(changes.plan_authored(Authoring::EditHook {
+        item,
+        command: typed[0].trim().to_owned(),
+        expected: current,
+    })?)
 }
 
-#[tauri::command]
-async fn configuration_author_mcp(
-    app: AppHandle,
-    configuration: tauri::State<'_, Configuration>,
+pub fn author_mcp(
+    changes: &ChangeService,
+    dialogs: &impl Dialogs,
     request: AuthorMcp,
 ) -> Result<PlanView, ConfigurationError> {
-    let changes = configuration.changes(&app)?;
-    blocking(move || {
-        if !mcp_name_ok(&request.name) {
-            return Err(invalid());
-        }
-        let mut remote = match request.kind.as_str() {
-            "local" => false,
-            "remote" => true,
-            _ => return Err(invalid()),
+    if !mcp_name_ok(&request.name) {
+        return Err(invalid());
+    }
+    let mut remote = match request.kind.as_str() {
+        "local" => false,
+        "remote" => true,
+        _ => return Err(invalid()),
+    };
+    let from_template = if request.from_template {
+        let crate::agentconfig::config_template::Template::Mcp(found) = open_template(dialogs)?
+        else {
+            return Err(ConfigurationError::Change(ChangeFailure::ImportInvalid));
         };
-        let from_template = if request.from_template {
-            let crate::agentconfig::config_template::Template::Mcp(found) = open_template(&app)?
-            else {
-                return Err(ConfigurationError::Change(ChangeFailure::ImportInvalid));
-            };
-            remote = matches!(found, McpSpec::Remote { .. });
-            Some(found)
+        remote = matches!(found, McpSpec::Remote { .. });
+        Some(found)
+    } else {
+        None
+    };
+    let codex = match request.agent.as_str() {
+        "codex" => true,
+        "opencode" => false,
+        _ => return Err(invalid()),
+    };
+    let intro = format!(
+        "{} will {} for the server \"{}\". It is written into your own {} configuration.",
+        if codex { "Codex" } else { "OpenCode" },
+        if remote {
+            "connect to the address you write"
         } else {
-            None
-        };
-        let codex = match request.agent.as_str() {
-            "codex" => true,
-            "opencode" => false,
-            _ => return Err(invalid()),
-        };
-        let intro = format!(
-            "{} will {} for the server \"{}\". It is written into your own {} configuration.",
-            if codex { "Codex" } else { "OpenCode" },
-            if remote {
-                "connect to the address you write"
-            } else {
-                "start the program you write"
-            },
-            request.name,
-            if codex { "Codex" } else { "OpenCode" }
-        );
-        let intro = if from_template.is_some() {
-            format!("{intro} This server came from a file and is untrusted: review what it starts or connects to.")
-        } else {
-            intro
-        };
-        let typed = text_form(
-            &app,
+            "start the program you write"
+        },
+        request.name,
+        if codex { "Codex" } else { "OpenCode" }
+    );
+    let intro = if from_template.is_some() {
+        format!(
+            "{intro} This server came from a file and is untrusted: review what it starts or connects to."
+        )
+    } else {
+        intro
+    };
+    let typed = dialogs
+        .text_form(
             "Add an MCP server",
             &intro,
             mcp_fields(from_template.as_ref(), remote),
         )
         .ok_or_else(cancelled)?;
-        let spec = mcp_from(&typed, remote);
-        Ok(changes.plan_authored(if codex {
-            Authoring::AddCodexMcp {
-                name: request.name,
-                spec,
-            }
-        } else {
-            Authoring::AddMcp {
-                name: request.name,
-                spec,
-            }
-        })?)
-    })
-    .await
+    let spec = mcp_from(&typed, remote);
+    Ok(changes.plan_authored(if codex {
+        Authoring::AddCodexMcp {
+            name: request.name,
+            spec,
+        }
+    } else {
+        Authoring::AddMcp {
+            name: request.name,
+            spec,
+        }
+    })?)
 }
 
-#[tauri::command]
-async fn configuration_edit_mcp(
-    app: AppHandle,
-    configuration: tauri::State<'_, Configuration>,
+pub fn edit_mcp(
+    changes: &ChangeService,
+    dialogs: &impl Dialogs,
     request: ItemId,
 ) -> Result<PlanView, ConfigurationError> {
-    let changes = configuration.changes(&app)?;
-    blocking(move || {
-        let item = checked(&request.item)?.to_owned();
-        let current = changes
-            .mcp_current(&item)
-            .ok_or(ConfigurationError::Change(ChangeFailure::EntryGone))?;
-        let remote = matches!(current, McpSpec::Remote { .. });
-        let which = changes.item_label(&item).unwrap_or_default();
-        let codex = changes.item_provider(&item) == Some(crate::agentconfig::ProviderId::Codex);
-        let agent = if codex { "Codex" } else { "OpenCode" };
-        let typed = text_form(
-            &app,
+    let item = checked(&request.item)?.to_owned();
+    let current = changes
+        .mcp_current(&item)
+        .ok_or(ConfigurationError::Change(ChangeFailure::EntryGone))?;
+    let remote = matches!(current, McpSpec::Remote { .. });
+    let which = changes.item_label(&item).unwrap_or_default();
+    let codex = changes.item_provider(&item) == Some(crate::agentconfig::ProviderId::Codex);
+    let agent = if codex { "Codex" } else { "OpenCode" };
+    let typed = dialogs
+        .text_form(
             "Change an MCP server",
             &format!(
                 "What you write replaces what the {agent} server \"{which}\" starts or connects to."
@@ -897,92 +814,66 @@ async fn configuration_edit_mcp(
             mcp_fields(Some(&current), remote),
         )
         .ok_or_else(cancelled)?;
-        let spec = mcp_from(&typed, remote);
-        Ok(changes.plan_authored(if codex {
-            Authoring::EditCodexMcp {
-                item,
-                spec,
-                expected: current,
-            }
-        } else {
-            Authoring::EditMcp {
-                item,
-                spec,
-                expected: current,
-            }
-        })?)
-    })
-    .await
+    let spec = mcp_from(&typed, remote);
+    Ok(changes.plan_authored(if codex {
+        Authoring::EditCodexMcp {
+            item,
+            spec,
+            expected: current,
+        }
+    } else {
+        Authoring::EditMcp {
+            item,
+            spec,
+            expected: current,
+        }
+    })?)
 }
 
-#[tauri::command]
-async fn configuration_records(
-    app: AppHandle,
-    configuration: tauri::State<'_, Configuration>,
-) -> Result<Vec<Summary>, ConfigurationError> {
-    let changes = configuration.changes(&app)?;
-    blocking(move || Ok(changes.records())).await
+pub fn records(changes: &ChangeService) -> Result<Vec<Summary>, ConfigurationError> {
+    Ok(changes.records())
 }
 
-#[tauri::command]
-async fn configuration_record_delete(
-    app: AppHandle,
-    configuration: tauri::State<'_, Configuration>,
+pub fn record_delete(
+    changes: &ChangeService,
     request: RecordId,
 ) -> Result<Done, ConfigurationError> {
-    let changes = configuration.changes(&app)?;
-    blocking(move || {
-        changes.delete_record(checked(&request.record)?)?;
-        Ok(Done { done: true })
-    })
-    .await
+    changes.delete_record(checked(&request.record)?)?;
+    Ok(Done { done: true })
 }
 
 /// A record written to a file the user chooses, sealed under a passphrase typed in a native
 /// window. Cancelling anywhere writes nothing.
-#[tauri::command]
-async fn configuration_export(
-    app: AppHandle,
-    configuration: tauri::State<'_, Configuration>,
+pub fn export(
+    changes: &ChangeService,
+    dialogs: &impl Dialogs,
     request: RecordId,
 ) -> Result<Done, ConfigurationError> {
-    let changes = configuration.changes(&app)?;
-    blocking(move || {
-        let record = checked(&request.record)?.to_owned();
-        let Some(secret) = passphrase(&app, true) else {
-            return Ok(Done { done: false });
-        };
-        let bytes = changes.export_record(&record, &secret)?;
-        let Some(path) = choose_file(&app, true, "wyss-restoration.export") else {
-            return Ok(Done { done: false });
-        };
-        write_private_file(&path, &bytes)
-            .map_err(|()| ConfigurationError::Change(ChangeFailure::Internal))?;
-        Ok(Done { done: true })
-    })
-    .await
+    let record = checked(&request.record)?.to_owned();
+    let Some(secret) = dialogs.passphrase(true) else {
+        return Ok(Done { done: false });
+    };
+    let bytes = changes.export_record(&record, &secret)?;
+    let Some(path) = dialogs.choose_file(true, "wyss-restoration.export") else {
+        return Ok(Done { done: false });
+    };
+    write_private_file(&path, &bytes)
+        .map_err(|()| ConfigurationError::Change(ChangeFailure::Internal))?;
+    Ok(Done { done: true })
 }
 
-#[tauri::command]
-async fn configuration_import(
-    app: AppHandle,
-    configuration: tauri::State<'_, Configuration>,
-) -> Result<Done, ConfigurationError> {
-    let changes = configuration.changes(&app)?;
-    blocking(move || {
-        let Some(path) = choose_file(&app, false, "") else {
-            return Ok(Done { done: false });
-        };
-        // A record is a few kilobytes; a file far larger than that is not one.
-        let bytes = read_small_file(&path)
-            .map_err(|()| ConfigurationError::Change(ChangeFailure::ImportInvalid))?;
-        let Some(secret) = passphrase(&app, false) else {
-            return Ok(Done { done: false });
-        };
-        changes.import_record(&bytes, &secret)?;
-        Ok(Done { done: true })
-    })
-    .await
+pub fn import(changes: &ChangeService, dialogs: &impl Dialogs) -> Result<Done, ConfigurationError> {
+    let Some(path) = dialogs.choose_file(false, "") else {
+        return Ok(Done { done: false });
+    };
+    // A record is a few kilobytes; a file far larger than that is not one.
+    let bytes = read_small_file(&path)
+        .map_err(|()| ConfigurationError::Change(ChangeFailure::ImportInvalid))?;
+    let Some(secret) = dialogs.passphrase(false) else {
+        return Ok(Done { done: false });
+    };
+    changes.import_record(&bytes, &secret)?;
+    Ok(Done { done: true })
 }
 
 /// A file the user named in the native chooser, made 0600 and not followed through a link.
@@ -1001,7 +892,7 @@ pub(crate) fn write_private_file(path: &std::path::Path, bytes: &[u8]) -> Result
         .map_err(|_| ())
 }
 
-pub(crate) fn read_small_file(path: &std::path::Path) -> Result<Vec<u8>, ()> {
+fn read_small_file(path: &std::path::Path) -> Result<Vec<u8>, ()> {
     use std::{io::Read, os::unix::fs::OpenOptionsExt};
     let file = std::fs::OpenOptions::new()
         .read(true)
@@ -1015,62 +906,8 @@ pub(crate) fn read_small_file(path: &std::path::Path) -> Result<Vec<u8>, ()> {
     (bytes.len() <= 512 * 1024).then_some(bytes).ok_or(())
 }
 
-const COMMANDS: &[&str] = &[
-    "configuration_inventory",
-    "configuration_changes",
-    "configuration_plan",
-    "configuration_apply",
-    "configuration_history",
-    "configuration_undo",
-    "configuration_records",
-    "configuration_record_delete",
-    "configuration_export",
-    "configuration_import",
-    "configuration_author_hook",
-    "configuration_edit_hook",
-    "configuration_author_mcp",
-    "configuration_edit_mcp",
-    "configuration_edit_document",
-    "configuration_document_export",
-    "configuration_document_import",
-    "configuration_create_document",
-    "configuration_project",
-    "configuration_select_project",
-    "configuration_template_export",
-];
-
-/// What the desktop binary hands to the library: the commands, the state they read, and
-/// nothing else.
-pub fn extension() -> wyss_console::Extension {
-    wyss_console::Extension {
-        commands: COMMANDS,
-        handler: Box::new(tauri::generate_handler![
-            configuration_inventory,
-            configuration_changes,
-            configuration_plan,
-            configuration_apply,
-            configuration_history,
-            configuration_undo,
-            configuration_records,
-            configuration_record_delete,
-            configuration_export,
-            configuration_import,
-            configuration_author_hook,
-            configuration_edit_hook,
-            configuration_author_mcp,
-            configuration_edit_mcp,
-            configuration_edit_document,
-            configuration_document_export,
-            configuration_document_import,
-            configuration_create_document,
-            configuration_project,
-            configuration_select_project,
-            configuration_template_export
-        ]),
-        install: Box::new(|builder| builder.manage(Configuration::start())),
-        on_exit: None,
-    }
-}
+#[cfg(feature = "desktop")]
+pub mod commands;
 
 #[cfg(test)]
 mod tests {
@@ -1099,7 +936,6 @@ mod tests {
             Configuration {
                 inventory: Some(service),
                 changes: None,
-                app: Arc::new(OnceLock::new()),
             },
             home,
         )
@@ -1153,7 +989,6 @@ mod tests {
         let none = Configuration {
             inventory: None,
             changes: None,
-            app: Arc::new(OnceLock::new()),
         };
         assert_eq!(
             inventory_reply(&none).unwrap_err(),
@@ -1169,9 +1004,10 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "desktop")]
     #[test]
     fn the_commands_the_extension_routes_are_the_ones_the_manifest_and_capability_name() {
-        let routed = extension().commands;
+        let routed = commands::extension().commands;
         let build = include_str!("../build.rs");
         let capability = include_str!("../capabilities/main.json");
         for command in routed {

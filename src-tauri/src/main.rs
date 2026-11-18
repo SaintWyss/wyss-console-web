@@ -1,39 +1,14 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-// The configuration engine is part of the desktop only: it is not in the library the
-// authority binary links, so that binary cannot contain it (C-02, TS-SEC-03).
 #[cfg(target_os = "linux")]
-mod agentconfig;
-#[cfg(target_os = "linux")]
-mod arsenal;
-// The window commands of the above: the one place that names both it and the toolkit.
+include!("host_modules.rs");
+
 #[cfg(target_os = "linux")]
 mod activation;
 #[cfg(target_os = "linux")]
-mod configuration;
-#[cfg(target_os = "linux")]
-mod credentials;
-#[cfg(target_os = "linux")]
-mod delegate;
-#[cfg(target_os = "linux")]
 mod diagnose;
 #[cfg(target_os = "linux")]
-mod handoff;
-#[cfg(target_os = "linux")]
-mod host;
-#[cfg(target_os = "linux")]
-mod native;
-// Launch configurations (ADR 0059): the owner's files, read by the desktop.
-#[cfg(target_os = "linux")]
-mod distributors;
-mod launch;
-// The project-centered workspace (M1, ADR 0052): presentation metadata over the owners.
-#[cfg(target_os = "linux")]
-mod native_dialog;
-#[cfg(target_os = "linux")]
 mod orchestration_commands;
-#[cfg(target_os = "linux")]
-mod projects;
 // The remote gateway's core (F10a foundations, ADR 0049): decisions with no transport. Nothing
 // constructs it outside its tests, and it is not in the library the authority links.
 #[cfg(target_os = "linux")]
@@ -128,12 +103,12 @@ fn main() {
             eprintln!("wyss-console: {error}");
             std::process::exit(2);
         });
-        let extension = configuration::extension()
+        let extension = configuration::commands::extension()
             .merge(orchestration_commands::extension())
             .merge(host::commands::extension())
             .merge(native::extension())
-            .merge(launch::extension())
-            .merge(distributors::extension())
+            .merge(launch::commands::extension())
+            .merge(distributors::commands::extension())
             .merge(projects::commands::extension())
             .merge(credentials::commands::extension())
             .merge(arsenal::commands::extension());

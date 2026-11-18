@@ -19,13 +19,13 @@ guarda una captura renderizada por GSK a los 2 s.
 
 ## Medición 2026-11-17 (Acer, i5 + GTX 1650, Plasma Wayland, GskVulkanRenderer)
 
-| | gtk-term M1 (libghostty-vt) | gtk-term v0 (alacritty_terminal) | Ghostty 1.4.0 | Wyss Console (Tauri+WebKit) |
-|---|---|---|---|---|
-| RAM proceso, 1 terminal (RSS / propia) | **113 / 25 MB** | 147 / 57 MB | 183 / 60 MB | ~600 / ~255 MB |
-| RAM con 10 pestañas (RSS / propia) | **114 / 26 MB** | 120 / 35 MB | — | — |
-| `cat` de 100 MB hasta cerrar | **0,99–1,00 s** | 1,8–1,9 s | 1,17–1,25 s | sin medir |
-| Intérprete solo, 100 MB (`parsebench`) | 0,22 s | 1,40 s | — | — |
-| CPU en reposo, 10 pestañas, 10 s | 0 ticks | — | — | — |
+|                                        | gtk-term M1 (libghostty-vt) | gtk-term v0 (alacritty_terminal) | Ghostty 1.4.0 | Wyss Console (Tauri+WebKit) |
+| -------------------------------------- | --------------------------- | -------------------------------- | ------------- | --------------------------- |
+| RAM proceso, 1 terminal (RSS / propia) | **113 / 25 MB**             | 147 / 57 MB                      | 183 / 60 MB   | ~600 / ~255 MB              |
+| RAM con 10 pestañas (RSS / propia)     | **114 / 26 MB**             | 120 / 35 MB                      | —             | —                           |
+| `cat` de 100 MB hasta cerrar           | **0,99–1,00 s**             | 1,8–1,9 s                        | 1,17–1,25 s   | sin medir                   |
+| Intérprete solo, 100 MB (`parsebench`) | 0,22 s                      | 1,40 s                           | —             | —                           |
+| CPU en reposo, 10 pestañas, 10 s       | 0 ticks                     | —                                | —             | —                           |
 
 ## Ventana Consola (M3a)
 
@@ -58,18 +58,18 @@ El layout se guarda en `$XDG_STATE_HOME/gtk-term/layout.json` y se restaura cont
 
 ## Atajos (decisión del dueño, 2026-11-18)
 
-| Atajo | Hace |
-|---|---|
-| Ctrl+C | Copia la selección. **Nunca interrumpe** (sin selección no hace nada) |
-| Ctrl+V, Ctrl+Shift+V | Pegan el portapapeles |
-| Ctrl+Shift+C | Interrumpe (manda 0x03 al programa) |
-| Arrastrar / doble clic / triple clic | Selecciona celdas / palabra / línea; la selección queda en PRIMARY |
-| Clic del medio | Pega PRIMARY |
-| Ctrl+Shift+T / W | Pestaña nueva / cierra el panel (y su terminal en el host) |
-| Ctrl+Shift+F | Busca en el historial del panel con foco (barra con siguiente, anterior y conteo) |
-| Ctrl+Shift+D / E | Divide lado a lado / arriba y abajo |
-| Ctrl+Shift+←→↑↓, `.` `,` | Foco por dirección / siguiente y anterior |
-| Ctrl+Shift+PgDn/PgUp, 1..9 | Pestaña siguiente y anterior / saltar |
+| Atajo                                | Hace                                                                              |
+| ------------------------------------ | --------------------------------------------------------------------------------- |
+| Ctrl+C                               | Copia la selección. **Nunca interrumpe** (sin selección no hace nada)             |
+| Ctrl+V, Ctrl+Shift+V                 | Pegan el portapapeles                                                             |
+| Ctrl+Shift+C                         | Interrumpe (manda 0x03 al programa)                                               |
+| Arrastrar / doble clic / triple clic | Selecciona celdas / palabra / línea; la selección queda en PRIMARY                |
+| Clic del medio                       | Pega PRIMARY                                                                      |
+| Ctrl+Shift+T / W                     | Pestaña nueva / cierra el panel (y su terminal en el host)                        |
+| Ctrl+Shift+F                         | Busca en el historial del panel con foco (barra con siguiente, anterior y conteo) |
+| Ctrl+Shift+D / E                     | Divide lado a lado / arriba y abajo                                               |
+| Ctrl+Shift+←→↑↓, `.` `,`             | Foco por dirección / siguiente y anterior                                         |
+| Ctrl+Shift+PgDn/PgUp, 1..9           | Pestaña siguiente y anterior / saltar                                             |
 
 ## Límite del host (M2, 2026-11-18)
 

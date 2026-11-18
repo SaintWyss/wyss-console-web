@@ -10,26 +10,24 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tauri::State;
 
-use super::Arsenal;
+use super::{Arsenal, CandidateDetail};
+use super::library::{LibraryItem, library, resolve_items};
 use super::analysis::{self, Compatibility, Dependency};
 use super::store::{
     self, Binding, Detail, Error, Imported, NewCapability, Preset, PresetInput, Selection,
-    SelectionInput, Store, Summary,
+    SelectionInput, Store,
 };
 use super::sync;
 use super::terminal::{self, TerminalPlan};
 use crate::agentconfig::catalogue::{
-    self, Candidate, Composite, Excluded, FileDigest, LaunchScan, ManagedBy, Scan, SourceReport,
+    self, Candidate, Composite, LaunchScan, ManagedBy, Scan, SourceReport,
 };
 use crate::agentconfig::guide;
-use crate::configuration::Configuration;
+use crate::configuration::commands::DesktopConfiguration;
 use crate::host::{client::HostLink, protocol::HostError};
 use crate::native::{arsenal::ArsenalLaunch, capabilities, catalogue::AgentId};
 
 const PREVIEW_BYTES: usize = 1024 * 1024;
-/// Most stored bytes one preview or plan reads to analyse dependencies. Past it, the remaining
-/// items are judged by their file names only and their dependencies are left unknown.
-const ANALYSIS_BYTES: usize = 64 * 1024 * 1024;
 /// The kinds Arsenal can copy. Hooks, MCP servers and plugins are listed and never imported.
 const IMPORTABLE: [&str; 3] = ["skill", "agent", "rule"];
 
@@ -95,15 +93,6 @@ pub struct CandidateView {
     pub file_count: usize,
     pub excluded_count: usize,
     pub review_count: usize,
-}
-
-/// What a discovered capability holds: its files, what was left out, and what to review.
-#[derive(Debug, Clone, Serialize)]
-pub struct CandidateDetail {
-    pub id: String,
-    pub files: Vec<FileDigest>,
-    pub excluded: Vec<Excluded>,
-    pub review: Vec<Excluded>,
 }
 
 #[derive(Debug, Serialize)]
@@ -208,14 +197,6 @@ pub struct Preview {
     pub conflicts: Vec<Conflict>,
     /// `analysed` when every item's files were read, `partial` when the reading budget ran out.
     pub dependencies: &'static str,
-}
-
-/// A library entry with what its format means for its own provider.
-#[derive(Debug, Serialize)]
-pub struct LibraryItem {
-    #[serde(flatten)]
-    pub summary: Summary,
-    pub compatibility: Compatibility,
 }
 
 /// One capability with its compatibility and the dependencies its files declare or point at.
@@ -406,7 +387,7 @@ fn compatibility_of(candidate: &Candidate) -> &'static str {
 #[tauri::command]
 async fn arsenal_discover(
     arsenal: State<'_, Arsenal>,
-    configuration: State<'_, Configuration>,
+    configuration: State<'_, DesktopConfiguration>,
 ) -> Result<DiscoverReply, ArsenalError> {
     let project = configuration.selected_project();
     let store = arsenal.handle().map_err(ArsenalError::from)?;
@@ -591,42 +572,6 @@ fn others(ids: &[String], index: usize, same: impl Fn(usize) -> bool) -> Vec<Str
         .collect()
 }
 
-/// The library, each entry with the compatibility its detail shows: judged from its files and
-/// their dependencies while the reading budget lasts, from its file names after that.
-pub fn library(store: &Store) -> Result<Vec<LibraryItem>, Error> {
-    let mut budget = ANALYSIS_BYTES;
-    store
-        .list()?
-        .into_iter()
-        .map(|summary| {
-            let detail = store.detail(&summary.id, None)?;
-            let size: usize = detail
-                .files
-                .iter()
-                .map(|f| usize::try_from(f.size).unwrap_or(usize::MAX))
-                .sum();
-            let dependencies = if size <= budget {
-                budget -= size;
-                analysis::dependencies(&store.revision_content(&summary.id, detail.revision)?, None)
-            } else {
-                Vec::new()
-            };
-            let paths: Vec<&str> = detail.files.iter().map(|f| f.path.as_str()).collect();
-            let compatibility = analysis::compatibility(
-                &summary.kind,
-                &summary.provider,
-                &summary.provider,
-                &paths,
-                &dependencies,
-            );
-            Ok(LibraryItem {
-                summary,
-                compatibility,
-            })
-        })
-        .collect()
-}
-
 #[tauri::command]
 fn arsenal_capabilities(arsenal: State<'_, Arsenal>) -> Result<Vec<LibraryItem>, ArsenalError> {
     arsenal
@@ -690,7 +635,7 @@ fn arsenal_file(
 #[tauri::command]
 async fn arsenal_import(
     arsenal: State<'_, Arsenal>,
-    configuration: State<'_, Configuration>,
+    configuration: State<'_, DesktopConfiguration>,
     request: ImportRequest,
 ) -> Result<Imported, ArsenalError> {
     if !IMPORTABLE.contains(&request.kind.as_str()) {
@@ -1056,77 +1001,6 @@ struct Resolved {
     provider: String,
     name: String,
     tree: String,
-}
-
-/// The selection's items as the library holds them now, with their files while the reading budget
-/// lasts. The second value says whether every resolved item's files were read.
-pub fn resolve_items(
-    store: &Store,
-    selection: &Selection,
-) -> Result<(Vec<terminal::Resolved>, bool), Error> {
-    let mut budget = ANALYSIS_BYTES;
-    let mut complete = true;
-    let mut resolved = Vec::with_capacity(selection.items.len());
-    for item in &selection.items {
-        let pinned = item.revision.is_some();
-        match store.detail(&item.capability, item.revision) {
-            Ok(detail) => {
-                let size: usize = detail
-                    .files
-                    .iter()
-                    .map(|f| usize::try_from(f.size).unwrap_or(usize::MAX))
-                    .sum();
-                let files = if size <= budget {
-                    budget -= size;
-                    store.revision_content(&item.capability, detail.revision)?
-                } else {
-                    complete = false;
-                    // Names only: compatibility can still see scripts, dependencies stay unknown.
-                    detail
-                        .files
-                        .iter()
-                        .map(|f| (f.path.clone(), Vec::new()))
-                        .collect()
-                };
-                let tree_hash = detail
-                    .revisions
-                    .iter()
-                    .find(|revision| revision.number == detail.revision)
-                    .map(|revision| revision.tree_hash.clone())
-                    .unwrap_or_default();
-                resolved.push(terminal::Resolved {
-                    capability: item.capability.clone(),
-                    state: "resolved",
-                    name: detail.summary.name,
-                    kind: detail.summary.kind,
-                    provider: detail.summary.provider,
-                    revision: Some(detail.revision),
-                    pinned,
-                    tree_hash,
-                    files,
-                });
-            }
-            Err(Error::NotFound) => {
-                let state = match store.detail(&item.capability, None) {
-                    Ok(_) => "revision_missing",
-                    Err(_) => "missing",
-                };
-                resolved.push(terminal::Resolved {
-                    capability: item.capability.clone(),
-                    state,
-                    name: String::new(),
-                    kind: String::new(),
-                    provider: String::new(),
-                    revision: item.revision,
-                    pinned,
-                    tree_hash: String::new(),
-                    files: Vec::new(),
-                });
-            }
-            Err(error) => return Err(error),
-        }
-    }
-    Ok((resolved, complete))
 }
 
 /// The configuration a selection would make, stated exactly and never as active.
@@ -1513,7 +1387,7 @@ pub(crate) fn launch_for(
 #[tauri::command]
 async fn arsenal_terminal_plan(
     arsenal: State<'_, Arsenal>,
-    configuration: State<'_, Configuration>,
+    configuration: State<'_, DesktopConfiguration>,
     link: State<'_, HostLink>,
     request: TerminalRequest,
 ) -> Result<TerminalPlan, ArsenalError> {
@@ -1546,7 +1420,7 @@ fn binding_view(binding: Binding) -> serde_json::Value {
 #[tauri::command]
 async fn arsenal_terminal_bind(
     arsenal: State<'_, Arsenal>,
-    configuration: State<'_, Configuration>,
+    configuration: State<'_, DesktopConfiguration>,
     link: State<'_, HostLink>,
     request: BindRequest,
 ) -> Result<serde_json::Value, ArsenalError> {
