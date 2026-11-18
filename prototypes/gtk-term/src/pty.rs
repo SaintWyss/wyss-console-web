@@ -114,6 +114,10 @@ impl Pty {
         Ok((Pty { master: Arc::new(master), pid, reaped }, reader))
     }
 
+    pub fn pid(&self) -> i32 {
+        self.pid
+    }
+
     /// Writes user input to the child (keys, paste, terminal replies).
     pub fn writer(&self) -> Arc<File> {
         self.master.clone()

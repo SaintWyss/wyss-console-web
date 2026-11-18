@@ -21,7 +21,8 @@ use crate::keys;
 use crate::selection::{self, Mode, Pos, Selection};
 use crate::view::TermView;
 
-const FONT: &str = "Monospace 11";
+/// IBM Plex Mono when installed (the Console's font); pango falls back to the system monospace.
+const FONT: &str = "IBM Plex Mono, Monospace 11";
 const PAD: f32 = 4.0;
 const SCROLLBACK_LINES: usize = 10_000;
 const READ_BLOCK: usize = 256 * 1024;
@@ -74,6 +75,8 @@ fn request_redraw(shared: &Shared, id: u64) {
 
 pub struct Terminal {
     pub widget: TermView,
+    /// The shell of a local terminal (host terminals are asked about through the host).
+    pub local_pid: Option<u32>,
 }
 
 /// Where a terminal's bytes come from.
@@ -388,6 +391,7 @@ impl Terminal {
             std::thread::spawn(move || host_reader(host, tid, from, shared, id, quiet, replay));
         }
 
+        let local_pid = pty.as_ref().map(|p| p.pid() as u32);
         let state = Rc::new(State {
             shared: shared.clone(),
             pty,
@@ -587,7 +591,7 @@ impl Terminal {
         }
         area.add_controller(paste);
 
-        Terminal { widget: area }
+        Terminal { widget: area, local_pid }
     }
 }
 

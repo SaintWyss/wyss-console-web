@@ -18,6 +18,16 @@ Esta lista es el contrato: el constructor no la achica. Un ítem sin hacer es FA
 | A9 | Persistencia: cerrar la ventana deja las terminales vivas; reabrir restaura pestañas y paneles (layout guardado en disco propio) con re-enganche | Prueba con host aislado |
 | A10 | Presupuestos: RAM ventana + 1 terminal ≤ 183 MB; marginal ≤ 5 MB por terminal; CPU reposo < 0,5 % con 10 | `bench` |
 
+## Estado M3a (2026-11-18)
+
+Construido por Sonnet, verificado por Opus con teclado y mouse reales en display aislado contra host aislado
+(`prototypes/gtk-term/ui-tests/m3test.sh`): Ctrl+Shift+D/E/W/T/PgUp, foco direccional (el texto cae en el
+panel correcto), arrastre del divisor (`stty size` 33×88), `cd /tmp` en la barra de estado, clic en el riel
+abre la app Tauri, cerrar y reabrir restaura 2 pestañas y paneles. RAM 113 MB con 1 terminal, +0,2 MB por
+terminal, CPU reposo 0,1 % con 10. Pendiente menor: al re-enganchar, las líneas viejas que estaban partidas
+por un panel angosto vuelven cortadas (el repaint del host no re-parte). IBM Plex no está instalada: usa la
+sans/mono del sistema.
+
 ## M3b — resto de la Consola (después de M3a)
 
 Menú "+ Launch" con presets (Actualizar sistema, Claude, Codex) y "Full access"; tarjeta de ciclo de vida

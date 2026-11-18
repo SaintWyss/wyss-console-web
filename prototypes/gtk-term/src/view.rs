@@ -49,6 +49,20 @@ glib::wrapper! {
 }
 
 impl TermView {
+    /// A widget that only draws (an icon): not focusable, not stretched.
+    pub fn plain(draw: impl Fn(&TermView, &gtk::Snapshot, f32, f32) + 'static) -> TermView {
+        let v: TermView = glib::Object::new();
+        let weak = v.downgrade();
+        *v.imp().draw.borrow_mut() = Some(Box::new(move |snap, w, h| {
+            if let Some(me) = weak.upgrade() {
+                draw(&me, snap, w, h);
+            }
+        }));
+        v.set_focusable(false);
+        v.set_can_target(false);
+        v
+    }
+
     pub fn new(draw: DrawFn, resize: ResizeFn) -> TermView {
         let v: TermView = glib::Object::new();
         *v.imp().draw.borrow_mut() = Some(draw);

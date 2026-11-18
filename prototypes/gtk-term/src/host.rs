@@ -108,6 +108,15 @@ pub struct ListEntry {
     pub state: String,
 }
 
+/// What `term_status` says about a terminal.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Status {
+    pub state: String,
+    pub shell: String,
+    pub cwd: String,
+    pub pid: Option<u32>,
+}
+
 #[derive(Clone)]
 pub struct Host {
     path: PathBuf,
@@ -176,6 +185,10 @@ impl Host {
         parse_list(&self.call("term_list", json!({}))?)
     }
 
+    pub fn status(&self, id: &str) -> Result<Status, HostError> {
+        parse_status(&self.call("term_status", json!({"terminal_id": id}))?)
+    }
+
     /// `None` when the host has no screen for it (parser helper missing, too large...).
     pub fn screen(&self, id: &str, scrollback_lines: u32) -> Result<Option<Screen>, HostError> {
         let v = self.call_timeout("term_screen", json!({"terminal_id": id, "scrollback_lines": scrollback_lines}), Duration::from_secs(15))?;
@@ -190,6 +203,15 @@ pub fn parse_read(v: &Value) -> Result<ReadOut, HostError> {
         truncated: v["truncated"].as_bool().unwrap_or(false),
         eof: v["eof"].as_bool().unwrap_or(false),
         closed: v["closed"].as_bool().unwrap_or(false),
+    })
+}
+
+pub fn parse_status(v: &Value) -> Result<Status, HostError> {
+    Ok(Status {
+        state: v["state"].as_str().ok_or_else(|| HostError::Protocol("no state".into()))?.to_owned(),
+        shell: v["shell"].as_str().unwrap_or("").to_owned(),
+        cwd: v["cwd"].as_str().unwrap_or("").to_owned(),
+        pid: v["observed_pid"].as_u64().and_then(|p| u32::try_from(p).ok()),
     })
 }
 
@@ -250,6 +272,15 @@ mod tests {
             other => panic!("{other:?}"),
         }
         assert!(matches!(unwrap_answer(json!({"nope": 1})), Err(HostError::Protocol(_))));
+    }
+
+    #[test]
+    fn parses_status() {
+        let st = parse_status(&json!({"terminal_id": "x", "state": "running", "shell": "/bin/fish", "cwd": "/home/a", "observed_pid": 4242})).unwrap();
+        assert_eq!(st, Status { state: "running".into(), shell: "/bin/fish".into(), cwd: "/home/a".into(), pid: Some(4242) });
+        let gone = parse_status(&json!({"state": "exited", "observed_pid": null})).unwrap();
+        assert_eq!((gone.state.as_str(), gone.pid), ("exited", None));
+        assert!(parse_status(&json!({})).is_err());
     }
 
     #[test]
@@ -341,6 +372,12 @@ mod tests {
         }
         assert!(String::from_utf8_lossy(&text).contains("hola-m2"), "{:?}", String::from_utf8_lossy(&text));
         assert!(host.list().unwrap().iter().any(|e| e.id == id && e.state == "running"));
+        // What the window shows about the terminal: its process, memory and folder.
+        let st = host.status(&id).unwrap();
+        assert_eq!(st.state, "running");
+        let pid = st.pid.expect("observed_pid") as i32;
+        assert!(crate::procinfo::tree_rss(pid).unwrap() > 0);
+        assert!(crate::procinfo::cwd(pid).is_some());
         // The parser helper may need a moment to have the screen.
         let mut screen = None;
         for _ in 0..20 {

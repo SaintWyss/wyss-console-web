@@ -2,8 +2,9 @@
 
 use crate::ghostty::Rgb;
 
-pub const FG: Rgb = Rgb { r: 0xc5, g: 0xc8, b: 0xc6 };
-pub const BG: Rgb = Rgb { r: 0x16, g: 0x18, b: 0x1a };
+/// `--terminal-fg` and `--terminal-bg` of the Console (`src/app.css`).
+pub const FG: Rgb = Rgb { r: 0xec, g: 0xec, b: 0xec };
+pub const BG: Rgb = Rgb { r: 0x0e, g: 0x0e, b: 0x0e };
 
 pub fn table() -> [Rgb; 256] {
     const BASE: [(u8, u8, u8); 16] = [

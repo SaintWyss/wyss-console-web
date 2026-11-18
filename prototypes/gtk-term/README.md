@@ -27,6 +27,15 @@ guarda una captura renderizada por GSK a los 2 s.
 | Intérprete solo, 100 MB (`parsebench`) | 0,22 s | 1,40 s | — | — |
 | CPU en reposo, 10 pestañas, 10 s | 0 ticks | — | — | — |
 
+## Ventana Consola (M3a)
+
+`console.rs` arma la ventana: riel de íconos (los que no son Consola lanzan `WYSS_TAURI_BIN`), pestañas
+con RAM, árbol de paneles con `GtkPaned`, cabecera por panel, barra de estado (carpeta y rama git leídas de
+`/proc` y `.git/HEAD`, sin ejecutar `git`). El tema es `src/theme.css`. La lógica pura está en `layout.rs`
+(árbol, foco, serialización), `keymap.rs` (atajos por tecla física) y `procinfo.rs` (RSS del árbol, cwd, rama).
+El layout se guarda en `$XDG_STATE_HOME/gtk-term/layout.json` y se restaura contra `term_list` del host.
+`GTKTERM_LAYOUT_DEMO=split` y `GTKTERM_SHOT_AFTER=<s>` sirven para capturas sin teclado.
+
 ## Atajos (decisión del dueño, 2026-11-18)
 
 | Atajo | Hace |
@@ -36,6 +45,10 @@ guarda una captura renderizada por GSK a los 2 s.
 | Ctrl+Shift+C | Interrumpe (manda 0x03 al programa) |
 | Arrastrar / doble clic / triple clic | Selecciona celdas / palabra / línea; la selección queda en PRIMARY |
 | Clic del medio | Pega PRIMARY |
+| Ctrl+Shift+T / W | Pestaña nueva / cierra el panel (y su terminal en el host) |
+| Ctrl+Shift+D / E | Divide lado a lado / arriba y abajo |
+| Ctrl+Shift+←→↑↓, `.` `,` | Foco por dirección / siguiente y anterior |
+| Ctrl+Shift+PgDn/PgUp, 1..9 | Pestaña siguiente y anterior / saltar |
 
 ## Límite del host (M2, 2026-11-18)
 
